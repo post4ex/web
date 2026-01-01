@@ -32,7 +32,7 @@
         link.type = 'image/png';
         document.head.appendChild(link);
     }
-    link.href = 'https://i.postimg.cc/x84Pd7jY/laxmi-logo.png';
+    link.href = 'assets/images/laxmi-logo.png';
 })();
 
 // ============================================================================
