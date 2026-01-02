@@ -41,7 +41,7 @@
 
 const CONSTANTS = {
     // THE GATEWAY: The single URL for your Google Apps Script Backend.
-    OPERATIONS_URL: 'https://script.google.com/macros/s/AKfycbzeMp6kHzGZ7wCIydMYIdPYJuwczAYIl0-JxfqEoKJB/exec',
+    OPERATIONS_URL: 'https://script.google.com/macros/s/AKfycbxnNBUDarbTzKZuWmVHPObUZ1-jUoDFZy4d9YHkVohlVLtHPw0v28O3TazzvH6XFYYcYA/exec',
     
     // SYSTEM HEARTBEAT TIMERS
     SYNC_INTERVAL:      12 * 60 * 1000, // 12 Minutes: Refreshes business data.
