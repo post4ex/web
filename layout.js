@@ -334,6 +334,15 @@ async function callApi(action, params = {}) {
         body: new URLSearchParams(payload)
     });
     
+    // ERROR HANDLING: Check if response is actually JSON
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error("[API] Critical Error - Expected JSON but got HTML/Text:", text.substring(0, 150));
+        console.warn("[API] This usually means: 1. GAS 'Who has access' is not 'Anyone'. 2. The script crashed.");
+        throw new Error("Invalid Server Response (Not JSON)");
+    }
+
     const json = await res.json();
     
     if (json.status === 'error') {
