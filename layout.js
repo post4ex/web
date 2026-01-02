@@ -50,7 +50,7 @@ const CONSTANTS = {
     ACTIVITY_THROTTLE:  30 * 1000,      // 30 Seconds: Prevents event listener spam.
     
     // SECURITY CONFIGURATION
-    ALLOWED_DOMAINS:    ["post4ex.github.io", "ipostex.web.app"],
+    ALLOWED_DOMAINS:    ["lcsrrk.github.io"],
 
     // STORAGE KEYS
     KEYS: {
