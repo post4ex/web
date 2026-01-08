@@ -292,8 +292,23 @@
         async function callApi(action, params = {}) {
             setLoading(true, 'Connecting...');
             try {
-                const res = await fetch(API_URL, { method: 'POST', body: new URLSearchParams({ action, ...params }) });
-                
+                // Prepare the payload - ensure username/password are properly mapped for login
+                let payload = { action, ...params };
+
+                // Special handling for login action to ensure correct parameter mapping
+                if (action === 'login') {
+                    payload = {
+                        action: 'login',
+                        username: params.username,
+                        password: params.password,
+                        ip: params.ip,
+                        userAgent: params.userAgent,
+                        domain: params.domain
+                    };
+                }
+
+                const res = await fetch(API_URL, { method: 'POST', body: new URLSearchParams(payload) });
+
                 if (!res.ok) {
                     throw new Error(`Server Error: ${res.status}`);
                 }
@@ -325,15 +340,52 @@
             e.preventDefault();
             const user = document.getElementById('login-user').value.trim();
             const pass = document.getElementById('login-pass').value.trim();
-            
-            if (!user || !pass) return showMessage('Enter credentials.', 'error');
+
+            // Enhanced validation
+            if (!user) return showMessage('Please enter username.', 'error');
+            if (!pass) return showMessage('Please enter password.', 'error');
+
+            // Basic length check for password
+            if (pass.length < 6) return showMessage('Password is too short.', 'error');
 
             try {
-                const res = await callApi('login', { username: user, password: pass });
-                showMessage('Success! Redirecting...', 'success');
-                localStorage.setItem('loginData', JSON.stringify({ sessionId: res.sessionID, expires: Date.now() + 3600000, userData: res.userData, code: res.userData.USER }));
-                setTimeout(() => window.location.href = 'dashboard.html', 1000);
-            } catch (err) {}
+                // Collect client information for enhanced security
+                const clientInfo = {
+                    username: user,
+                    password: pass,
+                    ip: sessionStorage.getItem('clientIP') || '0.0.0.0',
+                    userAgent: navigator.userAgent,
+                    domain: window.location.hostname
+                };
+
+                const res = await callApi('login', clientInfo);
+
+                if (res.status === 'success' && res.sessionID) {
+                    showMessage('Login Successful! Redirecting...', 'success');
+
+                    // More secure session storage with additional metadata
+                    const loginData = {
+                        sessionId: res.sessionID,
+                        userData: res.userData,
+                        loginTime: Date.now(),
+                        expires: Date.now() + 30 * 60 * 1000, // 30 minutes
+                        code: res.userData.USER,
+                        role: res.userData.ROLE
+                    };
+
+                    localStorage.setItem('loginData', JSON.stringify(loginData));
+
+                    // Clear sensitive data from form
+                    document.getElementById('login-pass').value = '';
+
+                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                } else {
+                    showMessage(res.message || 'Login failed. Please try again.', 'error');
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                // Error is already handled in callApi function
+            }
         }
 
         async function handleRegister(e) {
