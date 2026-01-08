@@ -289,6 +289,33 @@
             }
         }
 
+        // JSONP fallback for CORS issues
+        function callApiJSONP(action, params = {}) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'jsonp_callback_' + Date.now();
+                const script = document.createElement('script');
+                
+                // Create global callback
+                window[callbackName] = function(data) {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    resolve(data);
+                };
+                
+                // Build URL with parameters
+                const urlParams = new URLSearchParams({ ...params, action, callback: callbackName });
+                script.src = `${API_URL}?${urlParams.toString()}`;
+                
+                script.onerror = () => {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    reject(new Error('JSONP request failed'));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+
         async function callApi(action, params = {}) {
             setLoading(true, 'Connecting...');
             try {
@@ -326,22 +353,31 @@
                     if (json.status === 'error') throw new Error(json.message);
                     return json;
                 } catch (fetchError) {
-                    // If POST fails due to CORS, fallback to GET with JSONP-style
-                    console.warn('POST failed, trying GET fallback:', fetchError.message);
+                    // If POST fails due to CORS, try GET
+                    console.warn('POST failed, trying GET:', fetchError.message);
                     
-                    const urlParams = new URLSearchParams(payload);
-                    const getUrl = `${API_URL}?${urlParams.toString()}`;
-                    
-                    const res = await fetch(getUrl, { method: 'GET' });
-                    
-                    if (!res.ok) {
-                        throw new Error(`Server Error: ${res.status}`);
-                    }
+                    try {
+                        const urlParams = new URLSearchParams(payload);
+                        const getUrl = `${API_URL}?${urlParams.toString()}`;
+                        
+                        const res = await fetch(getUrl, { method: 'GET' });
+                        
+                        if (!res.ok) {
+                            throw new Error(`Server Error: ${res.status}`);
+                        }
 
-                    const json = await res.json();
-                    setLoading(false);
-                    if (json.status === 'error') throw new Error(json.message);
-                    return json;
+                        const json = await res.json();
+                        setLoading(false);
+                        if (json.status === 'error') throw new Error(json.message);
+                        return json;
+                    } catch (getError) {
+                        // Final fallback: JSONP
+                        console.warn('GET failed, trying JSONP:', getError.message);
+                        const json = await callApiJSONP(action, payload);
+                        setLoading(false);
+                        if (json.status === 'error') throw new Error(json.message);
+                        return json;
+                    }
                 }
             } catch (err) {
                 setLoading(false);
