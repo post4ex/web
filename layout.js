@@ -41,6 +41,7 @@
 
 const CONSTANTS = {
     // THE GATEWAY: The single URL for your Google Apps Script Backend.
+    // IMPORTANT: Make sure this is deployed with "Who has access: Anyone"
     OPERATIONS_URL: 'https://script.google.com/macros/s/AKfycbwQpFOm5EPYPKWpImEHRowtjoCKAgs5AgyAuqVQoOAcze8SzDgXeqzV1UCRz0bRadu5zQ/exec',
     
     // SYSTEM HEARTBEAT TIMERS
