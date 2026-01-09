@@ -394,17 +394,18 @@
         function renderCustomerList(customers) {
             ui.customerList.innerHTML = '';
             ui.customerLoader.classList.remove('hidden');
-            console.log('Rendering customer list with:', customers); // DEBUG: Log data being rendered
+            console.log('Rendering customer list with:', customers);
 
-            if (!customers || customers.length === 0) {
+            if (!customers || Object.keys(customers).length === 0) {
                  ui.customerLoader.textContent = 'No matching customers.';
                 return;
             }
-            customers.sort((a, b) => (a.CODE || '').localeCompare(b.CODE || ''));
+            
+            const customerArray = Object.values(customers).sort((a, b) => (a.CODE || '').localeCompare(b.CODE || ''));
 
-            customers.forEach(cust => {
+            customerArray.forEach(cust => {
                 if(!cust.CODE) {
-                     console.warn('Skipping customer render due to missing CODE:', cust); // DEBUG
+                     console.warn('Skipping customer render due to missing CODE:', cust);
                      return;
                  }
 
@@ -423,22 +424,22 @@
             console.log('handleDataLoaded received appData:', appData);
 
             if (appData && appData.B2B) {
-                allCustomers = Array.isArray(appData.B2B) ? appData.B2B : Object.values(appData.B2B);
-                console.log('Found B2B data:', allCustomers.length, 'customers');
+                allCustomers = appData.B2B;
+                console.log('Found B2B data:', Object.keys(allCustomers).length, 'customers');
                 renderCustomerList(allCustomers);
             } else {
                 ui.customerLoader.textContent = 'No B2B customers found.';
             }
 
             if (appData && appData.MODE) {
-                allModes = Array.isArray(appData.MODE) ? appData.MODE : Object.values(appData.MODE);
+                allModes = appData.MODE;
             }
 
             if (appData && appData.RATELIST) {
-                allRates = Array.isArray(appData.RATELIST) ? appData.RATELIST : Object.values(appData.RATELIST);
-                console.log('Found RATELIST data:', allRates.length, 'rates');
+                allRates = appData.RATELIST;
+                console.log('Found RATELIST data:', Object.keys(allRates).length, 'rates');
             } else {
-                allRates = [];
+                allRates = {};
             }
 
             if (currentCustomerCode && !ui.contentRateList.classList.contains('hidden')) {
@@ -474,7 +475,7 @@
 
         // --- FORM LOGIC ---
         function populateFormForEdit(code) {
-            const customer = allCustomers.find(c => c.CODE === code);
+            const customer = allCustomers[code];
             if (!customer) {
                  showResponseMessage(`Customer with code ${code} not found.`, 'error');
                  return;
@@ -556,7 +557,7 @@
 
             // *** FIX HERE ***
             // Changed rate.Code to rate.CODE to match the likely data structure from the Google Sheet.
-            const customerRates = allRates.filter(rate => rate.CODE === customerCode);
+            const customerRates = Object.values(allRates).filter(rate => rate.CODE === customerCode);
             
             const rateMap = customerRates.reduce((acc, rate) => {
                 if(rate.UID) acc[rate.UID.trim()] = rate;
@@ -674,10 +675,10 @@
                 }
             };
 
-            const currentCustomer = allCustomers.find(c => c.CODE === customerCode);
+            const currentCustomer = allCustomers[customerCode];
             const customerBranch = currentCustomer ? currentCustomer.BRANCH : '';
 
-             allModes.forEach(mode => {
+             Object.values(allModes).forEach(mode => {
                 const modeName = mode.MODE;
                 const shortCode = mode.SHORT;
                 if (!shortCode) return;
@@ -701,10 +702,14 @@
         // --- EVENT LISTENERS ---
         ui.searchCustomerInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
-            const filtered = allCustomers.filter(c =>
-                (c.B2B_NAME || '').toLowerCase().includes(searchTerm) ||
-                (c.CODE || '').toLowerCase().includes(searchTerm)
-            );
+            const filtered = {};
+            Object.keys(allCustomers).forEach(key => {
+                const c = allCustomers[key];
+                if ((c.B2B_NAME || '').toLowerCase().includes(searchTerm) ||
+                    (c.CODE || '').toLowerCase().includes(searchTerm)) {
+                    filtered[key] = c;
+                }
+            });
             renderCustomerList(filtered);
         });
 
