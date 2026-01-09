@@ -194,22 +194,39 @@ class AppDatabase {
 // Global database instance
 window.appDB = new AppDatabase();
 
-// Initialize database on load
-document.addEventListener('DOMContentLoaded', async () => {
+// Initialize database immediately and on DOM ready
+(async function initializeDB() {
   try {
     await window.appDB.init();
     console.log('[IndexedDB] Database initialized successfully');
-    // Show success notification
+    // Dispatch custom event to notify other scripts
+    window.dispatchEvent(new CustomEvent('indexedDBReady'));
+    // Show success notification if available
     if (window.showNotification) {
       window.showNotification('✅ Database ready for offline storage', 'success');
     }
   } catch (error) {
     console.error('[IndexedDB] Failed to initialize database:', error);
-    // Show error notification
+    // Show error notification if available
     if (window.showNotification) {
       window.showNotification(`⚠️ Database initialization failed: ${error.message}`, 'error');
     }
-    // Fallback to localStorage if IndexedDB fails
+    // Set to null to indicate failure
     window.appDB = null;
+  }
+})();
+
+// Also try on DOMContentLoaded as fallback
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!window.appDB || !window.appDB.db) {
+    try {
+      if (!window.appDB) window.appDB = new AppDatabase();
+      await window.appDB.init();
+      console.log('[IndexedDB] Database initialized on DOM ready');
+      window.dispatchEvent(new CustomEvent('indexedDBReady'));
+    } catch (error) {
+      console.error('[IndexedDB] Fallback initialization failed:', error);
+      window.appDB = null;
+    }
   }
 });

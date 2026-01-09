@@ -388,9 +388,20 @@ async function verifyAndFetchAppData(force = false) {
     if (!loginData) return;
 
     // Check if IndexedDB is available
-    if (!window.appDB || !window.appDB.db) {
-        showNotification("⚠️ IndexedDB not available - Data sync disabled", "error");
+    if (!window.appDB) {
+        console.warn("[Data Engine] IndexedDB not available - using localStorage fallback");
+        showNotification("⚠️ Using localStorage fallback - Limited offline storage", "info");
         return;
+    }
+    
+    if (!window.appDB.db) {
+        console.warn("[Data Engine] IndexedDB not initialized - retrying...");
+        try {
+            await window.appDB.init();
+        } catch (error) {
+            showNotification(`⚠️ Failed to initialize database: ${error.message}`, "error");
+            return;
+        }
     }
 
     if (!force) {
@@ -1005,12 +1016,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wait for IndexedDB to initialize
     if (!window.appDB) {
         console.log("%c[SYSTEM] Waiting for IndexedDB initialization...", "color: orange; font-weight: bold;");
-        // Wait up to 3 seconds for IndexedDB to initialize
-        let attempts = 0;
-        while (!window.appDB && attempts < 30) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
+        // Wait for IndexedDB ready event or timeout after 5 seconds
+        await new Promise((resolve) => {
+            let resolved = false;
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    console.warn("%c[SYSTEM] IndexedDB initialization timeout", "color: red; font-weight: bold;");
+                    resolve();
+                }
+            }, 5000);
+            
+            window.addEventListener('indexedDBReady', () => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    resolve();
+                }
+            }, { once: true });
+            
+            // Check if already initialized
+            if (window.appDB && window.appDB.db) {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    resolve();
+                }
+            }
+        });
     }
     
     if (window.appDB) {
