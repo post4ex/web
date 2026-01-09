@@ -728,9 +728,9 @@ function checkLoginStatus() {
 
         const excludedFields = [
             'token', 'expires', 'userdata', 
-            'pass', 'password', 'reset_token', 'code', 
+            'pass', 'password', 'reset_token', 
             'status', 'message', 'success', 
-            'filter_value', 'col_filter'
+            'filter_value', 'col_filter', 'logintime'
         ];
         
         const populateDetails = (container, isMobile = false) => {
@@ -740,6 +740,14 @@ function checkLoginStatus() {
                     if (excludedFields.includes(key.toLowerCase())) return;
                     const value = allData[key];
                     if (value === null || value === undefined || value === '') return;
+                    
+                    // Skip duplicate keys (case-insensitive check)
+                    const lowerKey = key.toLowerCase();
+                    const existingKeys = Array.from(container.children).map(el => 
+                        el.textContent.split(':')[0].toLowerCase().replace(/\s+/g, '')
+                    );
+                    if (existingKeys.includes(lowerKey.replace(/_/g, ''))) return;
+                    
                     const displayKey = key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
                     
                     // Special handling for Session ID
@@ -751,7 +759,7 @@ function checkLoginStatus() {
                                 <div class="flex items-center justify-between">
                                     <p class="text-xs text-white flex-1">
                                         <strong class="font-semibold text-gray-300">${displayKey}:</strong> 
-                                        <span id="${sessionId}-value" class="font-mono">************************************</span>
+                                        <span id="${sessionId}-value" class="font-mono">****</span>
                                     </p>
                                     <button id="${sessionId}-toggle" class="ml-2 px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors" 
                                             data-visible="false" data-value="${value}">
@@ -763,13 +771,14 @@ function checkLoginStatus() {
                                 <div class="flex items-center justify-between">
                                     <p class="text-sm flex-1">
                                         <strong class="font-semibold text-gray-600">${displayKey}:</strong> 
-                                        <span id="${sessionId}-value" class="text-gray-800 font-mono">************************************</span>
+                                        <span id="${sessionId}-value" class="text-gray-800 font-mono">****</span>
                                     </p>
                                     <button id="${sessionId}-toggle" class="ml-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" 
                                             data-visible="false" data-value="${value}">
                                         Show
                                     </button>
                                 </div>`;
+                        }
                         }
                         container.appendChild(detailEl);
                         
@@ -783,7 +792,7 @@ function checkLoginStatus() {
                                     const actualValue = toggleBtn.getAttribute('data-value');
                                     
                                     if (isVisible) {
-                                        valueSpan.textContent = '************************************';
+                                        valueSpan.textContent = '****';
                                         toggleBtn.textContent = 'Show';
                                         toggleBtn.setAttribute('data-visible', 'false');
                                     } else {
