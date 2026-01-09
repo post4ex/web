@@ -76,61 +76,63 @@ const DATE_FIELDS = [
 
 /**
  * DATA SCHEMA MAP (THE SOURCE OF TRUTH)
- * Used by Search & Reporting tools to know exactly where lists are stored.
- * format: { "Display Name": ["Module", "Collection"] }
+ * Used by Search & Reporting tools to know exactly where data is stored.
+ * format: { "Display Name": "Sheet Name" }
  */
 const DATA_SCHEMA = {
-    "All Orders":       ["SHIPMENTS", "ORDERS"],
-    "Products":         ["SHIPMENTS", "PRODUCT"],
-    "Multi-Box Items":  ["SHIPMENTS", "MULTIBOX"],
-    "Uploaded Docs":    ["SHIPMENTS", "UPLOADS"],
-    "Staff List":       ["HRM", "STAFF"],
-    "Attendance Logs":  ["HRM", "ATTENDANCE"],
-    "Branches":         ["HRM", "BRANCHES"],
-    "B2B Clients":      ["CHANNEL", "B2B"],
-    "Retail Clients":   ["CHANNEL", "B2B2C"],
-    "Rate Cards":       ["CHANNEL", "RATES"],
-    "Service Pincodes": ["NETWORK", "PINCODE"],
-    "Transport Modes":  ["SERVICES", "MODE"],
-    "Carriers":         ["SERVICES", "CARRIER"]
+    "All Orders":       "RECORD",
+    "Products":         "RECORD", 
+    "Multi-Box Items":  "RECORD",
+    "Uploaded Docs":    "RECORD",
+    "Staff List":       "STAFF",
+    "Attendance Logs":  "ATTENDANCE",
+    "Branches":         "BRANCHES",
+    "B2B Clients":      "B2B",
+    "Retail Clients":   "B2B2C",
+    "Rate Cards":       "RATELIST",
+    "Transport Modes":  "MODE",
+    "Carriers":         "CARRIER",
+    "Support Tickets":  "CRM",
+    "Financial Records": "LEDGER",
+    "System Logs":      "LOGS"
 };
 // Expose for global use (e.g. by search.html)
 window.DATA_SCHEMA = DATA_SCHEMA;
 
 /**
  * DATA INSTRUCTION MAP (THE DATABASE MANUAL)
- * This guide tells developers exactly where to find specific data within
- * the local 'appData' object. Always use these paths.
- * * * HOW TO USE:
- * const appData = JSON.parse(localStorage.getItem('appData'));
- * const orders = appData.SHIPMENTS.ORDERS;
+ * This guide tells developers exactly where to find specific data.
+ * All data is now stored in IndexedDB with sheet-based organization.
+ * 
+ * HOW TO USE:
+ * const orders = await getAppData('RECORD');
+ * const staff = await getAppData('STAFF');
  */
 const DATA_INSTRUCTIONS = {
     // --- OPERATIONS & LOGISTICS ---
-    ORDERS:     'appData.SHIPMENTS.ORDERS',   // Main Order Database
-    PRODUCTS:   'appData.SHIPMENTS.PRODUCT',  // Product Catalog
-    MULTIBOX:   'appData.SHIPMENTS.MULTIBOX', // Multi-piece shipments
-    UPLOADS:    'appData.SHIPMENTS.UPLOADS',  // Uploaded Proofs/Docs
+    ORDERS:     'getAppData("RECORD")',     // Main Order Database
+    PRODUCTS:   'getAppData("RECORD")',     // Product Catalog
+    MULTIBOX:   'getAppData("RECORD")',     // Multi-piece shipments
+    UPLOADS:    'getAppData("RECORD")',     // Uploaded Proofs/Docs
     
     // --- HUMAN RESOURCES ---
-    STAFF:      'appData.HRM.STAFF',          // Employee Directory
-    ATTENDANCE: 'appData.HRM.ATTENDANCE',     // Daily Logs
-    BRANCHES:   'appData.HRM.BRANCHES',       // Office Locations
+    STAFF:      'getAppData("STAFF")',      // Employee Directory
+    ATTENDANCE: 'getAppData("ATTENDANCE")', // Daily Logs
+    BRANCHES:   'getAppData("BRANCHES")',   // Office Locations
     
     // --- COMMERCIAL & CLIENTS ---
-    CLIENTS:    'appData.CHANNEL.B2B',        // Corporate Clients
-    RETAIL:     'appData.CHANNEL.B2B2C',      // Individual Customers
-    RATES:      'appData.CHANNEL.RATES',      // Pricing Sheets
+    CLIENTS:    'getAppData("B2B")',        // Corporate Clients
+    RETAIL:     'getAppData("B2B2C")',      // Individual Customers
+    RATES:      'getAppData("RATELIST")',   // Pricing Sheets
     
     // --- INFRASTRUCTURE ---
-    PINCODES:   'appData.NETWORK.PINCODE',    // Serviceable Areas
-    MODES:      'appData.SERVICES.MODE',      // Air, Surface, Train
-    CARRIERS:   'appData.SERVICES.CARRIER',   // 3rd Party Logistics
+    MODES:      'getAppData("MODE")',       // Air, Surface, Train
+    CARRIERS:   'getAppData("CARRIER")',    // 3rd Party Logistics
     
     // --- FINANCE & CRM ---
-    LEDGER:     'appData.LEDGER',             // Financial Records (Restricted)
-    CRM:        'appData.CRM',                // Support Tickets
-    LOGS:       'appData.LOGS.LOGS'           // System Audit Trail
+    LEDGER:     'getAppData("LEDGER")',     // Financial Records (Restricted)
+    CRM:        'getAppData("CRM")',        // Support Tickets
+    LOGS:       'getAppData("LOGS")'        // System Audit Trail
 };
 
 /**
@@ -293,7 +295,7 @@ async function loadDynamicContent(url, targetElementId) {
 }
 
 // ============================================================================
-// SECTION 3: THE DATA ENGINE ("THE COURIER")
+// SECTION 3: THE DATA ENGINE ("THE COURIER") - INDEXEDDB POWERED
 // ============================================================================
 
 async function fetchClientIP() {
@@ -316,10 +318,8 @@ async function callApi(action, params = {}) {
     const loginData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.LOGIN) || '{}');
     const url = new URL(CONSTANTS.OPERATIONS_URL);
     
-    // SECURITY UPGRADE: Use POST for everything to hide params from URL logs
     const clientIP = sessionStorage.getItem(CONSTANTS.KEYS.IP) || '0.0.0.0';
     
-    // Prepare payload
     const payload = {
         action: action,
         sessionID: loginData.sessionId || '',
@@ -328,19 +328,15 @@ async function callApi(action, params = {}) {
         ...params
     };
 
-    // FIXED: Use URLSearchParams for POST body (application/x-www-form-urlencoded)
-    // Ensures Google Apps Script correctly parses 'e.parameter'
     const res = await fetch(url, {
         method: 'POST',
         body: new URLSearchParams(payload)
     });
     
-    // ERROR HANDLING: Check if response is actually JSON
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
         const text = await res.text();
         console.error("[API] Critical Error - Expected JSON but got HTML/Text:", text.substring(0, 150));
-        console.warn("[API] This usually means: 1. GAS 'Who has access' is not 'Anyone'. 2. The script crashed.");
         throw new Error("Invalid Server Response (Not JSON)");
     }
 
@@ -383,26 +379,16 @@ function applyDateFormatting(obj) {
     }
 }
 
-function deepMerge(target, source) {
-    for (const key in source) {
-        if (source[key] instanceof Object && key in target) {
-            Object.assign(source[key], deepMerge(target[key], source[key]));
-        }
-    }
-    Object.assign(target || {}, source);
-    return target;
-}
-
 async function verifyAndFetchAppData(force = false) {
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
-    if (!loginData) return;
+    if (!loginData || !window.appDB) return;
 
     if (!force) {
-        const lastSync = localStorage.getItem(CONSTANTS.KEYS.LAST_SYNC);
+        const lastSync = await window.appDB.getLastSyncTime();
         if (lastSync && (Date.now() - parseInt(lastSync) < CONSTANTS.SYNC_INTERVAL)) return; 
     }
 
-    const lastSyncTime = force ? '' : (localStorage.getItem(CONSTANTS.KEYS.LAST_SYNC) || '');
+    const lastSyncTime = force ? '' : (await window.appDB.getLastSyncTime() || '');
     console.log(`[Data Engine] Syncing... Delta Mode: ${!!lastSyncTime}, Force: ${force}`);
     
     showNotification("Connecting to Server...", "info");
@@ -410,29 +396,27 @@ async function verifyAndFetchAppData(force = false) {
     try {
         const result = await callApi('verifyAndFetchAppData', { lastSyncTime: lastSyncTime });
 
-        if (result.status === 'success' || result.success) {
-            let currentData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.DATA) || '{}');
-            const incomingData = result.updates || result.data;
-
+        if (result.status === 'success') {
+            const incomingData = result.data || {};
             applyDateFormatting(incomingData);
 
-            if (Object.keys(currentData).length === 0 || force || result.meta?.type === 'FULL') {
-                currentData = incomingData; 
+            if (force || result.meta?.type === 'FULL') {
+                // Full sync - replace all data
+                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+                    await window.appDB.clearSheet(sheetName);
+                    await window.appDB.putSheet(sheetName, sheetData);
+                }
             } else {
-                currentData = deepMerge(currentData, incomingData); 
+                // Delta sync - merge changes
+                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+                    await window.appDB.mergeSheet(sheetName, sheetData);
+                }
             }
 
-            try {
-                localStorage.setItem(CONSTANTS.KEYS.DATA, JSON.stringify(currentData));
-                localStorage.setItem(CONSTANTS.KEYS.LAST_SYNC, Date.now().toString());
-            } catch (e) {
-                showNotification("Storage Full! Clear Cache.", "error");
-                console.error("LocalStorage Quota Exceeded");
-                return;
-            }
-
+            await window.appDB.setLastSyncTime(result.syncTimestamp);
+            
             const eventType = force ? 'appDataRefreshed' : 'appDataLoaded';
-            window.dispatchEvent(new CustomEvent(eventType, { detail: { data: currentData } }));
+            window.dispatchEvent(new CustomEvent(eventType, { detail: { data: incomingData } }));
             
             showNotification(`Data Synced (${result.meta?.type || 'DELTA'})`, "success");
             console.log("[Data Engine] Sync Complete.");
@@ -443,6 +427,29 @@ async function verifyAndFetchAppData(force = false) {
         console.error("[Data Engine] Sync Error:", error);
         showNotification("Network Connection Failed", "error");
     }
+}
+
+// Helper function to get data from IndexedDB
+async function getAppData(sheetName = null) {
+    if (!window.appDB) return null;
+    
+    if (sheetName) {
+        return await window.appDB.getSheet(sheetName);
+    }
+    
+    // Get all sheets
+    const sheets = ['RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER'];
+    const result = {};
+    
+    for (const sheet of sheets) {
+        try {
+            result[sheet] = await window.appDB.getSheet(sheet);
+        } catch (error) {
+            console.warn(`Failed to load ${sheet}:`, error);
+        }
+    }
+    
+    return result;
 }
 
 // ============================================================================
@@ -472,10 +479,14 @@ function initHeartbeat() {
 function handleLogout() {
     callApi('logout').catch(() => {});
     localStorage.removeItem(CONSTANTS.KEYS.LOGIN);
-    localStorage.removeItem(CONSTANTS.KEYS.DATA);
-    localStorage.removeItem(CONSTANTS.KEYS.LAST_SYNC);
-    localStorage.removeItem(CONSTANTS.KEYS.NOTIFICATIONS); // Clear notifications on logout
+    localStorage.removeItem(CONSTANTS.KEYS.NOTIFICATIONS);
     sessionStorage.clear();
+    
+    // Clear IndexedDB
+    if (window.appDB) {
+        window.appDB.clearAll().catch(e => console.warn('Failed to clear IndexedDB:', e));
+    }
+    
     window.location.href = 'login.html';
 }
 
@@ -894,10 +905,17 @@ function initializeUI() {
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));
     scanAndFormatDates();
 
-    window.checkAppData = () => {
-        const data = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.DATA) || '{}');
-        console.group("APP DATA INSPECTOR");
-        console.table(Object.keys(data).map(k => ({ Module: k, Records: Object.keys(data[k]).length })));
+    window.checkAppData = async () => {
+        if (!window.appDB) {
+            console.warn('IndexedDB not available');
+            return null;
+        }
+        
+        const data = await getAppData();
+        console.group("APP DATA INSPECTOR (IndexedDB)");
+        Object.keys(data).forEach(sheet => {
+            console.log(`${sheet}: ${Object.keys(data[sheet] || {}).length} records`);
+        });
         console.groupEnd();
         return data;
     };
@@ -913,10 +931,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     fetchClientIP();
     
-    if (localStorage.getItem(CONSTANTS.KEYS.DATA)) {
-        console.log("%c[SYSTEM] Data is Loaded & Ready", "color: green; font-weight: bold;");
+    // Wait for IndexedDB to initialize
+    if (!window.appDB) {
+        console.log("%c[SYSTEM] Waiting for IndexedDB initialization...", "color: orange; font-weight: bold;");
+        // Wait up to 3 seconds for IndexedDB to initialize
+        let attempts = 0;
+        while (!window.appDB && attempts < 30) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+    }
+    
+    if (window.appDB) {
+        const lastSync = await window.appDB.getLastSyncTime();
+        if (lastSync) {
+            console.log("%c[SYSTEM] IndexedDB Data is Ready", "color: green; font-weight: bold;");
+        } else {
+            console.log("%c[SYSTEM] IndexedDB Ready - No Data Found", "color: orange; font-weight: bold;");
+        }
     } else {
-        console.log("%c[SYSTEM] No Data Found - Waiting for Sync", "color: orange; font-weight: bold;");
+        console.error("%c[SYSTEM] IndexedDB Failed to Initialize", "color: red; font-weight: bold;");
     }
 
     checkLoginStatus();
