@@ -420,13 +420,13 @@
 
         function handleDataLoaded(event) {
             const appData = event.detail.data;
-            console.log('handleDataLoaded received appData:', appData); // DEBUG: Log received data
+            console.log('handleDataLoaded received appData:', appData);
             let customersLoaded = false, modesLoaded = false, ratesLoaded = false;
 
             if (appData && appData.B2B && Array.isArray(appData.B2B)) {
-                console.log('Found B2B data:', appData.B2B.length, 'customers'); // DEBUG
+                console.log('Found B2B data:', appData.B2B.length, 'customers');
                 allCustomers = appData.B2B;
-                renderCustomerList(allCustomers); // THIS IS NOW SAFE TO CALL
+                renderCustomerList(allCustomers);
                 customersLoaded = true;
             } else {
                 ui.customerLoader.textContent = 'No B2B customers found in appData.';
@@ -440,18 +440,40 @@
                 console.warn("MODE data not found in appData.");
             }
 
-            // FIX: Check for "RATES" key as per user's cache data
-            if (appData && appData.RATES && Array.isArray(appData.RATES)) {
-                allRates = appData.RATES;
+            if (appData && appData.RATELIST && Array.isArray(appData.RATELIST)) {
+                allRates = appData.RATELIST;
                 ratesLoaded = true;
-                 console.log('Found RATES data:', appData.RATES.length, 'rates'); // DEBUG
+                 console.log('Found RATELIST data:', appData.RATELIST.length, 'rates');
             } else {
-                 console.warn("Expected 'RATES' array not found in appData. Using empty array.", appData);
+                 console.warn("Expected 'RATELIST' array not found in appData. Using empty array.", appData);
                  allRates = [];
             }
 
             if (currentCustomerCode && !ui.contentRateList.classList.contains('hidden') && (modesLoaded || ratesLoaded)) {
                  generateRateForm(currentCustomerCode);
+            }
+        }
+        
+        // Load from IndexedDB
+        async function loadFromIndexedDB() {
+            try {
+                if (window.IndexedDBManager) {
+                    const b2bData = await window.IndexedDBManager.getAllData('B2B');
+                    const modeData = await window.IndexedDBManager.getAllData('MODE');
+                    const rateData = await window.IndexedDBManager.getAllData('RATELIST');
+                    
+                    const indexedData = {
+                        B2B: b2bData || [],
+                        MODE: modeData || [],
+                        RATELIST: rateData || []
+                    };
+                    
+                    console.log('Loaded from IndexedDB:', indexedData);
+                    handleDataLoaded({ detail: { data: indexedData } });
+                }
+            } catch (error) {
+                console.error('Error loading from IndexedDB:', error);
+                ui.customerLoader.textContent = 'Error loading customer data.';
             }
         }
         
@@ -903,14 +925,17 @@
         resetFormsAndTabs();
         handleResize();
         
+        // Load data from IndexedDB first
+        loadFromIndexedDB();
+        
         // --- INITIAL LOAD FROM CACHE ---
         const appDataJSON = localStorage.getItem('appData');
          if (appDataJSON) {
              try {
                  const cachedData = JSON.parse(appDataJSON).data;
-                 console.log('Initial load from cache:', cachedData); // Line 433
-                 handleDataLoaded({ detail: { data: cachedData } }); // Line 434
-             } catch (e) { console.error("Error parsing cached appData", e); } // Line 435
+                 console.log('Initial load from cache:', cachedData);
+                 handleDataLoaded({ detail: { data: cachedData } });
+             } catch (e) { console.error("Error parsing cached appData", e); }
          }
 
     });
