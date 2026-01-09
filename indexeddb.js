@@ -110,6 +110,10 @@ class AppDatabase {
   }
 
   async getSheet(sheetName) {
+    if (!this.db) {
+      console.warn(`[IndexedDB] Database not initialized for getSheet(${sheetName})`);
+      return {};
+    }
     const transaction = this.db.transaction([sheetName], 'readonly');
     const store = transaction.objectStore(sheetName);
     const request = store.getAll();
@@ -183,10 +187,18 @@ class AppDatabase {
   }
 
   async getLastSyncTime() {
+    if (!this.db) {
+      console.warn('[IndexedDB] Database not initialized for getLastSyncTime');
+      return null;
+    }
     return await this.getMetadata('lastSyncTime');
   }
 
   async setLastSyncTime(timestamp) {
+    if (!this.db) {
+      console.warn('[IndexedDB] Database not initialized for setLastSyncTime');
+      return;
+    }
     await this.setMetadata('lastSyncTime', timestamp);
   }
 }

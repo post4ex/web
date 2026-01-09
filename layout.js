@@ -406,18 +406,22 @@ async function verifyAndFetchAppData(force = false) {
 
     if (!force) {
         try {
-            const lastSync = await window.appDB.getLastSyncTime();
-            if (lastSync && (Date.now() - parseInt(lastSync) < CONSTANTS.SYNC_INTERVAL)) return;
+            if (window.appDB && window.appDB.db) {
+                const lastSync = await window.appDB.getLastSyncTime();
+                if (lastSync && (Date.now() - parseInt(lastSync) < CONSTANTS.SYNC_INTERVAL)) return;
+            }
         } catch (error) {
-            showNotification(`⚠️ Failed to check last sync time: ${error.message}`, "error");
+            console.warn(`[Data Engine] Failed to check last sync time: ${error.message}`);
         }
     }
 
     let lastSyncTime = '';
     try {
-        lastSyncTime = force ? '' : (await window.appDB.getLastSyncTime() || '');
+        if (window.appDB && window.appDB.db) {
+            lastSyncTime = force ? '' : (await window.appDB.getLastSyncTime() || '');
+        }
     } catch (error) {
-        showNotification(`⚠️ Failed to get sync timestamp: ${error.message}`, "error");
+        console.warn(`[Data Engine] Failed to get sync timestamp: ${error.message}`);
         lastSyncTime = '';
     }
     
