@@ -779,7 +779,6 @@ function checkLoginStatus() {
                                     </button>
                                 </div>`;
                         }
-                        }
                         container.appendChild(detailEl);
                         
                         // Add toggle functionality
