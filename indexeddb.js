@@ -19,6 +19,19 @@ class AppDatabase {
     this.dbName = 'IpostexDB';
     this.version = 1;
     this.db = null;
+    
+    // Define unique key for each sheet
+    this.sheetKeys = {
+      'RECORD': 'ENTRY_ID',
+      'B2B': 'CODE',
+      'B2B2C': 'B2B2C_UID',
+      'RATELIST': 'RATE_UID',
+      'STAFF': 'STAFF_CODE',
+      'ATTENDANCE': 'ATTENDANCE_ID',
+      'BRANCHES': 'BRANCH_CODE',
+      'MODE': 'SHORT',
+      'CARRIER': 'COMPANY_CODE'
+    };
   }
 
   async init() {
@@ -34,7 +47,7 @@ class AppDatabase {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         
-        // Create object stores for each sheet
+        // Create object stores for each sheet with proper key paths
         const sheets = [
           'RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 
           'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER',
@@ -43,7 +56,8 @@ class AppDatabase {
         
         sheets.forEach(sheetName => {
           if (!db.objectStoreNames.contains(sheetName)) {
-            const store = db.createObjectStore(sheetName, { keyPath: 'id' });
+            const keyPath = this.sheetKeys[sheetName] || 'id';
+            const store = db.createObjectStore(sheetName, { keyPath });
             store.createIndex('TIME_STAMP', 'TIME_STAMP', { unique: false });
           }
         });
@@ -83,11 +97,16 @@ class AppDatabase {
     
     const transaction = this.db.transaction([sheetName], 'readwrite');
     const store = transaction.objectStore(sheetName);
+    const keyPath = this.sheetKeys[sheetName] || 'id';
     
-    const records = Object.keys(data).map(key => ({
-      id: key,
-      ...data[key]
-    }));
+    const records = Object.keys(data).map(key => {
+      const record = { ...data[key] };
+      // Ensure the key field exists in the record
+      if (!record[keyPath]) {
+        record[keyPath] = key;
+      }
+      return record;
+    });
     
     return new Promise((resolve, reject) => {
       let completed = 0;
@@ -117,14 +136,17 @@ class AppDatabase {
     const transaction = this.db.transaction([sheetName], 'readonly');
     const store = transaction.objectStore(sheetName);
     const request = store.getAll();
+    const keyPath = this.sheetKeys[sheetName] || 'id';
     
     return new Promise((resolve, reject) => {
       request.onsuccess = () => {
         const records = request.result;
         const result = {};
         records.forEach(record => {
-          const { id, ...data } = record;
-          result[id] = data;
+          const key = record[keyPath];
+          if (key) {
+            result[key] = record;
+          }
         });
         resolve(result);
       };
@@ -137,6 +159,7 @@ class AppDatabase {
     
     const transaction = this.db.transaction([sheetName], 'readwrite');
     const store = transaction.objectStore(sheetName);
+    const keyPath = this.sheetKeys[sheetName] || 'id';
     
     return new Promise((resolve, reject) => {
       const entries = Object.entries(deltaData);
@@ -149,7 +172,12 @@ class AppDatabase {
       }
       
       entries.forEach(([key, record]) => {
-        const request = store.put({ id: key, ...record });
+        const recordToStore = { ...record };
+        // Ensure the key field exists in the record
+        if (!recordToStore[keyPath]) {
+          recordToStore[keyPath] = key;
+        }
+        const request = store.put(recordToStore);
         request.onsuccess = () => {
           completed++;
           if (completed === total) resolve();
