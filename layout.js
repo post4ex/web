@@ -761,17 +761,39 @@ function removeNotification(id, element, badge) {
 
 // 3. Load from Storage (Runs on footerLoaded)
 function loadNotificationsFromStorage() {
+    console.log('[Notifications] Loading from storage...');
     const stored = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.NOTIFICATIONS) || '[]');
+    console.log('[Notifications] Found stored notifications:', stored.length);
+    
+    const listGlobal = document.getElementById('notification-list-global');
+    const badgeGlobal = document.getElementById('notification-badge-global');
+    
+    if (!listGlobal) {
+        console.warn('[Notifications] notification-list-global not found');
+        return;
+    }
+    
+    // Clear existing content first
+    listGlobal.innerHTML = '';
+    
+    if (stored.length === 0) {
+        listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
+        if (badgeGlobal) badgeGlobal.classList.add('hidden');
+        return;
+    }
+    
     // Iterate in reverse (oldest first) so when we prepend, newest ends up on top
     stored.slice().reverse().forEach(n => {
         renderNotificationItem(n.id, n.message, n.type, n.timestamp, false); // false = Don't show toast on load
     });
     
     // Update badges
-    const badgeGlobal = document.getElementById('notification-badge-global');
-    if (stored.length > 0) {
-        if(badgeGlobal) { badgeGlobal.innerText = stored.length; badgeGlobal.classList.remove('hidden'); }
+    if (badgeGlobal) { 
+        badgeGlobal.innerText = stored.length; 
+        badgeGlobal.classList.remove('hidden'); 
     }
+    
+    console.log('[Notifications] Loaded', stored.length, 'notifications');
 }
 
 // 4. Global Show Function
