@@ -17,7 +17,7 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'IpostexDB';
-    this.version = 1;
+    this.version = 2; // Increment version to recreate schema
     this.db = null;
     
     // Define unique key for each sheet
@@ -47,7 +47,7 @@ class AppDatabase {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         
-        // Create object stores for each sheet with proper key paths
+        // Delete existing stores if they exist (for version upgrade)
         const sheets = [
           'RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 
           'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER',
@@ -55,11 +55,16 @@ class AppDatabase {
         ];
         
         sheets.forEach(sheetName => {
-          if (!db.objectStoreNames.contains(sheetName)) {
-            const keyPath = this.sheetKeys[sheetName] || 'id';
-            const store = db.createObjectStore(sheetName, { keyPath });
-            store.createIndex('TIME_STAMP', 'TIME_STAMP', { unique: false });
+          if (db.objectStoreNames.contains(sheetName)) {
+            db.deleteObjectStore(sheetName);
           }
+        });
+        
+        // Create object stores with correct key paths
+        sheets.forEach(sheetName => {
+          const keyPath = this.sheetKeys[sheetName] || 'id';
+          const store = db.createObjectStore(sheetName, { keyPath });
+          store.createIndex('TIME_STAMP', 'TIME_STAMP', { unique: false });
         });
         
         // Create metadata store
@@ -101,8 +106,8 @@ class AppDatabase {
     
     const records = Object.keys(data).map(key => {
       const record = { ...data[key] };
-      // Ensure the key field exists in the record
-      if (!record[keyPath]) {
+      // Always use the object key as the primary key if the keyPath field is missing
+      if (!record[keyPath] || record[keyPath] === '' || record[keyPath] === null || record[keyPath] === undefined) {
         record[keyPath] = key;
       }
       return record;
@@ -173,8 +178,8 @@ class AppDatabase {
       
       entries.forEach(([key, record]) => {
         const recordToStore = { ...record };
-        // Ensure the key field exists in the record
-        if (!recordToStore[keyPath]) {
+        // Always use the object key as the primary key if the keyPath field is missing
+        if (!recordToStore[keyPath] || recordToStore[keyPath] === '' || recordToStore[keyPath] === null || recordToStore[keyPath] === undefined) {
           recordToStore[keyPath] = key;
         }
         const request = store.put(recordToStore);
