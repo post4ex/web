@@ -160,7 +160,7 @@
             // Load data from IndexedDB
             async function loadIndexedDBData() {
                 if (!window.IndexedDBManager) {
-                    console.warn('IndexedDBManager not available');
+                    console.warn('IndexedDBManager not available, waiting for initialization...');
                     return;
                 }
 
@@ -433,12 +433,29 @@
             window.addEventListener('appDataLoaded', loadData);
             window.addEventListener('appDataRefreshed', loadData);
             
+            // Listen for IndexedDB initialization
+            window.addEventListener('indexedDBReady', () => {
+                console.log('IndexedDB ready, reloading data...');
+                loadData();
+            });
+            
             // Listen for IndexedDB updates
             if (window.IndexedDBManager) {
                 window.addEventListener('indexedDBUpdated', loadData);
             }
 
+            // Initial load with retry for IndexedDB
             loadData();
+            
+            // Retry after a short delay if IndexedDBManager isn't ready
+            if (!window.IndexedDBManager) {
+                setTimeout(() => {
+                    if (window.IndexedDBManager) {
+                        console.log('IndexedDBManager now available, reloading...');
+                        loadData();
+                    }
+                }, 1000);
+            }
         });
     </script>
 </body>

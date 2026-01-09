@@ -191,7 +191,12 @@ class AppDatabase {
       console.warn('[IndexedDB] Database not initialized for getLastSyncTime');
       return null;
     }
-    return await this.getMetadata('lastSyncTime');
+    try {
+      return await this.getMetadata('lastSyncTime');
+    } catch (error) {
+      console.warn('[IndexedDB] Failed to get lastSyncTime:', error);
+      return null;
+    }
   }
 
   async setLastSyncTime(timestamp) {
@@ -199,7 +204,11 @@ class AppDatabase {
       console.warn('[IndexedDB] Database not initialized for setLastSyncTime');
       return;
     }
-    await this.setMetadata('lastSyncTime', timestamp);
+    try {
+      await this.setMetadata('lastSyncTime', timestamp);
+    } catch (error) {
+      console.warn('[IndexedDB] Failed to set lastSyncTime:', error);
+    }
   }
 }
 
@@ -268,13 +277,15 @@ window.IndexedDBManager = null;
 (async function initializeDB() {
   try {
     await window.appDB.init();
-    console.log('[IndexedDB] Database initialized successfully');
     
     // Initialize IndexedDBManager
     window.IndexedDBManager = new IndexedDBManager(window.appDB);
     
+    console.log('[IndexedDB] Database and Manager initialized successfully');
+    
     // Dispatch custom event to notify other scripts
     window.dispatchEvent(new CustomEvent('indexedDBReady'));
+    
     // Show success notification if available
     if (window.showNotification) {
       window.showNotification('✅ Database ready for offline storage', 'success');
@@ -293,15 +304,13 @@ window.IndexedDBManager = null;
 
 // Also try on DOMContentLoaded as fallback
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!window.appDB || !window.appDB.db) {
+  if (!window.appDB || !window.appDB.db || !window.IndexedDBManager) {
     try {
       if (!window.appDB) window.appDB = new AppDatabase();
-      await window.appDB.init();
-      console.log('[IndexedDB] Database initialized on DOM ready');
+      if (!window.appDB.db) await window.appDB.init();
+      if (!window.IndexedDBManager) window.IndexedDBManager = new IndexedDBManager(window.appDB);
       
-      // Initialize IndexedDBManager
-      window.IndexedDBManager = new IndexedDBManager(window.appDB);
-      
+      console.log('[IndexedDB] Database and Manager initialized on DOM ready');
       window.dispatchEvent(new CustomEvent('indexedDBReady'));
     } catch (error) {
       console.error('[IndexedDB] Fallback initialization failed:', error);
