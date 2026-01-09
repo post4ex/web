@@ -63,6 +63,8 @@ const CONSTANTS = {
         NOTIFICATIONS:  'sys_notifications' // Persistent Notification History
     }
 };
+// Expose CONSTANTS globally
+window.CONSTANTS = CONSTANTS;
 
 /**
  * DATE TRANSFORMATION CONFIGURATION (DATABASE LEVEL)
