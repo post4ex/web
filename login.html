@@ -250,14 +250,7 @@
     <script src="layout.js"></script>
 
     <script>
-        let API_URL = 'https://script.google.com/macros/s/AKfycbwQpFOm5EPYPKWpImEHRowtjoCKAgs5AgyAuqVQoOAcze8SzDgXeqzV1UCRz0bRadu5zQ/exec';
-        
-        // Use CONSTANTS if available, fallback to hardcoded URL
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.CONSTANTS && window.CONSTANTS.OPERATIONS_URL) {
-                API_URL = window.CONSTANTS.OPERATIONS_URL;
-            }
-        });
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwQpFOm5EPYPKWpImEHRowtjoCKAgs5AgyAuqVQoOAcze8SzDgXeqzV1UCRz0bRadu5zQ/exec';
         let currentView = 'login', regState = 'init', forgotState = 'send', resetToken = '';
         let tempRegData = {}; // Stores initial registration data
 
@@ -438,13 +431,13 @@
                 };
 
                 const res = await callApi('login', clientInfo);
+                console.log('Login response:', res);
 
-                if (res.status === 'success' && res.sessionID) {
-                    showMessage('Login Successful! Redirecting...', 'success');
-
+                if (res.status === 'success' && (res.sessionID || res.sessionId)) {
+                    console.log('Login successful, redirecting...');
                     // More secure session storage with additional metadata
                     const loginData = {
-                        sessionId: res.sessionID,
+                        sessionId: res.sessionID || res.sessionId,
                         userData: res.userData,
                         loginTime: Date.now(),
                         expires: Date.now() + 30 * 60 * 1000, // 30 minutes
@@ -453,11 +446,10 @@
                     };
 
                     localStorage.setItem('loginData', JSON.stringify(loginData));
-
-                    // Clear sensitive data from form
-                    document.getElementById('login-pass').value = '';
-
-                    window.location.href = 'dashboard.html';
+                    console.log('Data saved, redirecting now...');
+                    
+                    // Force redirect immediately
+                    location.href = 'dashboard.html';
                 } else {
                     showMessage(res.message || 'Login failed. Please try again.', 'error');
                 }
