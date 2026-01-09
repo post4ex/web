@@ -447,10 +447,22 @@
             }
         }
         
-        // Load from global IndexedDB - simple and direct
+        // Load from global IndexedDB - wait for it to be ready
         async function loadFromIndexedDB() {
+            // Wait for global function to be available
+            let attempts = 0;
+            while (!window.getAppData && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (!window.getAppData) {
+                ui.customerLoader.textContent = 'System not ready. Please refresh.';
+                return;
+            }
+            
             try {
-                const data = await window.getAppData(); // Use global function from layout.js
+                const data = await window.getAppData();
                 if (data) {
                     console.log('Loaded from global IndexedDB:', data);
                     handleDataLoaded({ detail: { data } });

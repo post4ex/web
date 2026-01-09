@@ -987,7 +987,10 @@ function initializeUI() {
     // Re-run on footerLoaded (because header injection happens then)
     window.addEventListener('footerLoaded', () => {
         setupClearAll();
-        loadNotificationsFromStorage(); // Load history when UI is ready
+        // Delay loading notifications to ensure dropdown is fully set up
+        setTimeout(() => {
+            loadNotificationsFromStorage();
+        }, 100);
     });
 
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));
