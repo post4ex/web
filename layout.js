@@ -381,17 +381,34 @@ function applyDateFormatting(obj) {
 
 async function verifyAndFetchAppData(force = false) {
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
-    if (!loginData || !window.appDB) return;
+    if (!loginData) return;
 
-    if (!force) {
-        const lastSync = await window.appDB.getLastSyncTime();
-        if (lastSync && (Date.now() - parseInt(lastSync) < CONSTANTS.SYNC_INTERVAL)) return; 
+    // Check if IndexedDB is available
+    if (!window.appDB || !window.appDB.db) {
+        showNotification("⚠️ IndexedDB not available - Data sync disabled", "error");
+        return;
     }
 
-    const lastSyncTime = force ? '' : (await window.appDB.getLastSyncTime() || '');
+    if (!force) {
+        try {
+            const lastSync = await window.appDB.getLastSyncTime();
+            if (lastSync && (Date.now() - parseInt(lastSync) < CONSTANTS.SYNC_INTERVAL)) return;
+        } catch (error) {
+            showNotification(`⚠️ Failed to check last sync time: ${error.message}`, "error");
+        }
+    }
+
+    let lastSyncTime = '';
+    try {
+        lastSyncTime = force ? '' : (await window.appDB.getLastSyncTime() || '');
+    } catch (error) {
+        showNotification(`⚠️ Failed to get sync timestamp: ${error.message}`, "error");
+        lastSyncTime = '';
+    }
+    
     console.log(`[Data Engine] Syncing... Delta Mode: ${!!lastSyncTime}, Force: ${force}`);
     
-    showNotification("Connecting to Server...", "info");
+    showNotification("🔄 Connecting to Server...", "info");
 
     try {
         const result = await callApi('verifyAndFetchAppData', { lastSyncTime: lastSyncTime });
@@ -400,56 +417,106 @@ async function verifyAndFetchAppData(force = false) {
             const incomingData = result.data || {};
             applyDateFormatting(incomingData);
 
+            let syncErrors = [];
+            let successCount = 0;
+            const totalSheets = Object.keys(incomingData).length;
+
             if (force || result.meta?.type === 'FULL') {
                 // Full sync - replace all data
                 for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                    await window.appDB.clearSheet(sheetName);
-                    await window.appDB.putSheet(sheetName, sheetData);
+                    try {
+                        await window.appDB.clearSheet(sheetName);
+                        await window.appDB.putSheet(sheetName, sheetData);
+                        successCount++;
+                    } catch (error) {
+                        syncErrors.push(`${sheetName}: ${error.message}`);
+                        console.error(`Failed to sync ${sheetName}:`, error);
+                    }
                 }
             } else {
                 // Delta sync - merge changes
                 for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                    await window.appDB.mergeSheet(sheetName, sheetData);
+                    try {
+                        await window.appDB.mergeSheet(sheetName, sheetData);
+                        successCount++;
+                    } catch (error) {
+                        syncErrors.push(`${sheetName}: ${error.message}`);
+                        console.error(`Failed to merge ${sheetName}:`, error);
+                    }
                 }
             }
 
-            await window.appDB.setLastSyncTime(result.syncTimestamp);
+            try {
+                await window.appDB.setLastSyncTime(result.syncTimestamp);
+            } catch (error) {
+                syncErrors.push(`Timestamp update: ${error.message}`);
+            }
             
             const eventType = force ? 'appDataRefreshed' : 'appDataLoaded';
             window.dispatchEvent(new CustomEvent(eventType, { detail: { data: incomingData } }));
             
-            showNotification(`Data Synced (${result.meta?.type || 'DELTA'})`, "success");
+            // Show comprehensive sync results
+            if (syncErrors.length > 0) {
+                const errorMsg = `⚠️ Sync completed with errors:\n${successCount}/${totalSheets} sheets synced\n\nErrors:\n${syncErrors.join('\n')}`;
+                showNotification(errorMsg, "error");
+            } else if (totalSheets > 0) {
+                showNotification(`✅ Data Synced Successfully (${result.meta?.type || 'DELTA'}) - ${successCount} sheets updated`, "success");
+            } else {
+                showNotification(`ℹ️ Sync completed - No data changes found`, "info");
+            }
+            
             console.log("[Data Engine] Sync Complete.");
         } else {
-             showNotification("Sync Error: " + (result.message || "Unknown"), "error");
+            const errorMsg = `❌ Server Error: ${result.message || "Unknown error occurred"}`;
+            showNotification(errorMsg, "error");
         }
     } catch (error) {
         console.error("[Data Engine] Sync Error:", error);
-        showNotification("Network Connection Failed", "error");
+        let errorMsg = "❌ Sync Failed: ";
+        
+        if (error.message.includes("Invalid Server Response")) {
+            errorMsg += "Server configuration issue - Check deployment settings";
+        } else if (error.message.includes("Session expired")) {
+            errorMsg += "Session expired - Please login again";
+        } else if (error.message.includes("Failed to fetch")) {
+            errorMsg += "Network connection failed - Check internet connection";
+        } else {
+            errorMsg += error.message || "Unknown network error";
+        }
+        
+        showNotification(errorMsg, "error");
     }
 }
 
-// Helper function to get data from IndexedDB
 async function getAppData(sheetName = null) {
-    if (!window.appDB) return null;
-    
-    if (sheetName) {
-        return await window.appDB.getSheet(sheetName);
+    if (!window.appDB || !window.appDB.db) {
+        console.warn('IndexedDB not available');
+        return null;
     }
     
-    // Get all sheets
-    const sheets = ['RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER'];
-    const result = {};
-    
-    for (const sheet of sheets) {
-        try {
-            result[sheet] = await window.appDB.getSheet(sheet);
-        } catch (error) {
-            console.warn(`Failed to load ${sheet}:`, error);
+    try {
+        if (sheetName) {
+            return await window.appDB.getSheet(sheetName);
         }
+        
+        // Get all sheets
+        const sheets = ['RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER'];
+        const result = {};
+        
+        for (const sheet of sheets) {
+            try {
+                result[sheet] = await window.appDB.getSheet(sheet);
+            } catch (error) {
+                console.warn(`Failed to load ${sheet}:`, error);
+                result[sheet] = {};
+            }
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('Failed to get app data:', error);
+        return null;
     }
-    
-    return result;
 }
 
 // ============================================================================

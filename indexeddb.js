@@ -57,34 +57,56 @@ class AppDatabase {
   }
 
   async setMetadata(key, value) {
+    if (!this.db) throw new Error('Database not initialized');
     const transaction = this.db.transaction(['_metadata'], 'readwrite');
     const store = transaction.objectStore('_metadata');
-    await store.put({ key, value, timestamp: Date.now() });
+    return new Promise((resolve, reject) => {
+      const request = store.put({ key, value, timestamp: Date.now() });
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async getMetadata(key) {
+    if (!this.db) throw new Error('Database not initialized');
     const transaction = this.db.transaction(['_metadata'], 'readonly');
     const store = transaction.objectStore('_metadata');
-    const result = await store.get(key);
-    return result ? result.value : null;
+    return new Promise((resolve, reject) => {
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result ? request.result.value : null);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async putSheet(sheetName, data) {
-    if (!data || typeof data !== 'object') return;
+    if (!this.db || !data || typeof data !== 'object') return;
     
     const transaction = this.db.transaction([sheetName], 'readwrite');
     const store = transaction.objectStore(sheetName);
     
-    // Convert object to array of records with proper IDs
     const records = Object.keys(data).map(key => ({
       id: key,
       ...data[key]
     }));
     
-    // Bulk insert
-    for (const record of records) {
-      await store.put(record);
-    }
+    return new Promise((resolve, reject) => {
+      let completed = 0;
+      const total = records.length;
+      
+      if (total === 0) {
+        resolve();
+        return;
+      }
+      
+      records.forEach(record => {
+        const request = store.put(record);
+        request.onsuccess = () => {
+          completed++;
+          if (completed === total) resolve();
+        };
+        request.onerror = () => reject(request.error);
+      });
+    });
   }
 
   async getSheet(sheetName) {
@@ -107,21 +129,41 @@ class AppDatabase {
   }
 
   async mergeSheet(sheetName, deltaData) {
-    if (!deltaData || typeof deltaData !== 'object') return;
+    if (!this.db || !deltaData || typeof deltaData !== 'object') return;
     
     const transaction = this.db.transaction([sheetName], 'readwrite');
     const store = transaction.objectStore(sheetName);
     
-    // Merge delta data
-    for (const [key, record] of Object.entries(deltaData)) {
-      await store.put({ id: key, ...record });
-    }
+    return new Promise((resolve, reject) => {
+      const entries = Object.entries(deltaData);
+      let completed = 0;
+      const total = entries.length;
+      
+      if (total === 0) {
+        resolve();
+        return;
+      }
+      
+      entries.forEach(([key, record]) => {
+        const request = store.put({ id: key, ...record });
+        request.onsuccess = () => {
+          completed++;
+          if (completed === total) resolve();
+        };
+        request.onerror = () => reject(request.error);
+      });
+    });
   }
 
   async clearSheet(sheetName) {
+    if (!this.db) return;
     const transaction = this.db.transaction([sheetName], 'readwrite');
     const store = transaction.objectStore(sheetName);
-    await store.clear();
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async clearAll() {
@@ -157,8 +199,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await window.appDB.init();
     console.log('[IndexedDB] Database initialized successfully');
+    // Show success notification
+    if (window.showNotification) {
+      window.showNotification('✅ Database ready for offline storage', 'success');
+    }
   } catch (error) {
     console.error('[IndexedDB] Failed to initialize database:', error);
+    // Show error notification
+    if (window.showNotification) {
+      window.showNotification(`⚠️ Database initialization failed: ${error.message}`, 'error');
+    }
     // Fallback to localStorage if IndexedDB fails
     window.appDB = null;
   }
