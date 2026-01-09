@@ -457,7 +457,7 @@
                     // Clear sensitive data from form
                     document.getElementById('login-pass').value = '';
 
-                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                    window.location.href = 'dashboard.html';
                 } else {
                     showMessage(res.message || 'Login failed. Please try again.', 'error');
                 }
