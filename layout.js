@@ -727,7 +727,7 @@ function checkLoginStatus() {
         show(['notification-container-global', 'mobile-tools-section']);
 
         const excludedFields = [
-            'sessionid', 'session_id', 'token', 'expires', 'userdata', 
+            'token', 'expires', 'userdata', 
             'pass', 'password', 'reset_token', 'code', 
             'status', 'message', 'success', 
             'filter_value', 'col_filter'
@@ -741,13 +741,69 @@ function checkLoginStatus() {
                     const value = allData[key];
                     if (value === null || value === undefined || value === '') return;
                     const displayKey = key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-                    const detailEl = document.createElement('div');
-                    if (isMobile) {
-                        detailEl.innerHTML = `<p class="text-xs text-white"><strong class="font-semibold text-gray-300">${displayKey}:</strong> <span>${value}</span></p>`;
+                    
+                    // Special handling for Session ID
+                    if (key.toLowerCase().includes('session')) {
+                        const detailEl = document.createElement('div');
+                        const sessionId = `session-${isMobile ? 'mobile' : 'desktop'}`;
+                        if (isMobile) {
+                            detailEl.innerHTML = `
+                                <div class="flex items-center justify-between">
+                                    <p class="text-xs text-white flex-1">
+                                        <strong class="font-semibold text-gray-300">${displayKey}:</strong> 
+                                        <span id="${sessionId}-value" class="font-mono">************************************</span>
+                                    </p>
+                                    <button id="${sessionId}-toggle" class="ml-2 px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors" 
+                                            data-visible="false" data-value="${value}">
+                                        Show
+                                    </button>
+                                </div>`;
+                        } else {
+                            detailEl.innerHTML = `
+                                <div class="flex items-center justify-between">
+                                    <p class="text-sm flex-1">
+                                        <strong class="font-semibold text-gray-600">${displayKey}:</strong> 
+                                        <span id="${sessionId}-value" class="text-gray-800 font-mono">************************************</span>
+                                    </p>
+                                    <button id="${sessionId}-toggle" class="ml-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" 
+                                            data-visible="false" data-value="${value}">
+                                        Show
+                                    </button>
+                                </div>`;
+                        }
+                        container.appendChild(detailEl);
+                        
+                        // Add toggle functionality
+                        setTimeout(() => {
+                            const toggleBtn = document.getElementById(`${sessionId}-toggle`);
+                            const valueSpan = document.getElementById(`${sessionId}-value`);
+                            if (toggleBtn && valueSpan) {
+                                toggleBtn.addEventListener('click', () => {
+                                    const isVisible = toggleBtn.getAttribute('data-visible') === 'true';
+                                    const actualValue = toggleBtn.getAttribute('data-value');
+                                    
+                                    if (isVisible) {
+                                        valueSpan.textContent = '************************************';
+                                        toggleBtn.textContent = 'Show';
+                                        toggleBtn.setAttribute('data-visible', 'false');
+                                    } else {
+                                        valueSpan.textContent = actualValue;
+                                        toggleBtn.textContent = 'Hide';
+                                        toggleBtn.setAttribute('data-visible', 'true');
+                                    }
+                                });
+                            }
+                        }, 100);
                     } else {
-                        detailEl.innerHTML = `<p class="text-sm"><strong class="font-semibold text-gray-600">${displayKey}:</strong> <span class="text-gray-800">${value}</span></p>`;
+                        // Regular field display
+                        const detailEl = document.createElement('div');
+                        if (isMobile) {
+                            detailEl.innerHTML = `<p class="text-xs text-white"><strong class="font-semibold text-gray-300">${displayKey}:</strong> <span>${value}</span></p>`;
+                        } else {
+                            detailEl.innerHTML = `<p class="text-sm"><strong class="font-semibold text-gray-600">${displayKey}:</strong> <span class="text-gray-800">${value}</span></p>`;
+                        }
+                        container.appendChild(detailEl);
                     }
-                    container.appendChild(detailEl);
                 });
             }
         };
