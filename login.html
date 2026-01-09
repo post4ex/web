@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LCS V5.6 - Secure Access</title>
+    
+    <!-- Preload critical components -->
+    <link rel="preload" href="header.html" as="fetch" crossorigin>
+    <link rel="preload" href="footer.html" as="fetch" crossorigin>
+    <link rel="preload" href="layout.js" as="script">
+    <link rel="preload" href="indexeddb.js" as="script">
+    
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
@@ -24,7 +31,9 @@
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
     <!-- HEADER INJECTION POINT -->
-    <div id="header-placeholder"></div>
+    <div id="header-placeholder">
+        <div class="animate-pulse bg-gray-200 h-16 w-full"></div>
+    </div>
 
     <!-- MAIN CONTENT (Centered Compact Card) -->
     <main class="flex-grow flex items-center justify-center p-4">
@@ -234,9 +243,12 @@
     </main>
 
     <!-- FOOTER INJECTION POINT -->
-    <div id="footer-placeholder"></div>
+    <div id="footer-placeholder">
+        <div class="animate-pulse bg-gray-200 h-12 w-full"></div>
+    </div>
 
     <!-- REQUIRED LAYOUT SCRIPT -->
+    <script src="indexeddb.js"></script>
     <script src="layout.js"></script>
 
     <script>

@@ -226,43 +226,47 @@ window.ROLE_LEVELS = ROLE_LEVELS;
 
 async function loadComponent(componentUrl, placeholderId) {
     try {
-        const response = await fetch(componentUrl);
+        const placeholder = document.getElementById(placeholderId);
+        if (!placeholder) return;
+        
+        // Show loading indicator immediately
+        placeholder.innerHTML = '<div class="animate-pulse bg-gray-200 h-16 w-full rounded"></div>';
+        
+        const response = await fetch(componentUrl, { 
+            cache: 'force-cache',
+            priority: 'high'
+        });
         if (!response.ok) throw new Error(`Failed to load ${componentUrl}`);
         
         const text = await response.text();
-        const placeholder = document.getElementById(placeholderId);
-        if (!placeholder) return;
-
         const parser = new DOMParser();
         const doc = parser.parseFromString(text, 'text/html');
         
+        // Extract and execute scripts synchronously for faster loading
         const scripts = Array.from(doc.querySelectorAll('script'));
-        const scriptLoadPromises = scripts.map(script => {
-            return new Promise((resolve, reject) => {
-                const newScript = document.createElement('script');
-                Array.from(script.attributes).forEach(attr => 
-                    newScript.setAttribute(attr.name, attr.value)
-                );
+        scripts.forEach(script => {
+            const newScript = document.createElement('script');
+            if (script.src) {
+                newScript.src = script.src;
+            } else {
                 newScript.textContent = script.textContent;
-                
-                if (script.src) {
-                    newScript.onload = resolve;
-                    newScript.onerror = resolve; 
-                } else {
-                    resolve();
-                }
-                document.head.appendChild(newScript);
-            });
+            }
+            document.head.appendChild(newScript);
+            script.remove();
         });
-
-        await Promise.all(scriptLoadPromises);
-        scripts.forEach(s => s.remove()); 
+        
+        // Insert content immediately
+        placeholder.innerHTML = '';
         while (doc.body.firstChild) {
             placeholder.appendChild(doc.body.firstChild);
         }
 
     } catch (error) {
         console.warn(`[Component Engine] Critical Failure loading ${componentUrl}:`, error);
+        const placeholder = document.getElementById(placeholderId);
+        if (placeholder) {
+            placeholder.innerHTML = `<div class="text-red-500 text-sm p-2">Failed to load ${componentUrl}</div>`;
+        }
     }
 }
 
@@ -1022,10 +1026,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     checkLoginStatus();
 
-    await Promise.all([
-        loadComponent('header.html', 'header-placeholder'),
-        loadComponent('footer.html', 'footer-placeholder')
-    ]);
+    // Load header first (priority), then footer
+    await loadComponent('header.html', 'header-placeholder');
+    loadComponent('footer.html', 'footer-placeholder'); // Load footer in background
 
     window.dispatchEvent(new CustomEvent('footerLoaded'));
     
