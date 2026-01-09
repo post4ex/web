@@ -449,28 +449,35 @@
         
         // Load from global IndexedDB - wait for it to be ready
         async function loadFromIndexedDB() {
+            console.log('[Customer] Starting loadFromIndexedDB...');
+            
             // Wait for global function to be available
             let attempts = 0;
             while (!window.getAppData && attempts < 50) {
+                console.log(`[Customer] Waiting for getAppData... attempt ${attempts + 1}`);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
             
             if (!window.getAppData) {
+                console.error('[Customer] getAppData not available after 5 seconds');
                 ui.customerLoader.textContent = 'System not ready. Please refresh.';
                 return;
             }
             
+            console.log('[Customer] getAppData available, calling it...');
             try {
                 const data = await window.getAppData();
+                console.log('[Customer] getAppData returned:', data);
                 if (data) {
-                    console.log('Loaded from global IndexedDB:', data);
+                    console.log('[Customer] Loaded from global IndexedDB:', data);
                     handleDataLoaded({ detail: { data } });
                 } else {
+                    console.warn('[Customer] No data returned from getAppData');
                     ui.customerLoader.textContent = 'No data available.';
                 }
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('[Customer] Error loading data:', error);
                 ui.customerLoader.textContent = 'Error loading customer data.';
             }
         }
