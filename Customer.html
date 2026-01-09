@@ -447,25 +447,18 @@
             }
         }
         
-        // Load from IndexedDB
+        // Load from global IndexedDB - simple and direct
         async function loadFromIndexedDB() {
             try {
-                if (window.IndexedDBManager) {
-                    const b2bData = await window.IndexedDBManager.getAllData('B2B');
-                    const modeData = await window.IndexedDBManager.getAllData('MODE');
-                    const rateData = await window.IndexedDBManager.getAllData('RATELIST');
-                    
-                    const indexedData = {
-                        B2B: b2bData || [],
-                        MODE: modeData || [],
-                        RATELIST: rateData || []
-                    };
-                    
-                    console.log('Loaded from IndexedDB:', indexedData);
-                    handleDataLoaded({ detail: { data: indexedData } });
+                const data = await window.getAppData(); // Use global function from layout.js
+                if (data) {
+                    console.log('Loaded from global IndexedDB:', data);
+                    handleDataLoaded({ detail: { data } });
+                } else {
+                    ui.customerLoader.textContent = 'No data available.';
                 }
             } catch (error) {
-                console.error('Error loading from IndexedDB:', error);
+                console.error('Error loading data:', error);
                 ui.customerLoader.textContent = 'Error loading customer data.';
             }
         }
@@ -922,18 +915,12 @@
         resetFormsAndTabs();
         handleResize();
         
-        // Load data from IndexedDB first
+        // Load data immediately - globals are already ready
         loadFromIndexedDB();
         
-        // --- INITIAL LOAD FROM CACHE ---
-        const appDataJSON = localStorage.getItem('appData');
-         if (appDataJSON) {
-             try {
-                 const cachedData = JSON.parse(appDataJSON).data;
-                 console.log('Initial load from cache:', cachedData);
-                 handleDataLoaded({ detail: { data: cachedData } });
-             } catch (e) { console.error("Error parsing cached appData", e); }
-         }
+        // Listen for data updates from layout.js
+        window.addEventListener('appDataLoaded', handleDataLoaded);
+        window.addEventListener('appDataRefreshed', handleDataLoaded);
 
     });
     </script>
