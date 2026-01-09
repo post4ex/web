@@ -96,7 +96,7 @@
 </head>
 <body class="bg-gray-100 flex flex-col h-screen">
     <!-- Header placeholder -->
-    <div id="header-placeholder"></div>
+    <div id="header-placeholder"><div class="animate-pulse bg-gray-200 h-16 w-full"></div></div>
 
     <!-- Main content container -->
     <div class="flex flex-col md:flex-row flex-grow w-full min-h-0">
@@ -203,12 +203,13 @@
     </div>
 
     <!-- Footer placeholder -->
-    <div id="footer-placeholder"></div>
+    <div id="footer-placeholder"><div class="animate-pulse bg-gray-200 h-12 w-full"></div></div>
 
     <!-- 
       *** CRITICAL FIX: Ensure external scripts are loaded before the main inline script. ***
     -->
     <script src="docgen.js"></script>
+    <script src="indexeddb.js"></script>
     <script src="layout.js"></script>
     
     <script>

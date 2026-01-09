@@ -43,7 +43,7 @@
 </head>
 <body class="bg-gray-100 flex flex-col min-h-screen">
 
-    <div id="header-placeholder"></div>
+    <div id="header-placeholder"><div class="animate-pulse bg-gray-200 h-16 w-full"></div></div>
 
     <main class="flex-grow w-full flex items-center justify-center p-4">
         <div id="mainContainer" class="flex flex-col md:flex-row w-full max-w-7xl mx-auto gap-8 h-[calc(100vh-10rem)]">
@@ -142,8 +142,9 @@
         </div>
     </main>
 
-    <div id="footer-placeholder"></div>
+    <div id="footer-placeholder"><div class="animate-pulse bg-gray-200 h-12 w-full"></div></div>
 
+    <script src="indexeddb.js"></script>
     <script src="layout.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {

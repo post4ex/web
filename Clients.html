@@ -30,7 +30,7 @@
 <body class="bg-gray-100 text-gray-800">
 
     <!-- Header will be injected here by layout.js -->
-    <div id="header-placeholder"></div>
+    <div id="header-placeholder"><div class="animate-pulse bg-gray-200 h-16 w-full"></div></div>
 
     <!-- Main Content -->
     <div class="flex flex-col md:flex-row flex-grow w-full md:h-[calc(100vh-88px)]">
@@ -167,9 +167,10 @@
     </div>
 
     <!-- Footer will be injected here by layout.js -->
-    <div id="footer-placeholder"></div>
+    <div id="footer-placeholder"><div class="animate-pulse bg-gray-200 h-12 w-full"></div></div>
 
     <!-- layout.js MUST be loaded first -->
+    <script src="indexeddb.js"></script>
     <script src="layout.js"></script>
 
     <!-- Page-specific script -->

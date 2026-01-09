@@ -12,7 +12,7 @@
     <script src="assets/js/chart.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
-    <div id="header-placeholder"></div>
+    <div id="header-placeholder"><div class="animate-pulse bg-gray-200 h-16 w-full"></div></div>
 
     <main class="flex-grow p-4 sm:p-8">
         <div class="container mx-auto">
@@ -91,7 +91,9 @@
         </div>
     </main>
 
-    <div id="footer-placeholder"></div>
+    <div id="footer-placeholder">
+        <div class="animate-pulse bg-gray-200 h-12 w-full"></div>
+    </div>
 
     <!-- Service Content Area -->
     <div id="services-content-area" class="hidden"></div>
@@ -155,6 +157,7 @@
         </div>
     </div>
 
+    <script src="indexeddb.js"></script>
     <script src="layout.js"></script>
     <script>
         // Service loading function
