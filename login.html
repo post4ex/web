@@ -329,10 +329,8 @@
         async function callApi(action, params = {}) {
             setLoading(true, 'Connecting...');
             try {
-                // Prepare the payload - ensure username/password are properly mapped for login
                 let payload = { action, ...params };
 
-                // Special handling for login action to ensure correct parameter mapping
                 if (action === 'login') {
                     payload = {
                         action: 'login',
@@ -344,51 +342,22 @@
                     };
                 }
 
-                // Try POST first (preferred method)
-                try {
-                    const res = await fetch(API_URL, { 
-                        method: 'POST', 
-                        body: new URLSearchParams(payload),
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        }
-                    });
-
-                    if (!res.ok) {
-                        throw new Error(`Server Error: ${res.status}`);
+                const res = await fetch(API_URL, { 
+                    method: 'POST', 
+                    body: new URLSearchParams(payload),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
                     }
+                });
 
-                    const json = await res.json();
-                    setLoading(false);
-                    if (json.status === 'error') throw new Error(json.message);
-                    return json;
-                } catch (fetchError) {
-                    // If POST fails due to CORS, try GET
-                    console.warn('POST failed, trying GET:', fetchError.message);
-                    
-                    try {
-                        const urlParams = new URLSearchParams(payload);
-                        const getUrl = `${API_URL}?${urlParams.toString()}`;
-                        
-                        const res = await fetch(getUrl, { method: 'GET' });
-                        
-                        if (!res.ok) {
-                            throw new Error(`Server Error: ${res.status}`);
-                        }
-
-                        const json = await res.json();
-                        setLoading(false);
-                        if (json.status === 'error') throw new Error(json.message);
-                        return json;
-                    } catch (getError) {
-                        // Final fallback: JSONP
-                        console.warn('GET failed, trying JSONP:', getError.message);
-                        const json = await callApiJSONP(action, payload);
-                        setLoading(false);
-                        if (json.status === 'error') throw new Error(json.message);
-                        return json;
-                    }
+                if (!res.ok) {
+                    throw new Error(`Server Error: ${res.status}`);
                 }
+
+                const json = await res.json();
+                setLoading(false);
+                if (json.status === 'error') throw new Error(json.message);
+                return json;
             } catch (err) {
                 setLoading(false);
                 let msg = err.message;

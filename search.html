@@ -112,50 +112,84 @@
             const fabRefresh = document.getElementById('fab-refresh');
 
             let flattenedDataMap = new Map(); 
+            let indexedDBData = new Map(); // Store IndexedDB data
 
-            // 1. DATA LOADER VIA SCHEMA
-            function loadData() {
+            // 1. DATA LOADER VIA SCHEMA AND INDEXEDDB
+            async function loadData() {
+                // Load from localStorage (existing functionality)
                 const appDataStr = localStorage.getItem('appData');
-                if (!appDataStr) {
-                    console.warn("Search: No Data Found");
-                    return; 
-                }
+                if (appDataStr) {
+                    try {
+                        const rawData = JSON.parse(appDataStr);
+                        const dataTree = rawData.data || rawData; 
+                        flattenedDataMap.clear();
 
-                try {
-                    const rawData = JSON.parse(appDataStr);
-                    const dataTree = rawData.data || rawData; 
-                    flattenedDataMap.clear();
-
-                    // USE SCHEMA from layout.js
-                    if (window.DATA_SCHEMA) {
-                        for (const [name, path] of Object.entries(window.DATA_SCHEMA)) {
-                            // Traverse: e.g. SHIPMENTS -> ORDERS
-                            let pointer = dataTree;
-                            let valid = true;
-                            for (const step of path) {
-                                if (pointer && pointer[step]) pointer = pointer[step];
-                                else { valid = false; break; }
-                            }
-                            
-                            if (valid && typeof pointer === 'object') {
-                                // pointer is now the Collection (e.g. { "ORD-1": {...}, "ORD-2": {...} })
-                                // We convert it to array for search
-                                const records = Object.values(pointer);
-                                if(records.length > 0) {
-                                    // Tag source
-                                    records.forEach(r => { if(typeof r === 'object') r._source_ = name; });
-                                    flattenedDataMap.set(name, records);
+                        // USE SCHEMA from layout.js
+                        if (window.DATA_SCHEMA) {
+                            for (const [name, path] of Object.entries(window.DATA_SCHEMA)) {
+                                // Traverse: e.g. SHIPMENTS -> ORDERS
+                                let pointer = dataTree;
+                                let valid = true;
+                                for (const step of path) {
+                                    if (pointer && pointer[step]) pointer = pointer[step];
+                                    else { valid = false; break; }
+                                }
+                                
+                                if (valid && typeof pointer === 'object') {
+                                    // pointer is now the Collection (e.g. { "ORD-1": {...}, "ORD-2": {...} })
+                                    // We convert it to array for search
+                                    const records = Object.values(pointer);
+                                    if(records.length > 0) {
+                                        // Tag source
+                                        records.forEach(r => { if(typeof r === 'object') r._source_ = name; });
+                                        flattenedDataMap.set(name, records);
+                                    }
                                 }
                             }
                         }
-                    } else {
-                        // Very basic fallback if schema missing
-                        console.error("Search: DATA_SCHEMA missing in layout.js");
+                    } catch (e) {
+                        console.error("Search: Parse Error", e);
+                    }
+                }
+
+                // Load from IndexedDB
+                await loadIndexedDBData();
+                populateDropdown();
+            }
+
+            // Load data from IndexedDB
+            async function loadIndexedDBData() {
+                if (!window.IndexedDBManager) {
+                    console.warn('IndexedDBManager not available');
+                    return;
+                }
+
+                try {
+                    indexedDBData.clear();
+                    
+                    // Get all store names from IndexedDB
+                    const storeNames = await window.IndexedDBManager.getAllStoreNames();
+                    
+                    for (const storeName of storeNames) {
+                        try {
+                            const data = await window.IndexedDBManager.getAll(storeName);
+                            if (data && data.length > 0) {
+                                // Tag with source and add to IndexedDB data
+                                const taggedData = data.map(item => ({
+                                    ...item,
+                                    _source_: `IDB_${storeName}`,
+                                    _storage_: 'IndexedDB'
+                                }));
+                                indexedDBData.set(`IDB_${storeName}`, taggedData);
+                            }
+                        } catch (storeError) {
+                            console.warn(`Failed to load from store ${storeName}:`, storeError);
+                        }
                     }
                     
-                    populateDropdown();
-                } catch (e) {
-                    console.error("Search: Parse Error", e);
+                    console.log(`Loaded ${indexedDBData.size} IndexedDB stores`);
+                } catch (error) {
+                    console.error('Failed to load IndexedDB data:', error);
                 }
             }
 
@@ -163,16 +197,40 @@
             function populateDropdown() {
                 const currentSelection = sourceSelect.value;
                 sourceSelect.innerHTML = '<option value="ALL_DATA">All Databases (Global)</option>';
-                const sortedKeys = Array.from(flattenedDataMap.keys()).sort();
                 
+                // Add localStorage data sources
+                const sortedKeys = Array.from(flattenedDataMap.keys()).sort();
                 sortedKeys.forEach(key => {
                     const option = document.createElement('option');
                     option.value = key;
-                    option.textContent = key;
+                    option.textContent = `${key} (LocalStorage)`;
                     sourceSelect.appendChild(option);
                 });
 
-                if (currentSelection && (currentSelection === 'ALL_DATA' || flattenedDataMap.has(currentSelection))) {
+                // Add IndexedDB data sources
+                const sortedIDBKeys = Array.from(indexedDBData.keys()).sort();
+                sortedIDBKeys.forEach(key => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = `${key.replace('IDB_', '')} (IndexedDB)`;
+                    sourceSelect.appendChild(option);
+                });
+
+                // Add separator and special options
+                if (sortedIDBKeys.length > 0) {
+                    const separator = document.createElement('option');
+                    separator.disabled = true;
+                    separator.textContent = '--- IndexedDB Only ---';
+                    sourceSelect.appendChild(separator);
+                    
+                    const idbOnlyOption = document.createElement('option');
+                    idbOnlyOption.value = 'INDEXEDDB_ONLY';
+                    idbOnlyOption.textContent = 'All IndexedDB Data';
+                    sourceSelect.appendChild(idbOnlyOption);
+                }
+
+                if (currentSelection && (currentSelection === 'ALL_DATA' || currentSelection === 'INDEXEDDB_ONLY' || 
+                    flattenedDataMap.has(currentSelection) || indexedDBData.has(currentSelection))) {
                     sourceSelect.value = currentSelection;
                 }
             }
@@ -196,13 +254,14 @@
                 // Detect Headers (Union of first few rows)
                 let headerSet = new Set();
                 const isGlobal = sourceSelect.value === 'ALL_DATA';
+                const isIDBOnly = sourceSelect.value === 'INDEXEDDB_ONLY';
                 
                 data.slice(0, 10).forEach(row => {
                     Object.keys(row).forEach(k => {
                         // Filter out heavy nested objects to keep table clean
                         // Exception: We keep primitives and maybe specific small objects if needed
                         const val = row[k];
-                        if (k !== '_source_' && (typeof val !== 'object' || val === null)) {
+                        if (k !== '_source_' && k !== '_storage_' && (typeof val !== 'object' || val === null)) {
                             headerSet.add(k);
                         }
                     });
@@ -210,11 +269,18 @@
                 
                 const headers = Array.from(headerSet).sort();
 
-                if (isGlobal) {
+                if (isGlobal || isIDBOnly) {
                     const th = document.createElement('th');
                     th.className = "px-6 py-3 text-left text-xs font-bold text-blue-600 uppercase bg-blue-50 sticky left-0";
                     th.textContent = "SOURCE";
                     tableHeaders.appendChild(th);
+                    
+                    if (isGlobal) {
+                        const thStorage = document.createElement('th');
+                        thStorage.className = "px-6 py-3 text-left text-xs font-bold text-green-600 uppercase bg-green-50";
+                        thStorage.textContent = "STORAGE";
+                        tableHeaders.appendChild(thStorage);
+                    }
                 }
 
                 headers.forEach(h => {
@@ -229,11 +295,20 @@
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-gray-50 transition-colors";
                     
-                    if (isGlobal) {
+                    if (isGlobal || isIDBOnly) {
                         const td = document.createElement('td');
                         td.className = "px-6 py-4 whitespace-nowrap text-xs font-bold text-blue-600 sticky left-0 bg-white";
-                        td.textContent = row._source_ || '-';
+                        td.textContent = (row._source_ || '-').replace('IDB_', '');
                         tr.appendChild(td);
+                        
+                        if (isGlobal) {
+                            const tdStorage = document.createElement('td');
+                            tdStorage.className = "px-6 py-4 whitespace-nowrap text-xs font-semibold";
+                            const storage = row._storage_ || 'LocalStorage';
+                            tdStorage.textContent = storage;
+                            tdStorage.className += storage === 'IndexedDB' ? ' text-green-600' : ' text-blue-600';
+                            tr.appendChild(tdStorage);
+                        }
                     }
 
                     headers.forEach(h => {
@@ -255,8 +330,19 @@
                 const term = searchInput.value.toLowerCase().trim();
                 const source = sourceSelect.value;
 
-                if (source !== 'ALL_DATA') {
-                    const dataset = flattenedDataMap.get(source) || [];
+                // Handle specific data source selection
+                if (source !== 'ALL_DATA' && source !== 'INDEXEDDB_ONLY') {
+                    let dataset = [];
+                    
+                    // Check localStorage data
+                    if (flattenedDataMap.has(source)) {
+                        dataset = flattenedDataMap.get(source);
+                    }
+                    // Check IndexedDB data
+                    else if (indexedDBData.has(source)) {
+                        dataset = indexedDBData.get(source);
+                    }
+                    
                     if (!term) renderTable(dataset);
                     else {
                         const filtered = dataset.filter(row => 
@@ -269,6 +355,32 @@
                     return;
                 }
 
+                // Handle IndexedDB only search
+                if (source === 'INDEXEDDB_ONLY') {
+                    if (!term) {
+                        let allIDBData = [];
+                        for (const dataset of indexedDBData.values()) {
+                            allIDBData = allIDBData.concat(dataset);
+                        }
+                        renderTable(allIDBData);
+                        return;
+                    }
+                    
+                    let idbResults = [];
+                    for (const dataset of indexedDBData.values()) {
+                        if (idbResults.length >= 200) break;
+                        const matches = dataset.filter(row => 
+                            Object.values(row).some(val => 
+                                (typeof val === 'string' || typeof val === 'number') && String(val).toLowerCase().includes(term)
+                            )
+                        );
+                        idbResults = idbResults.concat(matches);
+                    }
+                    renderTable(idbResults);
+                    return;
+                }
+
+                // Handle global search (ALL_DATA)
                 if (!term) {
                     tableWrapper.classList.add('hidden');
                     emptyState.classList.remove('hidden');
@@ -276,6 +388,8 @@
                 }
 
                 let globalResults = [];
+                
+                // Search localStorage data
                 for (const [key, dataset] of flattenedDataMap.entries()) {
                     if (globalResults.length >= 200) break;
                     const matches = dataset.filter(row => 
@@ -285,6 +399,18 @@
                     );
                     globalResults = globalResults.concat(matches);
                 }
+                
+                // Search IndexedDB data
+                for (const [key, dataset] of indexedDBData.entries()) {
+                    if (globalResults.length >= 200) break;
+                    const matches = dataset.filter(row => 
+                        Object.values(row).some(val => 
+                            (typeof val === 'string' || typeof val === 'number') && String(val).toLowerCase().includes(term)
+                        )
+                    );
+                    globalResults = globalResults.concat(matches);
+                }
+                
                 renderTable(globalResults);
             }
 
@@ -306,6 +432,11 @@
 
             window.addEventListener('appDataLoaded', loadData);
             window.addEventListener('appDataRefreshed', loadData);
+            
+            // Listen for IndexedDB updates
+            if (window.IndexedDBManager) {
+                window.addEventListener('indexedDBUpdated', loadData);
+            }
 
             loadData();
         });

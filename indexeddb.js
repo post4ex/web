@@ -206,11 +206,73 @@ class AppDatabase {
 // Global database instance
 window.appDB = new AppDatabase();
 
+// IndexedDB Manager for search functionality
+class IndexedDBManager {
+  constructor(appDB) {
+    this.appDB = appDB;
+  }
+
+  async getAllStoreNames() {
+    if (!this.appDB || !this.appDB.db) {
+      throw new Error('Database not initialized');
+    }
+    
+    const storeNames = [];
+    for (let i = 0; i < this.appDB.db.objectStoreNames.length; i++) {
+      const storeName = this.appDB.db.objectStoreNames[i];
+      if (storeName !== '_metadata') {
+        storeNames.push(storeName);
+      }
+    }
+    return storeNames;
+  }
+
+  async getAll(storeName) {
+    if (!this.appDB || !this.appDB.db) {
+      throw new Error('Database not initialized');
+    }
+    
+    const transaction = this.appDB.db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const records = request.result || [];
+        resolve(records);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async count(storeName) {
+    if (!this.appDB || !this.appDB.db) {
+      throw new Error('Database not initialized');
+    }
+    
+    const transaction = this.appDB.db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    
+    return new Promise((resolve, reject) => {
+      const request = store.count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+}
+
+// Global IndexedDBManager instance
+window.IndexedDBManager = null;
+
 // Initialize database immediately and on DOM ready
 (async function initializeDB() {
   try {
     await window.appDB.init();
     console.log('[IndexedDB] Database initialized successfully');
+    
+    // Initialize IndexedDBManager
+    window.IndexedDBManager = new IndexedDBManager(window.appDB);
+    
     // Dispatch custom event to notify other scripts
     window.dispatchEvent(new CustomEvent('indexedDBReady'));
     // Show success notification if available
@@ -225,6 +287,7 @@ window.appDB = new AppDatabase();
     }
     // Set to null to indicate failure
     window.appDB = null;
+    window.IndexedDBManager = null;
   }
 })();
 
@@ -235,10 +298,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!window.appDB) window.appDB = new AppDatabase();
       await window.appDB.init();
       console.log('[IndexedDB] Database initialized on DOM ready');
+      
+      // Initialize IndexedDBManager
+      window.IndexedDBManager = new IndexedDBManager(window.appDB);
+      
       window.dispatchEvent(new CustomEvent('indexedDBReady'));
     } catch (error) {
       console.error('[IndexedDB] Fallback initialization failed:', error);
       window.appDB = null;
+      window.IndexedDBManager = null;
     }
   }
 });
