@@ -421,36 +421,28 @@
         function handleDataLoaded(event) {
             const appData = event.detail.data;
             console.log('handleDataLoaded received appData:', appData);
-            let customersLoaded = false, modesLoaded = false, ratesLoaded = false;
 
-            if (appData && appData.B2B && Array.isArray(appData.B2B)) {
-                console.log('Found B2B data:', appData.B2B.length, 'customers');
-                allCustomers = appData.B2B;
+            if (appData && appData.B2B) {
+                allCustomers = Array.isArray(appData.B2B) ? appData.B2B : Object.values(appData.B2B);
+                console.log('Found B2B data:', allCustomers.length, 'customers');
                 renderCustomerList(allCustomers);
-                customersLoaded = true;
             } else {
-                ui.customerLoader.textContent = 'No B2B customers found in appData.';
-                console.warn("Expected 'B2B' array not found or not an array in appData.", appData);
+                ui.customerLoader.textContent = 'No B2B customers found.';
             }
 
             if (appData && appData.MODE) {
-                allModes = appData.MODE;
-                modesLoaded = true;
-            } else {
-                console.warn("MODE data not found in appData.");
+                allModes = Array.isArray(appData.MODE) ? appData.MODE : Object.values(appData.MODE);
             }
 
-            if (appData && appData.RATELIST && Array.isArray(appData.RATELIST)) {
-                allRates = appData.RATELIST;
-                ratesLoaded = true;
-                 console.log('Found RATELIST data:', appData.RATELIST.length, 'rates');
+            if (appData && appData.RATELIST) {
+                allRates = Array.isArray(appData.RATELIST) ? appData.RATELIST : Object.values(appData.RATELIST);
+                console.log('Found RATELIST data:', allRates.length, 'rates');
             } else {
-                 console.warn("Expected 'RATELIST' array not found in appData. Using empty array.", appData);
-                 allRates = [];
+                allRates = [];
             }
 
-            if (currentCustomerCode && !ui.contentRateList.classList.contains('hidden') && (modesLoaded || ratesLoaded)) {
-                 generateRateForm(currentCustomerCode);
+            if (currentCustomerCode && !ui.contentRateList.classList.contains('hidden')) {
+                generateRateForm(currentCustomerCode);
             }
         }
         
