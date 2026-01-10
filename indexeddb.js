@@ -16,7 +16,7 @@
 
 class AppDatabase {
   constructor() {
-    this.dbName = 'IpostexDB';
+    this.dbName = 'LCSIndexedDB';
     this.version = 2; // Increment version to recreate schema
     this.db = null;
     
