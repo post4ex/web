@@ -759,6 +759,13 @@
 
         ui.customerForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            
+            // Ensure CODE is uppercase before submit
+            const codeInput = ui.customerForm.querySelector('[name="CODE"]');
+            if (codeInput && codeInput.value) {
+                codeInput.value = codeInput.value.toUpperCase();
+            }
+            
              handleRequest(
                  'customer',
                  'submit',
