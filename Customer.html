@@ -267,9 +267,6 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- CONFIGURATION ---
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwcZAkvu9JAxVpVeWT5pTOi6j2yEbJuFb48B-pweCG5BWZNLhbVYXP9Rzm_v6iXmdUGrw/exec';
-
         // --- STATE ---
         let allCustomers = []; // B2B list
         let allModes = [];     // MODE list
@@ -862,42 +859,26 @@
 
         // --- CORE NETWORK REQUEST FUNCTION ---
         async function handleRequest(type, action, dataOrForm, spinner, button, buttonTextSpan, successCallback, errorCallback) {
-
             let submitData;
-             if (dataOrForm instanceof HTMLFormElement) {
-                 submitData = {};
-                 new FormData(dataOrForm).forEach((value, key) => { submitData[key] = value; });
-             } else {
-                 submitData = dataOrForm;
-             }
-
-             const sessionData = JSON.parse(localStorage.getItem('sessionData') || '{}');
-             if (!sessionData.sessionId) {
-                 showResponseMessage('Session expired. Please log in again.', 'error');
-                 return;
-             }
+            if (dataOrForm instanceof HTMLFormElement) {
+                submitData = {};
+                new FormData(dataOrForm).forEach((value, key) => { submitData[key] = value; });
+            } else {
+                submitData = dataOrForm;
+            }
 
             if(spinner) spinner.classList.remove('hidden');
             if(button) button.disabled = true;
             const originalButtonText = buttonTextSpan ? buttonTextSpan.textContent : '';
             if(buttonTextSpan) buttonTextSpan.textContent = 'Processing...';
 
-            const payload = {
-                action: type === 'customer' ? 'writeB2B' : 'writeRateList',
-                sessionID: sessionData.sessionId,
-                data: submitData,
-                isUpdate: isUpdateMode
-            };
-
             try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams(payload)
+                const apiAction = type === 'customer' ? 'writeB2B' : 'writeRateList';
+                const result = await window.callApi(apiAction, {
+                    data: submitData,
+                    isUpdate: isUpdateMode
                 });
 
-                if (!response.ok) throw new Error(`Network error: ${response.status}`);
-                const result = await response.json();
                 if (result.status === 'error') throw new Error(result.message);
 
                 showResponseMessage(result.message || 'Operation successful.', 'success');
@@ -910,12 +891,11 @@
 
             } catch (error) {
                 showResponseMessage(error.message, 'error');
-                 if(errorCallback) errorCallback(error);
-
+                if(errorCallback) errorCallback(error);
             } finally {
-                 if(spinner) spinner.classList.add('hidden');
-                 if(button) button.disabled = false;
-                 if(buttonTextSpan) buttonTextSpan.textContent = originalButtonText;
+                if(spinner) spinner.classList.add('hidden');
+                if(button) button.disabled = false;
+                if(buttonTextSpan) buttonTextSpan.textContent = originalButtonText;
             }
         }
 
