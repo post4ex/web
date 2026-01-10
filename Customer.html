@@ -881,6 +881,8 @@
 
             try {
                 const apiAction = type === 'customer' ? 'writeB2B' : 'writeRateList';
+                console.log('[Customer] Sending to API:', { action: apiAction, data: submitData, isUpdate: isUpdateMode });
+                
                 const result = await window.callApi(apiAction, {
                     data: submitData,
                     isUpdate: isUpdateMode
