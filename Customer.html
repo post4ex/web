@@ -870,7 +870,10 @@
             let submitData;
             if (dataOrForm instanceof HTMLFormElement) {
                 submitData = {};
-                new FormData(dataOrForm).forEach((value, key) => { submitData[key] = value; });
+                new FormData(dataOrForm).forEach((value, key) => { 
+                    submitData[key] = value || ''; 
+                });
+                console.log('[Customer] Form data collected:', submitData);
             } else {
                 submitData = dataOrForm;
             }

@@ -333,10 +333,20 @@ async function callApi(action, params = {}) {
         userAgent: navigator.userAgent,
         ...params
     };
+    
+    // Stringify nested objects for URLSearchParams
+    const formData = new URLSearchParams();
+    for (const [key, value] of Object.entries(payload)) {
+        if (typeof value === 'object' && value !== null) {
+            formData.append(key, JSON.stringify(value));
+        } else {
+            formData.append(key, value);
+        }
+    }
 
     const res = await fetch(url, {
         method: 'POST',
-        body: new URLSearchParams(payload)
+        body: formData
     });
     
     const contentType = res.headers.get("content-type");
