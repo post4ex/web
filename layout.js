@@ -198,15 +198,12 @@ const PAGE_CONFIG = {
     'Branches.html':    'MASTER',
     'Mode.html':        'MASTER',
     'Carrier.html':     'MASTER',
-    'Customer.html':    'MASTER',
-    'Clients.html':     'MASTER',
-    'Suppliers.html':   'MASTER',
-    'Vendors.html':     'MASTER',
+    'B2B.html':         'MASTER',
+    'B2B2C.html':       'MASTER',
     'Staff.html':       'MASTER',
     'Stock.html':       'MASTER',
 
     // --- ADMIN ---
-    'Agent.html':       'ADMIN'
 };
 
 const ROLE_LEVELS = {
