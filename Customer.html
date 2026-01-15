@@ -724,6 +724,7 @@
 
         ui.newCustomerBtn.addEventListener('click', () => {
             resetFormsAndTabs();
+            isUpdateMode = false; // Ensure new customer mode
             showFormView();
         });
 
@@ -880,13 +881,38 @@
             if(buttonTextSpan) buttonTextSpan.textContent = 'Processing...';
 
             try {
-                const apiAction = type === 'customer' ? 'writeB2B' : 'writeRateList';
-                console.log('[Customer] Sending to API:', { action: apiAction, data: submitData, isUpdate: isUpdateMode });
+                let apiAction, params;
                 
-                const result = await window.callApi(apiAction, {
-                    data: submitData,
-                    isUpdate: isUpdateMode
-                });
+                if (type === 'customer') {
+                    if (action === 'delete') {
+                        apiAction = 'deleteB2B';
+                        params = { code: submitData.CODE };
+                    } else {
+                        apiAction = 'writeB2B';
+                        params = { 
+                            data: submitData, 
+                            isUpdate: isUpdateMode,
+                            code: currentCustomerCode 
+                        };
+                    }
+                } else if (type === 'ratelist') {
+                    if (action === 'delete') {
+                        apiAction = 'deleteRateList';
+                        params = { code: submitData.code, rateUIDs: submitData.rateUIDs };
+                    } else {
+                        apiAction = 'writeRateList';
+                        params = { 
+                            code: submitData.code,
+                            branch: submitData.branch,
+                            rates: submitData.rates,
+                            isUpdate: true // Rates are always updates/upserts
+                        };
+                    }
+                }
+                
+                console.log(`[Customer] Sending to API:`, { action: apiAction, params });
+                
+                const result = await window.callApi(apiAction, params);
 
                 if (result.status === 'error') throw new Error(result.message);
 
