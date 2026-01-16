@@ -699,7 +699,7 @@
             ui.codeInput.value = currentCustomerCode;
             ui.codeInput.readOnly = true;
             ui.codeInput.classList.add('readonly-input');
-            ui.formTitle.textContent = `Edit Customer: ${code}`;
+            ui.formTitle.textContent = `Edit Customer: ${currentCustomerCode}`;
             ui.customerButtonText.textContent = `Update Customer`;
             ui.deleteCustomerButton.classList.remove('hidden');
             ui.tabRateList.disabled = false;
@@ -1274,10 +1274,37 @@
                 codeInput.value = codeInput.value.toUpperCase();
             }
             
+            // Ensure BRANCH is uppercase before submit
+            const branchInput = ui.customerForm.querySelector('[name="BRANCH"]');
+            if (branchInput && branchInput.value) {
+                branchInput.value = branchInput.value.toUpperCase();
+            }
+            
+            // Convert all text fields to uppercase
+            const textFields = ['B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE', 'ID_GST_PAN_ADHAR'];
+            textFields.forEach(fieldName => {
+                const input = ui.customerForm.querySelector(`[name="${fieldName}"]`);
+                if (input && input.value) {
+                    input.value = input.value.toUpperCase();
+                }
+            });
+            
+            // Convert percentage fields from display (18) to backend (0.18)
+            const percentFields = ['%_TOPAY_IF', '%_COD_IF', '%_FOV_IF', 'FUEL_CHARGES', 'DEV_CHARGES'];
+            const formData = new FormData(ui.customerForm);
+            const submitData = {};
+            formData.forEach((value, key) => {
+                if (percentFields.includes(key) && value) {
+                    submitData[key] = parseFloat(value) / 100;
+                } else {
+                    submitData[key] = value || '';
+                }
+            });
+            
              handleRequest(
                  'customer',
                  'submit',
-                 ui.customerForm,
+                 submitData,
                  ui.customerSpinner,
                  ui.submitCustomerButton,
                  ui.customerButtonText,
