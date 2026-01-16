@@ -78,7 +78,27 @@
                 </button>
             </div>
 
-            <div class="w-full mx-auto bg-white rounded-lg shadow-lg p-6">
+            <!-- Read-Only Customer View -->
+            <div id="customerViewContainer" class="w-full mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Customer Details</h1>
+                    <div class="flex gap-2">
+                        <button id="printCustomerBtn" class="text-sm bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700">
+                            Print
+                        </button>
+                        <button id="editCustomerBtn" class="text-sm bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
+                            Edit
+                        </button>
+                        <button id="softDeleteCustomerBtn" class="text-sm bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div id="customerViewContent"></div>
+            </div>
+
+            <!-- Editable Form Container -->
+            <div id="customerEditContainer" class="w-full mx-auto bg-white rounded-lg shadow-lg p-6">
                 <h1 id="formTitle" class="text-2xl font-bold text-gray-900 mb-4 text-center">Manage Customer</h1>
                 <div id="responseMessage" class="mb-4 text-center p-3 rounded-lg text-sm hidden"></div>
 
@@ -151,6 +171,7 @@
                                     <option value="ACTIVE">ACTIVE</option>
                                     <option value="BLOCKED">BLOCKED</option>
                                     <option value="QUOTED">QUOTED</option>
+                                    <option value="DELETED">DELETED</option>
                                 </select>
                             </div>
                             <div class="md:col-span-1">
@@ -299,19 +320,22 @@
                     </form>
                 </div>
 
-            </div> <!-- End Card -->
+            </div> <!-- End Edit Container -->
         </main>
     </div>
 
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="modal-overlay hidden">
         <div class="modal-content relative card text-center max-w-md">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Confirm Deletion</h2>
-            <p class="text-gray-600 mb-6">Are you sure you want to delete customer <strong id="customerToDelete" class="font-bold"></strong> and all associated rates? This action cannot be undone.</p>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Confirm Soft Delete</h2>
+            <p class="text-gray-600 mb-2">Delete customer <strong id="customerToDelete" class="font-bold"></strong>?</p>
+            <p class="text-sm text-yellow-600 mb-4">Customer will be marked as DELETED. Rates remain unchanged.</p>
+            <input type="text" id="deleteOtpInput" placeholder="Enter OTP" class="form-input mb-4" maxlength="6">
             <div class="flex justify-center gap-4">
                 <button id="cancelDeleteBtn" class="px-6 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300">Cancel</button>
+                <button id="sendOtpBtn" class="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Send OTP</button>
                 <button id="confirmDeleteBtn" class="px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center disabled:bg-red-400">
-                    <span>Confirm Delete</span>
+                    <span>Confirm</span>
                     <div id="deleteSpinner" class="spinner hidden ml-3" style="width: 20px; height: 20px;"></div>
                 </button>
             </div>
@@ -340,6 +364,9 @@
             // Containers & Views
             customerListContainer: document.getElementById('customerListContainer'),
             customerFormContainer: document.getElementById('customerFormContainer'),
+            customerViewContainer: document.getElementById('customerViewContainer'),
+            customerEditContainer: document.getElementById('customerEditContainer'),
+            customerViewContent: document.getElementById('customerViewContent'),
             contentCustomerDetails: document.getElementById('contentCustomerDetails'),
             contentRateList: document.getElementById('contentRateList'),
             rateTableContainer: document.getElementById('rateTableContainer'),
@@ -370,6 +397,11 @@
             deleteCustomerButton: document.getElementById('deleteCustomerButton'),
             setDefaultRatesBtn: document.getElementById('setDefaultRatesBtn'),
             modeCheckboxes: document.getElementById('modeCheckboxes'),
+            printCustomerBtn: document.getElementById('printCustomerBtn'),
+            editCustomerBtn: document.getElementById('editCustomerBtn'),
+            softDeleteCustomerBtn: document.getElementById('softDeleteCustomerBtn'),
+            sendOtpBtn: document.getElementById('sendOtpBtn'),
+            deleteOtpInput: document.getElementById('deleteOtpInput'),
             submitRatesButton: document.getElementById('submitRatesButton'),
             ratesButtonText: document.getElementById('ratesButtonText'),
             ratesSpinner: document.getElementById('ratesSpinner'),
@@ -458,7 +490,9 @@
                 return;
             }
             
-            const customerArray = Object.values(customers).sort((a, b) => (a.CODE || '').localeCompare(b.CODE || ''));
+            const customerArray = Object.values(customers)
+                .filter(c => c.STATUS !== 'DELETED') // Hide deleted customers
+                .sort((a, b) => (a.CODE || '').localeCompare(b.CODE || ''));
 
             customerArray.forEach(cust => {
                 if(!cust.CODE) {
@@ -543,6 +577,45 @@
         window.addEventListener('appDataRefreshed', handleDataLoaded);
 
         // --- FORM LOGIC ---
+        function showCustomerView(customer) {
+            ui.customerViewContainer.classList.remove('hidden');
+            ui.customerEditContainer.classList.add('hidden');
+            
+            const customerRates = Object.values(allRates).filter(rate => rate.CODE === customer.CODE);
+            
+            let html = `
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                    <div><span class="font-semibold text-gray-600">Code:</span> ${customer.CODE || '-'}</div>
+                    <div class="col-span-2"><span class="font-semibold text-gray-600">Name:</span> ${customer.B2B_NAME || '-'}</div>
+                    <div><span class="font-semibold text-gray-600">Branch:</span> ${customer.BRANCH || '-'}</div>
+                    <div><span class="font-semibold text-gray-600">Status:</span> <span class="px-2 py-1 rounded text-xs ${customer.STATUS === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${customer.STATUS || '-'}</span></div>
+                    <div><span class="font-semibold text-gray-600">Type:</span> ${customer.B2B_TYPE || '-'}</div>
+                    <div><span class="font-semibold text-gray-600">Mobile:</span> ${customer.MOBILE_NUMBER || '-'}</div>
+                    <div class="col-span-2"><span class="font-semibold text-gray-600">Email:</span> ${customer.EMAIL || '-'}</div>
+                    <div class="col-span-3"><span class="font-semibold text-gray-600">Address:</span> ${customer.B2B_ADDRESS || '-'}</div>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Rate List (${customerRates.length} rates)</h3>
+            `;
+            
+            if (customerRates.length > 0) {
+                html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100">';
+                html += '<th class="border p-2">Mode</th><th class="border p-2">Weight</th>';
+                for (let i = 1; i <= 14; i++) html += `<th class="border p-2">Z${i}</th>`;
+                html += '</tr></thead><tbody>';
+                
+                customerRates.forEach(rate => {
+                    html += `<tr><td class="border p-2">${rate.MODE || '-'}</td><td class="border p-2">${rate.WEIGHT || '-'}</td>`;
+                    for (let i = 1; i <= 14; i++) html += `<td class="border p-2 text-right">${rate[`Z${i}`] || '-'}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<p class="text-gray-500 text-center py-4">No rates defined.</p>';
+            }
+            
+            ui.customerViewContent.innerHTML = html;
+        }
+        
         function populateFormForEdit(code) {
             const customer = allCustomers[code];
             if (!customer) {
@@ -553,6 +626,18 @@
 
             currentCustomerCode = code;
             isUpdateMode = true;
+
+            // Show read-only view first
+            showCustomerView(customer);
+            showFormView();
+        }
+        
+        function switchToEditMode() {
+            const customer = allCustomers[currentCustomerCode];
+            if (!customer) return;
+            
+            ui.customerViewContainer.classList.add('hidden');
+            ui.customerEditContainer.classList.remove('hidden');
 
             for (const key in customer) {
                 const input = ui.customerForm.querySelector(`[name="${key}"]`);
@@ -587,7 +672,9 @@
             ui.customerForm.reset();
             ui.rateForm.reset();
             ui.rateTableContainer.innerHTML = `<p id="rateLoader" class="text-center p-4 text-gray-500">Select or save a customer to view/edit rates.</p>`;
-            ui.modeCheckboxes.innerHTML = ''; // Clear mode checkboxes
+            ui.modeCheckboxes.innerHTML = '';
+            ui.customerViewContainer.classList.add('hidden');
+            ui.customerEditContainer.classList.remove('hidden'); // Clear mode checkboxes
 
             currentCustomerCode = null;
             isUpdateMode = false;
@@ -967,8 +1054,9 @@
             const filtered = {};
             Object.keys(allCustomers).forEach(key => {
                 const c = allCustomers[key];
-                if ((c.B2B_NAME || '').toLowerCase().includes(searchTerm) ||
-                    (c.CODE || '').toLowerCase().includes(searchTerm)) {
+                if (c.STATUS !== 'DELETED' && // Exclude deleted
+                    ((c.B2B_NAME || '').toLowerCase().includes(searchTerm) ||
+                    (c.CODE || '').toLowerCase().includes(searchTerm))) {
                     filtered[key] = c;
                 }
             });
@@ -982,6 +1070,43 @@
         });
 
         ui.backToListBtn.addEventListener('click', showListView);
+        
+        ui.editCustomerBtn.addEventListener('click', () => {
+            if (!currentCustomerCode) return;
+            switchToEditMode();
+        });
+        
+        ui.printCustomerBtn.addEventListener('click', () => {
+            window.print();
+        });
+        
+        ui.softDeleteCustomerBtn.addEventListener('click', () => {
+            if (!currentCustomerCode) return;
+            const customer = allCustomers[currentCustomerCode];
+            const name = customer?.B2B_NAME || currentCustomerCode;
+            ui.customerToDeleteSpan.textContent = `${name} (${currentCustomerCode})`;
+            ui.deleteOtpInput.value = '';
+            ui.deleteModal.classList.remove('hidden');
+        });
+        
+        ui.sendOtpBtn.addEventListener('click', async () => {
+            if (!currentCustomerCode) return;
+            try {
+                ui.sendOtpBtn.disabled = true;
+                ui.sendOtpBtn.textContent = 'Sending...';
+                const result = await window.callApi('sendDeleteOtp', { code: currentCustomerCode });
+                if (result.status === 'success') {
+                    showResponseMessage('OTP sent to your email', 'success');
+                } else {
+                    showResponseMessage(result.message || 'Failed to send OTP', 'error');
+                }
+            } catch (error) {
+                showResponseMessage(error.message, 'error');
+            } finally {
+                ui.sendOtpBtn.disabled = false;
+                ui.sendOtpBtn.textContent = 'Send OTP';
+            }
+        });
         
         function generateModeCheckboxes() {
             const standardModes = ['premium', 'express', 'airline', 'surface'];
@@ -1071,10 +1196,15 @@
 
         ui.confirmDeleteBtn.addEventListener('click', () => {
              if (!currentCustomerCode) return;
+             const otp = ui.deleteOtpInput.value.trim();
+             if (!otp) {
+                 showResponseMessage('Please enter OTP', 'error');
+                 return;
+             }
              handleRequest(
                 'customer',
                 'delete',
-                { CODE: currentCustomerCode },
+                { CODE: currentCustomerCode, otp: otp },
                 ui.deleteSpinner,
                 ui.confirmDeleteBtn,
                 null,
