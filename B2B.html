@@ -20,6 +20,9 @@
         .rate-input { text-align: right; padding: 0.3rem 0.5rem; width: 60px; /* Fixed width */ appearance: textfield; /* Remove number spinners */ margin: 0;}
         .rate-input::-webkit-outer-spin-button,
         .rate-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .rate-row { display: none; }
+        .rate-row.visible { display: table-row; }
+        .add-row-btn { cursor: pointer; color: #3b82f6; font-weight: bold; font-size: 1rem; padding: 0 0.5rem; }
 
         .rate-header { font-size: 0.75rem; /* text-xs */ font-weight: 600; text-align: center; padding: 0.4rem 0.2rem; background-color: #f9fafb; border: 1px solid #e5e7eb; white-space: nowrap; }
         .rate-label-col { font-size: 0.75rem; font-weight: 500; text-align: left; padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background-color:#f9fafb; white-space: nowrap;}
@@ -142,6 +145,25 @@
                                     <option value="VENDOR">VENDOR</option>
                                 </select>
                             </div>
+                            <div class="md:col-span-1">
+                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status*</label>
+                                <select name="STATUS" id="status" required class="form-input">
+                                    <option value="ACTIVE">ACTIVE</option>
+                                    <option value="BLOCKED">BLOCKED</option>
+                                    <option value="QUOTED">QUOTED</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="clearing_chg" class="block text-sm font-medium text-gray-700 mb-1">Clearing Charge</label>
+                                <input type="number" step="any" name="CLEARING_CHG" id="clearing_chg" class="form-input" placeholder="e.g., 50">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="rate_list" class="block text-sm font-medium text-gray-700 mb-1">Rate List Type*</label>
+                                <select name="RATE_LIST" id="rate_list" required class="form-input">
+                                    <option value="SIMPLIFIED">SIMPLIFIED</option>
+                                    <option value="DYNAMIC">DYNAMIC</option>
+                                </select>
+                            </div>
                         </div>
                         <h3 class="text-md font-semibold text-indigo-600 mt-5 mb-3 border-t pt-4">Charges & Settings</h3>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
@@ -224,13 +246,49 @@
 
                 <!-- Rate List Tab Content -->
                 <div id="contentRateList" class="tab-content hidden">
-                    <h2 class="text-lg font-semibold text-indigo-600 mb-4">Rate List for <span id="rateListCustomerCode" class="font-bold"></span></h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-indigo-600">Rate List for <span id="rateListCustomerCode" class="font-bold"></span></h2>
+                        <button type="button" id="setDefaultRatesBtn" class="hidden text-sm bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400">
+                            Set Default Rates
+                        </button>
+                    </div>
+                    
+                    <!-- Mode Selector for Other Modes -->
+                    <div id="modeSelector" class="mb-4 p-4 bg-gray-50 border rounded-lg">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Select Additional Modes:</label>
+                        <div id="modeCheckboxes" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <!-- Checkboxes will be generated here -->
+                        </div>
+                    </div>
+                    
                     <form id="rateForm">
-                        <!-- Rate Table Container -->
                         <div id="rateTableContainer" class="overflow-x-auto relative border rounded-md max-h-[60vh]"><!-- Added max-height -->
                             <p id="rateLoader" class="text-center p-4 text-gray-500">Loading rates...</p>
                             <!-- Table will be generated here by JS -->
                         </div>
+
+                        <div class="mt-4 p-4 border-l-4 border-gray-500 bg-gray-50">
+                            <h3 class="text-md font-bold text-gray-800 mb-2">Zone Information</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-1 text-sm text-gray-700">
+                                <div><span class="font-semibold">Z1:</span> UP UK WEST</div>
+                                <div><span class="font-semibold">Z2:</span> UP DIRECT</div>
+                                <div><span class="font-semibold">Z3:</span> HR PB RAJ DIRECT</div>
+                                <div><span class="font-semibold">Z4:</span> DELHI NCR</div>
+                                <div><span class="font-semibold">Z5:</span> REST OF UP UK</div>
+                                <div><span class="font-semibold">Z6:</span> REST OF HR PB RAJ</div>
+                                <div><span class="font-semibold">Z7:</span> JAMMU HP BHR CGG JHR MP</div>
+                                <div><span class="font-semibold">Z8:</span> METROS</div>
+                                <div><span class="font-semibold">Z9:</span> NON METROS</div>
+                                <div><span class="font-semibold">Z10:</span> GWT SXR SLG</div>
+                                <div><span class="font-semibold">Z11:</span> AP KAR KER ORS PY TN TL WB</div>
+                                <div><span class="font-semibold">Z12:</span> DNH DND JNK</div>
+                                <div><span class="font-semibold">Z13:</span> AR ASM MNP ML MZM NGL SKM TPR</div>
+                                <div><span class="font-semibold">Z14:</span> PORTBLIER IMPHAL AGARTALA</div>
+                            </div>
+                        </div>
+
+                         <p class="text-sm text-gray-600 mt-4 text-center">Click "Save All Rates" to save all changes made to the rate list. This will overwrite any existing rates for this customer.</p>
+
                          <!-- Rate Form Action Buttons -->
                         <div class="mt-6 flex justify-center items-center gap-4 flex-wrap border-t pt-6">
                             <button type="submit" id="submitRatesButton" class="text-white bg-green-600 hover:bg-green-700 font-medium rounded-lg text-sm px-8 py-3 text-center flex items-center justify-center disabled:bg-green-400">
@@ -310,6 +368,8 @@
             customerButtonText: document.getElementById('customerButtonText'),
             customerSpinner: document.getElementById('customerSpinner'),
             deleteCustomerButton: document.getElementById('deleteCustomerButton'),
+            setDefaultRatesBtn: document.getElementById('setDefaultRatesBtn'),
+            modeCheckboxes: document.getElementById('modeCheckboxes'),
             submitRatesButton: document.getElementById('submitRatesButton'),
             ratesButtonText: document.getElementById('ratesButtonText'),
             ratesSpinner: document.getElementById('ratesSpinner'),
@@ -527,6 +587,7 @@
             ui.customerForm.reset();
             ui.rateForm.reset();
             ui.rateTableContainer.innerHTML = `<p id="rateLoader" class="text-center p-4 text-gray-500">Select or save a customer to view/edit rates.</p>`;
+            ui.modeCheckboxes.innerHTML = ''; // Clear mode checkboxes
 
             currentCustomerCode = null;
             isUpdateMode = false;
@@ -564,54 +625,101 @@
                  return;
             }
 
-            // *** FIX HERE ***
-            // Changed rate.Code to rate.CODE to match the likely data structure from the Google Sheet.
+            const currentCustomer = allCustomers[customerCode];
+            const rateListType = currentCustomer?.RATE_LIST || 'DYNAMIC';
+            const isSimplified = rateListType === 'SIMPLIFIED';
+
             const customerRates = Object.values(allRates).filter(rate => rate.CODE === customerCode);
             
             const rateMap = customerRates.reduce((acc, rate) => {
-                if(rate.UID) acc[rate.UID.trim()] = rate;
+                if(rate.RATE_UID) acc[rate.RATE_UID.trim()] = rate;
                 return acc;
             }, {});
+
+            // Show/hide default rates button based on whether rates exist
+            if (customerRates.length === 0) {
+                ui.setDefaultRatesBtn.classList.remove('hidden');
+            } else {
+                ui.setDefaultRatesBtn.classList.add('hidden');
+            }
+            
+            // Generate mode checkboxes only once
+            if (ui.modeCheckboxes.children.length === 0) {
+                generateModeCheckboxes();
+            }
 
             const table = document.createElement('table');
             table.className = 'w-full text-xs border-collapse table-fixed';
 
             const thead = table.createTHead();
             const headerRow = thead.insertRow();
-            // FIX: Removed UID from header
+            
             const headersInfo = [
-                { text: 'Mode', width: 'w-24' }, // Increased width
-                { text: 'Wt', width: 'w-16' }, // Increased width
+                { text: 'Mode', width: 'w-24' },
+                { text: 'Wt', width: 'w-16' },
             ];
 
-            // FIX: Adjust left-offsets for 2 columns
              headersInfo.forEach((info, index) => {
                 const th = document.createElement('th');
                 th.textContent = info.text;
                 th.className = `rate-header sticky top-0 ${info.width}`;
                 let leftOffset = 0;
-                if (index === 1) leftOffset = 96; // Approx width of w-24
+                if (index === 1) leftOffset = 96;
                 
                 th.style.left = `${leftOffset}px`;
                 th.style.zIndex = '6';
                 headerRow.appendChild(th);
             });
 
-            for (let i = 1; i <= 14; i++) {
-                const th = document.createElement('th');
-                th.textContent = `Z${i}`;
-                th.className = 'rate-header w-16';
-                headerRow.appendChild(th);
+            // Simplified zone headers
+            const simplifiedZones = [
+                { label: 'REGIONAL', zones: [1, 2] },
+                { label: 'NCR', zones: [4] },
+                { label: 'NORTH', zones: [3, 5, 6] },
+                { label: 'METRO', zones: [7, 8] },
+                { label: 'ROI', zones: [9, 10, 11, 12] },
+                { label: 'EAST', zones: [13, 14] }
+            ];
+
+            if (isSimplified) {
+                simplifiedZones.forEach(zone => {
+                    const th = document.createElement('th');
+                    th.textContent = zone.label;
+                    th.className = 'rate-header w-20';
+                    headerRow.appendChild(th);
+                });
+            } else {
+                for (let i = 1; i <= 14; i++) {
+                    const th = document.createElement('th');
+                    th.textContent = `Z${i}`;
+                    th.className = 'rate-header w-16';
+                    headerRow.appendChild(th);
+                }
             }
 
             const tbody = table.createTBody();
 
-            const addRateRow = (modeName, modeShortCode, weight, branchCode) => {
+            const addRateRow = (modeName, modeShortCode, weight, branchCode, weightsArray, weightIndex) => {
                 const row = tbody.insertRow();
+                row.className = 'rate-row';
+                row.dataset.uid = `${customerCode}${modeShortCode}${weight}`;
+                row.dataset.mode = modeName;
+                row.dataset.weight = weight;
+                
                 const uid = `${customerCode}${modeShortCode}${weight}`;
                 const existingRate = rateMap[uid];
+                
+                // Check if row has data
+                let hasData = false;
+                if (existingRate) {
+                    for (let i = 1; i <= 14; i++) {
+                        if (existingRate[`Z${i}`] !== null && existingRate[`Z${i}`] !== undefined && existingRate[`Z${i}`] !== '') {
+                            hasData = true;
+                            break;
+                        }
+                    }
+                }
 
-                // FIX: Only create 2 sticky columns
                 const labelsInfo = [
                     { value: modeName, width: headersInfo[0].width },
                     { value: weight, width: headersInfo[1].width, isWeight: true },
@@ -620,18 +728,49 @@
                 labelsInfo.forEach((info, index) => {
                      const cell = row.insertCell();
                      cell.className = `rate-label-col sticky ${info.width}`;
-                     cell.textContent = info.value;
+                     
+                     // Add expand button for weight column (except last weight)
+                     // For Premium/Express: no + button (only 2 rows)
+                     // For Airline: + button on last visible row
+                     // For Surface: + button on last visible row
+                     // For Others: + button on last visible row
+                     if (info.isWeight && weightIndex < weightsArray.length - 1) {
+                         const expandBtn = document.createElement('span');
+                         expandBtn.className = 'add-row-btn';
+                         expandBtn.textContent = '+';
+                         expandBtn.title = 'Show next weight row';
+                         expandBtn.style.marginRight = '0.25rem';
+                         expandBtn.onclick = () => {
+                             const nextWeight = weightsArray[weightIndex + 1];
+                             const nextUid = `${customerCode}${modeShortCode}${nextWeight}`;
+                             const nextRow = tbody.querySelector(`tr[data-uid="${nextUid}"]`);
+                             if (nextRow) {
+                                 nextRow.classList.add('visible');
+                                 expandBtn.style.display = 'none';
+                                 
+                                 // Show + button on the newly revealed row if it has one
+                                 const nextPlusBtn = nextRow.querySelector('.add-row-btn');
+                                 if (nextPlusBtn) {
+                                     nextPlusBtn.style.display = 'inline';
+                                 }
+                             }
+                         };
+                         cell.appendChild(expandBtn);
+                     }
+                     
+                     const textSpan = document.createElement('span');
+                     textSpan.textContent = info.value;
+                     cell.appendChild(textSpan);
+                     
                      let leftOffset = 0;
-                     if (index === 1) leftOffset = 96; // Approx width of w-24
+                     if (index === 1) leftOffset = 96;
                      
                      cell.style.left = `${leftOffset}px`;
                      cell.style.zIndex = '1';
                      
-                     // FIX: Add all hidden inputs to the *second* cell
                      if (info.isWeight) { 
                          cell.classList.add('text-gray-600');
                          
-                         // REFORMATTED: Broke multi-statement lines into single statements to fix syntax error.
                          const hiddenUid = document.createElement('input'); 
                          hiddenUid.type='hidden'; 
                          hiddenUid.name=`rate_${uid}_UID`; 
@@ -669,41 +808,155 @@
                          cell.appendChild(hiddenType);
                      }
                 });
+                
+                // Show row if it has data
+                if (hasData) {
+                    row.classList.add('visible');
+                    row.dataset.hasData = 'true';
+                } else {
+                    row.dataset.hasData = 'false';
+                }
 
-                for (let i = 1; i <= 14; i++) {
-                    const cell = row.insertCell();
-                    cell.className = 'rate-data-cell';
-                    const input = document.createElement('input');
-                    input.type = 'number';
-                    input.step = 'any';
-                    input.name = `rate_${uid}_Z${i}`;
-                    input.className = 'form-input rate-input w-full';
-                    input.value = existingRate && existingRate[`Z${i}`] !== undefined ? existingRate[`Z${i}`] : '';
-                    input.placeholder = `Z${i}`;
-                    cell.appendChild(input);
+                if (isSimplified) {
+                    // Simplified: Show merged zones
+                    simplifiedZones.forEach(zone => {
+                        const cell = row.insertCell();
+                        cell.className = 'rate-data-cell';
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.step = 'any';
+                        input.className = 'form-input rate-input w-full';
+                        
+                        // Get value from first zone in the group
+                        const firstZone = zone.zones[0];
+                        input.value = existingRate && existingRate[`Z${firstZone}`] !== undefined ? existingRate[`Z${firstZone}`] : '';
+                        input.placeholder = zone.label;
+                        
+                        // Store zone mapping as data attribute
+                        input.dataset.zones = JSON.stringify(zone.zones);
+                        input.dataset.uid = uid;
+                        input.classList.add('simplified-zone-input');
+                        
+                        cell.appendChild(input);
+                    });
+                } else {
+                    // Dynamic: Show all 14 zones
+                    for (let i = 1; i <= 14; i++) {
+                        const cell = row.insertCell();
+                        cell.className = 'rate-data-cell';
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.step = 'any';
+                        input.name = `rate_${uid}_Z${i}`;
+                        input.className = 'form-input rate-input w-full';
+                        input.value = existingRate && existingRate[`Z${i}`] !== undefined ? existingRate[`Z${i}`] : '';
+                        input.placeholder = `Z${i}`;
+                        cell.appendChild(input);
+                    }
                 }
             };
 
-            const currentCustomer = allCustomers[customerCode];
             const customerBranch = currentCustomer ? currentCustomer.BRANCH : '';
+            const standardModes = ['premium', 'express', 'airline', 'surface'];
 
              Object.values(allModes).forEach(mode => {
                 const modeName = mode.MODE;
                 const shortCode = mode.SHORT;
+                const modeLower = modeName.toLowerCase();
                 if (!shortCode) return;
+                
+                // Check if mode should be shown
+                const isStandardMode = standardModes.includes(modeLower);
+                const isChecked = document.querySelector(`input[data-mode="${modeName}"]`)?.checked;
+                const hasModeData = customerRates.some(r => r.MODE === modeName);
+                
+                if (!isStandardMode && !isChecked && !hasModeData) return;
 
-                const weightsToUse = (modeName.toLowerCase() === 'express' || modeName.toLowerCase() === 'premium')
+                const weightsToUse = (modeLower === 'express' || modeLower === 'premium')
                                     ? staticWeights
                                     : dynamicWeights;
 
-                 const uidShortCode = (modeName.toLowerCase() === 'express') ? 'E' : (modeName.toLowerCase() === 'premium') ? 'P' : shortCode;
+                 const uidShortCode = (modeLower === 'express') ? 'E' : (modeLower === 'premium') ? 'P' : shortCode;
 
-                weightsToUse.forEach(weight => {
-                    addRateRow(modeName, uidShortCode, weight, customerBranch);
+                weightsToUse.forEach((weight, idx) => {
+                    addRateRow(modeName, uidShortCode, weight, customerBranch, weightsToUse, idx);
                 });
             });
 
             ui.rateTableContainer.appendChild(table);
+            
+            // Show rows based on mode rules
+            const allRows = tbody.querySelectorAll('.rate-row');
+            allRows.forEach(row => {
+                const mode = row.dataset.mode.toLowerCase();
+                const weight = row.dataset.weight;
+                const hasData = row.dataset.hasData === 'true';
+                
+                let shouldShow = false;
+                
+                if (hasData) {
+                    shouldShow = true;
+                } else if (mode === 'premium' || mode === 'express') {
+                    // Show all Premium/Express rows (0.5, 0.5A)
+                    shouldShow = true;
+                } else if (mode === 'airline') {
+                    // Show Airline rows up to 25
+                    shouldShow = ['3', '10', '25'].includes(weight);
+                } else if (mode === 'surface') {
+                    // Show Surface rows up to 50
+                    shouldShow = ['3', '10', '25', '50'].includes(weight);
+                } else {
+                    // Other modes: show up to 50
+                    shouldShow = ['3', '10', '25', '50'].includes(weight);
+                }
+                
+                if (shouldShow) {
+                    row.classList.add('visible');
+                }
+            });
+            
+            // Hide + buttons if next row is already visible
+            allRows.forEach(row => {
+                if (!row.classList.contains('visible')) return;
+                
+                const plusBtn = row.querySelector('.add-row-btn');
+                if (plusBtn) {
+                    const uid = row.dataset.uid;
+                    const mode = row.dataset.mode;
+                    const modeShortCode = uid.replace(customerCode, '').match(/^[A-Z]+/)?.[0] || '';
+                    const weightsArray = (mode.toLowerCase() === 'express' || mode.toLowerCase() === 'premium') ? staticWeights : dynamicWeights;
+                    const currentWeight = row.dataset.weight;
+                    const currentIdx = weightsArray.indexOf(currentWeight);
+                    
+                    if (currentIdx >= 0 && currentIdx < weightsArray.length - 1) {
+                        const nextWeight = weightsArray[currentIdx + 1];
+                        const nextUid = `${customerCode}${modeShortCode}${nextWeight}`;
+                        const nextRow = tbody.querySelector(`tr[data-uid="${nextUid}"]`);
+                        
+                        if (nextRow && nextRow.classList.contains('visible')) {
+                            plusBtn.style.display = 'none';
+                        }
+                    }
+                }
+            });
+            
+            // Hide + buttons on non-last visible rows of each mode
+            const modeGroups = {};
+            allRows.forEach(row => {
+                if (!row.classList.contains('visible')) return;
+                const mode = row.dataset.mode;
+                if (!modeGroups[mode]) modeGroups[mode] = [];
+                modeGroups[mode].push(row);
+            });
+            
+            Object.values(modeGroups).forEach(rows => {
+                // Hide + button on all rows except the last visible one
+                for (let i = 0; i < rows.length - 1; i++) {
+                    const plusBtn = rows[i].querySelector('.add-row-btn');
+                    if (plusBtn) plusBtn.style.display = 'none';
+                }
+            });
+            
             ui.rateLoader.classList.add('hidden');
         }
 
@@ -729,6 +982,83 @@
         });
 
         ui.backToListBtn.addEventListener('click', showListView);
+        
+        function generateModeCheckboxes() {
+            const standardModes = ['premium', 'express', 'airline', 'surface'];
+            
+            Object.values(allModes).forEach(mode => {
+                const modeName = mode.MODE;
+                const modeLower = modeName.toLowerCase();
+                
+                if (standardModes.includes(modeLower)) return;
+                
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-2 text-sm cursor-pointer';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'h-4 w-4 text-indigo-600 border-gray-300 rounded';
+                checkbox.dataset.mode = modeName;
+                checkbox.addEventListener('change', () => {
+                    if (currentCustomerCode) {
+                        generateRateForm(currentCustomerCode);
+                    }
+                });
+                
+                const span = document.createElement('span');
+                span.textContent = modeName;
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                ui.modeCheckboxes.appendChild(label);
+            });
+        }
+
+        ui.setDefaultRatesBtn.addEventListener('click', () => {
+            if (!currentCustomerCode) return;
+            
+            const currentCustomer = allCustomers[currentCustomerCode];
+            const customerBranch = currentCustomer?.BRANCH || 'RRK';
+            
+            // Find default rates for the branch
+            const defaultRates = Object.values(allRates).filter(rate => 
+                rate.CODE === 'DFLT' && rate.BRANCH === customerBranch && rate.TYPE === 'CLIENT'
+            );
+            
+            if (defaultRates.length === 0) {
+                showResponseMessage(`No default rates found for branch ${customerBranch}`, 'error');
+                return;
+            }
+            
+            // Fill the form with default rates
+            const isSimplified = currentCustomer?.RATE_LIST === 'SIMPLIFIED';
+            
+            defaultRates.forEach(defaultRate => {
+                const uid = `${currentCustomerCode}${defaultRate.RATE_UID.replace('DFLT', '')}`;
+                
+                if (isSimplified) {
+                    // Fill simplified zone inputs
+                    const simplifiedInputs = ui.rateForm.querySelectorAll('.simplified-zone-input');
+                    simplifiedInputs.forEach(input => {
+                        if (input.dataset.uid === uid) {
+                            const zones = JSON.parse(input.dataset.zones);
+                            const firstZone = zones[0];
+                            input.value = defaultRate[`Z${firstZone}`] || '';
+                        }
+                    });
+                } else {
+                    // Fill dynamic zone inputs
+                    for (let i = 1; i <= 14; i++) {
+                        const input = ui.rateForm.querySelector(`input[name="rate_${uid}_Z${i}"]`);
+                        if (input && defaultRate[`Z${i}`] !== null && defaultRate[`Z${i}`] !== undefined) {
+                            input.value = defaultRate[`Z${i}`];
+                        }
+                    }
+                }
+            });
+            
+            showResponseMessage(`Default rates loaded. Click "Save All Rates" to save them.`, 'success');
+        });
 
         ui.deleteCustomerButton.addEventListener('click', () => {
             if (!currentCustomerCode) return;
@@ -802,42 +1132,69 @@
                  return;
              }
 
+             const currentCustomer = allCustomers[currentCustomerCode];
+             const isSimplified = currentCustomer?.RATE_LIST === 'SIMPLIFIED';
+
              const ratesPayload = [];
              const rateInputs = ui.rateForm.querySelectorAll('input[type="number"], input[type="hidden"]');
              const ratesGroupedByUID = {};
 
+             // First, collect all hidden fields
              rateInputs.forEach(input => {
-                 const nameParts = input.name.split('_');
-                 if (nameParts.length < 3 || nameParts[0] !== 'rate') return;
-                 const uid = nameParts[1];
-                 const field = nameParts.slice(2).join('_');
-                 if (!ratesGroupedByUID[uid]) ratesGroupedByUID[uid] = { UID: uid };
-
-                // FIX: Check if this is a Zone field and parse it as a number
-                if (field.startsWith('Z') && !isNaN(parseInt(field.substring(1)))) {
-                    const numValue = parseFloat(input.value);
-                    // Set to null if it's empty, NaN, or undefined
-                    ratesGroupedByUID[uid][field] = (isNaN(numValue) || input.value === null || input.value === '' || input.value === undefined) ? null : numValue;
-                } else {
-                    // This is a hidden field (UID, Service, etc.)
-                    ratesGroupedByUID[uid][field] = (input.value === null || input.value === undefined) ? '' : input.value;
-                }
+                 if (input.type === 'hidden') {
+                     const nameParts = input.name.split('_');
+                     if (nameParts.length < 3 || nameParts[0] !== 'rate') return;
+                     const uid = nameParts[1];
+                     const field = nameParts.slice(2).join('_');
+                     if (!ratesGroupedByUID[uid]) ratesGroupedByUID[uid] = { UID: uid };
+                     ratesGroupedByUID[uid][field] = input.value || '';
+                 }
              });
 
-            // FIX: Filter out empty rows (This logic is now robust)
+             if (isSimplified) {
+                 // Handle simplified zone inputs
+                 const simplifiedInputs = ui.rateForm.querySelectorAll('.simplified-zone-input');
+                 simplifiedInputs.forEach(input => {
+                     const uid = input.dataset.uid;
+                     const zones = JSON.parse(input.dataset.zones);
+                     const value = parseFloat(input.value);
+                     
+                     if (!ratesGroupedByUID[uid]) ratesGroupedByUID[uid] = { UID: uid };
+                     
+                     // Duplicate the value to all zones in the group
+                     zones.forEach(zoneNum => {
+                         ratesGroupedByUID[uid][`Z${zoneNum}`] = isNaN(value) || input.value === '' ? null : value;
+                     });
+                 });
+             } else {
+                 // Handle dynamic zone inputs (original logic)
+                 rateInputs.forEach(input => {
+                     if (input.type === 'number' && !input.classList.contains('simplified-zone-input')) {
+                         const nameParts = input.name.split('_');
+                         if (nameParts.length < 3 || nameParts[0] !== 'rate') return;
+                         const uid = nameParts[1];
+                         const field = nameParts.slice(2).join('_');
+                         if (!ratesGroupedByUID[uid]) ratesGroupedByUID[uid] = { UID: uid };
+
+                         if (field.startsWith('Z') && !isNaN(parseInt(field.substring(1)))) {
+                             const numValue = parseFloat(input.value);
+                             ratesGroupedByUID[uid][field] = (isNaN(numValue) || input.value === '') ? null : numValue;
+                         }
+                     }
+                 });
+             }
+
+             // Filter out empty rows
              for (const uid in ratesGroupedByUID) {
                  const rateData = ratesGroupedByUID[uid];
                  let hasValue = false;
-                 // Check if any Z1-Z14 field has a value
                  for (let i = 1; i <= 14; i++) {
-                    // FIX: Check for not null, which correctly includes "0" and other values
-                    if (rateData[`Z${i}`] !== null) {
+                    if (rateData[`Z${i}`] !== null && rateData[`Z${i}`] !== undefined) {
                          hasValue = true;
-                         break; // Found a value, no need to check further
+                         break;
                      }
                  }
                  
-                 // Only add to payload if at least one zone has a rate
                  if (hasValue) {
                      ratesPayload.push(rateData);
                  }
