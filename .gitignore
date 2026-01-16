@@ -1,2 +1,6 @@
 # Ignore Google Apps Script backend folder
 gas-backend/
+
+# Ignore documentation and text files
+*.md
+*.txt
