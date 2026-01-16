@@ -1294,7 +1294,7 @@
             const formData = new FormData(ui.customerForm);
             const submitData = {};
             formData.forEach((value, key) => {
-                if (percentFields.includes(key) && value) {
+                if (percentFields.includes(key) && value !== '') {
                     submitData[key] = parseFloat(value) / 100;
                 } else {
                     submitData[key] = value || '';
