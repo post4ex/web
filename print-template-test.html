@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote Print Template - Test</title>
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        /* Test Controls */
+        .test-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 2px solid #333;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .test-controls h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .test-controls button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px 12px;
+            background: #007cba;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .test-controls button:hover {
+            background: #005a87;
+        }
+        
+        .test-controls button.active {
+            background: #28a745;
+        }
+
+        /* Professional Quotation Print Styles */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        .print-container {
+            max-width: 210mm; /* A4 width */
+            margin: 0 auto;
+            padding: 15mm;
+            background: white;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .header-content {
+            flex: 1;
+            text-align: right;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2c3e50;
+        }
+        
+        .logo-container {
+            flex: 0 0 150px;
+            margin-right: 20px;
+        }
+
+        .logo {
+            height: 120px;
+            width: auto;
+        }
+
+        .company-info {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .company-address {
+            font-size: 11px;
+            color: #666;
+            margin: 5px 0;
+            text-align: right;
+            line-height: 1.3;
+        }
+
+        .document-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 15px 0 5px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .quote-details {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .detail-group {
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            color: #333;
+        }
+        
+        .customer-details {
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #ecf0f1;
+            padding: 8px 12px;
+            margin: 15px 0 8px 0;
+            border-left: 4px solid #3498db;
+        }
+        
+        .detail-row {
+            display: flex;
+            margin-bottom: 6px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            width: 180px;
+            flex-shrink: 0;
+        }
+        
+        .detail-value {
+            flex-grow: 1;
+        }
+        
+        .rate-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+        
+        .rate-table th, .rate-table td {
+            border: 1px solid #bdc3c7;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        
+        .rate-table th {
+            background-color: #ecf0f1;
+            font-weight: bold;
+        }
+        
+        .rate-table .mode-col, .rate-table .weight-col {
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        .charges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .charge-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        
+        .signature-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-box {
+            width: 200px;
+            text-align: center;
+            padding-top: 40px;
+            border-top: 1px solid #333;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 3px solid #2c3e50;
+            background-color: #f9f9f9;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-left {
+            text-align: left;
+            flex: 1;
+        }
+
+        .footer-right {
+            text-align: right;
+            flex: 1;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .print-container {
+                box-shadow: none;
+                padding: 0;
+            }
+
+            .actions-buttons, .test-controls {
+                display: none !important;
+            }
+            
+            .customer-details, .terms-conditions {
+                page-break-inside: avoid;
+            }
+            
+            .signature-section {
+                page-break-before: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Controls -->
+    <div class="test-controls">
+        <h3>Test Scenarios</h3>
+        <button onclick="loadTestData('simplified')" id="btn-simplified">Simplified Rate</button>
+        <button onclick="loadTestData('dynamic')" id="btn-dynamic">Dynamic Rate</button>
+        <button onclick="loadTestData('standard')" id="btn-standard">Standard Client</button>
+        <button onclick="window.print()">Print Test</button>
+        <button onclick="generatePDF()">Download PDF</button>
+    </div>
+
+    <div class="print-container">
+        <div class="header">
+            <div class="logo-container">
+                <img src="assets/images/laxmi-logo.png" alt="Company Logo" class="logo" onerror="this.style.display='none'">
+            </div>
+            <div class="header-content">
+                <div class="company-info" id="company-name"></div>
+                <div class="company-address" id="company-address"></div>
+            </div>
+        </div>
+
+        <div class="introduction" style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 4px; line-height: 1.6; font-size: 13px;">
+            <p style="margin: 0 0 10px 0;"><strong>Dear Valued Customer,</strong></p>
+            <p style="margin: 0 0 10px 0;">With a strong global network covering all modes of transport, <span id="company-name-intro"></span> is your trusted partner for all kinds of shipping needs. Whether business or private, our logistics service is designed to assist you in the most efficient way possible.</p>
+            <p style="margin: 0;">Established with a vision to simplify the shipping of goods while building long-term relationships with clients through logistics excellence in India, our comprehensive service is available across all major cities nationwide.</p>
+        </div>
+
+        <div class="image-container" style="text-align: center; margin: 20px 0;">
+            <img src="assets/images/quote-greeting-img-001.png" alt="Professional Logistics Service" style="max-width: 100%; height: auto; border-radius: 4px;" onerror="this.style.display='none'">
+        </div>
+
+        <div class="intro-closing" style="margin: 15px 0; padding: 10px; background-color: #f0f8ff; border-left: 4px solid #3498db; font-style: italic; line-height: 1.5; font-size: 13px;">
+            <p style="margin: 0;">We are pleased to present this quote for our logistics services tailored to meet your specific shipping requirements. Please find our competitive rates and service details outlined below.</p>
+        </div>
+
+        <div class="document-title" id="document-title">Quote</div>
+
+        <div class="quote-details">
+            <div class="detail-group">
+                <div class="detail-label" id="label-quote-number">Quote Number</div>
+                <div class="detail-value">#<span id="quote-number"></span></div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label" id="label-date">Date</div>
+                <div class="detail-value"><span id="current-date"></span></div>
+            </div>
+            <div class="detail-group">
+                <div class="detail-label" id="label-valid-until">Valid Until</div>
+                <div class="detail-value"><span id="valid-until"></span></div>
+            </div>
+        </div>
+
+        <div class="customer-details">
+            <div class="section-title" id="section-customer-info">Customer Information</div>
+            <div class="detail-row">
+                <span class="detail-label" id="label-customer-code">Code: <span id="customer-code"></span>/<span id="customer-branch"></span></span>
+                <span class="detail-label" style="margin-left: 20px;" id="label-customer-name">Name: </span>
+                <span class="detail-value" id="customer-name"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label" id="label-mobile">Mobile: </span>
+                <span class="detail-value" id="mobile-number"></span>
+                <span class="detail-label" style="margin-left: 20px;" id="label-email">Email: </span>
+                <span class="detail-value" id="email"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label" id="label-address">Address: </span>
+                <span class="detail-value" id="address"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label" id="label-city">City: </span>
+                <span class="detail-value" id="city"></span>
+                <span class="detail-label" style="margin-left: 20px;" id="label-pincode">Pincode: </span>
+                <span class="detail-value" id="pincode"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label" id="label-state">State: </span>
+                <span class="detail-value" id="state"></span>
+                <span class="detail-label" style="margin-left: 20px;" id="label-gst">GST/PAN/Adhar: </span>
+                <span class="detail-value" id="gst"></span>
+            </div>
+            <!-- Hidden fields that shouldn't be displayed in the quote -->
+            <div style="display: none;">
+                <span id="customer-type"></span>
+                <span id="customer-status"></span>
+                <span id="rate-list-type"></span>
+            </div>
+        </div>
+
+        <div class="customer-details">
+            <div class="section-title" id="section-rate-card">Rate Card</div>
+            
+            <div style="margin: 15px 0; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #3498db;">
+                <div style="font-size: 14px; line-height: 1.6;">
+                    <span id="clearing-chg-text"></span>
+                </div>
+            </div>
+            
+            <div id="simplified-rate-section">
+                <h4>Courier and Logistics Service Rate Card of PAN India</h4>
+                <table class="rate-table">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Weight</th>
+                            <th id="simplified-header-regional">REGIONAL</th>
+                            <th id="simplified-header-ncr">NCR</th>
+                            <th id="simplified-header-north">NORTH</th>
+                            <th id="simplified-header-metro">METRO</th>
+                            <th id="simplified-header-roi">ROI</th>
+                            <th id="simplified-header-east">EAST</th>
+                        </tr>
+                    </thead>
+                    <tbody id="simplified-tbody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="dynamic-rate-section" style="display:none;">
+                <h4>Dynamic Rate Card (Zones 1-14)</h4>
+                <table class="rate-table">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Weight</th>
+                            <th id="zone-header-1">Z1</th>
+                            <th id="zone-header-2">Z2</th>
+                            <th id="zone-header-3">Z3</th>
+                            <th id="zone-header-4">Z4</th>
+                            <th id="zone-header-5">Z5</th>
+                            <th id="zone-header-6">Z6</th>
+                            <th id="zone-header-7">Z7</th>
+                            <th id="zone-header-8">Z8</th>
+                            <th id="zone-header-9">Z9</th>
+                            <th id="zone-header-10">Z10</th>
+                            <th id="zone-header-11">Z11</th>
+                            <th id="zone-header-12">Z12</th>
+                            <th id="zone-header-13">Z13</th>
+                            <th id="zone-header-14">Z14</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dynamic-tbody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="p-4 border-l-4 border-gray-500 bg-gray-50" style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #6c757d;">
+                <h3 class="section-title" style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; background-color: #ecf0f1; padding: 8px 12px; border-left: 4px solid #3498db;">Zone Information</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-1 text-sm text-gray-700" id="zone-info-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 5px; font-size: 12px; color: #6c757d;">
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-details" style="margin-top: 25px;">
+            <div class="section-title" id="section-other-charges">Other Charges</div>
+
+            <div style="padding: 15px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                    <li id="charge-info-1"></li>
+                    <li id="charge-info-2"></li>
+                    <li id="charge-info-3"></li>
+                    <li id="charge-info-4"></li>
+                    <li id="charge-info-5"></li>
+                    <li id="charge-info-6"></li>
+                    <li id="charge-info-7"></li>
+                    <li id="charge-info-8"></li>
+                    <li id="charge-info-9"></li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="customer-details" style="margin-top: 25px;">
+            <div class="section-title">Volumetric Weight Calculations</div>
+            <div style="padding: 15px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.6; font-size: 13px;">
+                <p style="margin: 0 0 10px 0;">Volumetric weight (also known as dimensional weight) is calculated based on the package dimensions. The actual chargeable weight is the higher value between actual weight and volumetric weight.</p>
+                <p style="margin: 0 0 10px 0;"><strong>Formula:</strong> Volumetric Weight (Kg) = (Length × Width × Height in cm) ÷ Volumetric Factor</p>
+                <p style="margin: 0 0 10px 0;"><strong>Volumetric Factors by Mode:</strong></p>
+                <ul style="margin: 0 0 10px 0; padding-left: 20px;">
+                    <li><strong>Air/Premium/Express:</strong> Divide by 5000</li>
+                    <li><strong>Surface:</strong> Divide by 4750</li>
+                    <li><strong>LTL (Less Than Truckload):</strong> Divide by 4500</li>
+                    <li><strong>FTL (Full Truckload):</strong> Divide by 4000</li>
+                </ul>
+                <p style="margin: 0;"><strong>Note:</strong> For irregular shapes (round, conical, or uneven packages), measurements should be taken at the longest, widest, and highest points, treating the package as a rectangular box for calculation purposes.</p>
+            </div>
+        </div>
+
+        <div class="customer-details" style="margin-top: 25px;">
+            <div class="section-title">Handling and Other Charges</div>
+            <div style="padding: 15px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.6; font-size: 13px;">
+                <p style="margin: 0 0 15px 0; font-weight: bold; color: #d9534f;">Note: All surcharges mentioned below apply to individual pieces within a consignment. If a single piece/parcel exceeds the specified limits, the surcharge applies only to that particular piece, not the entire consignment.</p>
+                
+                <p style="margin: 0 0 10px 0;"><strong>Heavy Weight Surcharge:</strong> Parcels exceeding standard weight limits require special handling and will incur additional charges as follows:</p>
+                <ul style="margin: 0 0 10px 0; padding-left: 20px;">
+                    <li><strong>Weight over 30 Kg:</strong> Additional charge of ₹10 per Kg will be applied.</li>
+                    <li><strong>Weight over 50 Kg:</strong> Charged double (2×) of its volumetric or actual weight, whichever is higher, due to special handling requirements.</li>
+                    <li><strong>Weight over 100 Kg:</strong> Charged 2.5 times (2.5×) of its volumetric or actual weight, whichever is higher.</li>
+                    <li><strong>Weight over 200 Kg:</strong> Rates and additional charges will be discussed and agreed upon on a case-by-case basis for specific consignments, subject to approval.</li>
+                </ul>
+                <p style="margin: 0 0 15px 0;">Heavy packages require additional manpower, specialized equipment, and careful handling procedures to ensure safe transportation. These surcharges cover the extra operational costs involved in moving oversized or heavy shipments.</p>
+                
+                <p style="margin: 0 0 10px 0;"><strong>Over-Length Surcharge:</strong> Shipments with any single dimension exceeding standard limits require special handling and transportation arrangements.</p>
+                <ul style="margin: 0 0 10px 0; padding-left: 20px;">
+                    <li><strong>Length over 1 meter (100 cm):</strong> Charged double of its volumetric or actual weight, whichever is higher, with a minimum chargeable weight of 25 Kg.</li>
+                    <li><strong>Length over 2 meters (200 cm):</strong> Charged triple (3×) of its volumetric or actual weight, whichever is higher, with a minimum chargeable weight of 50 Kg, plus an additional handling charge of ₹2,500 per consignment.</li>
+                    <li><strong>Length over 8 feet (244 cm):</strong> Rates and additional charges will be discussed and agreed upon on a case-by-case basis for specific consignments, subject to approval.</li>
+                </ul>
+                <p style="margin: 0;">Over-length shipments cannot be loaded in standard vehicles and require specialized transport, loading equipment, and additional labor, hence the surcharge applies to cover these extra operational requirements.</p>
+                
+                <p style="margin: 15px 0 0 0; font-weight: bold; color: #d9534f;">Important: If a parcel exceeds both weight and length limits (e.g., over 100 Kg and over 200 cm), the highest applicable multiplier will be charged. For example, a parcel over 100 Kg and over 200 cm will be charged 3× of volumetric or actual weight (whichever is higher) plus ₹2,500 handling charge.</p>
+            </div>
+        </div>
+
+        <div class="customer-details" style="margin-top: 25px;">
+            <div class="section-title">Dangerous Goods Regulations (DGR)</div>
+            <div style="padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; line-height: 1.6; font-size: 13px;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #856404;">Important Notice: Prohibited and Restricted Items</p>
+                <p style="margin: 0 0 10px 0;">Customer/Consignor/Sender agrees not to ship prohibited and restricted items as per IATA Dangerous Goods Regulations (DGR). If shipped, the sender is fully responsible and may bear penalties enforced by authorities, customs, airlines, or government agencies.</p>
+                <p style="margin: 0 0 10px 0;"><strong>Prohibited Items Include:</strong></p>
+                <ul style="margin: 0 0 10px 0; padding-left: 20px; columns: 2; column-gap: 20px;">
+                    <li>Explosives and Ammunition</li>
+                    <li>Compressed Gases</li>
+                    <li>Flammable Liquids and Solids</li>
+                    <li>Oxidizers and Peroxides</li>
+                    <li>Toxic and Infectious Substances</li>
+                    <li>Radioactive Materials</li>
+                    <li>Corrosives (Acids/Alkalis)</li>
+                    <li>Lithium Batteries (Loose)</li>
+                    <li>Perishables and Live Animals</li>
+                    <li>Cash, Lottery Tickets, Firearms</li>
+                    <li>Alcohol, Drugs, and Narcotics</li>
+                    <li>All Liquids and Chemical Powders</li>
+                </ul>
+                <p style="margin: 0; font-style: italic;">The IATA DGR is updated annually and legally enforced worldwide. Staff handling dangerous goods must be trained and compliant. Non-compliance may result in shipment rejection, fines, and safety incidents.</p>
+            </div>
+        </div>
+
+        <div class="customer-details" style="margin-top: 25px;">
+            <div class="section-title">Payment Terms and Conditions</div>
+            <div style="padding: 15px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.6; font-size: 13px;">
+                <ol style="margin: 0; padding-left: 20px; line-height: 1.7;">
+                    <li><strong>Payment Due Date:</strong> Payment due date will be specified on the invoice and must be completed strictly before the next billing cycle.</li>
+                    <li><strong>Early Payment Benefit:</strong> If payment is made on or before the file date specified on the invoice, development charges will be waived off.</li>
+                    <li><strong>Late Payment Penalty:</strong> Late payments will incur a penalty of 24% per annum or minimum ₹150, whichever is higher.</li>
+                    <li><strong>Credit Terms:</strong> Customer code will be blocked if payment is not received for two consecutive billing cycles.</li>
+                    <li><strong>Advance Payment:</strong> Advance payment is generally not required but can be made if the client/customer wishes to pay in advance against their customer code.</li>
+                    <li><strong>Payment Methods Accepted:</strong> Cheque, NEFT/RTGS/IMPS, UPI, Credit/Debit Cards, Net Banking, and all other digital payment methods available in the market. Cash payments are accepted only for unregistered persons (URP).</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="terms-conditions" style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; border-left: 4px solid #3498db;">
+            <h4 style="margin-top: 0; color: #2c3e50;" id="title-terms-conditions">Terms & Conditions</h4>
+            <ol style="margin-bottom: 0; padding-left: 20px; line-height: 1.7; font-size: 12px;">
+                <li>Consignor is fully responsible if IATA/ICAO/IMDG/ADR restricted/prohibited items are shipped or if there is a mismatch with declared contents.</li>
+                <li>This quote is valid for 30 days from the date of issue.</li>
+                <li>Consignment TAT (Turn Around Time) may differ as declared, depending on transport availability, air traffic, and natural calamities.</li>
+                <li>Customs clearance charges and penalties, if charged by government authorities, will be borne by the consignor.</li>
+                <li>Higher value consignments are mandatory to be insured by the shipper/sender as "Owner's Risk" with valid insurance documents. In case of "Carrier's Risk", the sender must pay the risk surcharge as defined.</li>
+                <li>Freight refund will not be entertained in any claims if service failure results from strikes, bandh, elections, rains, floods, fire, accidents, or other natural calamities.</li>
+                <li>No fragile and perishable items can be booked under Carrier's Risk.</li>
+                <li>We are a service provider and in case of any unforeseen delay, damage, or loss of consignment, our liabilities are specifically limited as per applicable laws.</li>
+                <li>Carrier has the right, at its option or at the request of competent authorities, to open and inspect the contents of any consignment at any time.</li>
+                <li>Any disputes shall be subject to the jurisdiction of Dehradun courts.</li>
+            </ol>
+        </div>
+
+        <div class="signature-section">
+            <div class="signature-box">
+                <div style="margin-bottom: 5px;">Authorised Signatory</div>
+                <div style="font-size: 11px; color: #666;">Date: _________________</div>
+            </div>
+            <div class="signature-box">
+                <div style="margin-bottom: 5px;">Customer Signatory</div>
+                <div style="font-size: 11px; color: #666;">Date: _________________</div>
+            </div>
+        </div>
+
+        <div class="footer" style="margin-top: 20px; padding: 10px; border-top: 3px solid #2c3e50; background-color: #f9f9f9; font-size: 11px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="footer-left" style="text-align: left; flex: 1;">
+                <div class="branch-details">
+                    <strong id="label-footer-branch">Branch:</strong> <span id="branch-name"></span><br>
+                    <strong id="label-footer-address">Address:</strong> <span id="branch-address"></span><br>
+                    <strong id="label-footer-contact">Contact:</strong> <span id="branch-contact"></span>
+                </div>
+            </div>
+            <div class="footer-right" style="text-align: right; flex: 1;">
+                <div class="footer-note">
+                    This is a computer-generated document and is valid without signature.<br>
+                    Generated on: <span id="generated-date"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants for company info and static text
+        const CONSTANTS = {
+            COMPANY: {
+                NAME: "LAXMI COURIER SERVICE",
+                ADDRESS: "123 Business Park, Rajpur Road, Dehradun, Uttarakhand - 248001",
+                PHONE: "+91-XXXXXXXXXX",
+                EMAIL: "info@laxmicourier.com",
+                BRANCH: "Dehradun"
+            },
+            TEXTS: {
+                DOCUMENT_TITLE: "Quote",
+                QUOTE_VALIDITY: "30 days from issue",
+                SECTION_TITLES: {
+                    CUSTOMER_INFO: "Customer Information",
+                    RATE_CARD: "Rate Cards",
+                    OTHER_CHARGES: "Other Charges and Informatics",
+                    BASE_CHARGES: "Base Charges",
+                    PERCENTAGE_CHARGES: "Percentage Charges",
+                    ADDITIONAL_CHARGES: "Additional Charges",
+                    TERMS_CONDITIONS: "Terms & Conditions"
+                },
+                LABELS: {
+                    QUOTE_NUMBER: "Quote Number",
+                    DATE: "Date",
+                    VALID_UNTIL: "Valid Until",
+                    CODE: "Code",
+                    NAME: "Name",
+                    MOBILE: "Mobile",
+                    EMAIL: "Email",
+                    ADDRESS: "Address",
+                    CITY: "City",
+                    PINCODE: "Pincode",
+                    STATE: "State",
+                    GST: "GST/PAN/Adhar",
+                    CLEARING_CHG: "Clearing Charges (Within City Limits):",
+                    WEIGHT_CHANGE: "Weight Change:",
+                    TOPAY_IF: "% TO-PAY:",
+                    COD_IF: "% COD:",
+                    FOV_IF: "% FOV:",
+                    FUEL_CHARGES: "Fuel Charge %:",
+                    DEV_CHARGES: "Dev. Charge %:",
+                    EWAY_IF: "E-Way Charge:",
+                    AWB_CHARGES: "AWB Charge:",
+                    PACKING_CHARGES: "Packing Charge:",
+                    BILL_CYCLE: "Bills will be generated:",
+                    GST_INC: "These rates are:",
+                    BRANCH: "Branch:",
+                    FOOTER_ADDRESS: "Address:",
+                    CONTACT: "Contact:"
+                },
+                ZONES: {
+                    REGIONAL: "REGIONAL",
+                    NCR: "NCR",
+                    NORTH: "NORTH",
+                    METRO: "METRO",
+                    ROI: "ROI",
+                    EAST: "EAST"
+                },
+                ZONE_INFO: {
+                    TITLE: "Zone Information",
+                    SIMPLIFIED: {
+                        REGIONAL: "Z1, Z2 (UP UK WEST, UP DIRECT)",
+                        NCR: "Z4 (DELHI NCR)",
+                        NORTH: "Z3, Z5, Z6 (HR PB RAJ DIRECT, REST OF UP UK, REST OF HR PB RAJ)",
+                        METRO: "Z7, Z8 (JAMMU HP BHR CGG JHR MP, METROS)",
+                        ROI: "Z9, Z10, Z11, Z12 (NON METROS, GWT SXR SLG, AP KAR KER ORS PY TN TL WB, DNH DND JNK)",
+                        EAST: "Z13, Z14 (AR ASM MNP ML MZM NGL SKM TPR, PORTBLIER IMPHAL AGARTALA)"
+                    },
+                    Z1: "UP UK WEST",
+                    Z2: "UP DIRECT",
+                    Z3: "HR PB RAJ DIRECT",
+                    Z4: "DELHI NCR",
+                    Z5: "REST OF UP UK",
+                    Z6: "REST OF HR PB RAJ",
+                    Z7: "JAMMU HP BHR CGG JHR MP",
+                    Z8: "METROS",
+                    Z9: "NON METROS",
+                    Z10: "GWT SXR SLG",
+                    Z11: "AP KAR KER ORS PY TN TL WB",
+                    Z12: "DNH DND JNK",
+                    Z13: "AR ASM MNP ML MZM NGL SKM TPR",
+                    Z14: "PORTBLIER IMPHAL AGARTALA"
+                },
+                RATE_CARD_TITLE: "Courier and Logistics Service Rate Card of PAN India",
+                DYNAMIC_RATE_TITLE: "Dynamic Rate Card (Zones 1-14)",
+                INTRO_TEXT: {
+                    GREETING: "Dear Valued Customer,",
+                    PARA1: "With a strong global network covering all modes of transport, {COMPANY_NAME} is your trusted partner for all kinds of shipping needs. Whether business or private, our logistics service is designed to assist you in the most efficient way possible.",
+                    PARA2: "Established with a vision to simplify the shipping of goods while building long-term relationships with clients through logistics excellence in India, our comprehensive service is available across all major cities nationwide.",
+                    CLOSING: "We are pleased to present this quote for our logistics services tailored to meet your specific shipping requirements. Please find our competitive rates and service details outlined below."
+                },
+                TERMS: [
+                    "This quote is valid for 30 days from the date of issue.",
+                    "All rates are exclusive of applicable taxes as per government regulations.",
+                    "Payment terms and conditions will be as per agreement.",
+                    "Any disputes shall be subject to the jurisdiction of Dehradun courts.",
+                    "Material condition and delivery terms to be agreed separately."
+                ],
+                FOOTER_NOTE: "This is a computer-generated document and is valid without signature.",
+                GENERATED_ON: "Generated on:"
+            }
+        };
+
+        // Test Data
+        const TEST_DATA = {
+            simplified: {
+                customer: {
+                    CODE: "AGWL",
+                    B2B_NAME: "ABC COMPANY PVT LTD",
+                    BRANCH: "DDN",
+                    B2B_TYPE: "CLIENT",
+                    STATUS: "ACTIVE",
+                    RATE_LIST: "SIMPLIFIED",
+                    CLEARING_CHG: "50.00",
+                    MOBILE_NUMBER: "9876543210",
+                    EMAIL: "contact@abccompany.com",
+                    B2B_ADDRESS: "123 Business Park, Rajpur Road, Dehradun",
+                    B2B_CITY: "Dehradun",
+                    B2B_STATE: "Uttarakhand",
+                    B2B_PINCODE: "248001",
+                    ID_GST_PAN_ADHAR: "05ABCDE1234F1Z5",
+                    WEIGHT_CHANGE: "2.00",
+                    "%_TOPAY_IF": "0.03",
+                    "%_COD_IF": "0.005",
+                    "%_FOV_IF": "0.02",
+                    EWAY_IF: "10.00",
+                    AWB_CHARGES: "0.00",
+                    PACKING_CHARGES: "0.00",
+                    FUEL_CHARGES: "0.125",
+                    DEV_CHARGES: "0.0005",
+                    GST_INC: "N",
+                    BILL_CYCLE: "MONTHLY"
+                },
+                rates: {
+                    simplified: [
+                        { mode: 'Premium', weight: '0.5 kg', regional: '55.00', ncr: '65.00', north: '75.00', metro: '85.00', roi: '95.00', east: '105.00' },
+                        { mode: 'Premium', weight: '0.5A', regional: '65.00', ncr: '75.00', north: '85.00', metro: '95.00', roi: '105.00', east: '115.00' },
+                        { mode: 'Express', weight: '0.5 kg', regional: '50.00', ncr: '60.00', north: '70.00', metro: '80.00', roi: '90.00', east: '100.00' },
+                        { mode: 'Express', weight: '1 kg', regional: '70.00', ncr: '80.00', north: '90.00', metro: '100.00', roi: '110.00', east: '120.00' },
+                        { mode: 'Airline', weight: '3 kg', regional: '100.00', ncr: '120.00', north: '140.00', metro: '160.00', roi: '180.00', east: '200.00' },
+                        { mode: 'Surface', weight: '3 kg', regional: '80.00', ncr: '90.00', north: '100.00', metro: '110.00', roi: '120.00', east: '130.00' }
+                    ],
+                    courier: [
+                        { mode: 'Premium', weight: '0.5 kg', regional: '50.00', ncr: '60.00', north: '70.00', metro: '80.00', roi: '90.00', east: '100.00' },
+                        { mode: 'Premium', weight: '0.5A', regional: '60.00', ncr: '70.00', north: '80.00', metro: '90.00', roi: '100.00', east: '110.00' },
+                        { mode: 'Express', weight: '0.5 kg', regional: '45.00', ncr: '55.00', north: '65.00', metro: '75.00', roi: '85.00', east: '95.00' },
+                        { mode: 'Airline', weight: '3 kg', regional: '100.00', ncr: '120.00', north: '140.00', metro: '160.00', roi: '180.00', east: '200.00' },
+                        { mode: 'Surface', weight: '3 kg', regional: '80.00', ncr: '90.00', north: '100.00', metro: '110.00', roi: '120.00', east: '130.00' }
+                    ]
+                }
+            },
+            dynamic: {
+                customer: {
+                    CODE: "XYZL",
+                    B2B_NAME: "XYZ INDUSTRIES LIMITED",
+                    BRANCH: "DEL",
+                    B2B_TYPE: "CLIENT",
+                    STATUS: "ACTIVE",
+                    RATE_LIST: "DYNAMIC",
+                    CLEARING_CHG: "75.00",
+                    MOBILE_NUMBER: "9988776655",
+                    EMAIL: "info@xyzindustries.com",
+                    B2B_ADDRESS: "Plot 45, Industrial Area, Sector 15, Delhi",
+                    B2B_CITY: "Delhi",
+                    B2B_STATE: "Delhi",
+                    B2B_PINCODE: "110015",
+                    ID_GST_PAN_ADHAR: "07XYZAB1234C1Z5",
+                    WEIGHT_CHANGE: "1.50",
+                    "%_TOPAY_IF": "0.025",
+                    "%_COD_IF": "0.01",
+                    "%_FOV_IF": "0.015",
+                    EWAY_IF: "15.00",
+                    AWB_CHARGES: "5.00",
+                    PACKING_CHARGES: "10.00",
+                    FUEL_CHARGES: "0.10",
+                    DEV_CHARGES: "0.001",
+                    GST_INC: "Y",
+                    BILL_CYCLE: "WEEKLY"
+                },
+                rates: {
+                    dynamic: [
+                        { mode: 'Premium', weight: '0.5 kg', z1: '55', z2: '60', z3: '65', z4: '70', z5: '75', z6: '80', z7: '85', z8: '90', z9: '95', z10: '100', z11: '105', z12: '110', z13: '115', z14: '120' },
+                        { mode: 'Premium', weight: '0.5A', z1: '65', z2: '70', z3: '75', z4: '80', z5: '85', z6: '90', z7: '95', z8: '100', z9: '105', z10: '110', z11: '115', z12: '120', z13: '125', z14: '130' },
+                        { mode: 'Express', weight: '0.5 kg', z1: '50', z2: '55', z3: '60', z4: '65', z5: '70', z6: '75', z7: '80', z8: '85', z9: '90', z10: '95', z11: '100', z12: '105', z13: '110', z14: '115' },
+                        { mode: 'Airline', weight: '3 kg', z1: '105', z2: '115', z3: '125', z4: '135', z5: '145', z6: '155', z7: '165', z8: '175', z9: '185', z10: '195', z11: '205', z12: '215', z13: '225', z14: '235' },
+                        { mode: 'Surface', weight: '3 kg', z1: '85', z2: '90', z3: '95', z4: '100', z5: '105', z6: '110', z7: '115', z8: '120', z9: '125', z10: '130', z11: '135', z12: '140', z13: '145', z14: '150' }
+                    ]
+                }
+            },
+            standard: {
+                customer: {
+                    CODE: "DEFM",
+                    B2B_NAME: "DEF MANUFACTURING CO.",
+                    BRANCH: "MUM",
+                    B2B_TYPE: "SUPPLIER",
+                    STATUS: "ACTIVE",
+                    RATE_LIST: "SIMPLIFIED",
+                    CLEARING_CHG: "60.00",
+                    MOBILE_NUMBER: "8765432109",
+                    EMAIL: "orders@defmfg.com",
+                    B2B_ADDRESS: "Unit 12, Manufacturing Complex, Mumbai",
+                    B2B_CITY: "Mumbai",
+                    B2B_STATE: "Maharashtra",
+                    B2B_PINCODE: "400067",
+                    ID_GST_PAN_ADHAR: "27DEFAB1234P1Z5",
+                    WEIGHT_CHANGE: "3.00",
+                    "%_TOPAY_IF": "0.04",
+                    "%_COD_IF": "0.008",
+                    "%_FOV_IF": "0.022",
+                    EWAY_IF: "20.00",
+                    AWB_CHARGES: "2.50",
+                    PACKING_CHARGES: "15.00",
+                    FUEL_CHARGES: "0.11",
+                    DEV_CHARGES: "0.0008",
+                    GST_INC: "N",
+                    BILL_CYCLE: "DAILY"
+                },
+                rates: {
+                    simplified: [
+                        { mode: 'Premium', weight: '0.5 kg', regional: '48.00', ncr: '58.00', north: '68.00', metro: '78.00', roi: '88.00', east: '98.00' },
+                        { mode: 'Premium', weight: '0.5A', regional: '58.00', ncr: '68.00', north: '78.00', metro: '88.00', roi: '98.00', east: '108.00' },
+                        { mode: 'Express', weight: '0.5 kg', regional: '43.00', ncr: '53.00', north: '63.00', metro: '73.00', roi: '83.00', east: '93.00' },
+                        { mode: 'Express', weight: '1 kg', regional: '63.00', ncr: '73.00', north: '83.00', metro: '93.00', roi: '103.00', east: '113.00' },
+                        { mode: 'Airline', weight: '3 kg', regional: '95.00', ncr: '115.00', north: '135.00', metro: '155.00', roi: '175.00', east: '195.00' },
+                        { mode: 'Surface', weight: '3 kg', regional: '75.00', ncr: '85.00', north: '95.00', metro: '105.00', roi: '115.00', east: '125.00' }
+                    ],
+                    courier: [
+                        { mode: 'Premium', weight: '0.5 kg', regional: '48.00', ncr: '58.00', north: '68.00', metro: '78.00', roi: '88.00', east: '98.00' },
+                        { mode: 'Premium', weight: '0.5A', regional: '58.00', ncr: '68.00', north: '78.00', metro: '88.00', roi: '98.00', east: '108.00' },
+                        { mode: 'Express', weight: '0.5 kg', regional: '43.00', ncr: '53.00', north: '63.00', metro: '73.00', roi: '83.00', east: '93.00' },
+                        { mode: 'Airline', weight: '3 kg', regional: '95.00', ncr: '115.00', north: '135.00', metro: '155.00', roi: '175.00', east: '195.00' },
+                        { mode: 'Surface', weight: '3 kg', regional: '75.00', ncr: '85.00', north: '95.00', metro: '105.00', roi: '115.00', east: '125.00' }
+                    ]
+                }
+            }
+        };
+
+        function loadTestData(scenario) {
+            // Update active button
+            document.querySelectorAll('.test-controls button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${scenario}`).classList.add('active');
+
+            const data = TEST_DATA[scenario];
+            populateCustomerData(data.customer);
+            populateRateData(data.rates);
+        }
+
+        function populateCustomerData(customerData) {
+            // Generate quote number
+            const today = new Date();
+            const quoteNumber = `QT-${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}-${customerData.CODE || 'XXXX'}`;
+            document.getElementById("quote-number").textContent = quoteNumber;
+
+            // Populate basic customer info
+            document.getElementById("customer-code").textContent = customerData.CODE || "";
+            document.getElementById("customer-name").textContent = customerData.B2B_NAME || "";
+            document.getElementById("customer-branch").textContent = customerData.BRANCH || "";
+            document.getElementById("rate-list-type").textContent = customerData.RATE_LIST || "";
+
+            // Populate contact info
+            document.getElementById("mobile-number").textContent = customerData.MOBILE_NUMBER || "";
+            document.getElementById("email").textContent = customerData.EMAIL || "";
+            document.getElementById("address").textContent = customerData.B2B_ADDRESS || "";
+            document.getElementById("city").textContent = customerData.B2B_CITY || "";
+            document.getElementById("state").textContent = customerData.B2B_STATE || "";
+            document.getElementById("pincode").textContent = customerData.B2B_PINCODE || "";
+            document.getElementById("gst").textContent = customerData.ID_GST_PAN_ADHAR || "";
+
+            // Populate charges - clearing charge text
+            const billCycle = (customerData.BILL_CYCLE || "Monthly").charAt(0).toUpperCase() + (customerData.BILL_CYCLE || "Monthly").slice(1).toLowerCase();
+            const clearingChg = customerData.CLEARING_CHG || "0.00";
+            document.getElementById("clearing-chg-text").textContent = `${billCycle} Clearing Charges Within City Limits are ${clearingChg} Rupees.`;
+            
+            // Populate charges information
+            const weightChange = customerData.WEIGHT_CHANGE || "0.00";
+            const topayPct = customerData["%_TOPAY_IF"] ? (parseFloat(customerData["%_TOPAY_IF"]) * 100).toFixed(2) : "0.00";
+            const codPct = customerData["%_COD_IF"] ? (parseFloat(customerData["%_COD_IF"]) * 100).toFixed(2) : "0.00";
+            const fovPct = customerData["%_FOV_IF"] ? (parseFloat(customerData["%_FOV_IF"]) * 100).toFixed(2) : "0.00";
+            const fuelPct = customerData.FUEL_CHARGES ? (parseFloat(customerData.FUEL_CHARGES) * 100).toFixed(2) : "0.00";
+            const devPct = customerData.DEV_CHARGES ? (parseFloat(customerData.DEV_CHARGES) * 100).toFixed(2) : "0.00";
+            const ewayChg = customerData.EWAY_IF || "0.00";
+            const awbChg = customerData.AWB_CHARGES || "0.00";
+            const packingChg = customerData.PACKING_CHARGES || "0.00";
+
+            document.getElementById("charge-info-1").innerHTML = `<strong>Weight Change: ${weightChange} Kg</strong> - Packages of weight below ${weightChange} Kg will be considered as Express Booking. If weight is changed, minimum chargeable weight according to Mode will be applied.`;
+            document.getElementById("charge-info-2").innerHTML = `<strong>% TO-PAY: ${topayPct}%</strong> - To-Pay Charges are minimum ₹150 or ${topayPct}% of calculated freight charges.`;
+            document.getElementById("charge-info-3").innerHTML = `<strong>% COD: ${codPct}%</strong> - COD Charges: For Cheque on Delivery (Commercial Shipments) is minimum ₹250 or ${codPct}% of shipment value, and for Cash on Delivery (eCommerce Shipments) is minimum ₹50 or ${codPct}% of shipment value.`;
+            document.getElementById("charge-info-4").innerHTML = `<strong>% FOV: ${fovPct}%</strong> - Freight on Value (if defined or value exceeds amount set by company per consignment) is minimum ₹150 or ${fovPct}% of shipment value.`;
+            document.getElementById("charge-info-5").innerHTML = `<strong>Fuel Charge: ${fuelPct}%</strong> - Fuel Charges of ${fuelPct}% is to be calculated on freight.`;
+            document.getElementById("charge-info-6").innerHTML = `<strong>Development Charge: ${devPct}%</strong> - Development Charges of ${devPct}% is to be calculated on freight.`;
+            document.getElementById("charge-info-7").innerHTML = `<strong>E-Way Charge: ₹${ewayChg}, AWB Charge: ₹${awbChg}, and Packing Charge: ₹${packingChg}</strong> will be charged extra per consignment note.`;
+
+            const billCycleText = (customerData.BILL_CYCLE || "Monthly").toLowerCase();
+            document.getElementById("charge-info-8").innerHTML = `<strong>Bills will be generated ${billCycleText}.</strong>`;
+            
+            const gstText = customerData.GST_INC === "Y" ? "GST Inclusive" : "GST Exclusive";
+            document.getElementById("charge-info-9").innerHTML = `<strong>These rates are ${gstText}.</strong> (GST is applicable as per Government rules under the segment)`;
+
+            // Update branch details
+            document.getElementById("branch-name").textContent = customerData.BRANCH || "Dehradun";
+
+            // Update rate card view
+            updateRateCardView();
+        }
+
+        function populateRateData(rateData) {
+            const simplifiedTbody = document.getElementById("simplified-tbody");
+            const dynamicTbody = document.getElementById("dynamic-tbody");
+
+            // Clear existing data
+            simplifiedTbody.innerHTML = '';
+            dynamicTbody.innerHTML = '';
+
+            // Populate simplified rates
+            if (rateData.simplified) {
+                rateData.simplified.forEach(rate => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="mode-col">${rate.mode}</td>
+                        <td class="weight-col">${rate.weight}</td>
+                        <td>${rate.regional}</td>
+                        <td>${rate.ncr}</td>
+                        <td>${rate.north}</td>
+                        <td>${rate.metro}</td>
+                        <td>${rate.roi}</td>
+                        <td>${rate.east}</td>
+                    `;
+                    simplifiedTbody.appendChild(row);
+                });
+            }
+
+            // Populate dynamic rates
+            if (rateData.dynamic) {
+                rateData.dynamic.forEach(rate => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="mode-col">${rate.mode}</td>
+                        <td class="weight-col">${rate.weight}</td>
+                        <td>${rate.z1}</td>
+                        <td>${rate.z2}</td>
+                        <td>${rate.z3}</td>
+                        <td>${rate.z4}</td>
+                        <td>${rate.z5}</td>
+                        <td>${rate.z6}</td>
+                        <td>${rate.z7}</td>
+                        <td>${rate.z8}</td>
+                        <td>${rate.z9}</td>
+                        <td>${rate.z10}</td>
+                        <td>${rate.z11}</td>
+                        <td>${rate.z12}</td>
+                        <td>${rate.z13}</td>
+                        <td>${rate.z14}</td>
+                    `;
+                    dynamicTbody.appendChild(row);
+                });
+            }
+        }
+
+        function updateRateCardView() {
+            const rateListType = document.getElementById("rate-list-type").textContent;
+            const zoneInfoContainer = document.getElementById("zone-info-container");
+            zoneInfoContainer.innerHTML = '';
+            
+            if (rateListType === "DYNAMIC") {
+                document.getElementById("simplified-rate-section").style.display = "none";
+                document.getElementById("dynamic-rate-section").style.display = "block";
+                
+                // Show all 14 zones
+                for (let i = 1; i <= 14; i++) {
+                    const zoneKey = `Z${i}`;
+                    const zoneDiv = document.createElement('div');
+                    zoneDiv.innerHTML = `<span style="font-weight: bold;">${zoneKey}:</span> ${CONSTANTS.TEXTS.ZONE_INFO[zoneKey]}`;
+                    zoneInfoContainer.appendChild(zoneDiv);
+                }
+            } else {
+                document.getElementById("simplified-rate-section").style.display = "block";
+                document.getElementById("dynamic-rate-section").style.display = "none";
+                
+                // Show simplified zones
+                const simplifiedZones = ['REGIONAL', 'NCR', 'NORTH', 'METRO', 'ROI', 'EAST'];
+                simplifiedZones.forEach(zone => {
+                    const zoneDiv = document.createElement('div');
+                    zoneDiv.innerHTML = `<span style="font-weight: bold;">${zone}:</span> ${CONSTANTS.TEXTS.ZONE_INFO.SIMPLIFIED[zone]}`;
+                    zoneInfoContainer.appendChild(zoneDiv);
+                });
+            }
+        }
+
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const printContainer = document.querySelector('.print-container');
+
+            html2canvas(printContainer).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                const width = pdfWidth;
+                const height = width / ratio;
+
+                pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                pdf.save('quote-test-' + (new Date()).getTime() + '.pdf');
+            }).catch(error => {
+                console.error('Error generating PDF:', error);
+                alert('Error generating PDF. Please try again.');
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set company info
+            document.getElementById("company-name").textContent = CONSTANTS.COMPANY.NAME;
+            document.getElementById("company-name-intro").textContent = CONSTANTS.COMPANY.NAME;
+            document.getElementById("company-address").innerHTML = CONSTANTS.COMPANY.ADDRESS;
+            document.getElementById("branch-address").innerHTML = CONSTANTS.COMPANY.ADDRESS;
+            document.getElementById("branch-contact").innerHTML = `Phone: ${CONSTANTS.COMPANY.PHONE} | Email: ${CONSTANTS.COMPANY.EMAIL}`;
+
+            // Set static text labels
+            document.getElementById("document-title").textContent = CONSTANTS.TEXTS.DOCUMENT_TITLE;
+            document.getElementById("label-quote-number").textContent = CONSTANTS.TEXTS.LABELS.QUOTE_NUMBER;
+            document.getElementById("label-date").textContent = CONSTANTS.TEXTS.LABELS.DATE;
+            document.getElementById("label-valid-until").textContent = CONSTANTS.TEXTS.LABELS.VALID_UNTIL;
+            document.getElementById("section-customer-info").textContent = CONSTANTS.TEXTS.SECTION_TITLES.CUSTOMER_INFO;
+            document.getElementById("section-rate-card").textContent = CONSTANTS.TEXTS.SECTION_TITLES.RATE_CARD;
+            document.getElementById("section-other-charges").textContent = CONSTANTS.TEXTS.SECTION_TITLES.OTHER_CHARGES;
+            document.getElementById("title-terms-conditions").textContent = CONSTANTS.TEXTS.SECTION_TITLES.TERMS_CONDITIONS;
+            
+            document.getElementById("label-footer-branch").textContent = CONSTANTS.TEXTS.LABELS.BRANCH;
+            document.getElementById("label-footer-address").textContent = CONSTANTS.TEXTS.LABELS.FOOTER_ADDRESS;
+            document.getElementById("label-footer-contact").textContent = CONSTANTS.TEXTS.LABELS.CONTACT;
+            
+            // Set zone headers
+            document.getElementById("simplified-header-regional").textContent = CONSTANTS.TEXTS.ZONES.REGIONAL;
+            document.getElementById("simplified-header-ncr").textContent = CONSTANTS.TEXTS.ZONES.NCR;
+            document.getElementById("simplified-header-north").textContent = CONSTANTS.TEXTS.ZONES.NORTH;
+            document.getElementById("simplified-header-metro").textContent = CONSTANTS.TEXTS.ZONES.METRO;
+            document.getElementById("simplified-header-roi").textContent = CONSTANTS.TEXTS.ZONES.ROI;
+            document.getElementById("simplified-header-east").textContent = CONSTANTS.TEXTS.ZONES.EAST;
+
+            // Set dates
+            document.getElementById("current-date").textContent = new Date().toLocaleDateString();
+            document.getElementById("generated-date").textContent = new Date().toLocaleString();
+            document.getElementById("valid-until").textContent = CONSTANTS.TEXTS.QUOTE_VALIDITY;
+
+            // Populate zone info based on rate type
+            const zoneInfoContainer = document.getElementById("zone-info-container");
+            const rateListType = document.getElementById("rate-list-type").textContent;
+            
+            if (rateListType === "DYNAMIC") {
+                for (let i = 1; i <= 14; i++) {
+                    const zoneKey = `Z${i}`;
+                    const zoneDiv = document.createElement('div');
+                    zoneDiv.innerHTML = `<span style="font-weight: bold;">${zoneKey}:</span> ${CONSTANTS.TEXTS.ZONE_INFO[zoneKey]}`;
+                    zoneInfoContainer.appendChild(zoneDiv);
+                }
+            } else {
+                const simplifiedZones = ['REGIONAL', 'NCR', 'NORTH', 'METRO', 'ROI', 'EAST'];
+                simplifiedZones.forEach(zone => {
+                    const zoneDiv = document.createElement('div');
+                    zoneDiv.innerHTML = `<span style="font-weight: bold;">${zone}:</span> ${CONSTANTS.TEXTS.ZONE_INFO.SIMPLIFIED[zone]}`;
+                    zoneInfoContainer.appendChild(zoneDiv);
+                });
+            }
+
+            // Load default test data
+            loadTestData('simplified');
+        });
+    </script>
+</body>
+</html>
