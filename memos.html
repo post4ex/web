@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LCS - Company Memos & Announcements</title>
+    <title id="page-title">LCS - Company Memos & Announcements</title>
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
@@ -123,7 +123,7 @@
                             Company Memos & External Updates
                         </h1>
                         <p class="text-blue-100 opacity-90 max-w-2xl">
-                            Official company communications, government notifications, and industry news relevant to LCS operations.
+                            Official company communications, government notifications, and industry news relevant to <span id="company-name-ops">LCS</span> operations.
                             Reply to memos via email for official communication.
                         </p>
                     </div>
@@ -454,13 +454,13 @@
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <h3 class="font-bold text-gray-800 mb-2">Need to Respond to a Company Memo?</h3>
-                        <p class="text-sm text-gray-600">Use your official LCS email to reply to memo authors. Click "Reply" on any memo card.</p>
+                        <p class="text-sm text-gray-600">Use your official <span id="company-name-email">LCS</span> email to reply to memo authors. Click "Reply" on any memo card.</p>
                     </div>
                     
                     <div class="flex flex-col items-end">
                         <p class="text-sm text-gray-600 mb-2">Official reply email:</p>
                         <code id="officialReplyEmail" class="bg-red-700 text-white px-4 py-2 rounded-lg font-mono text-sm">
-                            lcsrrk@gmail.com
+                            support@example.com
                         </code>
                     </div>
                 </div>
@@ -545,7 +545,7 @@
         // ============================================================================
         // MEMOS DATA ENGINE
         // ============================================================================
-        const SUPPORT_EMAIL = 'lcsrrk@gmail.com';
+        const SUPPORT_EMAIL = window.CONSTANTS?.SUPPORT_EMAIL || 'support@example.com';
         
         class MemosEngine {
             constructor() {
@@ -1438,8 +1438,15 @@ ${memoContent}
         // ============================================================================
         
         window.addEventListener('footerLoaded', function() {
-            const emailEl = document.getElementById('officialReplyEmail');
-            if(emailEl) emailEl.textContent = SUPPORT_EMAIL;
+            if (window.CONSTANTS) {
+                const appName = window.CONSTANTS.APP_NAME;
+                const supportEmail = window.CONSTANTS.SUPPORT_EMAIL;
+                document.getElementById('page-title').textContent = `${appName} - Company Memos & Announcements`;
+                document.getElementById('company-name-ops').textContent = appName;
+                document.getElementById('company-name-email').textContent = appName;
+                const emailEl = document.getElementById('officialReplyEmail');
+                if(emailEl) emailEl.textContent = supportEmail;
+            }
             memosEngine = new MemosEngine();
             document.getElementById('tab-internal').addEventListener('click', () => switchTab('internal'));
             document.getElementById('tab-external').addEventListener('click', () => switchTab('external'));

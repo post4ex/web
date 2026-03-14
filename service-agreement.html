@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courier Service Agreement</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .agreement-container {
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+        h2 {
+            color: #444;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        p {
+            margin-bottom: 12px;
+            text-align: justify;
+            color: #333;
+        }
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 12px;
+        }
+        li {
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .print-btn:hover {
+            background: #0056b3;
+        }
+        @media print {
+            body {
+                padding: 20px;
+                background: white;
+            }
+            .print-btn {
+                display: none;
+            }
+            .agreement-container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">Print Agreement</button>
+    
+    <div class="agreement-container">
+        <h1>Courier Service Agreement</h1>
+
+        <h2>1. Definitions</h2>
+        <ul>
+            <li><strong>"Company"</strong> refers to the courier service provider.</li>
+            <li><strong>"Client"</strong> refers to the individual or entity engaging the Company's services.</li>
+            <li><strong>"Consignment"</strong> refers to any package, parcel, or document entrusted to the Company for delivery.</li>
+            <li><strong>"Services"</strong> refers to the pickup, transportation, and delivery of consignments.</li>
+            <li><strong>"Dangerous Goods"</strong> refers to items classified as hazardous under IATA regulations.</li>
+        </ul>
+
+        <h2>2. Scope of Services</h2>
+        <p>The Company agrees to provide courier and logistics services including but not limited to:</p>
+        <ul>
+            <li>Pickup of consignments from specified locations</li>
+            <li>Transportation and handling of consignments</li>
+            <li>Delivery to designated recipients</li>
+            <li>Tracking and status updates</li>
+            <li>Insurance services (optional)</li>
+        </ul>
+
+        <h2>3. Client Responsibilities</h2>
+        <h3>3.1 Accurate Information</h3>
+        <p>The Client must provide accurate and complete information including sender and recipient details, contact numbers, addresses, and consignment contents.</p>
+
+        <h3>3.2 Packaging</h3>
+        <p>The Client is responsible for proper packaging of consignments to withstand normal handling during transit. The Company is not liable for damage resulting from inadequate packaging.</p>
+
+        <h3>3.3 Prohibited Items</h3>
+        <p>The Client agrees not to send:</p>
+        <ul>
+            <li>Dangerous goods as per IATA regulations</li>
+            <li>Illegal substances or contraband</li>
+            <li>Perishable items without prior arrangement</li>
+            <li>Currency, negotiable instruments (without declaration)</li>
+            <li>Items prohibited by law or regulation</li>
+        </ul>
+
+        <h3>3.4 Declaration of Value</h3>
+        <p>The Client must declare the value of consignments exceeding ₹50,000. Failure to declare may result in limited liability coverage.</p>
+
+        <h2>4. Pickup and Delivery</h2>
+        <h3>4.1 Pickup</h3>
+        <p>Pickups will be scheduled based on the Client's request and the Company's operational capacity. The Company will make reasonable efforts to adhere to scheduled pickup times but does not guarantee specific pickup windows.</p>
+
+        <h3>4.2 Delivery</h3>
+        <p>Delivery times are estimates and not guaranteed unless specifically agreed in writing. The Company will make up to three delivery attempts. After three failed attempts, the consignment will be held for client instructions.</p>
+
+        <h3>4.3 Proof of Delivery</h3>
+        <p>Delivery is considered complete upon obtaining a signature from the recipient or authorized person at the delivery address. Electronic signatures and photographs may be used as proof of delivery.</p>
+
+        <h2>5. Charges and Payment</h2>
+        <h3>5.1 Service Charges</h3>
+        <p>Charges are calculated based on:</p>
+        <ul>
+            <li>Weight (actual or volumetric, whichever is higher)</li>
+            <li>Destination zone</li>
+            <li>Service type (standard, express, etc.)</li>
+            <li>Additional services (insurance, COD, etc.)</li>
+            <li>Handling surcharges for oversized or heavy items</li>
+        </ul>
+
+        <h3>5.2 Volumetric Weight</h3>
+        <p>Volumetric weight is calculated as: (Length × Width × Height in cm) ÷ 5000</p>
+
+        <h3>5.3 Payment Terms</h3>
+        <ul>
+            <li>Credit accounts: Payment due within specified billing cycle (7/15/30 days)</li>
+            <li>Early payment: Development charges waived if paid before file date on invoice</li>
+            <li>Late payment: Interest charged at 2% per month on overdue amounts</li>
+            <li>Advance payment: May be required for new clients or high-value consignments</li>
+            <li>Accepted methods: Bank transfer, cheque, online payment (UPI/NEFT/RTGS)</li>
+            <li>Cash: Only accepted for unregistered persons, not for registered clients</li>
+        </ul>
+
+        <h3>5.4 Additional Charges</h3>
+        <p>The following may incur additional charges:</p>
+        <ul>
+            <li>Weight changes discovered during processing</li>
+            <li>TO-PAY consignments (charges collected from recipient)</li>
+            <li>Cash on Delivery (COD) service</li>
+            <li>Freight on Value (FOV) for high-value items</li>
+            <li>Fuel surcharges (as applicable)</li>
+            <li>Development charges for remote areas</li>
+            <li>E-way bill, AWB, and packing material charges</li>
+        </ul>
+
+        <h2>6. Liability and Insurance</h2>
+        <h3>6.1 Limited Liability</h3>
+        <p>The Company's liability for loss or damage is limited to:</p>
+        <ul>
+            <li>₹100 per kg for undeclared consignments</li>
+            <li>Declared value for consignments with proper declaration and insurance</li>
+            <li>Maximum of ₹50,000 without insurance coverage</li>
+        </ul>
+
+        <h3>6.2 Exclusions</h3>
+        <p>The Company is not liable for:</p>
+        <ul>
+            <li>Acts of God, natural disasters, or force majeure events</li>
+            <li>Delays due to customs, regulatory authorities, or government actions</li>
+            <li>Damage due to improper packaging by the Client</li>
+            <li>Loss of business, profits, or consequential damages</li>
+            <li>Prohibited or undeclared items</li>
+            <li>Inherent defects in the consignment</li>
+        </ul>
+
+        <h3>6.3 Insurance</h3>
+        <p>Insurance coverage is optional and available at additional cost. Insured consignments require proper declaration of contents and value. Claims must be filed within 7 days of delivery or scheduled delivery date.</p>
+
+        <h2>7. Claims and Disputes</h2>
+        <h3>7.1 Filing Claims</h3>
+        <p>Claims for loss, damage, or delay must be filed in writing within:</p>
+        <ul>
+            <li>7 days for damage claims</li>
+            <li>30 days for loss claims</li>
+            <li>Claims filed after these periods will not be entertained</li>
+        </ul>
+
+        <h3>7.2 Documentation</h3>
+        <p>Claims must be supported by:</p>
+        <ul>
+            <li>Original consignment note/AWB</li>
+            <li>Invoice or proof of value</li>
+            <li>Photographs of damage (if applicable)</li>
+            <li>Any other relevant documentation</li>
+        </ul>
+
+        <h3>7.3 Settlement</h3>
+        <p>Valid claims will be settled within 30 days of approval. Settlement may be in the form of refund, credit note, or replacement at the Company's discretion.</p>
+
+        <h2>8. Service Level Agreements (SLA)</h2>
+        <h3>8.1 Delivery Timeframes</h3>
+        <ul>
+            <li>Within city: 24-48 hours</li>
+            <li>Regional: 2-3 days</li>
+            <li>NCR: 2-4 days</li>
+            <li>Metro cities: 3-5 days</li>
+            <li>Rest of India: 4-7 days</li>
+            <li>Remote areas: 7-10 days</li>
+        </ul>
+        <p><em>Note: These are estimated timeframes and not guaranteed delivery dates unless specifically agreed in writing.</em></p>
+
+        <h3>8.2 SLA Exceptions</h3>
+        <p>SLAs do not apply during:</p>
+        <ul>
+            <li>Natural disasters or force majeure events</li>
+            <li>Strikes, lockouts, or civil unrest</li>
+            <li>Government restrictions or regulatory delays</li>
+            <li>Incorrect or incomplete address information</li>
+            <li>Recipient unavailability</li>
+        </ul>
+
+        <h2>9. Term and Termination</h2>
+        <h3>9.1 Term</h3>
+        <p>This agreement is effective from the date of first service and continues until terminated by either party.</p>
+
+        <h3>9.2 Termination</h3>
+        <p>Either party may terminate this agreement with 30 days written notice. The Company may terminate immediately if:</p>
+        <ul>
+            <li>Client fails to pay outstanding dues</li>
+            <li>Client violates terms regarding prohibited items</li>
+            <li>Client engages in fraudulent activities</li>
+        </ul>
+
+        <h3>9.3 Outstanding Obligations</h3>
+        <p>Upon termination, all outstanding payments become immediately due. The Company will complete delivery of consignments already in transit.</p>
+
+        <h2>10. Indemnification</h2>
+        <p>The Client agrees to indemnify and hold harmless the Company from any claims, damages, or expenses arising from:</p>
+        <ul>
+            <li>Prohibited or undeclared items in consignments</li>
+            <li>Inaccurate or incomplete information provided by the Client</li>
+            <li>Violation of laws or regulations by the Client</li>
+            <li>Third-party claims related to consignment contents</li>
+        </ul>
+
+        <h2>11. Confidentiality</h2>
+        <p>Both parties agree to maintain confidentiality of business information, customer data, and pricing details. This obligation survives termination of the agreement.</p>
+
+        <h2>12. Data Protection</h2>
+        <p>The Company will process personal data in accordance with applicable data protection laws. Client data will be used solely for service delivery and may be shared with delivery partners as necessary.</p>
+
+        <h2>13. Dispute Resolution</h2>
+        <h3>13.1 Negotiation</h3>
+        <p>Parties agree to first attempt resolution through good-faith negotiation.</p>
+
+        <h3>13.2 Arbitration</h3>
+        <p>Unresolved disputes will be settled through arbitration in accordance with the Arbitration and Conciliation Act, 1996.</p>
+
+        <h3>13.3 Jurisdiction</h3>
+        <p>Courts at the Company's registered office location shall have exclusive jurisdiction for any legal proceedings.</p>
+
+        <h2>14. Force Majeure</h2>
+        <p>Neither party shall be liable for failure to perform obligations due to circumstances beyond reasonable control including natural disasters, war, terrorism, strikes, government actions, or pandemics.</p>
+
+        <h2>15. Amendments</h2>
+        <p>The Company reserves the right to amend these terms with 15 days notice to the Client. Continued use of services after notice period constitutes acceptance of amended terms.</p>
+
+        <h2>16. Entire Agreement</h2>
+        <p>This agreement constitutes the entire understanding between parties and supersedes all prior agreements, whether written or oral.</p>
+
+        <h2>17. Severability</h2>
+        <p>If any provision is found invalid or unenforceable, the remaining provisions shall continue in full force and effect.</p>
+
+        <h2>Schedule A: Zone Definitions</h2>
+        <h3>Simplified Rate Structure (6 Zones)</h3>
+        <ul>
+            <li><strong>REGIONAL:</strong> Z1 (Within City), Z2 (Within State)</li>
+            <li><strong>NCR:</strong> Z4 (National Capital Region)</li>
+            <li><strong>NORTH:</strong> Z3, Z5, Z6 (Northern States)</li>
+            <li><strong>METRO:</strong> Z7, Z8 (Major Metro Cities)</li>
+            <li><strong>ROI:</strong> Z9, Z10, Z11, Z12 (Rest of India)</li>
+            <li><strong>EAST:</strong> Z13, Z14 (Eastern States & North-East)</li>
+        </ul>
+
+        <h3>Dynamic Rate Structure (14 Individual Zones)</h3>
+        <p>Z1 through Z14 as defined in the Company's zone classification system.</p>
+
+        <h2>Schedule B: Handling Surcharges</h2>
+        <h3>Weight-Based Surcharges (per piece)</h3>
+        <ul>
+            <li>30 kg and above: 1.5× base rate (minimum 30 kg charged)</li>
+            <li>50 kg and above: 2× base rate (minimum 50 kg charged)</li>
+            <li>100 kg and above: 2.5× base rate (minimum 100 kg charged)</li>
+            <li>200 kg and above: 3× base rate (minimum 200 kg charged)</li>
+        </ul>
+
+        <h3>Length-Based Surcharges (per piece)</h3>
+        <ul>
+            <li>1 meter and above: 1.5× base rate (minimum 30 kg charged)</li>
+            <li>2 meters and above: 2× base rate (minimum 50 kg charged)</li>
+            <li>8 feet and above: 2.5× base rate (minimum 100 kg charged)</li>
+        </ul>
+
+        <p><strong>Note:</strong> If a piece exceeds both weight and length limits, the highest applicable multiplier is charged.</p>
+
+        <h2>Schedule C: Dangerous Goods Regulations</h2>
+        <p>The following items are strictly prohibited as per IATA Dangerous Goods Regulations:</p>
+        <ul>
+            <li>Explosives and fireworks</li>
+            <li>Flammable liquids and gases</li>
+            <li>Toxic and infectious substances</li>
+            <li>Radioactive materials</li>
+            <li>Corrosive substances</li>
+            <li>Oxidizing agents</li>
+            <li>Compressed gases</li>
+            <li>Lithium batteries (standalone, without equipment)</li>
+            <li>Magnetized materials</li>
+        </ul>
+
+        <p style="margin-top: 40px; text-align: center; color: #666; font-size: 14px;">
+            <strong>By using our services, you acknowledge that you have read, understood, and agree to be bound by these terms and conditions.</strong>
+        </p>
+    </div>
+</body>
+</html>

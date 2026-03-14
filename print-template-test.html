@@ -271,6 +271,7 @@
         <button onclick="loadTestData('standard')" id="btn-standard">Standard Client</button>
         <button onclick="window.print()">Print Test</button>
         <button onclick="generatePDF()">Download PDF</button>
+        <button onclick="viewFullAgreement()" style="background: #FF9800;">View Full Agreement</button>
     </div>
 
     <div class="print-container">
@@ -968,6 +969,11 @@
                 console.error('Error generating PDF:', error);
                 alert('Error generating PDF. Please try again.');
             });
+        }
+        
+        function viewFullAgreement() {
+            // Open agreement in new window
+            window.open('service-agreement.html', '_blank');
         }
 
         // Initialize

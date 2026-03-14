@@ -35,11 +35,63 @@
     link.href = 'assets/images/laxmi-logo.png';
 })();
 
+/**
+ * Auto-update page titles with APP_NAME from CONSTANTS
+ */
+(function() {
+    const updateTitle = () => {
+        if (window.CONSTANTS && window.CONSTANTS.APP_NAME) {
+            const titleEl = document.querySelector('title');
+            if (titleEl) {
+                const currentTitle = titleEl.textContent.trim();
+                // Only append if APP_NAME is not already in the title
+                if (!currentTitle.includes(window.CONSTANTS.APP_NAME)) {
+                    titleEl.textContent = `${currentTitle} - ${window.CONSTANTS.APP_NAME}`;
+                }
+            }
+        }
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateTitle);
+    } else {
+        updateTitle();
+    }
+})();
+
 // ============================================================================
 // SECTION 1: GLOBAL CONFIGURATION & MAPS
 // ============================================================================
 
 const CONSTANTS = {
+    // APPLICATION IDENTITY
+    APP_NAME: 'WEB',
+    SUPPORT_EMAIL: 'lcsrrk@gmail.com',
+    COMPANY_NAME: 'Laxmi Courier Service',
+    COPYRIGHT_YEAR: '2022',
+    APP_THEME: 'maroon', // Change to 'blue' or 'maroon' to set application theme
+    
+    // Auto-generated from above
+    get COPYRIGHT_TEXT() {
+        return `© ${this.COPYRIGHT_YEAR} ${this.COMPANY_NAME}. All rights reserved.`;
+    },
+    
+    // THEME CONFIGURATION
+    THEMES: {
+        maroon: {
+            primary: '#9C2007',
+            primaryHover: '#8C1C06',
+            primaryLight: '#FEF2F2',
+            name: 'Maroon'
+        },
+        blue: {
+            primary: '#1e3a8a',
+            primaryHover: '#1e40af',
+            primaryLight: '#eff6ff',
+            name: 'Blue'
+        }
+    },
+    DEFAULT_THEME: 'maroon',
+    
     // THE GATEWAY: The single URL for your Google Apps Script Backend.
     // IMPORTANT: Make sure this is deployed with "Who has access: Anyone"
     OPERATIONS_URL: 'https://script.google.com/macros/s/AKfycbwQpFOm5EPYPKWpImEHRowtjoCKAgs5AgyAuqVQoOAcze8SzDgXeqzV1UCRz0bRadu5zQ/exec',
@@ -65,6 +117,52 @@ const CONSTANTS = {
 };
 // Expose CONSTANTS globally
 window.CONSTANTS = CONSTANTS;
+
+/**
+ * Theme Management System
+ */
+(function() {
+    window.setTheme = function(themeName) {
+        const theme = window.CONSTANTS.THEMES[themeName];
+        if (!theme) return;
+        
+        document.documentElement.style.setProperty('--theme-primary', theme.primary);
+        document.documentElement.style.setProperty('--theme-primary-hover', theme.primaryHover);
+        document.documentElement.style.setProperty('--theme-primary-light', theme.primaryLight);
+        
+        // Update all elements with inline styles
+        document.querySelectorAll('[style*="#9C2007"]').forEach(el => {
+            if (el.style.backgroundColor) el.style.backgroundColor = theme.primary;
+            if (el.style.color) el.style.color = theme.primary;
+        });
+        
+        document.querySelectorAll('[style*="#8C1C06"]').forEach(el => {
+            const oldHover = el.getAttribute('onmouseover');
+            const oldOut = el.getAttribute('onmouseout');
+            if (oldHover) el.setAttribute('onmouseover', oldHover.replace(/#8C1C06/g, theme.primaryHover).replace(/#9C2007/g, theme.primary));
+            if (oldOut) el.setAttribute('onmouseout', oldOut.replace(/#9C2007/g, theme.primary).replace(/#8C1C06/g, theme.primaryHover));
+        });
+        
+        document.querySelectorAll('[style*="#FEF2F2"]').forEach(el => {
+            const oldHover = el.getAttribute('onmouseover');
+            const oldOut = el.getAttribute('onmouseout');
+            if (oldHover) el.setAttribute('onmouseover', oldHover.replace(/#FEF2F2/g, theme.primaryLight));
+            if (oldOut) el.setAttribute('onmouseout', oldOut.replace(/#FEF2F2/g, theme.primaryLight));
+        });
+    };
+    
+    // Apply theme from CONSTANTS
+    const appTheme = window.CONSTANTS.APP_THEME || window.CONSTANTS.DEFAULT_THEME;
+    const theme = window.CONSTANTS.THEMES[appTheme];
+    document.documentElement.style.setProperty('--theme-primary', theme.primary);
+    document.documentElement.style.setProperty('--theme-primary-hover', theme.primaryHover);
+    document.documentElement.style.setProperty('--theme-primary-light', theme.primaryLight);
+    
+    // Apply to DOM elements after header/footer load
+    window.addEventListener('footerLoaded', () => {
+        window.setTheme(appTheme);
+    });
+})();
 
 /**
  * DATE TRANSFORMATION CONFIGURATION (DATABASE LEVEL)
@@ -945,13 +1043,18 @@ function checkLoginStatus() {
         };
         populateDetails(document.getElementById('profile-details-container'), false);
         populateDetails(document.getElementById('mobile-profile-details-container'), true);
-        const copyright = document.getElementById('copyright-text');
-        if (copyright) copyright.innerHTML = 'Designed & Hardcoded by Arun Tomar.';
     } else {
         show(['login-button', 'login-button-mobile', 'main-nav-public']);
-        // Hide the notification container on logout
         hide(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button', 'notification-container-global', 'mobile-tools-section']);
     }
+    
+    // Set footer copyright for both logged in and logged out states
+    setTimeout(() => {
+        const copyright = document.getElementById('copyright-text');
+        if (copyright) {
+            copyright.textContent = CONSTANTS.COPYRIGHT_TEXT;
+        }
+    }, 500);
 
     const page = window.location.pathname.split('/').pop();
     const reqRole = PAGE_CONFIG[page];
