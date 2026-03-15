@@ -22,9 +22,7 @@ web.code-workspace
 tailwind.config.js
 
 # Documentation (keep only deployment docs)
-*.md
-!hf-deployment/README.md
-!hf-deployment/DEPLOY.md
+!README.md
 !DEVELOPMENT.md
 
 # Text files and logs

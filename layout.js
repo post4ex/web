@@ -92,9 +92,8 @@ const CONSTANTS = {
     },
     DEFAULT_THEME: 'maroon',
     
-    // THE GATEWAY: The single URL for your Google Apps Script Backend.
-    // IMPORTANT: Make sure this is deployed with "Who has access: Anyone"
-    OPERATIONS_URL: 'https://script.google.com/macros/s/AKfycbwQpFOm5EPYPKWpImEHRowtjoCKAgs5AgyAuqVQoOAcze8SzDgXeqzV1UCRz0bRadu5zQ/exec',
+    // THE GATEWAY: Resolved at runtime — dev_url.json in dev, __API_URL__ in prod.
+    OPERATIONS_URL: '__API_URL__',
     
     // SYSTEM HEARTBEAT TIMERS
     SYNC_INTERVAL:      12 * 60 * 1000, // 12 Minutes: Refreshes business data.
@@ -1148,7 +1147,16 @@ function initializeUI() {
 // MAIN ENTRY POINT
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    
+
+    // Resolve API URL: dev_url.json in dev (IDX), __API_URL__ placeholder in prod (Docker)
+    try {
+        const res = await fetch('dev_url.json', { cache: 'no-store' });
+        if (res.ok) {
+            const { url } = await res.json();
+            if (url) CONSTANTS.OPERATIONS_URL = url;
+        }
+    } catch (_) {}
+
     // Inject the Modal HTML immediately
     createNotificationModal();
 
