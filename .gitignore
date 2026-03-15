@@ -16,8 +16,7 @@ hf-deployment/
 .env.local
 dev_url.json
 
-# Assets fetched at container runtime
-assets/
+
 
 # Development files
 dev-server.sh
