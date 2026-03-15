@@ -1,0 +1,22 @@
+name: Sync to HF Space
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config user.email "post4ex@gmail.com"
+          git config user.name "post4ex"
+          git remote add hf https://post4ex:$HF_TOKEN@huggingface.co/spaces/post4ex/web
+          git push hf main --force
