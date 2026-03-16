@@ -250,9 +250,8 @@
     <script src="layout.js"></script>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbwQpFOm5EPYPKWpImEHRowtjoCKAgs5AgyAuqVQoOAcze8SzDgXeqzV1UCRz0bRadu5zQ/exec';
         let currentView = 'login', regState = 'init', forgotState = 'send', resetToken = '';
-        let tempRegData = {}; // Stores initial registration data
+        let tempRegData = {};
 
         document.addEventListener('DOMContentLoaded', () => {
             // Removed global clearing of storage on load to persist state if needed
@@ -299,60 +298,19 @@
             }
         }
 
-        // JSONP fallback for CORS issues
-        function callApiJSONP(action, params = {}) {
-            return new Promise((resolve, reject) => {
-                const callbackName = 'jsonp_callback_' + Date.now();
-                const script = document.createElement('script');
-                
-                // Create global callback
-                window[callbackName] = function(data) {
-                    document.head.removeChild(script);
-                    delete window[callbackName];
-                    resolve(data);
-                };
-                
-                // Build URL with parameters
-                const urlParams = new URLSearchParams({ ...params, action, callback: callbackName });
-                script.src = `${API_URL}?${urlParams.toString()}`;
-                
-                script.onerror = () => {
-                    document.head.removeChild(script);
-                    delete window[callbackName];
-                    reject(new Error('JSONP request failed'));
-                };
-                
-                document.head.appendChild(script);
-            });
-        }
+        // JSONP removed - not needed with REST API
 
-        async function callApi(action, params = {}) {
+        async function callApi(endpoint, payload = {}, token = null) {
             setLoading(true, 'Connecting...');
             try {
-                let payload = { action, ...params };
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
 
-                if (action === 'login') {
-                    payload = {
-                        action: 'login',
-                        username: params.username,
-                        password: params.password,
-                        ip: params.ip,
-                        userAgent: params.userAgent,
-                        domain: params.domain
-                    };
-                }
-
-                const res = await fetch(API_URL, { 
-                    method: 'POST', 
-                    body: new URLSearchParams(payload),
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
+                const res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(payload)
                 });
-
-                if (!res.ok) {
-                    throw new Error(`Server Error: ${res.status}`);
-                }
 
                 const json = await res.json();
                 setLoading(false);
@@ -361,7 +319,7 @@
             } catch (err) {
                 setLoading(false);
                 let msg = err.message;
-                if(msg.includes('Blocked')) msg = "⚠️ Account Blocked (Suspicious Activity)";
+                if (msg.includes('Blocked')) msg = '⚠️ Account Blocked (Suspicious Activity)';
                 showMessage(msg, 'error');
                 throw err;
             }
@@ -389,24 +347,20 @@
             // Basic length check for password
             if (pass.length < 6) return showMessage('Password is too short.', 'error');
 
-            try {
-                // Collect client information for enhanced security
-                const clientInfo = {
+            try {const res = await callApi('/api/login', {
                     username: user,
                     password: pass,
                     ip: sessionStorage.getItem('clientIP') || '0.0.0.0',
                     userAgent: navigator.userAgent,
                     domain: window.location.hostname
-                };
-
-                const res = await callApi('login', clientInfo);
+                });
                 console.log('Login response:', res);
 
-                if (res.status === 'success' && (res.sessionID || res.sessionId)) {
+                if (res.status === 'success' && res.sessionId) {
                     console.log('Login successful, redirecting...');
                     // More secure session storage with additional metadata
                     const loginData = {
-                        sessionId: res.sessionID || res.sessionId,
+                        sessionId: res.sessionId,
                         userData: res.userData,
                         loginTime: Date.now(),
                         expires: Date.now() + 30 * 60 * 1000, // 30 minutes
@@ -450,10 +404,9 @@
                 
                 if (data.PASS !== confirmPass) return showMessage('Passwords do not match.', 'error');
                 
-                tempRegData = data; 
-
+                // Remove client info collection - not needed
                 try {
-                    await callApi('initiateRegistration', { registrationData: JSON.stringify(data) });
+                    await callApi('/api/initiateRegistration', data);
                     document.getElementById('reg-step-1').classList.add('hidden');
                     document.getElementById('reg-step-2').classList.remove('hidden');
                     document.getElementById('reg-btn').textContent = 'Confirm OTP';
@@ -466,7 +419,7 @@
                     
                     if (!otp) return showMessage('Enter OTP.', 'error');
 
-                    await callApi('confirmRegistration', { email: email, otp: otp });
+                    await callApi('/api/confirmRegistration', { email, otp });
                     showMessage('OTP Verified.', 'success');
                     switchView('kyc');
                     
@@ -497,7 +450,7 @@
             if (forgotState === 'send') {
                 if(!id) return showMessage("Enter Username or Email", "error");
                 try {
-                    await callApi('sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
+                    await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
                     document.getElementById('forgot-step-1').classList.add('hidden');
                     document.getElementById('forgot-step-2').classList.remove('hidden');
                     document.getElementById('forgot-btn').textContent = 'Verify OTP';
@@ -505,7 +458,7 @@
                 } catch (err) {}
             } else if (forgotState === 'verify') {
                 try {
-                    const res = await callApi('verifyResetOtp', { identifier: id, otp: document.getElementById('forgot-otp').value.trim() });
+                    const res = await callApi('/api/verifyResetOtp', { identifier: id, otp: document.getElementById('forgot-otp').value.trim() });
                     resetToken = res.token;
                     document.getElementById('forgot-step-2').classList.add('hidden');
                     document.getElementById('forgot-step-3').classList.remove('hidden');
@@ -521,7 +474,7 @@
                     if (newPass.length < 8) return showMessage('Password must be at least 8 characters.', 'error');
                     if (!/[A-Z]/.test(newPass)) return showMessage('Password must contain at least one uppercase letter.', 'error');
 
-                    await callApi('resetPass', { identifier: id, token: resetToken, newPassword: newPass });
+                    await callApi('/api/resetPass', { identifier: id, token: resetToken, newPassword: newPass });
                     showMessage('Password Reset!', 'success');
                     setTimeout(() => switchView('login'), 2000);
                 } catch (err) {}
