@@ -32,7 +32,7 @@
         link.type = 'image/png';
         document.head.appendChild(link);
     }
-    link.href = 'assets/images/post4ex-logo.svg';
+    link.href = 'assets/images/favicon.svg';
 })();
 
 /**
