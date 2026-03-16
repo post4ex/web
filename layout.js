@@ -32,7 +32,7 @@
         link.type = 'image/png';
         document.head.appendChild(link);
     }
-    link.href = 'assets/images/laxmi-logo.png';
+    link.href = 'assets/images/post4ex-logo.svg';
 })();
 
 /**
@@ -326,8 +326,11 @@ async function loadComponent(componentUrl, placeholderId) {
         if (!placeholder) return;
         
         // Show loading indicator immediately
-        placeholder.innerHTML = '<div class="animate-pulse bg-gray-200 h-14 w-full rounded"></div>';
-        placeholder.style.minHeight = '56px';
+        const isHeader = placeholderId === 'header-placeholder';
+        placeholder.innerHTML = isHeader
+            ? '<div class="animate-pulse bg-gray-200 h-14 w-full rounded"></div>'
+            : '<div class="animate-pulse bg-gray-200 h-10 w-full rounded"></div>';
+        placeholder.style.minHeight = isHeader ? '56px' : '36px';
         
         const response = await fetch(componentUrl, { 
             cache: 'force-cache',
@@ -1211,7 +1214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load header first (priority), then footer
     await loadComponent('header.html', 'header-placeholder');
-    loadComponent('footer.html', 'footer-placeholder'); // Load footer in background
+    await loadComponent('footer.html', 'footer-placeholder');
 
     window.dispatchEvent(new CustomEvent('footerLoaded'));
     
