@@ -332,9 +332,8 @@ async function loadComponent(componentUrl, placeholderId) {
             : '<div class="animate-pulse bg-gray-200 h-10 w-full rounded"></div>';
         placeholder.style.minHeight = isHeader ? '56px' : '36px';
         
-        const response = await fetch(componentUrl, { 
-            cache: 'force-cache',
-            priority: 'high'
+        const response = await fetch(componentUrl, {
+            cache: 'default'
         });
         if (!response.ok) throw new Error(`Failed to load ${componentUrl}`);
         
@@ -1152,7 +1151,7 @@ function initializeUI() {
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
 
-    // Resolve API URL: dev_url.json in dev (IDX), __API_URL__ placeholder in prod (Docker)
+    // Resolve API URL
     try {
         const res = await fetch('dev_url.json', { cache: 'no-store' });
         if (res.ok) {
@@ -1161,76 +1160,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (_) {}
 
-    // Inject the Modal HTML immediately
     createNotificationModal();
-
     fetchClientIP();
-    
-    // Wait for IndexedDB to initialize
-    if (!window.appDB) {
-        console.log("%c[SYSTEM] Waiting for IndexedDB initialization...", "color: orange; font-weight: bold;");
-        // Wait for IndexedDB ready event or timeout after 5 seconds
-        await new Promise((resolve) => {
-            let resolved = false;
-            const timeout = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    console.warn("%c[SYSTEM] IndexedDB initialization timeout", "color: red; font-weight: bold;");
-                    resolve();
-                }
-            }, 5000);
-            
-            window.addEventListener('indexedDBReady', () => {
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeout);
-                    resolve();
-                }
-            }, { once: true });
-            
-            // Check if already initialized
-            if (window.appDB && window.appDB.db) {
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeout);
-                    resolve();
-                }
-            }
-        });
-    }
-    
-    if (window.appDB) {
-        const lastSync = await window.appDB.getLastSyncTime();
-        if (lastSync) {
-            console.log("%c[SYSTEM] IndexedDB Data is Ready", "color: green; font-weight: bold;");
-        } else {
-            console.log("%c[SYSTEM] IndexedDB Ready - No Data Found", "color: orange; font-weight: bold;");
-        }
-    } else {
-        console.error("%c[SYSTEM] IndexedDB Failed to Initialize", "color: red; font-weight: bold;");
-    }
 
-    checkLoginStatus();
-
-    // Load header first (priority), then footer
+    // Load header & footer FIRST — before IndexedDB wait, no duplicate checkLoginStatus
     await loadComponent('header.html', 'header-placeholder');
     await loadComponent('footer.html', 'footer-placeholder');
-
     window.dispatchEvent(new CustomEvent('footerLoaded'));
-    
-    // RE-RUN CHECK AFTER HEADER INJECTION
-    checkLoginStatus(); 
-    
-    // RESTORED: HIGHLIGHT ACTIVE NAV
-    setActiveNavOnLoad();
 
+    // Single login check AFTER header is in DOM
+    checkLoginStatus();
+    setActiveNavOnLoad();
     initializeUI();
-    
+
+    // IndexedDB init in background — does not block header render
+    if (!window.appDB) {
+        await new Promise((resolve) => {
+            let resolved = false;
+            const timeout = setTimeout(() => { if (!resolved) { resolved = true; resolve(); } }, 5000);
+            window.addEventListener('indexedDBReady', () => {
+                if (!resolved) { resolved = true; clearTimeout(timeout); resolve(); }
+            }, { once: true });
+            if (window.appDB && window.appDB.db) { resolved = true; clearTimeout(timeout); resolve(); }
+        });
+    }
+
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
     if (loginData) {
-        verifyAndFetchAppData(); 
-        initHeartbeat(); 
-        setInterval(() => verifyAndFetchAppData(false), CONSTANTS.SYNC_INTERVAL); 
+        verifyAndFetchAppData();
+        initHeartbeat();
+        setInterval(() => verifyAndFetchAppData(false), CONSTANTS.SYNC_INTERVAL);
     }
 
     if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/')) {
