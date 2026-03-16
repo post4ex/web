@@ -327,6 +327,7 @@ async function loadComponent(componentUrl, placeholderId) {
         
         // Show loading indicator immediately
         placeholder.innerHTML = '<div class="animate-pulse bg-gray-200 h-14 w-full rounded"></div>';
+        placeholder.style.minHeight = '56px';
         
         const response = await fetch(componentUrl, { 
             cache: 'force-cache',
