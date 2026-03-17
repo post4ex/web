@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">LCS - About Us</title>
+    <title>About Us</title>
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
@@ -20,7 +20,7 @@
         <!-- Hero Section -->
         <section class="hero-gradient text-white py-16">
             <div class="container mx-auto px-4 text-center max-w-4xl">
-                <h1 class="text-5xl font-bold mb-6" id="about-title">About LCS</h1>
+                <h1 class="text-5xl font-bold mb-6" id="about-title"></h1>
                 <p class="text-xl mb-8 opacity-90">India's trusted logistics partner, connecting businesses and communities across the nation with reliable, efficient, and innovative delivery solutions.</p>
                 <div class="flex flex-wrap justify-center gap-8 text-center">
                     <div class="stat-card bg-white bg-opacity-20 rounded-lg p-6 transition-transform">
@@ -49,7 +49,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                     <div>
                         <h2 class="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-                        <p class="text-gray-600 mb-4">Founded in 2022, <span id="company-name-1">LCS</span> began as a modern logistics platform with a simple mission: to connect people and businesses across India through reliable logistics solutions.</p>
+                        <p class="text-gray-600 mb-4">Founded in 2022, <span id="company-name-1"></span> began as a modern logistics platform with a simple mission: to connect people and businesses across India through reliable logistics solutions.</p>
                         <p class="text-gray-600 mb-4">In just two years, we've established partnerships with leading courier companies and built a comprehensive network that handles everything from documents to e-commerce packages, international shipments, and specialized cargo.</p>
                         <p class="text-gray-600">Today, we continue to innovate with technology-driven solutions while maintaining our commitment to personal service and reliability that our customers have come to expect.</p>
                     </div>
@@ -235,7 +235,7 @@
         <section class="py-16 bg-blue-600 text-white">
             <div class="container mx-auto px-4 text-center max-w-4xl">
                 <h2 class="text-3xl font-bold mb-4">Ready to Ship with Us?</h2>
-                <p class="text-xl mb-8 opacity-90">Join thousands of satisfied customers who trust <span id="company-name-2">LCS</span> for their logistics needs.</p>
+                <p class="text-xl mb-8 opacity-90">Join thousands of satisfied customers who trust <span id="company-name-2"></span> for their logistics needs.</p>
                 <div class="flex flex-wrap justify-center gap-4">
                     <a href="main.html" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
                         <i class="fa-solid fa-home mr-2"></i>Get Started
@@ -253,13 +253,13 @@
     <script src="indexeddb.js"></script>
     <script src="layout.js"></script>
     <script>
-        if (window.CONSTANTS) {
-            const appName = window.CONSTANTS.APP_NAME;
-            document.getElementById('page-title').textContent = `${appName} - About Us`;
-            document.getElementById('about-title').textContent = `About ${appName}`;
-            document.getElementById('company-name-1').textContent = appName;
-            document.getElementById('company-name-2').textContent = appName;
-        }
+        window.addEventListener('footerLoaded', function() {
+            const n = window.CONSTANTS.APP_NAME;
+            document.title = `About Us - ${n}`;
+            document.getElementById('about-title').textContent = `About ${n}`;
+            document.getElementById('company-name-1').textContent = n;
+            document.getElementById('company-name-2').textContent = n;
+        });
     </script>
 </body>
 </html>

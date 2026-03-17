@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">LCS - Company Memos & Announcements</title>
+    <title>Company Memos & Announcements</title>
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
@@ -32,7 +32,7 @@
         }
         
         .memo-card.urgent { border-left-color: #ef4444; }
-        .memo-card.important { border-left-color: #9C2007; } /* LCS brand color */
+        .memo-card.important { border-left-color: #9C2007; }
         .memo-card.informational { border-left-color: #ecc92e; }
         .memo-card.update { border-left-color: #10b981; }
         
@@ -123,7 +123,7 @@
                             Company Memos & External Updates
                         </h1>
                         <p class="text-blue-100 opacity-90 max-w-2xl">
-                            Official company communications, government notifications, and industry news relevant to <span id="company-name-ops">LCS</span> operations.
+                            Official company communications, government notifications, and industry news relevant to <span id="company-name-ops"></span> operations.
                             Reply to memos via email for official communication.
                         </p>
                     </div>
@@ -454,7 +454,7 @@
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <h3 class="font-bold text-gray-800 mb-2">Need to Respond to a Company Memo?</h3>
-                        <p class="text-sm text-gray-600">Use your official <span id="company-name-email">LCS</span> email to reply to memo authors. Click "Reply" on any memo card.</p>
+                        <p class="text-sm text-gray-600">Use your official <span id="company-name-email"></span> email to reply to memo authors. Click "Reply" on any memo card.</p>
                     </div>
                     
                     <div class="flex flex-col items-end">
@@ -1441,7 +1441,7 @@ ${memoContent}
             if (window.CONSTANTS) {
                 const appName = window.CONSTANTS.APP_NAME;
                 const supportEmail = window.CONSTANTS.SUPPORT_EMAIL;
-                document.getElementById('page-title').textContent = `${appName} - Company Memos & Announcements`;
+                document.title = `Company Memos & Announcements - ${appName}`;
                 document.getElementById('company-name-ops').textContent = appName;
                 document.getElementById('company-name-email').textContent = appName;
                 const emailEl = document.getElementById('officialReplyEmail');

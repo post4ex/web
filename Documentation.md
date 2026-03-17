@@ -1,4 +1,4 @@
-# LCS Project Documentation
+# Post4Ex Project Documentation
 
 ## Section 1: Theme and Styling
 
@@ -67,7 +67,7 @@
 - **Optimized Logo**: [assets/images/pm-logo-200.png](assets/images/pm-logo-200.png) - 16KB (200px, for navbar/header)
 - **Alternative Logos**:
   - [assets/images/pm-logo.png](assets/images/pm-logo.png)
-  - [assets/images/laxmi-logo.png](assets/images/laxmi-logo.png)
+  - [assets/images/post4ex-logo.svg](assets/images/post4ex-logo.svg)
 
 #### Background Images
 - [assets/images/office-bg.jpg](assets/images/office-bg.jpg) - Office background

@@ -64,10 +64,10 @@
 
 const CONSTANTS = {
     // APPLICATION IDENTITY
-    APP_NAME: 'WEB',
-    SUPPORT_EMAIL: 'lcsrrk@gmail.com',
-    COMPANY_NAME: 'Laxmi Courier Service',
-    COPYRIGHT_YEAR: '2022',
+    APP_NAME: 'Post4Ex',
+    SUPPORT_EMAIL: 'post4ex@gmail.com',
+    COMPANY_NAME: 'Post4Ex',
+    COPYRIGHT_YEAR: '2025',
     APP_THEME: 'maroon', // Change to 'blue' or 'maroon' to set application theme
     
     // Auto-generated from above
@@ -102,7 +102,7 @@ const CONSTANTS = {
     ACTIVITY_THROTTLE:  30 * 1000,      // 30 Seconds: Prevents event listener spam.
     
     // SECURITY CONFIGURATION
-    ALLOWED_DOMAINS:    ["lcsrrk.github.io"],
+    ALLOWED_DOMAINS:    ["post4ex.github.io"],
 
     // STORAGE KEYS
     KEYS: {
