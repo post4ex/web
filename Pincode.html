@@ -88,14 +88,10 @@
         cityButton.addEventListener('click', () => { currentSearchType = 'city'; updateButtonStyles(); });
         updateButtonStyles();
 
-        // Load inline services content - wrapped to ensure layout.js is ready
-        const initServices = () => {
-            if (typeof loadDynamicContent === 'function') {
-                loadDynamicContent('services.html', 'pincode-services-area');
-            }
-        };
-
-        initServices();
+        // Load inline services content only on desktop
+        if (window.innerWidth >= 1024 && typeof loadDynamicContent === 'function') {
+            loadDynamicContent('services.html', 'pincode-services-area');
+        }
 
         const POSTAL_API_BASE_URL = 'https://api.postalpincode.in/';
 

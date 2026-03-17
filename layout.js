@@ -950,7 +950,7 @@ function checkLoginStatus() {
 
     if (isLoggedIn) {
         hide(['login-button', 'login-button-mobile', 'main-nav-public']);
-        show(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button']);
+        show(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button', 'mobile-menu-toggle']);
         // Unhide the unified notification container
         show(['notification-container-global', 'mobile-tools-section']);
 
@@ -1047,7 +1047,7 @@ function checkLoginStatus() {
         populateDetails(document.getElementById('mobile-profile-details-container'), true);
     } else {
         show(['login-button', 'login-button-mobile', 'main-nav-public']);
-        hide(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button', 'notification-container-global', 'mobile-tools-section']);
+        hide(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button', 'notification-container-global', 'mobile-tools-section', 'mobile-menu-toggle']);
     }
     
     // Set footer copyright for both logged in and logged out states
@@ -1194,7 +1194,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/')) {
         loadDynamicContent('tracking.html', 'tracking-content-area');
-        loadDynamicContent('services.html', 'services-content-area');
+        if (window.innerWidth >= 1024) {
+            loadDynamicContent('services.html', 'services-content-area');
+        }
 
         const trackingArea = document.getElementById('tracking-content-area');
         const servicesArea = document.getElementById('services-content-area');

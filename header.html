@@ -83,8 +83,11 @@
                 </div>
             </div>
 
-            <!-- Mobile Menu Button -->
-            <div class="xl:hidden">
+            <!-- Mobile Login Button (shown before login, outside dropdown) -->
+            <a id="login-button-mobile" href="login.html" class="xl:hidden px-4 py-2 rounded-lg text-white text-sm font-semibold hover:bg-red-700 transition-colors" style="background-color: #9C2007;">Login</a>
+
+            <!-- Mobile Menu Button (only shown after login) -->
+            <div class="xl:hidden hidden" id="mobile-menu-toggle">
                 <button id="menuButton" class="p-2 rounded-lg" style="color: #9C2007;" onmouseover="this.style.color='#8C1C06'" onmouseout="this.style.color='#9C2007'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
@@ -108,7 +111,6 @@
             </div>
 
             <div class="mt-2 pt-2 border-t">
-                <a id="login-button-mobile" href="login.html" class="block px-4 py-2 rounded-lg text-white hover:bg-red-700 transition-colors" style="background-color: #9C2007;">Login</a>
                 <div id="profile-section-mobile" class="hidden">
                     <div id="mobile-profile-details-container" class="p-2 space-y-1 bg-gray-700 rounded-lg mb-2"></div>
                     <button id="logout-button-mobile" class="w-full text-left px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">Logout</button>
