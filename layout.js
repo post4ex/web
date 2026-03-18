@@ -1196,6 +1196,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadDynamicContent('tracking.html', 'tracking-content-area');
         if (window.innerWidth >= 1024) {
             loadDynamicContent('services.html', 'services-content-area');
+        } else {
+            // Mobile: Pre-load Pincode search UI directly
+            loadDynamicContent('Pincode.html', 'services-content-area');
         }
 
         const trackingArea = document.getElementById('tracking-content-area');
