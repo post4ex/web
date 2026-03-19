@@ -68,6 +68,11 @@
             width: 100% !important;
         }
 
+        /* --- SERVICES SLIDESHOW --- */
+        #svc-viewport { overflow: hidden; }
+        #svc-track { display: flex; transition: transform 0.4s ease; will-change: transform; }
+        #svc-track > div { flex: 0 0 100%; }
+
         /* --- DYNAMIC LAYOUT EXPANSION (CSS :has TRICK) --- */
         @media (min-width: 1024px) {
             #main-split-layout:has(#resultsContainer:not(.hidden)),
@@ -108,68 +113,68 @@
                     <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 w-full">
                         
                         <!-- locator, calendar, DGR, Memos, about, awareness -> Replace Services -->
-                        <button onclick="loadService('Pincode.html')" aria-label="Open Pincode Locator" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-location-crosshairs text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Locator</span>
+                        <button onclick="loadService('Pincode.html')" aria-label="Open Pincode Locator" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#EFF6FF'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-location-crosshairs text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #2563EB;"></i>
+                            <span class="text-xs font-semibold" style="color: #2563EB;">Locator</span>
                         </button>
 
                         <!-- Docs -> Standard href -->
-                        <a href="docs.html" aria-label="View Documents" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-file-contract text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Docs</span>
+                        <a href="docs.html" aria-label="View Documents" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#EEF2FF'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-file-contract text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #4338CA;"></i>
+                            <span class="text-xs font-semibold" style="color: #4338CA;">Docs</span>
                         </a>
 
-                        <button onclick="loadService('dgr.html')" aria-label="Dangerous Goods Regulations" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-triangle-exclamation text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">DGR</span>
+                        <button onclick="loadService('dgr.html')" aria-label="Dangerous Goods Regulations" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FFFBEB'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-triangle-exclamation text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #D97706;"></i>
+                            <span class="text-xs font-semibold" style="color: #D97706;">DGR</span>
                         </button>
 
-                        <a href="calendar.html" aria-label="View Holiday Calendar" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-regular fa-calendar-days text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Calendar</span>
+                        <a href="calendar.html" aria-label="View Holiday Calendar" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#F0FDFA'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-regular fa-calendar-days text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #0D9488;"></i>
+                            <span class="text-xs font-semibold" style="color: #0D9488;">Calendar</span>
                         </a>
 
-                        <button onclick="loadService('awareness.html')" aria-label="Security Awareness" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-bullhorn text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Awareness</span>
+                        <button onclick="loadService('awareness.html')" aria-label="Security Awareness" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FFF7ED'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-bullhorn text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #EA580C;"></i>
+                            <span class="text-xs font-semibold" style="color: #EA580C;">Awareness</span>
                         </button>
 
                         <!-- Career -> Direct redirect -->
-                        <a href="career.html" onclick="window.location.href='career.html'; return false;" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-briefcase text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Career</span>
+                        <a href="career.html" onclick="window.location.href='career.html'; return false;" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FAF5FF'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-briefcase text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #7C3AED;"></i>
+                            <span class="text-xs font-semibold" style="color: #7C3AED;">Career</span>
                         </a>
 
                         <!-- FAQ -> Standard href -->
-                        <a href="faqs.html" aria-label="Frequently Asked Questions" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-circle-question text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">FAQs</span>
+                        <a href="faqs.html" aria-label="Frequently Asked Questions" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#ECFEFF'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-circle-question text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #0891B2;"></i>
+                            <span class="text-xs font-semibold" style="color: #0891B2;">FAQs</span>
                         </a>
 
-                        <a href="about.html" onclick="window.location.href='about.html'; return false;" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-circle-info text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">About</span>
+                        <a href="about.html" onclick="window.location.href='about.html'; return false;" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-circle-info text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #475569;"></i>
+                            <span class="text-xs font-semibold" style="color: #475569;">About</span>
                         </a>
 
-                        <a href="memos.html" aria-label="Internal Memos" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-note-sticky text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Memos</span>
+                        <a href="memos.html" aria-label="Internal Memos" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEFCE8'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-note-sticky text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #CA8A04;"></i>
+                            <span class="text-xs font-semibold" style="color: #CA8A04;">Memos</span>
                         </a>
 
                         <!-- Complaint -> Popup Inline -->
                         <button onclick="window.openComplaintModal()" class="hidden md:flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-circle-exclamation text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Complaint</span>
+                            <i class="fa-solid fa-circle-exclamation text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #DC2626;"></i>
+                            <span class="text-xs font-semibold" style="color: #DC2626;">Complaint</span>
                         </button>
 
-                        <a href="login.html" class="hidden md:flex flex-col items-center justify-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group lg:hidden" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-user-plus text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Register</span>
+                        <a href="login.html" class="hidden md:flex flex-col items-center justify-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group lg:hidden" onmouseover="this.style.backgroundColor='#F0FDF4'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-user-plus text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #16A34A;"></i>
+                            <span class="text-xs font-semibold" style="color: #16A34A;">Register</span>
                         </a>
 
-                        <button onclick="window.openContactModal()" class="hidden md:flex flex-col items-center justify-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group lg:hidden w-full" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-headset text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #9C2007;"></i>
-                            <span class="text-xs font-semibold" style="color: #9C2007;">Contact</span>
+                        <button onclick="window.openContactModal()" class="hidden md:flex flex-col items-center justify-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group lg:hidden w-full" onmouseover="this.style.backgroundColor='#ECFDF5'" onmouseout="this.style.backgroundColor='white'">
+                            <i class="fa-solid fa-headset text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #059669;"></i>
+                            <span class="text-xs font-semibold" style="color: #059669;">Contact</span>
                         </button>
                     </div>
                 </div>
@@ -266,6 +271,100 @@
         // ============================================================================
         // 1. INJECTION LOGIC (Replacer)
         // ============================================================================
+        window.loadMobileServicesSlideshow = function() {
+            const area = document.getElementById('services-content-area');
+            if (!area) return;
+            const services = [
+                {
+                    icon: 'fa-plane-departure', iconBg: 'bg-blue-100', iconColor: 'text-blue-700',
+                    name: 'AirLine Services', desc: 'Our AirLine Services offer the fastest way to get your consignments to their destination, ensuring timely and secure delivery across the globe.',
+                    features: ['24-48 Hour Global Delivery', 'Door-to-Airport & Door-to-Door', 'Real-time GPS Flight Tracking', 'Customs Clearance Support'],
+                    idealColor: 'text-blue-800 bg-blue-50', ideal: 'High-value electronics, medical supplies, legal documents.',
+                    ctaBg: 'bg-blue-600 hover:bg-blue-700', cta: 'Book Now'
+                },
+                {
+                    icon: 'fa-truck-fast', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-700',
+                    name: 'Surface Services', desc: 'For cost-effective and reliable transportation, our Surface Services are the ideal choice. We handle large and heavy shipments with care.',
+                    features: ['Pan-India Coverage (19,000+ Pincodes)', 'FTL & PTL Options', 'GPS-Enabled Fleet', 'Cost-Effective Pricing Models'],
+                    idealColor: 'text-emerald-800 bg-emerald-50', ideal: 'Bulk raw materials, furniture, machinery, textiles.',
+                    ctaBg: 'bg-emerald-600 hover:bg-emerald-700', cta: 'Check Rates'
+                },
+                {
+                    icon: 'fa-crown', iconBg: 'bg-purple-100', iconColor: 'text-purple-700',
+                    name: 'Premium Services', desc: 'Experience the highest standard of service. Enjoy priority handling, real-time tracking, and dedicated support for your most valuable shipments.',
+                    features: ['Dedicated Account Manager', 'Money-Back Guarantee on Timing', 'Enhanced Insurance Coverage', '24/7 Priority Support Line'],
+                    idealColor: 'text-purple-800 bg-purple-50', ideal: 'Artworks, jewelry, sensitive prototypes, critical spare parts.',
+                    ctaBg: 'bg-purple-600 hover:bg-purple-700', cta: 'Get Premium'
+                },
+                {
+                    icon: 'fa-shop', iconBg: 'bg-orange-100', iconColor: 'text-orange-700',
+                    name: 'E-Commerce Services', desc: 'Tailored solutions for your online business. We handle everything from last-mile delivery to cash-on-delivery and returns.',
+                    features: ['API Integration & Webhooks', 'Cash on Delivery (COD) Management', 'Automated Return (RTO) Handling', 'Branded Tracking Pages'],
+                    idealColor: 'text-orange-800 bg-orange-50', ideal: 'D2C brands, online marketplaces, subscription box services.',
+                    ctaBg: 'bg-orange-600 hover:bg-orange-700', cta: 'Integrate Now'
+                },
+                {
+                    icon: 'fa-boxes-stacked', iconBg: 'bg-cyan-100', iconColor: 'text-cyan-700',
+                    name: 'LTL Services', desc: "Our Less-than-Truckload (LTL) Services are perfect for shipments that don't require a full truck. Flexible and economical.",
+                    features: ['Pay only for space occupied', 'Palletized Handling', 'Hub-and-Spoke Distribution', 'Barcode Tracking per Pallet'],
+                    idealColor: 'text-cyan-800 bg-cyan-50', ideal: 'Small manufacturers, distributors, businesses with fluctuating loads.',
+                    ctaBg: 'bg-cyan-600 hover:bg-cyan-700', cta: 'Request LTL'
+                },
+                {
+                    icon: 'fa-hand-holding-dollar', iconBg: 'bg-slate-200', iconColor: 'text-slate-700',
+                    name: 'VAS Services', desc: 'Enhance your logistics with our Value-Added Services (VAS), including special handling, packaging, and customizable solutions.',
+                    features: ['Professional Packaging & Crating', 'Warehousing & Storage', 'Labeling & Kitting', 'Document Collection on Delivery'],
+                    idealColor: 'text-slate-800 bg-slate-200', ideal: 'Fragile items, promotional kits, regulated chemical shipments.',
+                    ctaBg: 'bg-slate-700 hover:bg-slate-800', cta: 'Explore VAS'
+                }
+            ];
+            const slides = services.map(s => `
+                <div>
+                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300">
+                        <div class="w-16 h-16 mb-4 ${s.iconBg} ${s.iconColor} rounded-full flex items-center justify-center">
+                            <i class="fa-solid ${s.icon} text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">${s.name}</h3>
+                        <p class="text-gray-600 mb-4 text-sm">${s.desc}</p>
+                        <div class="text-left w-full border-t border-gray-200 pt-4">
+                            <div class="space-y-3 text-sm text-gray-600">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
+                                    <ul class="list-disc list-inside space-y-0.5">${s.features.map(f => `<li>${f}</li>`).join('')}</ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
+                                    <p class="${s.idealColor} p-2 rounded text-xs">${s.ideal}</p>
+                                </div>
+                                <div class="pt-1">
+                                    <a href="login.html" class="inline-block w-full px-4 py-2 ${s.ctaBg} text-white rounded transition-colors text-sm font-bold uppercase tracking-wider">${s.cta}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`).join('');
+            area.innerHTML = `
+                <div id="svc-viewport"><div id="svc-track">${slides}</div></div>
+                <div class="flex justify-center gap-1.5 mt-3">
+                    ${services.map((_, i) => `<button data-i="${i}" class="svc-dot h-1.5 rounded-full transition-all" style="width:${i===0?'20px':'8px'};background:${i===0?'#9C2007':'#D1D5DB'}"></button>`).join('')}
+                </div>`;
+            let cur = 0, timer;
+            const track = document.getElementById('svc-track');
+            const dots = document.querySelectorAll('.svc-dot');
+            const go = (n) => {
+                cur = (n + services.length) % services.length;
+                track.style.transform = `translateX(-${cur * 100}%)`;
+                dots.forEach((d, i) => { d.style.width = i === cur ? '20px' : '8px'; d.style.background = i === cur ? '#9C2007' : '#D1D5DB'; });
+            };
+            const start = () => { timer = setInterval(() => go(cur + 1), 4000); };
+            const stop = () => clearInterval(timer);
+            dots.forEach(d => d.addEventListener('click', () => { stop(); go(+d.dataset.i); start(); }));
+            let tx = 0;
+            track.addEventListener('touchstart', e => { tx = e.touches[0].clientX; stop(); }, { passive: true });
+            track.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 40) go(cur + (dx < 0 ? 1 : -1)); start(); }, { passive: true });
+            start();
+        };
+
         window.loadService = function(url) {
             const servicesArea = document.getElementById('services-content-area');
             const trackingArea = document.getElementById('tracking-content-area');

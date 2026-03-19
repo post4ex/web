@@ -1197,8 +1197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (window.innerWidth >= 1024) {
             loadDynamicContent('services.html', 'services-content-area');
         } else {
-            // Mobile: Pre-load Pincode search UI directly
-            loadDynamicContent('Pincode.html', 'services-content-area');
+            // Mobile: Show inline services slideshow
+            if (typeof window.loadMobileServicesSlideshow === 'function') window.loadMobileServicesSlideshow();
         }
 
         const trackingArea = document.getElementById('tracking-content-area');
