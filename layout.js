@@ -179,21 +179,18 @@ const DATE_FIELDS = [
  * format: { "Display Name": "Sheet Name" }
  */
 const DATA_SCHEMA = {
-    "All Orders":       "RECORD",
-    "Products":         "RECORD", 
-    "Multi-Box Items":  "RECORD",
-    "Uploaded Docs":    "RECORD",
+    "All Orders":       "ORDERS",
+    "Multi-Box Items":  "MULTIBOX",
+    "Uploaded Docs":    "UPLOADS",
+    "Products":         "PRODUCTS",
     "Staff List":       "STAFF",
     "Attendance Logs":  "ATTENDANCE",
     "Branches":         "BRANCHES",
     "B2B Clients":      "B2B",
     "Retail Clients":   "B2B2C",
-    "Rate Cards":       "RATELIST",
-    "Transport Modes":  "MODE",
-    "Carriers":         "CARRIER",
-    "Support Tickets":  "CRM",
-    "Financial Records": "LEDGER",
-    "System Logs":      "LOGS"
+    "Rate Cards":       "RATES",
+    "Transport Modes":  "MODES",
+    "Carriers":         "CARRIERS"
 };
 // Expose for global use (e.g. by search.html)
 window.DATA_SCHEMA = DATA_SCHEMA;
@@ -209,10 +206,10 @@ window.DATA_SCHEMA = DATA_SCHEMA;
  */
 const DATA_INSTRUCTIONS = {
     // --- OPERATIONS & LOGISTICS ---
-    ORDERS:     'getAppData("RECORD")',     // Main Order Database
-    PRODUCTS:   'getAppData("RECORD")',     // Product Catalog
-    MULTIBOX:   'getAppData("RECORD")',     // Multi-piece shipments
-    UPLOADS:    'getAppData("RECORD")',     // Uploaded Proofs/Docs
+    ORDERS:     'getAppData("ORDERS")',     // Main Order Database
+    MULTIBOX:   'getAppData("MULTIBOX")',   // Multi-piece shipments
+    UPLOADS:    'getAppData("UPLOADS")',    // Uploaded Proofs/Docs
+    PRODUCTS:   'getAppData("PRODUCTS")',   // Product Catalog
     
     // --- HUMAN RESOURCES ---
     STAFF:      'getAppData("STAFF")',      // Employee Directory
@@ -222,16 +219,11 @@ const DATA_INSTRUCTIONS = {
     // --- COMMERCIAL & CLIENTS ---
     CLIENTS:    'getAppData("B2B")',        // Corporate Clients
     RETAIL:     'getAppData("B2B2C")',      // Individual Customers
-    RATES:      'getAppData("RATELIST")',   // Pricing Sheets
+    RATES:      'getAppData("RATES")',      // Pricing Sheets
     
     // --- INFRASTRUCTURE ---
-    MODES:      'getAppData("MODE")',       // Air, Surface, Train
-    CARRIERS:   'getAppData("CARRIER")',    // 3rd Party Logistics
-    
-    // --- FINANCE & CRM ---
-    LEDGER:     'getAppData("LEDGER")',     // Financial Records (Restricted)
-    CRM:        'getAppData("CRM")',        // Support Tickets
-    LOGS:       'getAppData("LOGS")'        // System Audit Trail
+    MODES:      'getAppData("MODES")',      // Air, Surface, Train
+    CARRIERS:   'getAppData("CARRIERS")',   // 3rd Party Logistics
 };
 
 /**
@@ -417,49 +409,32 @@ async function fetchClientIP() {
     }
 }
 
-async function callApi(action, params = {}) {
+async function callApi(endpoint, payload = {}, method = 'POST') {
     const loginData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.LOGIN) || '{}');
-    const url = new URL(CONSTANTS.OPERATIONS_URL);
-    
-    const clientIP = sessionStorage.getItem(CONSTANTS.KEYS.IP) || '0.0.0.0';
-    
-    const payload = {
-        action: action,
-        sessionID: loginData.sessionId || '',
-        ip: clientIP,
-        userAgent: navigator.userAgent,
-        ...params
-    };
-    
-    // Stringify nested objects for URLSearchParams
-    const formData = new URLSearchParams();
-    for (const [key, value] of Object.entries(payload)) {
-        if (typeof value === 'object' && value !== null) {
-            formData.append(key, JSON.stringify(value));
-        } else {
-            formData.append(key, value);
-        }
-    }
+    const token = loginData.sessionId || '';
 
-    const res = await fetch(url, {
-        method: 'POST',
-        body: formData
-    });
-    
-    const contentType = res.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const options = { method, headers };
+    if (method !== 'GET') options.body = JSON.stringify(payload);
+
+    const res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, options);
+
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
         const text = await res.text();
-        console.error("[API] Critical Error - Expected JSON but got HTML/Text:", text.substring(0, 150));
-        throw new Error("Invalid Server Response (Not JSON)");
+        console.error('[API] Expected JSON but got:', text.substring(0, 150));
+        throw new Error('Invalid Server Response (Not JSON)');
     }
 
     const json = await res.json();
-    
     if (json.status === 'error') {
-        if (json.message.includes("Session expired")) {
-            console.warn("[API] Session Expired. Logging out.");
+        if (json.message.includes('Session expired')) {
+            console.warn('[API] Session Expired. Logging out.');
             handleLogout();
         }
+        throw new Error(json.message);
     }
     return json;
 }
@@ -539,7 +514,7 @@ async function verifyAndFetchAppData(force = false) {
     showNotification("🔄 Connecting to Server...", "info");
 
     try {
-        const result = await callApi('verifyAndFetchAppData', { lastSyncTime: lastSyncTime });
+        const result = await callApi('/api/verifyAndFetchAppData', { lastSyncTime: lastSyncTime });
 
         if (result.status === 'success') {
             const incomingData = result.data || {};
@@ -628,7 +603,7 @@ async function getAppData(sheetName = null) {
         }
         
         // Get all sheets
-        const sheets = ['RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS'];
         const result = {};
         
         for (const sheet of sheets) {
@@ -667,12 +642,12 @@ function initHeartbeat() {
             handleLogout();
             return;
         }
-        callApi('ping').catch(e => console.warn("[Session] Ping failed", e));
+        callApi('/api/ping', {}, 'GET').catch(e => console.warn('[Session] Ping failed', e));
     }, CONSTANTS.PING_INTERVAL);
 }
 
 function handleLogout() {
-    callApi('logout').catch(() => {});
+    callApi('/api/logout').catch(() => {});
     localStorage.removeItem(CONSTANTS.KEYS.LOGIN);
     localStorage.removeItem(CONSTANTS.KEYS.NOTIFICATIONS);
     sessionStorage.clear();

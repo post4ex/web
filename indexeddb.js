@@ -17,20 +17,23 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 2; // Increment version to recreate schema
+    this.version = 3; // Increment version to recreate schema
     this.db = null;
     
-    // Define unique key for each sheet
+    // Define unique key for each sheet (must match PocketBase field names)
     this.sheetKeys = {
-      'RECORD': 'ENTRY_ID',
-      'B2B': 'CODE',
-      'B2B2C': 'B2B2C_UID',
-      'RATELIST': 'RATE_UID',
-      'STAFF': 'STAFF_CODE',
+      'ORDERS':     'REFERENCE',
+      'B2B':        'CODE',
+      'B2B2C':      'UID',
+      'RATES':      'UID',
+      'STAFF':      'STAFF_CODE',
       'ATTENDANCE': 'ATTENDANCE_ID',
-      'BRANCHES': 'BRANCH_CODE',
-      'MODE': 'SHORT',
-      'CARRIER': 'COMPANY_CODE'
+      'BRANCHES':   'BRANCH_CODE',
+      'MODES':      'SHORT',
+      'CARRIERS':   'COMPANY_CODE',
+      'MULTIBOX':   'REFERENCE',
+      'PRODUCTS':   'REFERENCE',
+      'UPLOADS':    'UPLOAD_UID'
     };
   }
 
@@ -47,18 +50,14 @@ class AppDatabase {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         
-        // Delete existing stores if they exist (for version upgrade)
+        // Delete ALL existing stores for clean upgrade
+        Array.from(db.objectStoreNames).forEach(name => db.deleteObjectStore(name));
+
         const sheets = [
-          'RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 
-          'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER',
-          'LOGS', 'LEDGER', 'CRM'
+          'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
+          'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
+          'MULTIBOX', 'PRODUCTS', 'UPLOADS'
         ];
-        
-        sheets.forEach(sheetName => {
-          if (db.objectStoreNames.contains(sheetName)) {
-            db.deleteObjectStore(sheetName);
-          }
-        });
         
         // Create object stores with correct key paths
         sheets.forEach(sheetName => {
@@ -68,9 +67,7 @@ class AppDatabase {
         });
         
         // Create metadata store
-        if (!db.objectStoreNames.contains('_metadata')) {
-          db.createObjectStore('_metadata', { keyPath: 'key' });
-        }
+        db.createObjectStore('_metadata', { keyPath: 'key' });
       };
     });
   }
@@ -205,9 +202,9 @@ class AppDatabase {
 
   async clearAll() {
     const sheets = [
-      'RECORD', 'B2B', 'B2B2C', 'RATELIST', 'STAFF', 
-      'ATTENDANCE', 'BRANCHES', 'MODE', 'CARRIER',
-      'LOGS', 'LEDGER', 'CRM', '_metadata'
+      'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
+      'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
+      'MULTIBOX', 'PRODUCTS', 'UPLOADS', '_metadata'
     ];
     
     for (const sheetName of sheets) {

@@ -295,11 +295,10 @@
 
         // JSONP removed - not needed with REST API
 
-        async function callApi(endpoint, payload = {}, token = null) {
+        async function callApi(endpoint, payload = {}) {
             setLoading(true, 'Connecting...');
             try {
                 const headers = { 'Content-Type': 'application/json' };
-                if (token) headers['Authorization'] = `Bearer ${token}`;
 
                 const res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
                     method: 'POST',
@@ -342,39 +341,18 @@
             // Basic length check for password
             if (pass.length < 6) return showMessage('Password is too short.', 'error');
 
-            try {const res = await callApi('/api/login', {
-                    username: user,
-                    password: pass,
-                    ip: sessionStorage.getItem('clientIP') || '0.0.0.0',
-                    userAgent: navigator.userAgent,
-                    domain: window.location.hostname
-                });
-                console.log('Login response:', res);
-
+            try {
+                const res = await callApi('/api/login', { username: user, password: pass });
                 if (res.status === 'success' && res.sessionId) {
-                    console.log('Login successful, redirecting...');
-                    // More secure session storage with additional metadata
-                    const loginData = {
+                    localStorage.setItem('loginData', JSON.stringify({
                         sessionId: res.sessionId,
                         userData: res.userData,
                         loginTime: Date.now(),
-                        expires: Date.now() + 30 * 60 * 1000, // 30 minutes
-                        code: res.userData.USER,
-                        role: res.userData.ROLE
-                    };
-
-                    localStorage.setItem('loginData', JSON.stringify(loginData));
-                    console.log('Data saved, redirecting now...');
-                    
-                    // Force redirect immediately
+                        expires: Date.now() + 8 * 60 * 60 * 1000
+                    }));
                     location.href = 'dashboard.html';
-                } else {
-                    showMessage(res.message || 'Login failed. Please try again.', 'error');
                 }
-            } catch (err) {
-                console.error('Login error:', err);
-                // Error is already handled in callApi function
-            }
+            } catch (err) {}
         }
 
         async function handleRegister(e) {
@@ -411,32 +389,19 @@
                 try {
                     const otp = document.getElementById('reg-otp').value.trim();
                     const email = document.getElementById('reg-email').value.trim().toLowerCase();
-                    
                     if (!otp) return showMessage('Enter OTP.', 'error');
-
                     await callApi('/api/confirmRegistration', { email, otp });
-                    showMessage('OTP Verified.', 'success');
-                    switchView('kyc');
-                    
+                    showMessage('Registration submitted! Awaiting admin approval.', 'success');
+                    setTimeout(() => switchView('login'), 3000);
                 } catch (err) {}
             }
         }
         
         async function handleKYCSubmit(e) {
             e.preventDefault();
-            const kycType = document.getElementById('kyc-type').value;
-            const kycNum = sanitizeInput(document.getElementById('kyc-number').value.trim());
-            const address = sanitizeInput(document.getElementById('kyc-address').value.trim());
-            
-            if(!kycType || !kycNum || !address) return showMessage("Please fill all details.", "error");
-            
-            setLoading(true, "Finalizing...");
-            
-            setTimeout(() => {
-                setLoading(false);
-                showMessage('Registration Complete! Please wait for Admin approval.', 'success');
-                setTimeout(() => window.location.reload(), 3000);
-            }, 1500);
+            // KYC is collected locally for future use; registration was already submitted at OTP step
+            showMessage('Registration submitted! Awaiting admin approval.', 'success');
+            setTimeout(() => switchView('login'), 2000);
         }
 
         async function handleForgot(e) {
@@ -453,7 +418,13 @@
                 } catch (err) {}
             } else if (forgotState === 'verify') {
                 try {
-                    const res = await callApi('/api/verifyResetOtp', { identifier: id, otp: document.getElementById('forgot-otp').value.trim() });
+                    const formData = new FormData();
+                    formData.append('identifier', id);
+                    formData.append('otp', document.getElementById('forgot-otp').value.trim());
+                    setLoading(true, 'Verifying...');
+                    const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/verifyResetOtp`, { method: 'POST', body: formData }).then(r => r.json());
+                    setLoading(false);
+                    if (res.status === 'error') { showMessage(res.message, 'error'); return; }
                     resetToken = res.token;
                     document.getElementById('forgot-step-2').classList.add('hidden');
                     document.getElementById('forgot-step-3').classList.remove('hidden');
