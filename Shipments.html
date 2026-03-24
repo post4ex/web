@@ -213,18 +213,15 @@
     <script src="layout.js"></script>
     
     <script>
-        // --- PROMOTED GLOBAL STATE: Accessible to docgen.js print functions ---
+        // --- GLOBAL STATE ---
         let allOrders = [];
         let currentSelectedRef = null;
-        let b2b2cDataMap = new Map();
-        let productDataMap = new Map();
-        let multiboxDataMap = new Map();
-        let trackDataMap = new Map();
-        let logsDataMap = new Map();
-        let uploadsDataMap = new Map();
-        // *** FIX: Added modeDataMap to the global scope. ***
-        let modeDataMap = new Map(); 
-        // -------------------------------------------------------------------
+        let b2b2cDataMap  = new Map(); // UID → B2B2C record
+        let productDataMap  = new Map(); // REFERENCE → [products]
+        let multiboxDataMap = new Map(); // REFERENCE → [boxes]
+        let uploadsDataMap  = new Map(); // REFERENCE → [uploads]
+        let modesDataMap    = new Map(); // SHORT → MODE name
+        let carriersDataMap = new Map(); // COMPANY_CODE → COMPANY_NAME
 
         document.addEventListener('DOMContentLoaded', () => {
              // --- DOM Elements ---
@@ -278,72 +275,86 @@
             // --- END Mobile View Functions ---
 
             // --- Data Initialization ---
-            function initializePageWithData(eventOrData) {
-                // Check if data is nested under event.detail.data or is the data itself
-                const appData = eventOrData.detail ? eventOrData.detail.data : eventOrData;
+            function initializePageWithData(appData) {
                 if (!appData || !appData.ORDERS) {
-                    ui.statusMessage.textContent = 'Could not find shipment data.';
-                    console.error("Invalid data provided to initializePageWithData:", appData);
+                    ui.statusMessage.textContent = 'No shipment data found.';
                     return;
                 }
                 try {
-                    allOrders = appData.ORDERS;
-                    if (!Array.isArray(allOrders)) throw new Error("Order data is not valid.");
-                    // Sort by date descending
+                    // ORDERS comes back as { REFERENCE: record } object from IndexedDB
+                    allOrders = Object.values(appData.ORDERS);
                     allOrders.sort((a, b) => new Date(b.ORDER_DATE) - new Date(a.ORDER_DATE));
-                    
-                    // Clear maps and repopulate
+
                     b2b2cDataMap.clear(); productDataMap.clear(); multiboxDataMap.clear();
-                    trackDataMap.clear(); logsDataMap.clear(); uploadsDataMap.clear();
-                    // *** FIX: Clear and populate modeDataMap (assuming data structure is in appData.MODE_DATA) ***
-                    modeDataMap.clear();
-                    // *** MODIFICATION START: Use appData.MODE and correct properties ***
-                    if (appData.MODE) {
-                        appData.MODE.forEach(m => modeDataMap.set(m.SHORT, m.MODE));
-                    }
-                    // *** MODIFICATION END ***
-                    
-                    if (appData.B2B2C) appData.B2B2C.forEach(c => b2b2cDataMap.set(c.UID, c));
-                    if (appData.PRODUCT) appData.PRODUCT.forEach(p => { const r = p.RERERANCE || p.REFERANCE; if(r){ if (!productDataMap.has(r)) productDataMap.set(r, []); productDataMap.get(r).push(p); } });
-                    if (appData.MULTIBOX) appData.MULTIBOX.forEach(b => { const r = b.REFERANCE; if(r){ if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []); multiboxDataMap.get(r).push(b); } });
-                    if (appData.TRACK) appData.TRACK.forEach(t => { if(t.REFERANCE) trackDataMap.set(t.REFERANCE, t) });
-                    if (appData.LOGS) appData.LOGS.forEach(l => { const r = l.REFERANCE; if(r){ if (!logsDataMap.has(r)) logsDataMap.set(r, []); logsDataMap.get(r).push(l); } });
-                    // Sort logs by date descending
-                    for (const logs of logsDataMap.values()) logs.sort((a, b) => new Date(b.SCAN_DATE) - new Date(a.SCAN_DATE));
-                    if (appData.UPLOADS) appData.UPLOADS.forEach(u => { const rk = `ref-${u.REFERANCE}`; if(u.REFERANCE){ if (!uploadsDataMap.has(rk)) uploadsDataMap.set(rk, []); uploadsDataMap.get(rk).push(u); } });
-                    
+                    uploadsDataMap.clear(); modesDataMap.clear(); carriersDataMap.clear();
+
+                    if (appData.B2B2C)
+                        Object.values(appData.B2B2C).forEach(c => b2b2cDataMap.set(c.UID, c));
+
+                    if (appData.PRODUCTS)
+                        Object.values(appData.PRODUCTS).forEach(p => {
+                            const r = p.REFERENCE;
+                            if (!r) return;
+                            if (!productDataMap.has(r)) productDataMap.set(r, []);
+                            productDataMap.get(r).push(p);
+                        });
+
+                    if (appData.MULTIBOX)
+                        Object.values(appData.MULTIBOX).forEach(b => {
+                            const r = b.REFERENCE;
+                            if (!r) return;
+                            if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []);
+                            multiboxDataMap.get(r).push(b);
+                        });
+
+                    if (appData.UPLOADS)
+                        Object.values(appData.UPLOADS).forEach(u => {
+                            const r = u.REFERENCE;
+                            if (!r) return;
+                            if (!uploadsDataMap.has(r)) uploadsDataMap.set(r, []);
+                            uploadsDataMap.get(r).push(u);
+                        });
+
+                    if (appData.MODES)
+                        Object.values(appData.MODES).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
+
+                    if (appData.CARRIERS)
+                        Object.values(appData.CARRIERS).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
+
                     populateFilters(allOrders);
                     setupFilterListeners();
-                    applyFilters(); // Initial render
-                    ui.statusMessage.textContent = ''; // Clear loading message
-                } catch (error) { ui.statusMessage.textContent = 'Failed to process data.'; console.error("Data processing error:", error); }
-            }
-
-            // Listen for data loaded from layout.js
-            window.addEventListener('appDataLoaded', initializePageWithData);
-            window.addEventListener('appDataRefreshed', initializePageWithData);
-
-            // --- ADDED: Initial Data Load Logic ---
-            // Try to load data from cache immediately
-            const appDataJSON = localStorage.getItem('appData');
-            if (appDataJSON) {
-                try {
-                    const appData = JSON.parse(appDataJSON);
-                    // Check if data exists, is not expired
-                    if (appData.data && appData.expires && new Date().getTime() < appData.expires) {
-                        console.log('Shipments.html: Loading initial data from valid cache.');
-                        // Use appData.data, not appData
-                        initializePageWithData(appData.data); 
-                    } else if (appData.expires && new Date().getTime() >= appData.expires) {
-                        console.log('Shipments.html: Cached data is expired.');
-                        ui.statusMessage.textContent = 'Data is expired. Waiting for refresh...';
-                    }
-                } catch (e) {
-                    console.error('Shipments.html: Could not parse cached app data.', e);
-                    ui.statusMessage.textContent = 'Error loading cached data.';
+                    applyFilters();
+                    ui.statusMessage.textContent = '';
+                } catch (err) {
+                    ui.statusMessage.textContent = 'Failed to process data.';
+                    console.error('Data processing error:', err);
                 }
             }
-            // --- END: Initial Data Load Logic ---
+
+            // Listen for sync events from layout.js
+            window.addEventListener('appDataLoaded',    e => initializePageWithData(e.detail.data));
+            window.addEventListener('appDataRefreshed', e => initializePageWithData(e.detail.data));
+
+            // Load immediately from IndexedDB on page open
+            async function loadFromIndexedDB() {
+                try {
+                    await new Promise(resolve => {
+                        if (window.appDB && window.appDB.db) return resolve();
+                        window.addEventListener('indexedDBReady', resolve, { once: true });
+                        setTimeout(resolve, 5000);
+                    });
+                    const appData = await getAppData();
+                    if (appData && appData.ORDERS && Object.keys(appData.ORDERS).length > 0) {
+                        initializePageWithData(appData);
+                    } else {
+                        ui.statusMessage.textContent = 'No data yet — syncing...';
+                    }
+                } catch (err) {
+                    ui.statusMessage.textContent = 'Error loading data.';
+                    console.error(err);
+                }
+            }
+            loadFromIndexedDB();
 
             // --- Filter Modal & Search Logic ---
             function populateFilters(orders) {
@@ -404,11 +415,11 @@
                     const cMatch = !code || order.CODE === code; 
                     const carMatch = !carrier || order.CARRIER === carrier;
                     
-                    const cnorName = (b2b2cDataMap.get(order.CONSIGNOR)?.NAME || '').toLowerCase();
-                    const cneeName = (b2b2cDataMap.get(order.CONSIGNEE)?.NAME || '').toLowerCase();
+                    const cnorName = (order.CONSIGNOR || '').toLowerCase();
+                    const cneeName = (order.CONSIGNEE || '').toLowerCase();
                 
                 const sMatch = !searchTerm || 
-                                   (order.REFERANCE ? String(order.REFERANCE).toLowerCase().includes(searchTerm) : false) || 
+                                   (order.REFERENCE ? String(order.REFERENCE).toLowerCase().includes(searchTerm) : false) || 
                                    (order.AWB_NUMBER ? String(order.AWB_NUMBER).toLowerCase().includes(searchTerm) : false) || 
                                    cnorName.includes(searchTerm) || 
                                    cneeName.includes(searchTerm);
@@ -428,7 +439,7 @@
                     ui.shipmentDetailPane.classList.add('hidden');
                     
                     // If the selected item is no longer in view, clear the ref
-                    if (currentSelectedRef && !filteredOrders.find(o => o.REFERANCE === currentSelectedRef)) {
+                    if (currentSelectedRef && !filteredOrders.find(o => o.REFERENCE === currentSelectedRef)) {
                         currentSelectedRef = null;
                     }
                     // The 'selected' class will be added (or not) by renderShipmentList
@@ -436,9 +447,8 @@
                 } else {
                     // On desktop, check if selected item is still valid
                     if (currentSelectedRef) {
-                        const currentOrder = filteredOrders.find(o => o.REFERANCE === currentSelectedRef);
+                        const currentOrder = filteredOrders.find(o => o.REFERENCE === currentSelectedRef);
                         if (currentOrder) {
-                            // Reselect it and re-render details
                             handleShipmentSelection(currentSelectedRef, ui.shipmentList.querySelector(`li[data-ref="${currentSelectedRef}"]`));
                         } else {
                             // If not found, clear selection and show empty view
@@ -462,30 +472,19 @@
                 }
                 
                 orders.forEach((order) => {
-                    const ref = order.REFERANCE; if (!ref) return;
-                    const awb = order.AWB_NUMBER || 'No AWB'; 
-                    const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || 'Unknown';
-                    const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || 'Unknown';
+                    const ref = order.REFERENCE; if (!ref) return;
+                    const awb = order.AWB_NUMBER || 'No AWB';
+                    const cnor = order.CONSIGNOR || 'Unknown';
+                    const cnee = order.CONSIGNEE || 'Unknown';
                     
-                    // *** FIX: ORDER_DATE is now "YYYY-MM-DD", create date object correctly ***
                     const dtObj = order.ORDER_DATE ? new Date(order.ORDER_DATE + 'T00:00:00Z') : null;
                     const dt = dtObj ? dtObj.toLocaleDateString('en-IN', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A';
                     
-                    const trk = trackDataMap.get(ref); 
-                    let stat = 'IN TRANSIT'; 
-                    let scolor = 'bg-blue-100 text-blue-700'; // Default
-                    if (trk && trk.STATUS) { 
-                        stat = trk.STATUS; 
-                        if (stat.toUpperCase() === 'DELIVERED') scolor = 'bg-green-100 text-green-700'; 
-                        else if (stat.toUpperCase().includes('UNDELIVERED') || stat.toUpperCase().includes('RETURN')) scolor = 'bg-red-100 text-red-700'; 
-                    }
-                    
                     const li = document.createElement('li');
-                    li.innerHTML = `<strong>${awb}</strong><span class="client-info">${cnor} -> ${cnee}</span><div class="details-info"><span>Ref: ${ref} | ${dt}</span><span class="status-badge ${scolor}">${stat}</span></div>`;
-                    li.dataset.ref = ref; 
+                    li.innerHTML = `<strong>${awb}</strong><span class="client-info">${cnor} → ${cnee}</span><div class="details-info"><span>Ref: ${ref} | ${dt}</span></div>`;
+                    li.dataset.ref = ref;
                     li.addEventListener('click', () => handleShipmentSelection(ref, li));
-                    
-                    if(String(ref) === String(currentSelectedRef)) li.classList.add('selected'); 
+                    if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
                     ui.shipmentList.appendChild(li);
                 });
             }
@@ -498,7 +497,7 @@
                 ui.shipmentList.querySelectorAll('li.selected').forEach(li => li.classList.remove('selected'));
                 if (selectedLi) selectedLi.classList.add('selected');
                 
-                const order = allOrders.find(o => o.REFERANCE === ref);
+                const order = allOrders.find(o => o.REFERENCE === ref);
                 if (!order) { 
                     ui.emptyView.classList.remove('hidden'); 
                     ui.detailView.classList.add('hidden'); 
@@ -508,8 +507,8 @@
                 // --- Call render functions in the CORRECT ORDER ---
                 renderDocumentCenter(order); // 1st
                 renderShipmentDetails(order); // 2nd
-                renderPartyDetails(order.CONSIGNOR, 'Consignor', ui.consignorDetailsContainer); // 3a
-                renderPartyDetails(order.CONSIGNEE, 'Consignee', ui.consigneeDetailsContainer); // 3b
+                renderPartyDetails('Consignor', order.CONSIGNOR, order.ORIGIN_CITY, order.ORIGIN_PINCODE, '', '', ui.consignorDetailsContainer);
+                renderPartyDetails('Consignee', order.CONSIGNEE, order.DEST_CITY,   order.DEST_PINCODE,   '', '', ui.consigneeDetailsContainer);
                 renderProductAndBoxDetails(order); // 5th
 
                 // --- ADDED: Event listener for the new toggle button ---
@@ -602,62 +601,63 @@
             // *** END: UPDATED formatDateForDisplay FUNCTION ***
 
             function renderShipmentDetails(order) {
-                const d = [ 
-                    {l:'Carrier',v:order.CARRIER}, {l:'TAT',v:order.TAT}, {l:'Zone',v:order.ZONE}, 
-                    {l:'Mode',v:order.MODE}, {l:'Wt(kg)',v:order.WEIGHT}, {l:'ChgWt(kg)',v:order.CHG_WT}, 
-                    {l:'Pcs',v:order.PIECS}, {l:'Value',v:order.VALUE}, {l:'COD',v:order.COD}, 
-                    {l:'ToPay',v:order.TOPAY}, {l:'FOV',v:order.FOV}, {l:'Global',v:order.GLOBAL} 
+                const carrier = carriersDataMap.get(order.CARRIER) || order.CARRIER || 'N/A';
+                const mode    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
+                const d = [
+                    {l:'Carrier',  v:carrier},          {l:'Mode',     v:mode},
+                    {l:'TAT',      v:order.TAT},         {l:'Zone',     v:order.ZONE},
+                    {l:'Wt(kg)',   v:order.WEIGHT},      {l:'ChgWt(kg)',v:order.CHG_WT},
+                    {l:'Pcs',      v:order.PIECS},       {l:'Value',    v:order.VALUE},
+                    {l:'COD',      v:order.COD},         {l:'ToPay',    v:order.TOPAY},
+                    {l:'FOV',      v:order.FOV},         {l:'Global',   v:order.GLOBAL}
                 ];
-                let h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">`; 
-                d.forEach(i => { 
-                    if (i.v !== undefined && i.v !== null && i.v !== '') 
-                        h += `<div><div class="text-gray-500 text-xs">${i.l}</div><div class="font-semibold text-gray-800">${i.v}</div></div>`; 
-                }); 
+                let h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">`;
+                d.forEach(i => {
+                    if (i.v !== undefined && i.v !== null && i.v !== '')
+                        h += `<div><div class="text-gray-500 text-xs">${i.l}</div><div class="font-semibold text-gray-800">${i.v}</div></div>`;
+                });
                 h += `</div>`;
                 ui.shipmentDetailsContainer.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Shipment Details</h3></div><div class="detail-card-body">${h}</div>`;
             }
 
             function renderTrackingStatus(order) {
-                const t = trackDataMap.get(order.REFERANCE); let h = '';
-                if (t) { 
-                    // *** FIX: These dates (like t.DATE) are now also "YYYY-MM-DD" ***
-                    const m = formatDateForDisplay(t['Manifest Date']); 
-                    const s = formatDateForDisplay(t.DATE); 
-                    h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm"><div><div class="text-gray-500 text-xs">Status</div><div class="font-semibold text-gray-800">${t.STATUS || 'N/A'}</div></div><div><div class="text-gray-500 text-xs">Date</div><div class="font-semibold text-gray-800">${s}</div></div><div><div class="text-gray-500 text-xs">Manifest</div><div class="font-semibold text-gray-800">${m}</div></div></div>`; 
-                }
-                else h = `<p class="text-sm text-gray-500">No tracking summary.</p>`;
-                
+                // No TRACK collection in PB — show order dates as status summary
+                const transitDate  = formatDateForDisplay(order.TRANSIT_DATE);
+                const orderDate    = formatDateForDisplay(order.ORDER_DATE);
+                const invoiceDate  = formatDateForDisplay(order.INVOICE_DATE);
+                const h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <div><div class="text-gray-500 text-xs">Order Date</div><div class="font-semibold text-gray-800">${orderDate}</div></div>
+                    <div><div class="text-gray-500 text-xs">Transit Date</div><div class="font-semibold text-gray-800">${transitDate}</div></div>
+                    <div><div class="text-gray-500 text-xs">Invoice Date</div><div class="font-semibold text-gray-800">${invoiceDate}</div></div>
+                </div>`;
                 ui.trackingStatusContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center">
-                                                            <h3 class="font-semibold text-gray-700">Tracking Status</h3>
-                                                            <div class="flex gap-2">
-                                                                <button class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200">TICKET</button>
-                                                                <button class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200">MARK</button>
-                                                            </div>
-                                                        </div><div class="detail-card-body">${h}</div>`;
+                    <h3 class="font-semibold text-gray-700">Tracking Status</h3>
+                    <div class="flex gap-2">
+                        <button class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200">TICKET</button>
+                        <button class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200">MARK</button>
+                    </div>
+                </div><div class="detail-card-body">${h}</div>`;
             }
 
-            function renderPartyDetails(uid, type, container) {
-                const c = b2b2cDataMap.get(uid); let h = '';
-                if (!c) h = `<p class="text-sm text-gray-500">${type} details not found for UID: ${uid}.</p>`;
-                else { 
-                    const d = [ 
-                        {l:'Name',v:c.NAME}, {l:'Address',v:c.ADDRESS}, {l:'City',v:c.CITY}, 
-                        {l:'Pincode',v:c.PINCODE}, {l:'State',v:c.STATE}, {l:'Mobile',v:c.MOBILE} 
-                    ]; 
-                    h = `<div class="space-y-2 text-sm">`; 
-                    d.forEach(i => { 
-                        if(i.v) h += `<div class="flex justify-between"><span class="text-gray-500">${i.l}:</span><span class="font-medium text-right">${i.v}</span></div>`; 
-                    }); 
-                    h += `</div>`; 
-                }
-                container.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">${type} Details</h3></div><div class="detail-card-body">${h}</div>`;
+            function renderPartyDetails(label, name, city, pincode, state, mobile, container) {
+                const d = [
+                    {l:'Name',    v:name},   {l:'City',   v:city},
+                    {l:'Pincode', v:pincode},{l:'State',  v:state},
+                    {l:'Mobile',  v:mobile}
+                ];
+                let h = `<div class="space-y-2 text-sm">`;
+                d.forEach(i => {
+                    if (i.v) h += `<div class="flex justify-between"><span class="text-gray-500">${i.l}:</span><span class="font-medium text-right">${i.v}</span></div>`;
+                });
+                h += `</div>`;
+                container.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">${label} Details</h3></div><div class="detail-card-body">${h}</div>`;
             }
 
             function renderProductAndBoxDetails(order) {
-                const r = order.REFERANCE; 
-                const p = productDataMap.get(r) || []; 
-                const b = multiboxDataMap.get(r) || []; 
-                const u = uploadsDataMap.get(`ref-${r}`) || []; 
+                const r = order.REFERENCE;
+                const p = productDataMap.get(r)  || [];
+                const b = multiboxDataMap.get(r) || [];
+                const u = uploadsDataMap.get(r)  || []; 
                 let h_body = '';
                 
                 if (p.length === 0 && b.length === 0 && u.length === 0) {
@@ -773,7 +773,7 @@
                         h_body += `<div class="space-y-2 text-sm sm:hidden">`;
                         u.forEach(up => { 
                             const ud = formatDateForDisplay(up.DATE_TIME); 
-                            let idt = up.AWB_NUMBER || up.KYC_NUMBER || up.REFERANCE; 
+                            let idt = up.AWB_NUMBER || up.KYC_NUMBER || up.REFERENCE; 
                             let det = ''; 
                             if(up.UPLOAD_TYPE==='MultiBox') det=`Child:${up.CHILD_AWB||'N/A'}`; 
                             else if(up.UPLOAD_TYPE==='KYC') det=`${up.CUSTOMER_UID||'N/A'}(${up.KYC_TYPE||'N/A'})`; 
@@ -795,7 +795,7 @@
                         h_body += `<div class="hidden sm:block overflow-x-auto border rounded-md"><table id="uploadsTable" class="min-w-full text-xs divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Type</th><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">ID</th><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Details</th><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Date</th><th class="px-4 py-2 text-center font-medium text-gray-500 uppercase">File</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
                         u.forEach(up => { 
                             const ud = formatDateForDisplay(up.DATE_TIME); 
-                            let idt = up.AWB_NUMBER || up.KYC_NUMBER || up.REFERANCE; 
+                            let idt = up.AWB_NUMBER || up.KYC_NUMBER || up.REFERENCE; 
                             let det = ''; 
                             if(up.UPLOAD_TYPE==='MultiBox') det=`Child:${up.CHILD_AWB||'N/A'}`; 
                             else if(up.UPLOAD_TYPE==='KYC') det=`${up.CUSTOMER_UID||'N/A'}(${up.KYC_TYPE||'N/A'})`; 
@@ -826,45 +826,20 @@
             }
 
             function renderTrackingHistory(order) {
-                const logs = logsDataMap.get(order.REFERANCE) || []; let h = '';
-                if (logs.length === 0) h = `<p class="text-sm text-gray-500">No tracking history available.</p>`;
-                else { 
-                    // Mobile Timeline View
-                    h += `<div class="timeline pr-2 sm:hidden">`; 
-                    logs.forEach(l => { 
-                        // *** FIX: This date (l.SCAN_DATE) is now also "YYYY-MM-DD" ***
-                        const sd = formatDateForDisplay(l.SCAN_DATE); 
-                        h += `<div class="timeline-item"><div class="timeline-dot"></div><p class="font-semibold text-sm text-gray-800">${l.SCAN_STATUS||'N/A'}</p><p class="text-sm text-gray-600">${l.SCAN_LOCATION||'N/A'}</p><time class="text-xs text-gray-400">${sd}</time></div>`; 
-                    }); 
-                    h += `</div>`;
-                    
-                    // Desktop Table View
-                    h += `<div class="hidden sm:block border rounded-md overflow-hidden"><table id="trackingHistoryTable" class="min-w-full text-xs divide-y divide-gray-200"><thead class="bg-gray-50 sticky top-0"><tr><th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date & Time</th><th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Status</th><th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`; 
-                    logs.forEach(l => { 
-                        // *** FIX: This date (l.SCAN_DATE) is now also "YYYY-MM-DD" ***
-                        const sd = formatDateForDisplay(l.SCAN_DATE); 
-                        h += `<tr><td class="px-3 py-2 whitespace-nowrap">${sd}</td><td class="px-3 py-2">${l.SCAN_STATUS || 'N/A'}</td><td class="px-3 py-2">${l.SCAN_LOCATION || 'N/A'}</td></tr>`; 
-                    }); 
-                    h += `</tbody></table></div>`; 
-                }
-                ui.trackingHistoryContainer.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body">${h}</div>`;
+                // No LOGS collection in PB — placeholder for future tracking updates
+                ui.trackingHistoryContainer.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body"><p class="text-sm text-gray-500">Tracking history not available.</p></div>`;
             }
 
             function renderDocumentCenter(order) {
-                const r = order.REFERANCE;
-                const uploads = uploadsDataMap.get(`ref-${r}`) || [];
-                const trackInfo = trackDataMap.get(r);
-                
+                const r = order.REFERENCE;
+                const uploads  = uploadsDataMap.get(r) || [];
                 const receiptUpload = uploads.find(u => u.UPLOAD_TYPE === 'Reciept');
-                const podUpload = uploads.find(u => u.UPLOAD_TYPE === 'POD');
+                const podUpload     = uploads.find(u => u.UPLOAD_TYPE === 'POD');
                 const productUploadsExist = (productDataMap.get(r) || []).length > 0;
                 
-                // *** FIX: These dates are now "YYYY-MM-DD" from GAS ***
-                const transitDate = formatDateForDisplay(order.TRANSIT_DATE);
-                const orderDate = formatDateForDisplay(order.ORDER_DATE);
-                
-                // *** FIX: trackInfo.DATE is also "YYYY-MM-DD" from GAS ***
-                const deliveryDate = (trackInfo && trackInfo.STATUS && trackInfo.STATUS.toUpperCase() === 'DELIVERED') ? formatDateForDisplay(trackInfo.DATE) : 'N/A';
+                const transitDate  = formatDateForDisplay(order.TRANSIT_DATE);
+                const orderDate    = formatDateForDisplay(order.ORDER_DATE);
+                const deliveryDate = 'N/A'; // No TRACK collection
                 
                 let podManual = 'N/A'; 
                 if (podUpload) podManual = `<a href="${podUpload.FILE_URL}" target="_blank" class="text-blue-600 hover:underline">View POD</a>`; 
