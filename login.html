@@ -289,7 +289,16 @@
                 target.classList.remove('hidden');
                 setTimeout(() => target.classList.remove('hidden-view'), 10);
                 currentView = viewName;
-                showMessage('', 'neutral'); // Clear messages on switch
+                showMessage('', 'neutral');
+            }
+            if (viewName === 'forgot') {
+                forgotState = 'send';
+                resetToken = '';
+                document.getElementById('forgot-step-1').classList.remove('hidden');
+                document.getElementById('forgot-step-2').classList.add('hidden');
+                document.getElementById('forgot-step-3').classList.add('hidden');
+                document.getElementById('forgot-btn').textContent = 'Request OTP';
+                document.getElementById('forgot-btn').className = 'w-full py-2 bg-orange-600 text-white font-bold rounded hover:bg-orange-700 transition-all shadow text-sm mt-2';
             }
         }
 
@@ -350,7 +359,8 @@
                         loginTime: Date.now(),
                         expires: Date.now() + 8 * 60 * 60 * 1000
                     }));
-                    location.href = 'dashboard.html';
+                    showMessage('Login successful! Redirecting...', 'success');
+                    setTimeout(() => { location.href = 'dashboard.html'; }, 1000);
                 }
             } catch (err) {}
         }
@@ -424,14 +434,14 @@
                     setLoading(true, 'Verifying...');
                     const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/verifyResetOtp`, { method: 'POST', body: formData }).then(r => r.json());
                     setLoading(false);
-                    if (res.status === 'error') { showMessage(res.message, 'error'); return; }
+                    if (res.detail) { showMessage(res.detail, 'error'); return; }
                     resetToken = res.token;
                     document.getElementById('forgot-step-2').classList.add('hidden');
                     document.getElementById('forgot-step-3').classList.remove('hidden');
                     document.getElementById('forgot-btn').textContent = 'Set New Password';
                     document.getElementById('forgot-btn').className = 'w-full py-2 bg-green-600 text-white font-bold rounded shadow text-sm mt-2';
                     forgotState = 'reset';
-                } catch (err) {}
+                } catch (err) { setLoading(false); showMessage('Verification failed.', 'error'); }
             } else {
                 try {
                     const newPass = document.getElementById('forgot-newpass').value.trim();

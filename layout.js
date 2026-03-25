@@ -98,7 +98,7 @@ const CONSTANTS = {
     // SYSTEM HEARTBEAT TIMERS
     SYNC_INTERVAL:      12 * 60 * 1000, // 12 Minutes: Refreshes business data.
     PING_INTERVAL:      5 * 60 * 1000,  // 5 Minutes: Tells server "I am here".
-    IDLE_TIMEOUT:       30 * 60 * 1000, // 30 Minutes: Kills session if user sleeps.
+    IDLE_TIMEOUT:       2 * 60 * 60 * 1000, // 2 Hours: Kills session if user sleeps.
     ACTIVITY_THROTTLE:  30 * 1000,      // 30 Seconds: Prevents event listener spam.
     
     // SECURITY CONFIGURATION
