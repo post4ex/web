@@ -212,6 +212,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -482,8 +483,7 @@
                     const cnor = order.CONSIGNOR || 'Unknown';
                     const cnee = order.CONSIGNEE || 'Unknown';
                     
-                    const dtObj = order.ORDER_DATE ? new Date(order.ORDER_DATE + 'T00:00:00Z') : null;
-                    const dt = dtObj ? dtObj.toLocaleDateString('en-IN', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A';
+                    const dt = fmtDate(order.ORDER_DATE);
                     
                     const li = document.createElement('li');
                     li.innerHTML = `<strong>${awb}</strong><span class="client-info">${cnor} → ${cnee}</span><div class="details-info"><span>Ref: ${ref} | ${dt}</span></div>`;
@@ -545,65 +545,7 @@
 
             // --- Render Functions for Right Pane ---
 
-            // *** START: UPDATED formatDateForDisplay FUNCTION ***
-            function formatDateForDisplay(dateInput) {
-                 if (!dateInput) return 'N/A';
-                 let date;
-                 try {
-                     // 1. Try our new YYYY-MM-DD format (from GAS fix)
-                     // This must be the FIRST check.
-                     if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-                         // Parse as UTC to avoid local timezone offset issues
-                         // "2025-01-17" becomes 2025-01-17T00:00:00.000Z
-                         date = new Date(dateInput + 'T00:00:00Z');
-                     }
-                     // 2. Try full ISO format (e.g., "2023-10-27T10:00:00.000Z")
-                     else if (typeof dateInput === 'string' && dateInput.includes('T') && dateInput.includes('Z')) {
-                         date = new Date(dateInput);
-                     }
-                     // 3. Try DD/MM/YYYY HH:MM:SS format (old format)
-                     else if (typeof dateInput === 'string' && dateInput.includes('/') && dateInput.includes(':')) {
-                         const parts = dateInput.split(' ');
-                         const dateParts = parts[0].split('/');
-                         const timeParts = parts.length > 1 ? parts[1].split(':') : ['0', '0', '0'];
-                         date = new Date(Date.UTC(
-                             parseInt(dateParts[2], 10), // year
-                             parseInt(dateParts[1], 10) - 1, // monthIndex
-                             parseInt(dateParts[0], 10), // day
-                             parseInt(timeParts[0], 10) || 0, 
-                             parseInt(timeParts[1], 10) || 0, 
-                             parseInt(timeParts[2], 10) || 0 
-                         ));
-                     }
-                      // 4. Try number format (Excel Serial Date)
-                     else if (typeof dateInput === 'number' || (typeof dateInput === 'string' && !isNaN(parseFloat(dateInput)) && isFinite(parseFloat(dateInput)))) {
-                         const serial = parseFloat(dateInput);
-                          const utc_days = Math.floor(serial - 25569);
-                          const utc_value = utc_days * 86400; // seconds
-                          date = new Date(utc_value * 1000); // milliseconds
-                     }
-                     // 5. Try generic parsing as a fallback
-                     else {
-                         date = new Date(dateInput);
-                     }
 
-                     if (isNaN(date.getTime())) {
-                         console.warn("formatDateForDisplay: Invalid date value:", dateInput);
-                         return 'Invalid Date';
-                     }
-                     
-                     // Use UTC methods to match the UTC parsing
-                     const year = date.getUTCFullYear();
-                     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                     const day = String(date.getUTCDate()).padStart(2, '0');
-                     return `${year}-${month}-${day}`;
-
-                 } catch (e) {
-                     console.error("formatDateForDisplay: Error parsing date:", dateInput, e);
-                     return 'Error Date';
-                 }
-            }
-            // *** END: UPDATED formatDateForDisplay FUNCTION ***
 
             function renderShipmentDetails(order) {
                 const carrier = carriersDataMap.get(order.CARRIER) || order.CARRIER || 'N/A';
@@ -627,9 +569,9 @@
 
             function renderTrackingStatus(order) {
                 // No TRACK collection in PB — show order dates as status summary
-                const transitDate  = formatDateForDisplay(order.TRANSIT_DATE);
-                const orderDate    = formatDateForDisplay(order.ORDER_DATE);
-                const invoiceDate  = formatDateForDisplay(order.INVOICE_DATE);
+                const transitDate  = fmtDate(order.TRANSIT_DATE);
+                const orderDate    = fmtDate(order.ORDER_DATE);
+                const invoiceDate  = fmtDate(order.INVOICE_DATE);
                 const h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     <div><div class="text-gray-500 text-xs">Order Date</div><div class="font-semibold text-gray-800">${orderDate}</div></div>
                     <div><div class="text-gray-500 text-xs">Transit Date</div><div class="font-semibold text-gray-800">${transitDate}</div></div>
@@ -777,7 +719,7 @@
                         // Uploads Mobile List
                         h_body += `<div class="space-y-2 text-sm sm:hidden">`;
                         u.forEach(up => { 
-                            const ud = formatDateForDisplay(up.DATE_TIME); 
+                            const ud = fmtDate(up.DATE_TIME, 'full'); 
                             let idt = up.AWB_NUMBER || up.KYC_NUMBER || up.REFERENCE; 
                             let det = ''; 
                             if(up.UPLOAD_TYPE==='MultiBox') det=`Child:${up.CHILD_AWB||'N/A'}`; 
@@ -799,14 +741,13 @@
                         // Uploads Desktop Table
                         h_body += `<div class="hidden sm:block overflow-x-auto border rounded-md"><table id="uploadsTable" class="min-w-full text-xs divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Type</th><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">ID</th><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Details</th><th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Date</th><th class="px-4 py-2 text-center font-medium text-gray-500 uppercase">File</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
                         u.forEach(up => { 
-                            const ud = formatDateForDisplay(up.DATE_TIME); 
+                            const ud = fmtDate(up.DATE_TIME, 'full'); 
                             let idt = up.AWB_NUMBER || up.KYC_NUMBER || up.REFERENCE; 
                             let det = ''; 
                             if(up.UPLOAD_TYPE==='MultiBox') det=`Child:${up.CHILD_AWB||'N/A'}`; 
                             else if(up.UPLOAD_TYPE==='KYC') det=`${up.CUSTOMER_UID||'N/A'}(${up.KYC_TYPE||'N/A'})`; 
                             else if(up.UPLOAD_TYPE==='Product') det=`${up.DOC_NUMBER||'N/A'}(${up.DOC_TYPE||'N/A'})`; 
                             else det=up.STATUS_REMARK||'N/A'; 
-                            // *** FIX: Corrected class_A typo ***
                             h_body+=`<tr><td class="px-4 py-2">${up.UPLOAD_TYPE||'N/A'}</td><td class="px-4 py-2">${idt||'N/A'}</td><td class="px-4 py-2">${det}</td><td class="px-4 py-2">${ud}</td><td class="px-4 py-2 text-center"><a href="${up.FILE_URL}" target="_blank" title="Open" class="p-1.5 bg-gray-500 text-white rounded hover:bg-gray-600 inline-flex"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a></td></tr>`; 
                         });
                         h_body += `</tbody></table></div>`; 
@@ -842,8 +783,8 @@
                 const podUpload     = uploads.find(u => u.UPLOAD_TYPE === 'POD');
                 const productUploadsExist = (productDataMap.get(r) || []).length > 0;
                 
-                const transitDate  = formatDateForDisplay(order.TRANSIT_DATE);
-                const orderDate    = formatDateForDisplay(order.ORDER_DATE);
+                const transitDate  = fmtDate(order.TRANSIT_DATE);
+                const orderDate    = fmtDate(order.ORDER_DATE);
                 const deliveryDate = 'N/A'; // No TRACK collection
                 
                 let podManual = 'N/A'; 

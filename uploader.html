@@ -1703,19 +1703,7 @@
 
         // --- List Filtering and Rendering (Right Panel) ---
 
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return 'Invalid Date';
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            } catch (e) {
-                return 'Invalid Date';
-            }
-        }
+        // Date formatting → fmtDate() from core/formatIST.js
         
         function renderMiniOrderList(ordersToRender) {
             // *** MODIFIED: Get single list ***
@@ -1739,15 +1727,7 @@
                 const consigneeClient = allClientsB2B2C.find(c => c.UID === order.CONSIGNEE);
                 const consigneeName = consigneeClient ? (consigneeClient.NAME || 'Unknown') : 'Unknown';
                 const destination = order.DEST_CITY || 'N/A';
-                const orderDate = formatDate(order.ORDER_DATE);
-                const value = order.VALUE || 0;
-                const pieces = order.PIECS || 0;
-                
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${displayAwb}</strong>
-                                <div class="client-info">${consignorName} -> ${consigneeName}</div>
-                                <div class="details-info">Date: ${orderDate} | Value: ${value} | Pcs: ${pieces}</div>
-                                <div class="dest-info">Dest: ${destination}</div>`;
+                const orderDate = fmtDate(order.ORDER_DATE);
 
                 li.dataset.orderRef = ref;
                 if (selectedOrder && selectedOrder.REFERANCE === ref) {
@@ -1780,7 +1760,7 @@
                 const consigneeClient = allClientsB2B2C.find(c => c.UID === order.CONSIGNEE);
                 const consigneeName = consigneeClient ? (consigneeClient.NAME || '') : '';
                 const destination = order.DEST_CITY || '';
-                const orderDateStr = formatDate(order.ORDER_DATE).toLowerCase();
+                const orderDateStr = fmtDate(order.ORDER_DATE).toLowerCase();
                 return (order.REFERANCE ? String(order.REFERANCE).toLowerCase().includes(searchTerm) : false) ||
                        (order.AWB_NUMBER ? String(order.AWB_NUMBER).toLowerCase().includes(searchTerm) : false) ||
                        (consignorName ? consignorName.toLowerCase().includes(searchTerm) : false) ||
@@ -3104,6 +3084,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>

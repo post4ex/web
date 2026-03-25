@@ -106,7 +106,7 @@ const B2BForm = {
                     B2BUI.ui.gstIncHidden.value = customer[key] || 'N';
                 }
                 else if ((key === 'TIMESTAMP' || key === 'TIME_STAMP') && customer[key]) {
-                    try { input.value = new Date(customer[key]).toLocaleString(); } catch(e){ input.value = customer[key]; }
+                    input.value = fmtDate(customer[key], 'full');
                 }
                 else {
                     input.value = customer[key] || '';

@@ -172,6 +172,7 @@
     <!-- layout.js MUST be loaded first -->
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -354,7 +355,7 @@
                 const input = ui.form.querySelector(`[name="${key}"]`);
                 if (input) {
                      if (key === 'TIME_STAMP' && client[key]) {
-                        input.value = new Date(client[key]).toLocaleString();
+                        input.value = fmtDate(client[key], 'full');
                     } else {
                         input.value = client[key] || '';
                     }

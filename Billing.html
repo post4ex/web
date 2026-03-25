@@ -200,6 +200,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -591,8 +592,7 @@
                     const total = (invoice.TOTAL || 0).toFixed(2);
                     
                     // Display Logic: Use only INVOICE_DATE for display, and show N/A if null.
-                    const dtObj = invoice.INVOICE_DATE ? new Date(invoice.INVOICE_DATE) : null;
-                    const dt = dtObj ? dtObj.toLocaleDateString('en-IN', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A';
+                    const dt = invoice.INVOICE_DATE ? fmtDate(invoice.INVOICE_DATE, 'date') : 'N/A';
                     
                     // Use a constant color for the total badge
                     const scolor = 'bg-indigo-100 text-indigo-700'; 
@@ -661,11 +661,11 @@
 
                 // --- Right Side: Invoice Dates ---
                 const invNum = invoice.INV_NUMBER || 'N/A';
-                const invDate = invoice.INVOICE_DATE ? formatDateForDisplay(invoice.INVOICE_DATE) : 'N/A';
+                const invDate = invoice.INVOICE_DATE ? fmtDate(invoice.INVOICE_DATE) : 'N/A';
                 
                 // Start/End dates are only relevant for UnBilled groups (Key Type is not 'INV')
-                const startDate = invoice.KEY_TYPE !== 'INV' ? (invoice.START_DATE ? formatDateForDisplay(invoice.START_DATE) : 'N/A') : 'N/A';
-                const endDate = invoice.KEY_TYPE !== 'INV' ? (invoice.END_DATE ? formatDateForDisplay(invoice.END_DATE) : 'N/A') : 'N/A';
+                const startDate = invoice.KEY_TYPE !== 'INV' ? (invoice.START_DATE ? fmtDate(invoice.START_DATE) : 'N/A') : 'N/A';
+                const endDate = invoice.KEY_TYPE !== 'INV' ? (invoice.END_DATE ? fmtDate(invoice.END_DATE) : 'N/A') : 'N/A';
 
                 const rightContent = `
                     <div class="space-y-2 text-sm p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -717,7 +717,7 @@
                                         <tbody class="bg-white divide-y divide-gray-200">`;
                     
                     shipments.forEach(s => { 
-                        const orderDate = formatDateForDisplay(s.ORDER_DATE); 
+                        const orderDate = fmtDate(s.ORDER_DATE); 
                         const awbCarrier = `${s.AWB_NUMBER || 'N/A'} / ${s.CARRIER || 'N/A'}`;
                         const modePieces = `${s.MODE || 'N/A'} / ${s.PIECS || 0}`;
                         const dest = `${s.DEST_CITY || 'N/A'} (${s.DEST_PINCODE || 'N/A'})`;
@@ -740,7 +740,7 @@
                     // Mobile Card View (visible < md)
                     h_body += `<div class="md:hidden space-y-3">`;
                     shipments.forEach(s => {
-                         const orderDate = formatDateForDisplay(s.ORDER_DATE); 
+                         const orderDate = fmtDate(s.ORDER_DATE); 
                          const chgWt = (s.CHG_WT !== undefined && s.CHG_WT !== null) ? parseFloat(s.CHG_WT).toFixed(2) : 'N/A';
                          const fright = (s.FRIGHT !== undefined && s.FRIGHT !== null) ? parseFloat(s.FRIGHT).toFixed(2) : 'N/A';
                         
@@ -906,54 +906,6 @@
                 showDetailView(true);
             }
 
-            // --- Utility function for date formatting (kept for filter logic) ---
-            function formatDateForDisplay(dateInput) {
-                 if (!dateInput) return 'N/A';
-                 let date;
-                 try {
-                     // 1. Try DD/MM/YYYY HH:MM:SS format first
-                     if (typeof dateInput === 'string' && dateInput.includes('/') && dateInput.includes(':')) {
-                         const parts = dateInput.split(' ');
-                         const dateParts = parts[0].split('/');
-                         const timeParts = parts[1] ? parts[1].split(':') : ['0', '0', '0'];
-                         date = new Date(Date.UTC(
-                             parseInt(dateParts[2], 10), // year
-                             parseInt(dateParts[1], 10) - 1, // monthIndex
-                             parseInt(dateParts[0], 10), // day
-                             parseInt(timeParts[0], 10) || 0, 
-                             parseInt(timeParts[1], 10) || 0, 
-                             parseInt(timeParts[2], 10) || 0 
-                         ));
-                     }
-                     // 2. Try ISO format (e.g., "2023-10-27T10:00:00.000Z")
-                     else if (typeof dateInput === 'string' && dateInput.includes('T') && dateInput.includes('Z')) {
-                         date = new Date(dateInput);
-                     }
-                      // 3. Try number format (Excel Serial Date)
-                     else if (typeof dateInput === 'number' || (typeof dateInput === 'string' && !isNaN(parseFloat(dateInput)) && isFinite(parseFloat(dateInput)))) {
-                         const serial = parseFloat(dateInput);
-                          const utc_days = Math.floor(serial - 25569);
-                          const utc_value = utc_days * 86400; // seconds
-                          date = new Date(utc_value * 1000); // milliseconds
-                     }
-                     // 4. Try generic parsing as a fallback
-                     else {
-                         date = new Date(dateInput);
-                     }
-
-                     if (isNaN(date.getTime())) {
-                         console.warn("formatDateForDisplay: Invalid date value:", dateInput);
-                         return 'Invalid Date';
-                     }
-                     
-                     const year = date.getUTCFullYear();
-                     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                     const day = String(date.getUTCDate()).padStart(2, '0');
-                     return `${year}-${month}-${day}`;
-                 } catch (e) {
-                     console.error("formatDateForDisplay: Error parsing date:", dateInput, e);
-                     return 'Error Date';
-                 }
              }
 
         });

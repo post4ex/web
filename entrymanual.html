@@ -458,6 +458,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -624,7 +625,7 @@
                 setBookingFieldsLocked(false);
                 userMadeInitialModeChoice = false;
                 document.getElementById('bookingForm').reset();
-                orderDateInput.value = formatDate(new Date());
+                orderDateInput.value = fmtDate(new Date(), 'input');
                 senderDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Select a customer to autofill sender.</span>`;
                 receiverDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Enter receiver details manually.</span>`;
                 bookingMessage.textContent = '';
@@ -636,19 +637,9 @@
                 toggleWeightProductEntry(true);
             }
 
-            function formatDate(date) {
-                return date.toISOString().split('T')[0];
-            }
-
-            function formatTime(date) {
-                const hh = String(date.getHours()).padStart(2, '0');
-                const min = String(date.getMinutes()).padStart(2, '0');
-                return `${hh}:${min}`;
-            }
-
             function updateTimestamp() {
                 const now = new Date();
-                timestampInput.value = `${formatDate(now)} ${formatTime(now)}`;
+                timestampInput.value = `${fmtDate(now, 'input')} ${fmtDate(now, 'time')}`;
                 updateDisplayTables();
             }
             
@@ -1023,15 +1014,6 @@
             }
 
             // --- SHIPMENT LIST LOGIC HELPER FUNCTIONS ---
-            function formatDateForDisplay(dateString) {
-                // Takes a timestamp string and returns YYYY-MM-DD
-                try {
-                    return dateString ? new Date(dateString).toISOString().split('T')[0] : 'N/A';
-                } catch (e) {
-                    return 'Invalid Date';
-                }
-            }
-
             function formatCurrency(value) {
                 const num = parseFloat(value);
                 // Return '---' for invalid/empty values, otherwise format to currency without decimals
@@ -1084,7 +1066,7 @@
                     const value = formatCurrency(shipment.VALUE); 
                     const destCity = shipment.DEST_CITY || 'N/A';
                     const destPincode = shipment.DEST_PINCODE || 'N/A';
-                    const orderDate = formatDateForDisplay(shipment.ORDER_DATE);
+                    const orderDate = fmtDate(shipment.ORDER_DATE);
 
                     item.innerHTML = `
                         <!-- Mobile View (Default block) -->
@@ -1334,7 +1316,7 @@
             }
 
             updateTimestamp();
-            orderDateInput.value = formatDate(new Date());
+            orderDateInput.value = fmtDate(new Date(), 'input');
             setInterval(updateTimestamp, 60000);
             updateDisplayTables();
             updateSummaryDisplay();

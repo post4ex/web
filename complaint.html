@@ -79,6 +79,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -99,13 +100,7 @@
             const complaintLoadingIndicator = document.getElementById('complaintLoadingIndicator');
             const complaintMessageBox = document.getElementById('complaintMessageBox');
             const complaintMessageText = document.getElementById('complaintMessageText');
-            let complaintConsignment = null;
-
-            function formatDateTime(isoString) {
-                if (!isoString) return 'N/A';
-                const date = new Date(isoString);
-                if (isNaN(date.getTime())) return 'Date not available';
-                return date.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'medium' });
+            let complaintConsignment = null;);
             }
 
             complaintSearchButton.addEventListener('click', searchAndDisplayComplaint);
@@ -152,7 +147,7 @@
                 const detailsHtml = `<div class="card p-4 bg-gray-50 border border-gray-200"><h3 class="font-semibold text-gray-800 mb-2">Consignment Details</h3>
                     <p class="text-sm text-gray-600">AWB/Ref: <span class="font-medium text-gray-900">${order['AWB Booked'] || order.Ref}</span></p>
                     <p class="text-sm text-gray-600">Status: <span class="font-medium text-gray-900">${consignment.track?.['Current Status'] || 'N/A'}</span></p>
-                    <p class="text-sm text-gray-600">Order Date: <span class="font-medium text-gray-900">${formatDateTime(order['Order Date'])}</span></p>
+                    <p class="text-sm text-gray-600">Order Date: <span class="font-medium text-gray-900">${fmtDate(order['Order Date'], 'full')}</span></p>
                     <p class="text-sm text-gray-600">Destination: <span class="font-medium text-gray-900">${order['Consignee Name']} - ${order['Consignee City']}</span></p></div>`;
                 complaintResultsContainer.innerHTML = detailsHtml;
                 complaintResultsContainer.classList.remove('hidden');

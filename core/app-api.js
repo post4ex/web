@@ -47,45 +47,7 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
 }
 
 // --- DATE UTILITIES ---
-
-const istFormatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
-    hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-});
-
-function formatToIST(val) {
-    if (!val) return val;
-    if (typeof val === 'number' || (typeof val === 'string' && !val.includes('/'))) {
-        const date = new Date(val);
-        if (isNaN(date.getTime())) return val;
-        return istFormatter.format(date).replace(',', '');
-    }
-    return val;
-}
-
-function applyDateFormatting(obj) {
-    if (!obj || typeof obj !== 'object') return;
-    for (const key in obj) {
-        if (DATE_FIELDS.includes(key)) {
-            obj[key] = formatToIST(obj[key]);
-        } else if (typeof obj[key] === 'object') {
-            applyDateFormatting(obj[key]);
-        }
-    }
-}
-
-function scanAndFormatDates() {
-    const dateElements = document.querySelectorAll('.format-date');
-    if (dateElements.length === 0) return;
-    dateElements.forEach(el => {
-        const rawValue = el.textContent.trim();
-        if (rawValue && !isNaN(new Date(rawValue).getTime())) {
-            el.textContent = formatToIST(rawValue);
-        }
-    });
-}
+// Formatting is handled by core/formatIST.js — fmtDate() and fromIST() are global.
 
 // --- DATA ENGINE ---
 
@@ -132,7 +94,6 @@ async function verifyAndFetchAppData(force = false) {
 
         if (result.status === 'success') {
             const incomingData = result.data || {};
-            applyDateFormatting(incomingData);
 
             let syncErrors  = [];
             let successCount = 0;

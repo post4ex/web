@@ -1,66 +1,4 @@
 // --- MOVED TO GLOBAL SCOPE ---
-// --- MODIFIED: Fixed date parsing logic ---
-function formatDateForDisplay(dateInput) {
-    if (!dateInput) return 'N/A';
-    let date;
-    try {
-        // 1. Try DD/MM/YYYY HH:MM:SS format
-        if (typeof dateInput === 'string' && dateInput.includes('/') && dateInput.includes(':')) {
-            const parts = dateInput.split(' ');
-            const dateParts = parts[0].split('/');
-            const timeParts = parts.length > 1 ? parts[1].split(':') : ['0', '0', '0'];
-            date = new Date(Date.UTC(
-                parseInt(dateParts[2], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[0], 10),
-                parseInt(timeParts[0], 10) || 0, parseInt(timeParts[1], 10) || 0, parseInt(timeParts[2], 10) || 0
-            ));
-        }
-        // 2. Try ISO format (already UTC)
-        else if (typeof dateInput === 'string' && dateInput.includes('T') && dateInput.includes('Z')) {
-            date = new Date(dateInput);
-        }
-        // --- ADDED (NEW BLOCK 3): Handle YYYY-MM-DD format (as UTC) ---
-        // This is the most common format in the ORDERS data (e.g., "2025-01-17")
-        // We parse it as UTC to avoid timezone-shifting issues.
-        else if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-            const dateParts = dateInput.split('-');
-            date = new Date(Date.UTC(
-                parseInt(dateParts[0], 10), // Year
-                parseInt(dateParts[1], 10) - 1, // Month (0-indexed)
-                parseInt(dateParts[2], 10)  // Day
-            ));
-        }
-        // 4. Try number format (Excel Serial Date)
-        else if (typeof dateInput === 'number' || (typeof dateInput === 'string' && !isNaN(parseFloat(dateInput)) && isFinite(parseFloat(dateInput)))) {
-            const serial = parseFloat(dateInput);
-            const utc_days = Math.floor(serial - 25569);
-            const utc_value = utc_days * 86400; 
-            date = new Date(utc_value * 1000); 
-        }
-        // 5. Try generic parsing (fallback)
-        else {
-            date = new Date(dateInput); // Fallback for other formats
-        }
-
-        if (isNaN(date.getTime())) {
-            console.warn("formatDateForDisplay: Invalid date value:", dateInput);
-            return 'Invalid Date';
-        }
-        
-        // --- *** BUG FIX *** ---
-        const year = date.getUTCFullYear();
-        // --- FIXED: Was incorrectly using getUTCFullYear() here instead of getUTCMonth() ---
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        return `${day}-${month}-${year}`; // Keep DD-MM-YYYY format
-    } catch (e) {
-        console.error("formatDateForDisplay: Error parsing date:", dateInput, e);
-        return 'Error Date';
-    }
-}
-// --- END OF MODIFICATION ---
-
-
-// --- MOVED TO GLOBAL SCOPE ---
 // --- MODIFIED: Renders ALL documents ---
 function renderDocumentWorkshop(order) {
     // We still have access to all the data, e.g.:
@@ -201,7 +139,7 @@ function renderDocumentWorkshop(order) {
 // --- MODIFIED: Adopting new label style ---
 function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type: 'preview' }) { // MODIFIED
     // NOTE: This function relies on global variable: modeDataMap
-    const orderDate = formatDateForDisplay(order.ORDER_DATE);
+    const orderDate = fmtDate(order.ORDER_DATE, 'date');
     const ref = order.REFERANCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     
@@ -644,7 +582,7 @@ function buildReceipt(order, cnor, cnee, products, tracking) {
     // --- ADDED: Get multibox data ---
     const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
 
-    const orderDate = formatDateForDisplay(order.ORDER_DATE);
+    const orderDate = fmtDate(order.ORDER_DATE, 'date');
     const ref = order.REFERANCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     const carrierName = order.CARRIER || 'CARRIER'; // We still need this for the origin box
@@ -1053,7 +991,7 @@ function buildPOD(order, cnor, cnee, products, tracking) {
     // NOTE: This function relies on global variables: multiboxDataMap, modeDataMap
     // --- This function is now a copy of buildReceipt, with modifications ---
     const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
-    const orderDate = formatDateForDisplay(order.ORDER_DATE);
+    const orderDate = fmtDate(order.ORDER_DATE, 'date');
     const ref = order.REFERANCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     const carrierName = order.CARRIER || 'CARRIER';
@@ -1452,7 +1390,7 @@ function buildOfficeCopy(order, cnor, cnee, products, tracking) {
     // NOTE: This function relies on global variables: multiboxDataMap, modeDataMap
     // --- This function is a copy of buildPOD, with modifications ---
     const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
-    const orderDate = formatDateForDisplay(order.ORDER_DATE);
+    const orderDate = fmtDate(order.ORDER_DATE, 'date');
     const ref = order.REFERANCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     const carrierName = order.CARRIER || 'CARRIER';

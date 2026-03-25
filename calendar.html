@@ -233,6 +233,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -370,7 +371,7 @@
             tbody.innerHTML = sessionDates.map(dateStr => {
                 const name = calendarData.apiHolidays[dateStr];
                 const d = new Date(dateStr);
-                const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const formattedDate = fmtDate(d, 'date');
                 
                 let status = OP_STATUS_MAP[name] || "Subject to Area";
                 if (status === "Subject to Area") {

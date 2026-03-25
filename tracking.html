@@ -62,19 +62,7 @@
             const modalContent = document.getElementById('modalContent');
             
             let currentSearchType = 'ref';
-            let allConsignments = [];
-
-            function formatDateTime(isoString) {
-                if (!isoString) return 'N/A';
-                const date = new Date(isoString);
-                if (isNaN(date.getTime())) return 'Date not available';
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const year = String(date.getFullYear()).slice(-2);
-                const hours = String(date.getHours()).padStart(2, '0');
-                const minutes = String(date.getMinutes()).padStart(2, '0');
-                const seconds = String(date.getSeconds()).padStart(2, '0');
-                return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+            let allConsignments = [];-${month}-${year} ${hours}:${minutes}:${seconds}`;
             }
 
             function updateButtonStyles() {
@@ -167,7 +155,7 @@
                             <div class="col-span-2 sm:col-span-1">
                                 <p class="font-medium text-gray-800">Status: ${c.track?.['Current Status'] || 'N/A'}</p>
                                 <p class="text-sm text-gray-600">AWB: ${c.order['AWB Booked']}</p>
-                                <p class="text-sm text-gray-600">Date: ${formatDateTime(c.order['Order Date'])}</p>
+                                <p class="text-sm text-gray-600">Date: ${fmtDate(c.order['Order Date'], 'full')}</p>
                             </div>
                             <div class="col-span-2 sm:col-span-1">
                                 <p class="text-sm text-gray-600">Carrier: ${c.order['Carrier Name']}</p>
@@ -186,20 +174,20 @@
                 const latestLogDate = logs && logs.length > 0 ? logs[0]['Scan Date'] : null;
                 const currentUpdateDate = track?.['Current Date'] || latestLogDate;
                 const currentStatus = track?.['Current Status'] || 'Status N/A';
-                const edd = order.EDD ? formatDateTime(order.EDD) : 'N/A';
+                const edd = order.EDD ? fmtDate(order.EDD, 'full') : 'N/A';
                 
                 let html = `<div class="card space-y-4 mb-8">
                     <h2 class="text-xl font-semibold text-gray-700">Order Details for AWB: ${order['AWB Booked']}</h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
                         <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Reference & AWB</h3><p>Ref: <span class="font-semibold">${order.Ref}</span></p><p>AWB: <span class="font-semibold">${order['AWB Booked']}</span></p></div>
-                        <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Dates</h3><p>Order: <span class="font-semibold">${formatDateTime(order['Order Date'])}</span></p><p>EDD: <span class="font-semibold">${edd}</span></p></div>
+                        <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Dates</h3><p>Order: <span class="font-semibold">${fmtDate(order['Order Date'], 'full')}</span></p><p>EDD: <span class="font-semibold">${edd}</span></p></div>
                         <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Shipment</h3><p>Carrier: <span class="font-semibold">${order['Carrier Name']}</span></p><p>Mode: <span class="font-semibold">${modeMap[order['Billing Mode']] || order['Billing Mode']}</span></p></div>
                         <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">From / To</h3><p>From: <span class="font-semibold">${order.Customer} - ${order['Sender City']}</span></p><p>To: <span class="font-semibold">${order['Consignee Name']} - ${order['Consignee City']}</span></p></div>
                     </div>
-                    <div class="mt-6"><h2 class="text-xl font-semibold text-gray-700">Current Status</h2><p class="text-3xl font-bold text-gray-800">${currentStatus}</p><p class="text-gray-500">Last updated: ${formatDateTime(currentUpdateDate)}</p></div>
+                    <div class="mt-6"><h2 class="text-xl font-semibold text-gray-700">Current Status</h2><p class="text-3xl font-bold text-gray-800">${currentStatus}</p><p class="text-gray-500">Last updated: ${fmtDate(currentUpdateDate, 'full')}</p></div>
                     <div class="mt-6"><h2 class="text-xl font-semibold text-gray-700 mb-4">Scan History</h2>${(logs && logs.length > 0) ? `
                         <div class="overflow-x-auto rounded-lg border"><table class="scan-history-table w-full text-sm"><thead><tr><th class="py-3 px-4 font-semibold">Date</th><th class="py-3 px-4 font-semibold">Status & Remarks</th><th class="py-3 px-4 font-semibold">Location</th></tr></thead><tbody>
-                        ${logs.map(log => `<tr class="hover:bg-gray-50"><td>${formatDateTime(log['Scan Date'])}</td><td>${log['Scan Status']} - ${log.Remark}</td><td>${log['Scan Location']}</td></tr>`).join('')}
+                        ${logs.map(log => `<tr class="hover:bg-gray-50"><td>${fmtDate(log['Scan Date'], 'full')}</td><td>${log['Scan Status']} - ${log.Remark}</td><td>${log['Scan Location']}</td></tr>`).join('')}
                         </tbody></table></div>` : `<p class="text-gray-500">No scan history found.</p>`}
                     </div></div>`;
                 resultsContainer.insertAdjacentHTML('beforeend', html);
@@ -211,7 +199,7 @@
                 let modalHtml = (logs && logs.length > 0) ? `
                     <div class="overflow-x-auto rounded-lg border"><table class="scan-history-table w-full text-sm">
                         <thead><tr><th class="py-3 px-4 font-semibold">Date</th><th class="py-3 px-4 font-semibold">Status & Remarks</th><th class="py-3 px-4 font-semibold">Location</th></tr></thead>
-                        <tbody>${logs.map(log => `<tr class="hover:bg-gray-50"><td>${formatDateTime(log['Scan Date'])}</td><td>${log['Scan Status']} - ${log.Remark}</td><td>${log['Scan Location']}</td></tr>`).join('')}</tbody>
+                        <tbody>${logs.map(log => `<tr class="hover:bg-gray-50"><td>${fmtDate(log['Scan Date'], 'full')}</td><td>${log['Scan Status']} - ${log.Remark}</td><td>${log['Scan Location']}</td></tr>`).join('')}</tbody>
                     </table></div>` : `<p class="text-gray-500">No scan history found.</p>`;
                 modalContent.innerHTML = modalHtml;
                 scanHistoryModal.classList.remove('hidden');

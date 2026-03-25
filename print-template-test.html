@@ -1008,8 +1008,8 @@
             document.getElementById("simplified-header-east").textContent = CONSTANTS.TEXTS.ZONES.EAST;
 
             // Set dates
-            document.getElementById("current-date").textContent = new Date().toLocaleDateString();
-            document.getElementById("generated-date").textContent = new Date().toLocaleString();
+            document.getElementById("current-date").textContent = fmtDate(new Date(), 'date');
+            document.getElementById("generated-date").textContent = fmtDate(new Date(), 'full');
             document.getElementById("valid-until").textContent = CONSTANTS.TEXTS.QUOTE_VALIDITY;
 
             // Populate zone info based on rate type

@@ -153,7 +153,6 @@ function initializeUI() {
     });
 
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));
-    scanAndFormatDates();
 
     window.checkAppData = async () => {
         if (!window.appDB) { console.warn('IndexedDB not available'); return null; }

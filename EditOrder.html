@@ -509,6 +509,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -644,7 +645,7 @@
                 setBookingFieldsLocked(false);
                 userMadeInitialModeChoice = false;
                 document.getElementById('bookingForm').reset();
-                orderDateInput.value = formatDate(new Date());
+                orderDateInput.value = fmtDate(new Date(), 'input');
                 senderDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Select a customer to autofill sender.</span>`;
                 receiverDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Enter receiver details manually.</span>`;
                 bookingMessage.textContent = '';
@@ -655,21 +656,12 @@
                 updateDisplayTables();
                 updateCharges();
                 toggleWeightProductEntry(true);
-            }
-
-            function formatDate(date) {
-                return date.toISOString().split('T')[0];
-            }
-
-            function formatTime(date) {
-                const hh = String(date.getHours()).padStart(2, '0');
-                const min = String(date.getMinutes()).padStart(2, '0');
-                return `${hh}:${min}`;
+            }:${min}`;
             }
 
             function updateTimestamp() {
                 const now = new Date();
-                timestampInput.value = `${formatDate(now)} ${formatTime(now)}`;
+                timestampInput.value = `${fmtDate(now, 'input')} ${fmtDate(now, 'time')}`;
                 updateDisplayTables();
             }
             
@@ -1350,7 +1342,7 @@
             }
 
             updateTimestamp();
-            orderDateInput.value = formatDate(new Date());
+            orderDateInput.value = fmtDate(new Date(), 'input');
             setInterval(updateTimestamp, 60000);
             updateDisplayTables();
             updateSummaryDisplay();

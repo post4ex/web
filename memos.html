@@ -542,6 +542,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -741,17 +742,7 @@
                 }
             }
             
-            formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                }) + ' • ' + date.toLocaleTimeString('en-IN', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            }
+            formatDate(dateString) { return fmtDate(dateString, 'full'); }
             
             openMemoDetail(memoId) {
                 const memo = this.memos.find(m => m.id === memoId);
@@ -1013,7 +1004,7 @@
                 const memoAuthor = this.memos.find(m => m.id === memoId)?.author || 'Author';
                 
                 const replySubject = `Re: Memo ${memoId} - ${memoTitle}`;
-                const replyBody = `\n\n---\nReplying to memo: ${memoId}\nOriginal title: ${memoTitle}\nAuthor: ${memoAuthor}\nDate: ${new Date().toLocaleString()}\n\nMy response:`;
+                const replyBody = `\n\n---\nReplying to memo: ${memoId}\nOriginal title: ${memoTitle}\nAuthor: ${memoAuthor}\nDate: ${fmtDate(new Date(), 'full')}\n\nMy response:`;
                 
                 window.open(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(replySubject)}&body=${encodeURIComponent(replyBody)}`, '_blank');
             }
@@ -1304,10 +1295,7 @@ ${memoContent}
                 }
             }
 
-            formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-            }
+            formatDate(dateString) { return fmtDate(dateString, 'date'); }
 
             toggleSortOrder() {
                 this.sortNewestFirst = !this.sortNewestFirst;

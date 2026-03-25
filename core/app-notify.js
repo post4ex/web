@@ -48,7 +48,7 @@ function openNotificationModal(message, type, timestamp) {
     document.getElementById('notif-modal-title').textContent   = titleMap[type] || 'Notification';
     document.getElementById('notif-modal-content').textContent = message;
     document.getElementById('notif-modal-icon').textContent    = iconMap[type]  || 'ℹ️';
-    document.getElementById('notif-modal-time').textContent    = timestamp || new Date().toLocaleString();
+    document.getElementById('notif-modal-time').textContent    = timestamp || fmtDate(new Date(), 'full');
 
     modal.classList.remove('hidden');
     setTimeout(() => {

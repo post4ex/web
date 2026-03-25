@@ -237,6 +237,7 @@
     
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
@@ -290,64 +291,7 @@
 
         // --- List Rendering Functions ---
 
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            
-            let date;
-
-            try {
-                // 1. Check if it's already a Date object
-                if (dateString instanceof Date) {
-                    date = dateString;
-                }
-                // 2. Check for ISO 8601 string (e.g., "2025-04-10T05:03:47.000Z")
-                else if (typeof dateString === 'string' && dateString.includes('T') && dateString.includes('Z')) {
-                    date = new Date(dateString);
-                } 
-                // 3. Check for the DD/MM/YYYY HH:MM:SS format (from console log)
-                else if (typeof dateString === 'string' && dateString.includes('/') && dateString.includes(':')) {
-                    // It looks like '27/10/2025 17:42:22'
-                    const parts = dateString.split(' '); // ['27/10/2025', '17:42:22']
-                    const dateParts = parts[0].split('/'); // ['27', '10', '2025']
-                    const timeParts = parts.length > 1 ? parts[1].split(':') : ['0', '0', '0']; // ['17', '42', '22']
-                    
-                    // Use Date.UTC to construct the date reliably
-                    date = new Date(Date.UTC(
-                        parseInt(dateParts[2], 10), // Year
-                        parseInt(dateParts[1], 10) - 1, // Month (0-indexed)
-                        parseInt(dateParts[0], 10), // Day
-                        parseInt(timeParts[0], 10) || 0, // Hour
-                        parseInt(timeParts[1], 10) || 0, // Minute
-                        parseInt(timeParts[2], 10) || 0  // Second
-                    ));
-                }
-                // 4. Handle simple "YYYY-MM-DD"
-                else if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString.trim())) {
-                    const parts = dateString.split('-');
-                    date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                }
-                // 5. Last resort: Try direct parsing
-                else {
-                    date = new Date(dateString);
-                }
-
-                // 6. Check for validity
-                if (isNaN(date.getTime())) {
-                    console.warn("formatDate: Invalid date value after all attempts:", dateString);
-                    return 'Invalid Date';
-                }
-
-                // 7. Format the valid date using UTC methods
-                const year = date.getUTCFullYear();
-                const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // getUTCMonth() is 0-indexed
-                const day = String(date.getUTCDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-                
-            } catch (e) {
-                console.error("formatDate: Error parsing date:", dateString, e);
-                return 'Error Date';
-            }
-        }
+        // Date formatting → fmtDate() from core/formatIST.js
 
 
         const renderMiniOrderList = (ordersToRender) => {
@@ -363,7 +307,7 @@
                 const displayAwb = order.AWB_NUMBER || 'No AWB';
                 const consignor = allClientsB2B2C.find(c => c.UID === order.CONSIGNOR)?.NAME || 'Unknown';
                 const consignee = allClientsB2B2C.find(c => c.UID === order.CONSIGNEE)?.NAME || 'Unknown';
-                const date = formatDate(order.ORDER_DATE);
+                const date = fmtDate(order.ORDER_DATE);
 
                 const li = document.createElement('li');
                 // NEW LI Structure (matches style)
@@ -397,7 +341,7 @@
                 const consignorName = allClientsB2B2C.find(c => c.UID === order.CONSIGNOR)?.NAME || '';
                 const consigneeName = allClientsB2B2C.find(c => c.UID === order.CONSIGNEE)?.NAME || '';
                 const dest = order.DEST_CITY || '';
-                const date = formatDate(order.ORDER_DATE).toLowerCase();
+                const date = fmtDate(order.ORDER_DATE, 'input').toLowerCase();
                  return (order.REFERANCE ? String(order.REFERANCE).toLowerCase().includes(searchTerm) : false) ||
                         (order.AWB_NUMBER ? String(order.AWB_NUMBER).toLowerCase().includes(searchTerm) : false) ||
                         (consignorName ? consignorName.toLowerCase().includes(searchTerm) : false) ||
@@ -414,13 +358,9 @@
              if (!Array.isArray(orders)) return [];
              return orders.filter(order => {
                 // We must use our custom formatter to correctly parse the date before comparing
-                const formattedDate = formatDate(order.ORDER_DATE);
-                if (formattedDate === 'Invalid Date' || formattedDate === 'N/A' || formattedDate === 'Error Date') return false;
-                
-                // new Date('YYYY-MM-DD') can have timezone issues.
-                // Safest to parse it as UTC
-                const parts = formattedDate.split('-');
-                const orderDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                const formattedDate = fmtDate(order.ORDER_DATE, 'input');
+                if (!formattedDate || formattedDate === 'N/A') return false;
+                const orderDate = new Date(formattedDate + 'T00:00:00Z');
                 
                 return orderDate && orderDate >= cutoffDate;
              });
@@ -476,7 +416,7 @@
                     <td class="whitespace-nowrap">${upload.UPLOAD_TYPE || 'N/A'}</td>
                     <td class="whitespace-nowrap">${identifierText || 'N/A'}</td>
                     <td>${details}</td>
-                    <td class="whitespace-nowrap">${formatDate(upload.DATE_TIME)}</td>
+                    <td class="whitespace-nowrap">${fmtDate(upload.DATE_TIME, 'full')}</td>
                     <td class="whitespace-nowrap">${upload.USER_NAME || 'N/A'}</td>
                     <td><a href="${upload.FILE_URL}" target="_blank" class="text-blue-600 hover:underline text-xs">View File</a></td>
                 `;
