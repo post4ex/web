@@ -31,8 +31,8 @@ class AppDatabase {
       'BRANCHES':   'BRANCH_CODE',
       'MODES':      'SHORT',
       'CARRIERS':   'COMPANY_CODE',
-      'MULTIBOX':   'REFERENCE',
-      'PRODUCTS':   'REFERENCE',
+      'MULTIBOX':   'MB_UID',
+      'PRODUCTS':   'PD_UID',
       'UPLOADS':    'UPLOAD_UID'
     };
   }
