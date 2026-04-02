@@ -1241,10 +1241,10 @@
                     const orderData = {
                         CODE:           document.getElementById('display_code').textContent || '',
                         BRANCH:         document.getElementById('display_branch').textContent || '',
-                        ORDER_DATE:     document.getElementById('display_order_date').textContent,
+                        ORDER_DATE:     toUnix(orderDateInput.value),
                         CARRIER:        document.getElementById('display_carrier').textContent,
                         AWB_NUMBER:     document.getElementById('awb').value.trim(),
-                        TRANSIT_DATE:   document.getElementById('display_transit_date').textContent,
+                        TRANSIT_DATE:   toUnix(orderDateInput.value),
                         CONSIGNOR:      document.getElementById('display_consignor').textContent,
                         ORIGIN_CITY:    document.getElementById('display_origin_city').textContent,
                         ORIGIN_PINCODE: document.getElementById('display_origin_pincode').textContent,

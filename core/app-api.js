@@ -112,6 +112,7 @@ async function verifyAndFetchAppData(force = false) {
             } else {
                 for (const [sheetName, sheetData] of Object.entries(incomingData)) {
                     try {
+                        if (Object.keys(sheetData).length === 0) continue;
                         await window.appDB.mergeSheet(sheetName, sheetData);
                         successCount++;
                     } catch (error) {
@@ -130,11 +131,11 @@ async function verifyAndFetchAppData(force = false) {
             window.dispatchEvent(new CustomEvent(eventType, { detail: { data: incomingData } }));
 
             if (syncErrors.length > 0) {
-                showNotification(`⚠️ Sync completed with errors:\n${successCount}/${totalSheets} sheets synced\n\nErrors:\n${syncErrors.join('\n')}`, 'error');
-            } else if (totalSheets > 0) {
-                showNotification(`✅ Data Synced Successfully (${result.meta?.type || 'DELTA'}) - ${successCount} sheets updated`, 'success');
+                showNotification(`⚠️ Sync completed with errors:\n${successCount}/${totalSheets} collections synced\n\nErrors:\n${syncErrors.join('\n')}`, 'error');
+            } else if (successCount > 0) {
+                showNotification(`✅ Data Synced Successfully (${result.meta?.type || 'DELTA'}) - ${successCount} collections updated`, 'success');
             } else {
-                showNotification('ℹ️ Sync completed - No data changes found', 'info');
+                showNotification('ℹ️ No new data', 'info');
             }
 
             console.log('[Data Engine] Sync Complete.');

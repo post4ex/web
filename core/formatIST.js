@@ -202,4 +202,19 @@
         return `${year}-${mon}-${day}`;
     };
 
+    /**
+     * toUnix(dateStr)
+     *
+     * Converts a YYYY-MM-DD string to Unix milliseconds (UTC midnight).
+     * Use this before sending date values to the server.
+     *
+     * @param {string} dateStr — e.g. "2025-01-17"
+     * @returns {number} Unix ms or 0 if unparseable
+     */
+    window.toUnix = function (dateStr) {
+        if (!dateStr) return 0;
+        const d = _parse(dateStr);
+        return d ? d.getTime() : 0;
+    };
+
 })();

@@ -124,12 +124,12 @@ function initializeUI() {
     const refBtn = document.getElementById('manual-refresh-button');
     if (refBtn) {
         refBtn.addEventListener('click', async () => {
-            const spin = document.getElementById('refresh-icon-spinning');
-            if (spin) spin.classList.remove('hidden');
+            const icon = document.getElementById('refresh-icon-static');
+            if (icon) icon.classList.add('animate-spin');
             refBtn.disabled = true;
             await verifyAndFetchAppData(true);
             refBtn.disabled = false;
-            if (spin) spin.classList.add('hidden');
+            if (icon) icon.classList.remove('animate-spin');
         });
     }
 
