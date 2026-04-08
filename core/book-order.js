@@ -75,3 +75,7 @@ function buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotal
 async function submitBookOrder(payload) {
     return await callApi('/api/bookOrder', payload);
 }
+
+async function deleteOrder(reference) {
+    return await callApi('/api/deleteOrder', { reference }, 'DELETE');
+}

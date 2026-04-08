@@ -24,7 +24,7 @@ const MUTATING_ENDPOINTS = [
     '/api/writeBranch', '/api/deleteBranch',
     '/api/writeCarrier', '/api/deleteCarrier',
     '/api/writeMode', '/api/deleteMode',
-    '/api/uploadOrders', '/api/editUpload',
+    '/api/uploadOrders', '/api/editUpload', '/api/deleteOrder',
 ];
 
 async function callApi(endpoint, payload = {}, method = 'POST') {
@@ -56,7 +56,7 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
     }
 
     if (MUTATING_ENDPOINTS.includes(endpoint)) {
-        setTimeout(() => verifyAndFetchAppData(false), 0);
+        setTimeout(() => verifyAndFetchAppData(true), 0);
     }
 
     return json;
