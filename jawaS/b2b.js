@@ -377,7 +377,6 @@ async function handleCustomerSubmit(e) {
         const result = await b2bWrite(submitData, isUpdateMode ? currentCode : null);
         showResponseMessage(result.message || 'Customer saved successfully.', 'success');
 
-        if (window.verifyAndFetchAppData) await window.verifyAndFetchAppData(true);
 
         if (!isUpdateMode) {
             currentCode  = submitData.CODE;
@@ -686,7 +685,6 @@ async function handleRateSubmit(e) {
     try {
         await b2bWriteRateList(currentCode, rates);
         showResponseMessage('Rates saved successfully.', 'success');
-        if (window.verifyAndFetchAppData) await window.verifyAndFetchAppData(true);
     } catch (err) {
         showResponseMessage(err.message, 'error');
     } finally {
@@ -725,7 +723,6 @@ async function handleConfirmDelete() {
         await b2bDelete(currentCode, otp);
         ui.deleteModal.classList.add('hidden');
         showListView();
-        if (window.verifyAndFetchAppData) await window.verifyAndFetchAppData(true);
     } catch (err) {
         ui.deleteModal.classList.add('hidden');
         showResponseMessage(err.message, 'error');

@@ -151,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeShipmentElement = null;
             }
 
-            if (window.verifyAndFetchAppData) window.verifyAndFetchAppData(true);
 
         } catch (error) {
             responseMessage.textContent = `Error: ${error.message}`;

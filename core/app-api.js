@@ -16,6 +16,17 @@ async function fetchClientIP() {
     }
 }
 
+const MUTATING_ENDPOINTS = [
+    '/api/bookOrder', '/api/updateOrder',
+    '/api/writeB2B', '/api/deleteB2B', '/api/writeRateList', '/api/deleteRateList',
+    '/api/writeB2B2C', '/api/updateB2B2C', '/api/deleteB2B2C',
+    '/api/writeStaff', '/api/deleteStaff',
+    '/api/writeBranch', '/api/deleteBranch',
+    '/api/writeCarrier', '/api/deleteCarrier',
+    '/api/writeMode', '/api/deleteMode',
+    '/api/uploadOrders', '/api/editUpload',
+];
+
 async function callApi(endpoint, payload = {}, method = 'POST') {
     const loginData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.LOGIN) || '{}');
     const token     = loginData.sessionId || '';
@@ -43,6 +54,11 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
         }
         throw new Error(json.message);
     }
+
+    if (MUTATING_ENDPOINTS.includes(endpoint)) {
+        setTimeout(() => verifyAndFetchAppData(false), 0);
+    }
+
     return json;
 }
 

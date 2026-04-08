@@ -642,12 +642,6 @@
                 if (result.status === 'success') {
                     showResponseMessage(result.message || `${payload.action} successful! Refreshing data...`, 'success');
                     resetEditForm();
-                     if (window.verifyAndFetchAppData) {
-                        await window.verifyAndFetchAppData(true); // Force a refresh
-                     } else {
-                         window.dispatchEvent(new CustomEvent('forceAppDataRefresh'));
-                         alert("Data changed. Please refresh the page to see updates.");
-                     }
                     showResponseMessage('Data refreshed.', 'info');
 
                 } else {

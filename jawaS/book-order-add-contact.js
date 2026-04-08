@@ -235,7 +235,6 @@ saveBtn.addEventListener('click', async () => {
 
         closeModal();
 
-        if (window.verifyAndFetchAppData) window.verifyAndFetchAppData(true);
 
     } catch (err) {
         errorEl.textContent = err.message || 'Failed to save contact.';

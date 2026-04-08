@@ -431,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
             resetForm();
             showListView();
             showResponseMessage(msg, 'success');
-            if (window.verifyAndFetchAppData) await window.verifyAndFetchAppData(true);
 
         } catch (error) {
             showResponseMessage(error.message, 'error');

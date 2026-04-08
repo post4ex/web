@@ -303,9 +303,6 @@
                 resetForm();
                 showListView();
                 
-                if (window.verifyAndFetchAppData) {
-                    await window.verifyAndFetchAppData(true);
-                }
             } catch (error) {
                 showResponseMessage(error.message, 'error');
             } finally {
