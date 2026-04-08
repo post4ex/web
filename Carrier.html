@@ -175,11 +175,11 @@
         };
 
         const handleDataLoaded = (event) => {
-            if (!event.detail || !event.detail.data || !event.detail.data.CARRIER) {
+            if (!event.detail || !event.detail.data || !event.detail.data.CARRIERS) {
                 document.getElementById('carrierLoader').textContent = 'No carriers found.';
                 return;
             };
-            allCarriers = event.detail.data.CARRIER;
+            allCarriers = Object.values(event.detail.data.CARRIERS);
             renderCarrierList(allCarriers);
         };
         window.addEventListener('appDataLoaded', handleDataLoaded);
@@ -366,8 +366,8 @@
         if (appDataJSON) {
             try {
                 const appData = JSON.parse(appDataJSON);
-                if (appData.data && appData.data.CARRIER) {
-                    allCarriers = appData.data.CARRIER;
+                if (appData && appData.CARRIERS) {
+                    allCarriers = Object.values(appData.CARRIERS);
                     renderCarrierList(allCarriers);
                 } else {
                      document.getElementById('carrierLoader').textContent = 'No carriers found.';

@@ -559,7 +559,7 @@
             let isBookingLocked = false;
             let wasModeUnlocked = false; 
             let userMadeInitialModeChoice = false;
-            let fetchedGSheetData = {};
+            let appData = {};
             let consignmentBoxes = [];
             let consignmentProducts = [];
             let selectedCustomerDetails = {};
@@ -711,11 +711,11 @@
 
                 let rate = '---', addRate = '---';
                 const receiverZone = selectedContacts.receiver?.ZONE;
-                const ratesData = fetchedGSheetData.RATES;
+                const ratesData = appData.RATES;
                 if (rateUid !== '---' && receiverZone && ratesData) {
-                    const rateRow = ratesData.find(r => r.UID === rateUid);
+                    const rateRow = Object.values(ratesData).find(r => r.UID === rateUid);
                     if (rateRow) rate = rateRow[receiverZone] || '---';
-                    const addRateRow = ratesData.find(r => r.UID === `${rateUid}A`);
+                    const addRateRow = Object.values(ratesData).find(r => r.UID === `${rateUid}A`);
                     if (addRateRow) addRate = addRateRow[receiverZone] || '---';
                 }
                 document.getElementById('display_rate').textContent = rate;
@@ -793,10 +793,10 @@
                 if (newMode !== initialMode) transportTypeSelect.value = newMode;
 
                 const receiverZone = selectedContacts.receiver?.ZONE;
-                if (receiverZone && fetchedGSheetData.MODE) {
-                    const currentModeData = fetchedGSheetData.MODE.find(m => m.SHORT === transportTypeSelect.value);
+                if (receiverZone && appData.MODES) {
+                    const currentModeData = Object.values(appData.MODES).find(m => m.SHORT === transportTypeSelect.value);
                     if (currentModeData && currentModeData[receiverZone] === 'N') {
-                        const surfaceOption = fetchedGSheetData.MODE.find(m => m.MODE.toUpperCase() === 'SURFACE');
+                        const surfaceOption = Object.values(appData.MODES).find(m => m.MODE.toUpperCase() === 'SURFACE');
                         if (surfaceOption) {
                             transportTypeSelect.value = surfaceOption.SHORT;
                             message = `Mode ${currentModeData.MODE} not available for ${receiverZone}. Switched to Surface. Select another mode if needed.`;
@@ -994,9 +994,9 @@
             
             function handleCustomerSelectionChange() {
                 const selectedCustomerName = customerNameSelect.value;
-                selectedCustomerDetails = fetchedGSheetData.B2B?.find(c => c.CLIENT_NAME === selectedCustomerName) || {};
+                selectedCustomerDetails = Object.values(appData.B2B || {}).find(c => c.B2B_NAME === selectedCustomerName) || {};
                 
-                const contactDetails = fetchedGSheetData.B2B2C?.find(c => c.NAME === selectedCustomerName && c.CODE === selectedCustomerDetails.CODE);
+                const contactDetails = Object.values(appData.B2B2C || {}).find(c => c.NAME === selectedCustomerName && c.CODE === selectedCustomerDetails.CODE);
                 if (contactDetails) {
                     senderNameInput.value = contactDetails.NAME;
                     originPincodeInput.value = contactDetails.PINCODE || '';
@@ -1017,22 +1017,22 @@
             }
 
             function populateCustomerDropdown() {
-                const clients = fetchedGSheetData.B2B;
-                if (clients && clients.length > 0) {
+                const clients = Object.values(appData.B2B || {});
+                if (clients.length > 0) {
                     customerNameSelect.innerHTML = '<option value="">Select Customer</option>';
                     clients.forEach(client => {
-                        customerNameSelect.add(new Option(client.CLIENT_NAME, client.CLIENT_NAME));
+                        customerNameSelect.add(new Option(client.B2B_NAME, client.B2B_NAME));
                     });
                     if (clients.length === 1) {
-                        customerNameSelect.value = clients[0].CLIENT_NAME;
+                        customerNameSelect.value = clients[0].B2B_NAME;
                         handleCustomerSelectionChange();
                     }
                 }
             }
 
             function populateModeDropdown(zone) {
-                const modes = fetchedGSheetData.MODE;
-                if (modes && modes.length > 0) {
+                const modes = Object.values(appData.MODES || {});
+                if (modes.length > 0) {
                     const currentMode = transportTypeSelect.value;
                     transportTypeSelect.innerHTML = '<option value="">Select Mode</option>';
                     modes.forEach(mode => {
@@ -1049,8 +1049,8 @@
             }
 
             function populateCarrierDropdown() {
-                const carriers = fetchedGSheetData.CARRIER;
-                if (carriers && carriers.length > 0) {
+                const carriers = Object.values(appData.CARRIERS || {});
+                if (carriers.length > 0) {
                     carrierSelect.innerHTML = '<option value="">Select Carrier</option>';
                     carriers.forEach(carrier => {
                         carrierSelect.add(new Option(carrier.COMPANY_CODE, carrier.COMPANY_CODE));
@@ -1094,11 +1094,11 @@
                     updateDisplayTables();
                     checkMainDetailsAndToggleInputs();
 
-                    if (query.length < 2 || !fetchedGSheetData.B2B2C) return;
+                    if (query.length < 2 || !appData.B2B2C) return;
                     const customerCode = selectedCustomerDetails.CODE;
                     if (!customerCode) return;
 
-                    const customerSpecificContacts = fetchedGSheetData.B2B2C.filter(contact => contact.CODE === customerCode);
+                    const customerSpecificContacts = Object.values(appData.B2B2C).filter(contact => contact.CODE === customerCode);
                     const filteredResults = customerSpecificContacts.filter(contact => 
                         contact.NAME?.toLowerCase().includes(query) || 
                         contact.PINCODE?.toString().includes(query) || 
@@ -1142,7 +1142,7 @@
                                 addContactForm.querySelector('#add_contact_code').value = customerCode;
                                 addContactForm.querySelector('#add_contact_branch').value = selectedCustomerDetails.BRANCH || '';
                                 const clientSearchInput = addContactForm.querySelector('#add_contact_client_search');
-                                clientSearchInput.value = `${selectedCustomerDetails.CLIENT_NAME} (${customerCode})`;
+                                clientSearchInput.value = `${selectedCustomerDetails.B2B_NAME} (${customerCode})`;
                                 clientSearchInput.readOnly = true;
                                 clientSearchInput.classList.add('readonly-input');
                             } else {
@@ -1163,7 +1163,7 @@
                     bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-red-100';
                     return;
                 }
-                fetchedGSheetData = data;
+                appData = data;
                 populateCustomerDropdown();
                 populateCarrierDropdown();
                 populateModeDropdown(null); 
@@ -1188,8 +1188,8 @@
             
             const appDataJSON = localStorage.getItem('appData');
             if (appDataJSON) {
-                const appData = JSON.parse(appDataJSON);
-                if (appData.data) initializePageWithData(appData.data);
+                const cached = JSON.parse(appDataJSON);
+                if (cached.data) initializePageWithData(cached.data);
             }
             
             customerNameSelect.addEventListener('change', handleCustomerSelectionChange);

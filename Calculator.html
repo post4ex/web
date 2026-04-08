@@ -488,7 +488,7 @@
             let isBookingLocked = false;
             let wasModeUnlocked = false; 
             let userMadeInitialModeChoice = false;
-            let fetchedGSheetData = {};
+            let appData = {};
             let consignmentBoxes = [];
             let consignmentProducts = [];
             let selectedCustomerDetails = {};
@@ -650,12 +650,12 @@
                 let rate = '---', addRate = '---';
                 const receiverZone = selectedContacts.receiver?.ZONE;
                 
-                const ratesData = fetchedGSheetData.RATES;
+                const ratesData = appData.RATES;
                 if (rateUid !== '---' && receiverZone && ratesData) {
-                    const rateRow = ratesData.find(r => r.UID === rateUid);
+                    const rateRow = Object.values(ratesData).find(r => r.UID === rateUid);
                     if (rateRow && rateRow[receiverZone]) rate = rateRow[receiverZone];
                     const addRateUid = `${rateUid}A`;
-                    const addRateRow = ratesData.find(r => r.UID === addRateUid);
+                    const addRateRow = Object.values(ratesData).find(r => r.UID === addRateUid);
                     if (addRateRow && addRateRow[receiverZone]) addRate = addRateRow[receiverZone];
                 }
                 document.getElementById('display_rate').textContent = rate;
@@ -681,7 +681,7 @@
             function updateDisplayTables() {
                 const receiverContact = selectedContacts.receiver;
                 const originPincode = originPincodeInput.value;
-                const originContact = fetchedGSheetData.B2B2C?.find(c => c.PINCODE === originPincode);
+                const originContact = Object.values(appData.B2B2C || {}).find(c => c.PINCODE === originPincode);
                 
                 document.getElementById('display_timestamp').textContent = timestampInput.value || '---';
                 document.getElementById('display_order_date').textContent = orderDateInput.value || '---';
@@ -750,10 +750,10 @@
                 const receiverContact = selectedContacts.receiver;
                 const receiverZone = receiverContact?.ZONE;
 
-                if(receiverZone && fetchedGSheetData.MODE){
-                    const currentModeData = fetchedGSheetData.MODE.find(m => m.SHORT === transportTypeSelect.value);
+                if(receiverZone && appData.MODES){
+                    const currentModeData = Object.values(appData.MODES).find(m => m.SHORT === transportTypeSelect.value);
                     if(currentModeData && currentModeData[receiverZone] === 'N'){
-                        const surfaceOption = fetchedGSheetData.MODE.find(m => m.MODE.toUpperCase() === 'SURFACE');
+                        const surfaceOption = Object.values(appData.MODES).find(m => m.MODE.toUpperCase() === 'SURFACE');
                         if(surfaceOption){
                             transportTypeSelect.value = surfaceOption.SHORT;
                             message = `Mode ${currentModeData.MODE} not available for ${receiverZone}. Switched to Surface. Select another mode if needed.`;
@@ -975,29 +975,28 @@
             }
 
             function populateCustomerDropdown() {
-                if (fetchedGSheetData.B2B && fetchedGSheetData.B2B.length > 0) {
+                const b2bValues = Object.values(appData.B2B || {});
+                if (b2bValues.length > 0) {
                     customerNameSelect.innerHTML = '<option value="">Select Customer</option>';
-                    fetchedGSheetData.B2B.forEach(client => {
+                    b2bValues.forEach(client => {
                         const option = document.createElement('option');
-                        option.value = client.CLIENT_NAME;
-                        option.textContent = client.CLIENT_NAME;
+                        option.value = client.B2B_NAME;
+                        option.textContent = client.B2B_NAME;
                         customerNameSelect.appendChild(option);
                     });
-
-                    // Auto-select if there is only one customer
-                    if (fetchedGSheetData.B2B.length === 1) {
-                        customerNameSelect.value = fetchedGSheetData.B2B[0].CLIENT_NAME;
-                        // Trigger the change event to run associated logic
+                    if (b2bValues.length === 1) {
+                        customerNameSelect.value = b2bValues[0].B2B_NAME;
                         customerNameSelect.dispatchEvent(new Event('change'));
                     }
                 }
             }
 
             function populateModeDropdown(zone) {
-                if (fetchedGSheetData.MODE && fetchedGSheetData.MODE.length > 0) {
+                const modesValues = Object.values(appData.MODES || {});
+                if (modesValues.length > 0) {
                     const currentMode = transportTypeSelect.value;
                     transportTypeSelect.innerHTML = '<option value="">Select Mode</option>';
-                    fetchedGSheetData.MODE.forEach(mode => {
+                    modesValues.forEach(mode => {
                         const isAvailableForZone = !zone || mode[zone] === 'Y';
                         const option = document.createElement('option');
                         option.value = mode.SHORT;
@@ -1014,9 +1013,10 @@
             }
 
             function populateCarrierDropdown() {
-                if (fetchedGSheetData.CARRIER && fetchedGSheetData.CARRIER.length > 0) {
+                const carriersValues = Object.values(appData.CARRIERS || {});
+                if (carriersValues.length > 0) {
                     carrierSelect.innerHTML = '<option value="">Select Carrier</option>';
-                    fetchedGSheetData.CARRIER.forEach(carrier => {
+                    carriersValues.forEach(carrier => {
                         const option = document.createElement('option');
                         option.value = carrier.COMPANY_CODE;
                         option.textContent = carrier.COMPANY_CODE;
@@ -1041,7 +1041,7 @@
                     bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-blue-100';
                     return;
                 }
-                fetchedGSheetData = data;
+                appData = data;
                 populateCustomerDropdown();
                 populateCarrierDropdown();
                 populateModeDropdown(null); 
@@ -1059,8 +1059,8 @@
             
             const appDataJSON = localStorage.getItem('appData');
             if (appDataJSON) {
-                const appData = JSON.parse(appDataJSON);
-                if (appData.data) initializePageWithData(appData.data);
+                const cached = JSON.parse(appDataJSON);
+                if (cached.data) initializePageWithData(cached.data);
             }
             
             bookingForm.addEventListener('submit', e => {
@@ -1088,13 +1088,12 @@
             customerNameSelect.addEventListener('change', () => {
                 const selectedCustomerName = customerNameSelect.value;
                 selectedCustomerDetails = {}; 
-                if (selectedCustomerName && fetchedGSheetData.B2B) {
-                    selectedCustomerDetails = fetchedGSheetData.B2B.find(c => c.CLIENT_NAME === selectedCustomerName) || {};
+                if (selectedCustomerName && appData.B2B) {
+                    selectedCustomerDetails = Object.values(appData.B2B).find(c => c.B2B_NAME === selectedCustomerName) || {};
                 }
                 
-                // Since sender is hidden, auto-select it if possible
-                if (selectedCustomerName && fetchedGSheetData.B2B2C) {
-                    const contactDetails = fetchedGSheetData.B2B2C.find(c => c.NAME === selectedCustomerName && c.CODE === selectedCustomerDetails.CODE);
+                if (selectedCustomerName && appData.B2B2C) {
+                    const contactDetails = Object.values(appData.B2B2C).find(c => c.NAME === selectedCustomerName && c.CODE === selectedCustomerDetails.CODE);
                     if (contactDetails) {
                         selectedContacts.sender = contactDetails;
                         originPincodeInput.value = contactDetails.PINCODE || '';

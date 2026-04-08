@@ -338,7 +338,7 @@
                     
                     // Console log for records where consolidation was not by INV_NUMBER
                     if (displayKeyType !== 'INV') {
-                         console.warn(`Record [Ref: ${order.REFERANCE}] consolidated using ${displayKeyType}. Key: ${consolidationKey}`);
+                         console.warn(`Record [Ref: ${order.REFERENCE}] consolidated using ${displayKeyType}. Key: ${consolidationKey}`);
                     }
                     
                     const newSortingDate = new Date(dateForSorting);
@@ -638,7 +638,7 @@
                 const b2b = b2bDataMap.get(invoice.CODE);
                 
                 // --- Left Side: Customer Details ---
-                const clientName = b2b?.CLIENT_NAME || invoice.CODE;
+                const clientName = b2b?.B2B_NAME || invoice.CODE;
                 const mobile = b2b?.MOBILE_NUMBER || 'N/A';
                 const address = b2b?.BILLING_ADDRESS || 'N/A';
                 const landmark = b2b?.BILLING_LANDMARK || '';

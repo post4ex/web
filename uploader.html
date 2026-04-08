@@ -1344,7 +1344,7 @@
                     // --- *** Fallback: Find matching order *** ---
                     const matchedOrder = allOrders.find(order => 
                         String(order.AWB_NUMBER) === String(barcodeValue) || 
-                        String(order.REFERANCE) === String(barcodeValue)
+                        String(order.REFERENCE) === String(barcodeValue)
                     );
 
                     if (matchedOrder) {
@@ -1355,7 +1355,7 @@
                         renderDynamicInputs();  // Update left panel pickup table
                         
                         // Scroll the order list to the selected item
-                        const selectedLi = orderList.querySelector(`li[data-order-ref="${selectedOrder.REFERANCE}"]`);
+                        const selectedLi = orderList.querySelector(`li[data-order-ref="${selectedOrder.REFERENCE}"]`);
                         if (selectedLi) {
                             selectedLi.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
@@ -1508,7 +1508,7 @@
                     // --- *** Fallback: Find matching order *** ---
                     const matchedOrder = allOrders.find(order => 
                         String(order.AWB_NUMBER) === String(ocrText) || 
-                        String(order.REFERANCE) === String(ocrText)
+                        String(order.REFERENCE) === String(ocrText)
                     );
 
                     if (matchedOrder) {
@@ -1517,7 +1517,7 @@
                         updateStatus(`OCR matched: ${ocrText}. Loading tasks...`);
                         filterAndRenderOrders();
                         renderDynamicInputs();
-                        const selectedLi = orderList.querySelector(`li[data-order-ref="${selectedOrder.REFERANCE}"]`);
+                        const selectedLi = orderList.querySelector(`li[data-order-ref="${selectedOrder.REFERENCE}"]`);
                         if (selectedLi) {
                             selectedLi.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
@@ -1672,7 +1672,7 @@
             // Check if an order was already selected and re-render tables
             if (selectedOrder) {
                 // Find the selectedOrder object in the *new* allOrders list
-                const updatedSelectedOrder = allOrders.find(o => String(o.REFERANCE) === String(selectedOrder.REFERANCE));
+                const updatedSelectedOrder = allOrders.find(o => String(o.REFERENCE) === String(selectedOrder.REFERENCE));
                 if (updatedSelectedOrder) {
                     selectedOrder = updatedSelectedOrder; // Update the object
                     renderDynamicInputs(); // Re-render pickup and existing tables
@@ -1719,7 +1719,7 @@
             }
 
             ordersToRender.forEach((order) => {
-                const ref = order.REFERANCE;
+                const ref = order.REFERENCE;
                 if (!ref) return;
                 const displayAwb = order.AWB_NUMBER || ref;
                 const consignorClient = allClientsB2B2C.find(c => c.UID === order.CONSIGNOR);
@@ -1730,7 +1730,7 @@
                 const orderDate = fmtDate(order.ORDER_DATE);
 
                 li.dataset.orderRef = ref;
-                if (selectedOrder && selectedOrder.REFERANCE === ref) {
+                if (selectedOrder && selectedOrder.REFERENCE === ref) {
                     li.classList.add('selected');
                 }
                 orderList.appendChild(li);
@@ -1761,7 +1761,7 @@
                 const consigneeName = consigneeClient ? (consigneeClient.NAME || '') : '';
                 const destination = order.DEST_CITY || '';
                 const orderDateStr = fmtDate(order.ORDER_DATE).toLowerCase();
-                return (order.REFERANCE ? String(order.REFERANCE).toLowerCase().includes(searchTerm) : false) ||
+                return (order.REFERENCE ? String(order.REFERENCE).toLowerCase().includes(searchTerm) : false) ||
                        (order.AWB_NUMBER ? String(order.AWB_NUMBER).toLowerCase().includes(searchTerm) : false) ||
                        (consignorName ? consignorName.toLowerCase().includes(searchTerm) : false) ||
                        (consigneeName ? consigneeName.toLowerCase().includes(searchTerm) : false) ||
@@ -1802,7 +1802,7 @@
             
             // Find all uploads matching the selected order's REF or AWB
             const matchingUploads = allUploads.filter(upload => 
-                (upload.REFERANCE && String(upload.REFERANCE) === String(order.REFERANCE)) ||
+                (upload.REFERENCE && String(upload.REFERENCE) === String(order.REFERENCE)) ||
                 (upload.AWB_NUMBER && String(upload.AWB_NUMBER) === String(order.AWB_NUMBER))
             );
 
@@ -1819,7 +1819,7 @@
                 const newRow = existingTableBody.insertRow();
                 
                 // Add data attributes for filtering
-                newRow.dataset.keyRef = upload.REFERANCE || upload.AWB_NUMBER;
+                newRow.dataset.keyRef = upload.REFERENCE || upload.AWB_NUMBER;
                 newRow.dataset.keyType = upload.UPLOAD_TYPE;
                 newRow.dataset.branch = upload.BRANCH || '';
                 newRow.dataset.code = upload.CODE || '';
@@ -1829,8 +1829,8 @@
                     type: upload.UPLOAD_TYPE || 'N/A',
                     status: upload.STATUS_REMARK || '', // *** FIX: No 'N/A' ***
                     refAwb: (upload.UPLOAD_TYPE === 'MultiBox')
-                        ? `Ref: ${upload.REFERANCE || upload.AWB_NUMBER} <br> Child: ${upload.CHILD_AWB}`
-                        : `Ref: ${upload.REFERANCE || ''} <br> AWB: ${upload.AWB_NUMBER || ''}`,
+                        ? `Ref: ${upload.REFERENCE || upload.AWB_NUMBER} <br> Child: ${upload.CHILD_AWB}`
+                        : `Ref: ${upload.REFERENCE || ''} <br> AWB: ${upload.AWB_NUMBER || ''}`,
                     customerKyc: upload.UPLOAD_TYPE === 'KYC' 
                         ? `Cust: ${consignorName} <br> UID: ${upload.CUSTOMER_UID || ''} <br> KYC: ${upload.KYC_NUMBER} (${upload.KYC_TYPE})`
                         : '', // *** FIX: No 'N/A' ***
@@ -1914,7 +1914,7 @@
             
             // 2. Check EXISTING uploads
             allUploads.forEach(upload => {
-                 const refMatch = (upload.REFERANCE && String(upload.REFERANCE) === String(ref)) ||
+                 const refMatch = (upload.REFERENCE && String(upload.REFERENCE) === String(ref)) ||
                                 (upload.AWB_NUMBER && awb && String(upload.AWB_NUMBER) === String(awb));
                  if (refMatch) {
                     if (upload.UPLOAD_TYPE === 'POD') {
@@ -2093,7 +2093,7 @@
             }
 
             // --- 1. Get all order details ---
-            const ref = selectedOrder.REFERANCE;
+            const ref = selectedOrder.REFERENCE;
             const awb = selectedOrder.AWB_NUMBER || ''; // *** FIX: Use '' not 'N/A' ***
             const consignorUid = selectedOrder.CONSIGNOR;
             const consigneeUid = selectedOrder.CONSIGNEE;
@@ -2250,7 +2250,7 @@
                     if (!li || !li.dataset.orderRef) return;
                     
                     const ref = li.dataset.orderRef;
-                    selectedOrder = allOrders.find(o => String(o.REFERANCE) === ref);
+                    selectedOrder = allOrders.find(o => String(o.REFERENCE) === ref);
                     
                     if (selectedOrder) {
                         console.log("Selected Order:", selectedOrder);

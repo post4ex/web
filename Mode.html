@@ -183,8 +183,8 @@
 
         const handleDataLoaded = (event) => {
             const appData = event.detail.data;
-            if (appData && appData.MODE) {
-                allModes = appData.MODE;
+            if (appData && appData.MODES) {
+                allModes = Object.values(appData.MODES);
                 renderModeList(allModes);
             } else {
                 document.getElementById('modeLoader').textContent = 'No modes found.';
@@ -347,8 +347,8 @@
         if (appDataJSON) {
             try {
                 const appData = JSON.parse(appDataJSON);
-                if (appData.data && appData.data.MODE) {
-                    allModes = appData.data.MODE;
+                if (appData && appData.MODES) {
+                    allModes = Object.values(appData.MODES);
                     renderModeList(allModes);
                 } else {
                      document.getElementById('modeLoader').textContent = 'No modes found.';

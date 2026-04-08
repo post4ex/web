@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clients Management - Postman</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
@@ -75,12 +74,13 @@
                             <input type="text" name="UID" id="uid" placeholder="UID (Auto-generated)" class="form-input readonly-input" readonly>
                             <input type="text" name="NAME" id="name" placeholder="Name*" required class="form-input md:col-span-2">
                             <input type="tel" name="MOBILE" id="mobile" placeholder="Mobile*" required class="form-input">
-                            <input type="text" name="BRANCH" id="branch" placeholder="Branch Code*" required class="form-input">
+                            <input type="text" name="BRANCH" id="branch" placeholder="Branch Code*" required class="form-input" list="branch-list" autocomplete="off">
+                            <datalist id="branch-list"></datalist>
                             
                             <!-- Parent Client Search Box -->
                             <div class="relative">
-                                <input type="text" id="parentClientSearch" placeholder="Search Parent Client (Name/Code)*" class="form-input w-full" autocomplete="off">
-                                <!-- This hidden input holds the actual CODE value for the form -->
+                                <input type="text" id="parentClientSearch" placeholder="Search Parent Client (Name/Code)*" class="form-input w-full" autocomplete="off" list="parent-client-list">
+                                <datalist id="parent-client-list"></datalist>
                                 <input type="hidden" name="CODE" id="code" required>
                                 <div id="parentClientResults" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto hidden"></div>
                             </div>
@@ -133,6 +133,19 @@
                             <input type="text" name="TIME_STAMP" id="time_stamp" placeholder="Last Modified On" class="form-input readonly-input" readonly>
                         </div>
                     </div>
+                    <input type="hidden" id="record_id">
+
+                    <!-- Delete Confirmation (inline, above action buttons) -->
+                    <div id="deleteConfirm" class="hidden border border-red-200 bg-red-50 rounded-lg p-4">
+                        <p class="text-sm text-red-700 font-medium mb-3">Delete <span id="clientToDelete" class="font-bold"></span>? This cannot be undone.</p>
+                        <div class="flex gap-3">
+                            <button id="confirmDeleteBtn" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 flex items-center disabled:bg-red-400">
+                                <span>Yes, Delete</span>
+                                <div id="deleteSpinner" class="spinner hidden ml-2" style="width:16px;height:16px;"></div>
+                            </button>
+                            <button id="cancelDeleteBtn" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-medium hover:bg-gray-300">Cancel</button>
+                        </div>
+                    </div>
 
                     <!-- Action Buttons -->
                     <div class="mt-8 flex justify-center items-center gap-4 flex-wrap border-t pt-6">
@@ -151,531 +164,19 @@
         </main>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal-overlay hidden">
-        <div class="modal-content relative card text-center">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Confirm Deletion</h2>
-            <p class="text-gray-600 mb-6">Are you sure you want to delete client <strong id="clientToDelete" class="font-bold"></strong>? This action cannot be undone.</p>
-            <div class="flex justify-center gap-4">
-                <button id="cancelDeleteBtn" class="px-6 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300">Cancel</button>
-                <button id="confirmDeleteBtn" class="px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center disabled:bg-red-400">
-                    <span>Confirm Delete</span>
-                    <div id="deleteSpinner" class="spinner hidden ml-3" style="width: 20px; height: 20px;"></div>
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Footer will be injected here by layout.js -->
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"></div>
 
-    <!-- layout.js MUST be loaded first -->
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
+    <script src="core/b2b2c-api.js"></script>
+    <script src="core/searchpinweb.js"></script>
     <script src="core/layout.js"></script>
-
-    <!-- Page-specific script -->
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- CONFIGURATION ---
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwcZAkvu9JAxVpVeWT5pTOi6j2yEbJuFb48B-pweCG5BWZNLhbVYXP9Rzm_v6iXmdUGrw/exec';
-        const PINCODE_API_URL = 'https://script.google.com/macros/s/AKfycbzZOoT6tp9XVgXiOdiiUL9wWchgGqdBPoTI9BiuT2HyKBIuFzPKPZI4z3kF1IAYBgpn/exec';
-
-        // --- STATE ---
-        let allClients = []; // B2B2C list
-        let allParentClients = []; // B2B list
-        let isUpdateMode = false;
-        let pincodeTimeout;
-
-        // --- UI ELEMENTS ---
-        const ui = {
-            form: document.getElementById('clientForm'),
-            submitButton: document.getElementById('submitButton'),
-            buttonText: document.getElementById('buttonText'),
-            spinner: document.getElementById('spinner'),
-            responseMessage: document.getElementById('responseMessage'),
-            clientList: document.getElementById('clientList'),
-            searchClientInput: document.getElementById('searchClient'),
-            newClientBtn: document.getElementById('newClientBtn'),
-            uidInput: document.getElementById('uid'),
-            deleteButton: document.getElementById('deleteButton'),
-            deleteModal: document.getElementById('deleteModal'),
-            clientToDeleteSpan: document.getElementById('clientToDelete'),
-            cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
-            confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
-            deleteSpinner: document.getElementById('deleteSpinner'),
-            clientListContainer: document.getElementById('clientListContainer'),
-            clientFormContainer: document.getElementById('clientFormContainer'),
-            backToListBtn: document.getElementById('backToListBtn'),
-            pincodeInput: document.getElementById('pincode'),
-            pincodeStatus: document.getElementById('pincodeStatus'),
-            cityInput: document.getElementById('city'),
-            stateInput: document.getElementById('state'),
-            carrierInput: document.getElementById('carrier'), // Now unlocked
-            carrierDataList: document.getElementById('carrier-list'), // Datalist element
-            expressTatInput: document.getElementById('express_tat'),
-            airlineTatInput: document.getElementById('airline_tat'),
-            surfaceTatInput: document.getElementById('surface_tat'),
-            premiumTatInput: document.getElementById('premium_tat'),
-            odaInput: document.getElementById('oda'),
-            zoneInput: document.getElementById('zone'),
-            parentClientSearchInput: document.getElementById('parentClientSearch'),
-            parentClientResultsContainer: document.getElementById('parentClientResults'),
-            codeHiddenInput: document.getElementById('code'),
-            branchInput: document.getElementById('branch')
-        };
-
-        // --- VIEW LOGIC ---
-        const isMobileView = () => window.innerWidth < 768; // 768px is Tailwind's 'md' breakpoint
-
-        const showFormView = () => {
-            if (isMobileView()) {
-                ui.clientListContainer.classList.add('hidden');
-                ui.clientFormContainer.classList.remove('hidden', 'md:block');
-                ui.clientFormContainer.classList.add('block');
-            }
-        };
-
-        const showListView = () => {
-            if (isMobileView()) {
-                ui.clientListContainer.classList.remove('hidden');
-                ui.clientFormContainer.classList.add('hidden');
-            }
-        };
-
-        // NEW: Handle window resizing to prevent "stuck" views
-        const handleResize = () => {
-            if (!isMobileView()) {
-                // Desktop view: always show both list and form
-                ui.clientListContainer.classList.remove('hidden');
-                ui.clientFormContainer.classList.remove('hidden');
-                ui.clientFormContainer.classList.add('md:block'); // Ensure md:block is present
-            } else {
-                // Mobile view: check which one was active
-                // If form is visible, hide the list
-                if (!ui.clientFormContainer.classList.contains('hidden')) {
-                    ui.clientListContainer.classList.add('hidden');
-                } else {
-                    // List is visible, hide the form
-                    ui.clientListContainer.classList.remove('hidden');
-                    ui.clientFormContainer.classList.add('hidden');
-                }
-            }
-        };
-        window.addEventListener('resize', handleResize);
-        
-        
-        // --- DATA & RENDERING ---
-        const handleDataLoaded = (event) => {
-            const appData = event.detail.data;
-            
-            // 1. Load B2B2C clients (main list)
-            if (appData && appData.B2B2C) {
-                allClients = appData.B2B2C;
-                renderClientList(allClients);
-            } else {
-                document.getElementById('clientLoader').textContent = 'No B2B2C clients found.';
-                console.warn("Data loaded, but 'B2B2C' array not found in appData.", appData);
-            }
-
-            // 2. Load B2B clients (parent search)
-            if (appData && appData.B2B) {
-                allParentClients = appData.B2B.filter(client => client.CODE && client.CLIENT_NAME);
-            } else {
-                console.warn("Data loaded, but 'B2B' array not found for parent client search.");
-            }
-
-            // 3. NEW: Load CARRIER list (for datalist)
-            if (appData && appData.CARRIER) {
-                populateCarrierDataList(appData.CARRIER);
-            } else {
-                console.warn("Data loaded, but 'CARRIER' array not found for datalist.");
-            }
-        };
-        
-        window.addEventListener('appDataLoaded', handleDataLoaded);
-        window.addEventListener('appDataRefreshed', handleDataLoaded);
-
-        const renderClientList = (clients) => {
-            ui.clientList.innerHTML = '';
-            if (!clients || clients.length === 0) {
-                ui.clientList.innerHTML = '<li class="text-center text-gray-500">No matching clients.</li>';
-                return;
-            }
-            clients.forEach(client => {
-                const li = document.createElement('li');
-                li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
-                li.innerHTML = `<strong class="text-indigo-700 block text-sm">${client.NAME || 'Unnamed'}</strong><span class="text-xs text-gray-600">${client.UID || 'No UID'}</span>`;
-                li.dataset.uid = client.UID;
-                li.addEventListener('click', () => populateFormForEdit(client.UID));
-                ui.clientList.appendChild(li);
-            });
-        };
-
-        // UPDATED: Function to populate the carrier datalist
-        const populateCarrierDataList = (carriers) => {
-            ui.carrierDataList.innerHTML = '';
-            carriers.forEach(carrier => {
-                // Create one entry in the "CODE - NAME" format
-                if (carrier.COMPANY_CODE && carrier.COMPANY_NAME) {
-                    const option = document.createElement('option');
-                    // The value is the full descriptive text shown in the dropdown
-                    option.value = `${carrier.COMPANY_CODE} - ${carrier.COMPANY_NAME}`;
-                    // We store the short code in a data attribute
-                    option.dataset.code = carrier.COMPANY_CODE; 
-                    ui.carrierDataList.appendChild(option);
-                }
-                // Fallbacks for incomplete data
-                else if (carrier.COMPANY_CODE) {
-                     const option = document.createElement('option');
-                     option.value = carrier.COMPANY_CODE;
-                     option.dataset.code = carrier.COMPANY_CODE;
-                     ui.carrierDataList.appendChild(option);
-                }
-                else if (carrier.COMPANY_NAME) {
-                     const option = document.createElement('option');
-                     option.value = carrier.COMPANY_NAME;
-                     option.dataset.code = carrier.COMPANY_NAME; // Fallback to full name
-                     ui.carrierDataList.appendChild(option);
-                }
-            });
-        };
-
-        // --- FORM & PINCODE LOGIC ---
-        const populateFormForEdit = (uid) => {
-            const client = allClients.find(m => m.UID === uid);
-            if (!client) return;
-            resetForm();
-            
-            for (const key in client) {
-                const input = ui.form.querySelector(`[name="${key}"]`);
-                if (input) {
-                     if (key === 'TIME_STAMP' && client[key]) {
-                        input.value = fmtDate(client[key], 'full');
-                    } else {
-                        input.value = client[key] || '';
-                    }
-                }
-            }
-
-            if (client.CODE) {
-                const parentClient = allParentClients.find(p => p.CODE === client.CODE);
-                if (parentClient) {
-                    ui.parentClientSearchInput.value = `${parentClient.CLIENT_NAME} (${parentClient.CODE})`;
-                } else {
-                    ui.parentClientSearchInput.value = client.CODE;
-                }
-            }
-            
-            // Handle Carrier field: Check if the saved value is a combined string
-            if (client.CARRIER) {
-                const matchingOption = Array.from(ui.carrierDataList.options).find(opt => opt.dataset.code === client.CARRIER);
-                if (matchingOption) {
-                    // If we find a match, fill the input with the short code
-                    ui.carrierInput.value = matchingOption.dataset.code;
-                } else {
-                    // Otherwise, just use the raw value from the sheet
-                    ui.carrierInput.value = client.CARRIER;
-                }
-            }
-
-
-            isUpdateMode = true;
-            ui.uidInput.readOnly = true;
-            ui.uidInput.classList.add('readonly-input');
-            ui.buttonText.textContent = `Update Client ${uid}`;
-            ui.deleteButton.classList.remove('hidden');
-            showFormView(); 
-        };
-
-        const resetForm = () => {
-            ui.form.reset();
-            isUpdateMode = false;
-            ui.uidInput.readOnly = true; 
-            ui.uidInput.classList.add('readonly-input');
-            ui.buttonText.textContent = 'Submit New Client';
-            ui.deleteButton.classList.add('hidden');
-            ui.responseMessage.classList.add('hidden');
-            ui.pincodeStatus.innerHTML = '';
-            clearPincodeDataFields();
-            ui.parentClientSearchInput.value = '';
-            ui.parentClientResultsContainer.innerHTML = '';
-            ui.parentClientResultsContainer.classList.add('hidden');
-            ui.codeHiddenInput.value = '';
-        };
-        
-        const clearPincodeDataFields = () => {
-            // Carrier input is NOT cleared, as it's now manually controlled
-            const fields = [ui.cityInput, ui.stateInput, ui.expressTatInput, ui.airlineTatInput, ui.surfaceTatInput, ui.premiumTatInput, ui.odaInput, ui.zoneInput];
-            fields.forEach(field => field.value = '');
-        };
-
-        async function fetchPincodeData(pincode) {
-            ui.pincodeStatus.innerHTML = '<div class="spinner field-spinner"></div>';
-            try {
-                const response = await fetch(`${PINCODE_API_URL}?pincode=${pincode}`);
-                if (!response.ok) throw new Error('Network response was not OK');
-                const result = await response.json();
-
-                if (result.found && result.data) {
-                    const data = result.data;
-                    ui.stateInput.value = data.StateName || '';
-                    ui.cityInput.value = data.DestinationName || '';
-                    // Only auto-fill carrier if the field is empty
-                    if (!ui.carrierInput.value) {
-                        ui.carrierInput.value = data.Carrier || '';
-                    }
-                    ui.expressTatInput.value = data['Dox (E)'] || '';
-                    ui.airlineTatInput.value = data['NonDox (A)'] || '';
-                    ui.surfaceTatInput.value = data['NonDox (S)'] || '';
-                    ui.odaInput.value = data.ODA || '';
-                    ui.premiumTatInput.value = data['PRO (P)'] || '';
-                    ui.zoneInput.value = data.ZONE || '';
-                    ui.pincodeStatus.innerHTML = '<span class="text-green-500">✔</span>';
-                } else {
-                    clearPincodeDataFields();
-                    ui.pincodeStatus.innerHTML = '<span class="text-red-500">✖</span>';
-                }
-            } catch (error) {
-                console.error('Error fetching pincode data:', error);
-                clearPincodeDataFields();
-                ui.pincodeStatus.innerHTML = '<span class="text-red-500">!</span>';
-            }
-        }
-
-        // --- EVENT LISTENERS ---
-
-        // NEW: Handle selection from carrier datalist
-        ui.carrierInput.addEventListener('input', (e) => {
-            const inputValue = e.target.value;
-            // Find the option in the datalist that matches the input
-            const selectedOption = Array.from(ui.carrierDataList.options).find(opt => opt.value === inputValue);
-            
-            if (selectedOption && selectedOption.dataset.code) {
-                // Found a match! Replace the input's value with the short code.
-                // We do this in a setTimeout to allow the browser to finish its datalist action.
-                setTimeout(() => {
-                    e.target.value = selectedOption.dataset.code;
-                }, 0);
-            }
-        });
-
-        ui.searchClientInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredClients = allClients.filter(client => 
-                (client.NAME || '').toLowerCase().includes(searchTerm) || 
-                (client.UID || '').toLowerCase().includes(searchTerm) ||
-                (client.CODE || '').toLowerCase().includes(searchTerm)
-            );
-            renderClientList(filteredClients);
-        });
-
-        ui.parentClientSearchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            ui.parentClientResultsContainer.innerHTML = '';
-            ui.parentClientResultsContainer.classList.add('hidden');
-            ui.codeHiddenInput.value = '';
-
-            if (!searchTerm) return;
-
-            const filteredClients = allParentClients.filter(client => 
-                (client.CLIENT_NAME || '').toLowerCase().includes(searchTerm) || 
-                (client.CODE || '').toLowerCase().includes(searchTerm)
-            );
-
-            if (filteredClients.length > 0) {
-                filteredClients.forEach(client => {
-                    const resultItem = document.createElement('div');
-                    resultItem.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-                    resultItem.textContent = `${client.CLIENT_NAME} (${client.CODE})`;
-                    
-                    resultItem.addEventListener('mousedown', () => {
-                        ui.parentClientSearchInput.value = resultItem.textContent;
-                        ui.codeHiddenInput.value = client.CODE;
-                        ui.parentClientResultsContainer.classList.add('hidden');
-                        if (client.BRANCH) {
-                            ui.branchInput.value = client.BRANCH;
-                        }
-                    });
-                    ui.parentClientResultsContainer.appendChild(resultItem);
-                });
-                ui.parentClientResultsContainer.classList.remove('hidden');
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!ui.parentClientSearchInput.contains(e.target) && !ui.parentClientResultsContainer.contains(e.target)) {
-                ui.parentClientResultsContainer.classList.add('hidden');
-            }
-        });
-
-        ui.newClientBtn.addEventListener('click', () => {
-            resetForm();
-            showFormView(); 
-        });
-        
-         ui.backToListBtn.addEventListener('click', () => {
-            resetForm();
-            showListView(); 
-        });
-        
-        ui.pincodeInput.addEventListener('input', () => {
-            clearTimeout(pincodeTimeout);
-            ui.pincodeStatus.innerHTML = '';
-            const pincode = ui.pincodeInput.value.trim();
-            if (pincode.length < 6) { 
-                clearPincodeDataFields();
-            }
-            if (pincode.length === 6 && /^\d{6}$/.test(pincode)) {
-                pincodeTimeout = setTimeout(() => fetchPincodeData(pincode), 500);
-            }
-        });
-        
-        ui.deleteButton.addEventListener('click', () => {
-            const uid = ui.uidInput.value;
-            const name = ui.form.querySelector(`[name="NAME"]`).value;
-            if (!uid) return;
-            ui.clientToDeleteSpan.textContent = `${name} (${uid})`;
-            ui.deleteModal.classList.remove('hidden');
-        });
-
-        ui.cancelDeleteBtn.addEventListener('click', () => ui.deleteModal.classList.add('hidden'));
-        ui.confirmDeleteBtn.addEventListener('click', () => handleRequest('delete'));
-
-        ui.form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!ui.codeHiddenInput.value) {
-                showResponseMessage("Please select a valid Parent Client from the search.", "error");
-                ui.parentClientSearchInput.focus();
-                return;
-            }
-            handleRequest('submit'); 
-        });
-        
-        // --- NETWORK REQUEST (THE CORE) ---
-        async function handleRequest(action) {
-            const isLoading = action === 'delete';
-            setLoading(true, isLoading ? 'delete' : 'submit');
-
-            const loginDataJSON = localStorage.getItem('loginData');
-            const loginData = loginDataJSON ? JSON.parse(loginDataJSON) : null;
-            const auth = { 
-                code: loginData?.CODE || loginData?.code, 
-                token: loginData?.TOKEN || loginData?.token 
-            };
-
-            if (!auth.code || !auth.token) {
-                showResponseMessage('Authentication error. Please log in again.', 'error');
-                setLoading(false, isLoading ? 'delete' : 'submit');
-                return;
-            }
-            
-            let data = {};
-            new FormData(ui.form).forEach((value, key) => { data[key] = value; });
-            
-            if (action === 'delete') {
-                data = { UID: ui.uidInput.value };
-            }
-
-            const payload = { 
-                auth: auth, 
-                data: data, 
-                action: action, 
-                type: 'client' 
-            };
-
-            try {
-                const response = await fetch(SCRIPT_URL, { 
-                    method: 'POST', 
-                    body: JSON.stringify(payload),
-                    mode: 'cors' 
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                
-                if (result.error) {
-                    throw new Error(result.message);
-                }
-                
-                showResponseMessage(result.message, 'success', result.data);
-                resetForm();
-                showListView(); 
-                
-                if (window.verifyAndFetchAppData) {
-                    await window.verifyAndFetchAppData(true); 
-                }
-
-            } catch (error) {
-                showResponseMessage(error.message, 'error');
-            } finally {
-                setLoading(false, isLoading ? 'delete' : 'submit');
-                if (isLoading) ui.deleteModal.classList.add('hidden');
-            }
-        }
-        
-        // --- UI HELPER FUNCTIONS ---
-        function setLoading(isLoading, type) {
-            if (type === 'delete') {
-                ui.deleteSpinner.classList.toggle('hidden', !isLoading);
-                ui.confirmDeleteBtn.disabled = isLoading;
-                ui.cancelDeleteBtn.disabled = isLoading;
-            } else {
-                ui.spinner.classList.toggle('hidden', !isLoading);
-                ui.submitButton.disabled = isLoading;
-                const uid = ui.uidInput.value;
-                ui.buttonText.textContent = isLoading ? (isUpdateMode ? 'Updating...' : 'Submitting...') : (isUpdateMode ? `Update Client ${uid}` : 'Submit New Client');
-            }
-        }
-
-        function showResponseMessage(message, type, data = null) {
-            let content = `<p class="font-semibold">${message}</p>`;
-            if (data && typeof data === 'object') {
-                content += '<div class="mt-2 text-left text-xs bg-gray-50 p-3 rounded border border-gray-200 max-w-lg mx-auto">';
-                for (const [key, value] of Object.entries(data)) {
-                    if (value) {
-                       content += `<p><strong class="font-medium text-gray-600">${key.replace(/_/g, ' ')}:</strong> <span class="text-gray-800">${value}</span></p>`;
-                    }
-                }
-                content += '</div>';
-            }
-            
-            ui.responseMessage.innerHTML = content;
-            ui.responseMessage.className = `mt-6 text-center p-4 rounded-lg text-sm ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
-            ui.responseMessage.classList.remove('hidden');
-        }
-
-        // --- INITIAL LOAD ---
-        const appDataJSON = localStorage.getItem('appData');
-        if (appDataJSON) {
-            try {
-                const appData = JSON.parse(appDataJSON);
-                if (appData.data && appData.data.B2B2C) {
-                    allClients = appData.data.B2B2C;
-                    renderClientList(allClients);
-                } else {
-                     document.getElementById('clientLoader').textContent = 'No B2B2C clients found.';
-                }
-                if (appData.data && appData.data.B2B) {
-                    allParentClients = appData.data.B2B.filter(client => client.CODE && client.CLIENT_NAME);
-                }
-                // NEW: Load carriers from cache on initial load
-                if (appData.data && appData.data.CARRIER) {
-                    populateCarrierDataList(appData.data.CARRIER);
-                }
-            } catch (e) {
-                 document.getElementById('clientLoader').textContent = 'Could not load clients.';
-            }
-        }
-    });
-    </script>
+    <script type="module" src="jawaS/b2b2c.js"></script>
 </body>
 </html>
 

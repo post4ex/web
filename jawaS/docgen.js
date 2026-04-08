@@ -4,7 +4,7 @@ function renderDocumentWorkshop(order) {
     // We still have access to all the data, e.g.:
     // NOTE: This function relies on global variables defined in the main HTML:
     // b2b2cDataMap, productDataMap, multiboxDataMap, trackDataMap, ui
-    const ref = order.REFERANCE;
+    const ref = order.REFERENCE;
     const cnor = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee = b2b2cDataMap.get(order.CONSIGNEE);
     const products = productDataMap.get(ref) || [];
@@ -97,7 +97,7 @@ function renderDocumentWorkshop(order) {
     `;
 
     // --- Call JsBarcode AFTER setting innerHTML ---
-    const awbForBarcode = order.AWB_NUMBER || order.REFERANCE;
+    const awbForBarcode = order.AWB_NUMBER || order.REFERENCE;
     if (awbForBarcode) {
         // --- RENDER LABEL BARCODE ---
         try {
@@ -140,7 +140,7 @@ function renderDocumentWorkshop(order) {
 function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type: 'preview' }) { // MODIFIED
     // NOTE: This function relies on global variable: modeDataMap
     const orderDate = fmtDate(order.ORDER_DATE, 'date');
-    const ref = order.REFERANCE || 'N/A';
+    const ref = order.REFERENCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     
     const cnorName = cnor?.NAME || 'N/A';
@@ -580,10 +580,10 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
 function buildReceipt(order, cnor, cnee, products, tracking) {
     // NOTE: This function relies on global variables: multiboxDataMap, modeDataMap
     // --- ADDED: Get multibox data ---
-    const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
 
     const orderDate = fmtDate(order.ORDER_DATE, 'date');
-    const ref = order.REFERANCE || 'N/A';
+    const ref = order.REFERENCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     const carrierName = order.CARRIER || 'CARRIER'; // We still need this for the origin box
     const modeShort = order.MODE || 'N/A';
@@ -990,9 +990,9 @@ function buildReceipt(order, cnor, cnee, products, tracking) {
 function buildPOD(order, cnor, cnee, products, tracking) {
     // NOTE: This function relies on global variables: multiboxDataMap, modeDataMap
     // --- This function is now a copy of buildReceipt, with modifications ---
-    const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     const orderDate = fmtDate(order.ORDER_DATE, 'date');
-    const ref = order.REFERANCE || 'N/A';
+    const ref = order.REFERENCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     const carrierName = order.CARRIER || 'CARRIER';
     const modeShort = order.MODE || 'N/A';
@@ -1389,9 +1389,9 @@ function buildChallan(order, cnor, cnee, products, tracking) {
 function buildOfficeCopy(order, cnor, cnee, products, tracking) {
     // NOTE: This function relies on global variables: multiboxDataMap, modeDataMap
     // --- This function is a copy of buildPOD, with modifications ---
-    const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     const orderDate = fmtDate(order.ORDER_DATE, 'date');
-    const ref = order.REFERANCE || 'N/A';
+    const ref = order.REFERENCE || 'N/A';
     const awb = order.AWB_NUMBER || ref;
     const carrierName = order.CARRIER || 'CARRIER';
     const modeShort = order.MODE || 'N/A';
@@ -1729,7 +1729,7 @@ function printSelectedShipmentLabel() {
         console.error('No shipment selected to print.');
         return;
     }
-    const order = allOrders.find(o => o.REFERANCE === currentSelectedRef);
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
     if (!order) {
         console.error('Could not find order data for printing.');
         return;
@@ -1738,9 +1738,9 @@ function printSelectedShipmentLabel() {
     // Get all data needed for labels
     const cnor = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee = b2b2cDataMap.get(order.CONSIGNEE);
-    const products = productDataMap.get(order.REFERANCE) || [];
-    const multiboxItems = multiboxDataMap.get(order.REFERANCE) || [];
-    const awb = order.AWB_NUMBER || order.REFERANCE;
+    const products = productDataMap.get(order.REFERENCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    const awb = order.AWB_NUMBER || order.REFERENCE;
     const pieces = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
 
     // --- MODIFIED: Read layout from HTML element ---
@@ -1999,7 +1999,7 @@ function printSelectedShipmentReceipt() {
         console.error('No shipment selected to print.');
         return;
     }
-    const order = allOrders.find(o => o.REFERANCE === currentSelectedRef);
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
     if (!order) {
         console.error('Could not find order data for printing.');
         return;
@@ -2008,11 +2008,11 @@ function printSelectedShipmentReceipt() {
     // Re-build the receipt content for printing
     const cnor = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee = b2b2cDataMap.get(order.CONSIGNEE);
-    const products = productDataMap.get(order.REFERANCE) || [];
-    const tracking = trackDataMap.get(order.REFERANCE);
+    const products = productDataMap.get(order.REFERENCE) || [];
+    const tracking = trackDataMap.get(order.REFERENCE);
     
     const receiptContent = buildReceipt(order, cnor, cnee, products, tracking);
-    const awb = order.AWB_NUMBER || order.REFERANCE;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
 
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow.document.write('<html><head><title>Print Receipt</title>');
@@ -2097,7 +2097,7 @@ function printSelectedShipmentPOD() {
         console.error('No shipment selected to print.');
         return;
     }
-    const order = allOrders.find(o => o.REFERANCE === currentSelectedRef);
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
     if (!order) {
         console.error('Could not find order data for printing.');
         return;
@@ -2106,12 +2106,12 @@ function printSelectedShipmentPOD() {
     // Re-build the POD content for printing
     const cnor = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee = b2b2cDataMap.get(order.CONSIGNEE);
-    const products = productDataMap.get(order.REFERANCE) || [];
-    const tracking = trackDataMap.get(order.REFERANCE);
+    const products = productDataMap.get(order.REFERENCE) || [];
+    const tracking = trackDataMap.get(order.REFERENCE);
     
     // --- MODIFIED: Call buildPOD ---
     const podContent = buildPOD(order, cnor, cnee, products, tracking);
-    const awb = order.AWB_NUMBER || order.REFERANCE;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
 
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow.document.write('<html><head><title>Print POD</title>'); // MODIFIED title
@@ -2186,7 +2186,7 @@ function printSelectedShipmentOfficeCopy() {
         console.error('No shipment selected to print.');
         return;
     }
-    const order = allOrders.find(o => o.REFERANCE === currentSelectedRef);
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
     if (!order) {
         console.error('Could not find order data for printing.');
         return;
@@ -2195,12 +2195,12 @@ function printSelectedShipmentOfficeCopy() {
     // Re-build the Office Copy content for printing
     const cnor = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee = b2b2cDataMap.get(order.CONSIGNEE);
-    const products = productDataMap.get(order.REFERANCE) || [];
-    const tracking = trackDataMap.get(order.REFERANCE);
+    const products = productDataMap.get(order.REFERENCE) || [];
+    const tracking = trackDataMap.get(order.REFERENCE);
     
     // --- MODIFIED: Call buildOfficeCopy ---
     const officeCopyContent = buildOfficeCopy(order, cnor, cnee, products, tracking);
-    const awb = order.AWB_NUMBER || order.REFERANCE;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
 
     const printWindow = window.open('', '', 'height=800,width=800');
     printWindow.document.write('<html><head><title>Print Office Copy</title>'); // MODIFIED title

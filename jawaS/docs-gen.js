@@ -2037,7 +2037,7 @@ window.autoFillFromReference = function(ref, docId) {
     const searchRef = ref.toUpperCase().trim();
     
     let order = Object.values(orders).find(o => 
-        (o.REFERANCE && o.REFERANCE.toUpperCase() === searchRef) || 
+        (o.REFERENCE && o.REFERENCE.toUpperCase() === searchRef) || 
         (o.AWB_NUMBER && o.AWB_NUMBER.toUpperCase() === searchRef)
     );
 
@@ -2061,7 +2061,7 @@ window.autoFillFromReference = function(ref, docId) {
     const mergedData = { ...order };
     
     // Merge Product Data
-    const productInfo = Object.values(products).find(p => p.RERERANCE === order.REFERANCE);
+    const productInfo = Object.values(products).find(p => p.RERERANCE === order.REFERENCE);
     if (productInfo) Object.assign(mergedData, productInfo);
 
     // Merge B2B/Client Data
