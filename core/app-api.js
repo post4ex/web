@@ -103,7 +103,7 @@ async function verifyAndFetchAppData(force = false) {
                 for (const [sheetName, sheetData] of Object.entries(incomingData)) {
                     try {
                         await window.appDB.clearSheet(sheetName);
-                        await window.appDB.putSheet(sheetName, sheetData);
+                        if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
                         successCount++;
                     } catch (error) {
                         syncErrors.push(`${sheetName}: ${error.message}`);
@@ -127,8 +127,10 @@ async function verifyAndFetchAppData(force = false) {
                 syncErrors.push(`Timestamp update: ${error.message}`);
             }
 
+            // Always load full data from IndexedDB so UI renders existing data even on empty delta
+            const fullData = await getAppData();
             const eventType = force ? 'appDataRefreshed' : 'appDataLoaded';
-            window.dispatchEvent(new CustomEvent(eventType, { detail: { data: incomingData } }));
+            window.dispatchEvent(new CustomEvent(eventType, { detail: { data: fullData } }));
 
             if (syncErrors.length > 0) {
                 showNotification(`⚠️ Sync completed with errors:\n${successCount}/${totalSheets} collections synced\n\nErrors:\n${syncErrors.join('\n')}`, 'error');
