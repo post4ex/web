@@ -91,7 +91,7 @@ async function handleLogin(e) {
 
     if (!user) return showMessage('Please enter username.', 'error');
     if (!pass) return showMessage('Please enter password.', 'error');
-    if (pass.length < 6) return showMessage('Password is too short.', 'error');
+    if (pass.length < 4) return showMessage('Password is too short.', 'error');
 
     try {
         const res = await callApi('/api/login', { username: user, password: pass });
