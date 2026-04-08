@@ -98,9 +98,9 @@ const PAGE_CONFIG = {
     'EditOrder.html':    'STAFF',
     'OutMenifest.html':  'CLIENT',
     'InMenifest.html':   'CLIENT',
-    'RunSheet.html':     'STAFF',
+    'RunSheet.html':     'CLIENT',
     'Update.html':       'CLIENT',
-    'POD.html':          'STAFF',
+    'POD.html':          'CLIENT',
     'uploader.html':     'CLIENT',
     'CRM.html':          'CLIENT',
 
