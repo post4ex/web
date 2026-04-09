@@ -76,6 +76,18 @@ async function submitBookOrder(payload) {
     return await callApi('/api/bookOrder', payload);
 }
 
+function buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, reference) {
+    const payload = buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput);
+    payload.order.REFERENCE    = reference;
+    payload.deleteMultibox     = true;
+    payload.deleteProducts     = true;
+    return payload;
+}
+
+async function submitEditOrder(payload) {
+    return await callApi('/api/editOrder', payload, 'PUT');
+}
+
 async function deleteOrder(reference) {
     return await callApi('/api/deleteOrder', { reference }, 'DELETE');
 }

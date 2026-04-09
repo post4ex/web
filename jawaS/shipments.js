@@ -301,7 +301,10 @@ function renderShipmentDetails(order) {
 
     ui.shipmentDetailsContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Shipment Details</h3><div class="flex items-center gap-0.5">${editBtn}${mailBtn}${waBtn}${tgBtn}${delBtn}</div></div><div class="detail-card-body">${h}</div>`;
 
-    document.getElementById('editOrderBtn').addEventListener('click', () => showNotification('Edit not implemented yet.', 'info'));
+    document.getElementById('editOrderBtn').addEventListener('click', () => {
+        sessionStorage.setItem('editOrderRef', order.REFERENCE);
+        window.location.href = 'BookOrder.html';
+    });
     document.getElementById('mailOrderBtn').addEventListener('click', () => showNotification('Email not implemented yet.', 'info'));
     document.getElementById('waOrderBtn').addEventListener('click',   () => showNotification('WhatsApp not implemented yet.', 'info'));
     document.getElementById('tgOrderBtn').addEventListener('click',   () => showNotification('Telegram not implemented yet.', 'info'));

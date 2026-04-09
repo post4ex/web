@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
             handleCustomerSelectionChange();
         }
         fetchShipmentList();
+        // Edit mode detection
+        const editRef = sessionStorage.getItem('editOrderRef');
+        if (editRef) prefillEditOrder(editRef);
     }
 
     function handleDataRefresh(eventDetail) {
@@ -647,7 +650,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.boEditOrder = (ref) => console.warn('Edit not implemented', ref);
+    window.boEditOrder = (ref) => {
+        if (typeof prefillEditOrder === 'function') {
+            // Already on BookOrder.html — prefill directly
+            prefillEditOrder(ref);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            // Coming from another page
+            sessionStorage.setItem('editOrderRef', ref);
+            window.location.href = 'BookOrder.html';
+        }
+    };
     window.boDeleteOrder = async (ref) => {
         if (!confirm(`Delete order ${ref}? This cannot be undone.`)) return;
         try { await deleteOrder(ref); fetchShipmentList(); } catch(e) { alert('Delete failed: ' + e.message); }
@@ -725,6 +738,102 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (type === 'docs')     _openInNewTab(`Docs - ${p.awb}`,        buildDocs(p.order, p.cnor, p.cnee, p.prods));
         else if (type === 'multibox') _openInNewTab(`Multibox - ${p.awb}`,    buildMultibox(p.order, p.cnor, p.cnee, p.prods, p.boxes));
     };
+
+    // --- EDIT ORDER ---
+    let editOrderRef = null;
+
+    async function prefillEditOrder(ref) {
+        editOrderRef = ref;
+        sessionStorage.removeItem('editOrderRef');
+
+        const order = Object.values(appData.ORDERS || {}).find(o => String(o.REFERENCE) === String(ref));
+        if (!order) { showNotification('Order not found: ' + ref, 'error'); return; }
+
+        const boxes    = Object.values(appData.MULTIBOX  || {}).filter(b => String(b.REFERENCE) === String(ref));
+        const prods    = Object.values(appData.PRODUCTS  || {}).filter(p => String(p.REFERENCE) === String(ref));
+
+        // Show edit banner
+        const banner = document.createElement('div');
+        banner.id = 'editOrderBanner';
+        banner.className = 'p-2 text-sm text-center font-semibold bg-yellow-100 text-yellow-800 border-b border-yellow-300';
+        banner.textContent = 'Editing Order: ' + ref;
+        document.querySelector('main')?.prepend(banner);
+
+        // Change Book button
+        if (bookButton) { bookButton.textContent = 'Update Order'; bookButton.classList.replace('bg-gray-800', 'bg-yellow-600'); }
+
+        // Fill date
+        if (orderDateInput && order.ORDER_DATE) orderDateInput.value = fmtDate(order.ORDER_DATE, 'input');
+
+        // Fill customer
+        if (customerNameSelect && order.CODE) {
+            const b2b = Object.values(appData.B2B || {}).find(c => c.CODE === order.CODE);
+            if (b2b) { customerNameSelect.value = b2b.B2B_NAME; handleCustomerSelectionChange(); }
+        }
+
+        // Fill AWB + carrier
+        if (document.getElementById('awb')) document.getElementById('awb').value = order.AWB_NUMBER || '';
+        await new Promise(r => setTimeout(r, 300));
+        if (carrierSelect) carrierSelect.value = order.CARRIER || '';
+
+        // Fill mode
+        if (transportTypeSelect) { transportTypeSelect.value = order.MODE || ''; transportTypeSelect.dispatchEvent(new Event('change')); }
+
+        // Fill payments
+        document.getElementById('payment_global').checked = order.GLOBAL === 'Yes';
+        document.getElementById('payment_topay').checked  = order.TOPAY  === 'Yes';
+        document.getElementById('payment_cod').checked    = order.COD    === 'Yes';
+        document.getElementById('payment_fov').checked    = order.FOV    === 'Yes';
+
+        // Fill sender (consignor)
+        const cnor = Object.values(appData.B2B2C || {}).find(c => c.UID === order.CONSIGNOR);
+        if (cnor && senderNameInput) {
+            senderNameInput.value = cnor.NAME || '';
+            selectedContacts.sender = cnor;
+            originPincodeInput.value = cnor.PINCODE || '';
+            senderDetailsDisplay.innerHTML = `<div class=text-sm><strong>${cnor.NAME}</strong><br>${cnor.ADDRESS||''}, ${cnor.CITY||''} - ${cnor.PINCODE||''}<br>${cnor.MOBILE||''}</div>`;
+        }
+
+        // Fill receiver (consignee)
+        const cnee = Object.values(appData.B2B2C || {}).find(c => c.UID === order.CONSIGNEE);
+        if (cnee && receiverNameInput) {
+            receiverNameInput.value = cnee.NAME || '';
+            selectedContacts.receiver = cnee;
+            destPincodeInput.value = cnee.PINCODE || '';
+            receiverDetailsDisplay.innerHTML = `<div class=text-sm><strong>${cnee.NAME}</strong><br>${cnee.ADDRESS||''}, ${cnee.CITY||''} - ${cnee.PINCODE||''}<br>${cnee.MOBILE||''}</div>`;
+            populateModeDropdown(cnee.ZONE);
+            transportTypeSelect.value = order.MODE || '';
+        }
+
+        // Fill multibox
+        consignmentBoxes = boxes.map((b, i) => ({
+            boxNum:       b.BOX_NUM || (i + 1),
+            actualWeight: parseFloat(b.WEIGHT)  || 0,
+            length:       parseFloat(b.LENGTH)  || 0,
+            breadth:      parseFloat(b.BREADTH) || 0,
+            height:       parseFloat(b.HIGHT)   || 0,
+            volWeight:    parseFloat(b.VOLUME)  || 0,
+            chargeWeight: parseFloat(b.CHG_WT)  || 0,
+        }));
+
+        // Fill products (exclude EWB rows — they are derived)
+        const mainProds = prods.filter(p => p.DOC_TYPE !== 'EWB');
+        consignmentProducts = mainProds.map(p => {
+            const ewb = prods.find(e => e.DOC_TYPE === 'EWB' && e.PRODUCT === p.PRODUCT);
+            return {
+                name:     p.PRODUCT    || '',
+                docNo:    p.DOC_NUMBER || '',
+                ewayBill: ewb ? ewb.DOC_NUMBER : '',
+                type:     p.DOC_TYPE   || 'INV',
+                amount:   parseFloat(p.AMOUNT) || 0,
+            };
+        });
+
+        renderMultiboxTable();
+        renderProductTable();
+        setBookingFieldsLocked(true);
+        updateDisplayTables();
+    }
 
     async function fetchShipmentList() {
         try {
@@ -971,20 +1080,40 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         bookButton.disabled = true;
-        bookButton.textContent = 'Booking...';
-        try {
-            const payload = buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput);
-            const result = await submitBookOrder(payload);
-            bookingMessage.textContent = `Booked successfully! Reference: ${result.reference}`;
-            bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
-            resetForNextBooking();
-        } catch (error) {
-            console.error('Error posting data:', error);
-            bookingMessage.textContent = `Booking failed: ${error.message}`;
-            bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-red-100';
-        } finally {
-            bookButton.disabled = false;
-            bookButton.textContent = 'Book';
+        if (editOrderRef) {
+            bookButton.textContent = 'Updating...';
+            try {
+                const payload = buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, editOrderRef);
+                await submitEditOrder(payload);
+                bookingMessage.textContent = `Order ${editOrderRef} updated successfully!`;
+                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
+                editOrderRef = null;
+                document.getElementById('editOrderBanner')?.remove();
+                bookButton.textContent = 'Book';
+                bookButton.classList.replace('bg-yellow-600', 'bg-gray-800');
+                resetForNextBooking();
+            } catch (error) {
+                bookingMessage.textContent = `Update failed: ${error.message}`;
+                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-red-100';
+            } finally {
+                bookButton.disabled = false;
+                bookButton.textContent = editOrderRef ? 'Update Order' : 'Book';
+            }
+        } else {
+            bookButton.textContent = 'Booking...';
+            try {
+                const payload = buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput);
+                const result = await submitBookOrder(payload);
+                bookingMessage.textContent = `Booked successfully! Reference: ${result.reference}`;
+                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
+                resetForNextBooking();
+            } catch (error) {
+                bookingMessage.textContent = `Booking failed: ${error.message}`;
+                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-red-100';
+            } finally {
+                bookButton.disabled = false;
+                bookButton.textContent = 'Book';
+            }
         }
     });
 
