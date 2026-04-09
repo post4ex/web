@@ -430,26 +430,24 @@
 
         </div>
 
-        <!-- NEW: Last 10 Shipments Section -->
+        <!-- Last 10 Shipments -->
+        <style>
+            .bo-li-wrap { display:flex; flex-direction:column; gap:6px; }
+            .bo-li-main { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+            .bo-li-btns { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+            .bo-li-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px 8px; font-size:0.7rem; margin-top:4px; color:#374151; }
+            @media(min-width:640px)  { .bo-li-grid { grid-template-columns:repeat(3,1fr); } }
+            @media(min-width:1024px) { .bo-li-grid { grid-template-columns:repeat(4,1fr); } }
+            @media(max-width:767px) {
+                .bo-li-wrap { flex-direction:column; }
+                .bo-li-main { flex-direction:column; gap:4px; }
+                .bo-li-btns { flex-direction:row; flex-wrap:wrap; border-top:1px solid #f3f4f6; padding-top:4px; }
+                .bo-action-row { display:flex; gap:2px; }
+            }
+        </style>
         <div id="shipmentListContainer" class="container mx-auto bg-white border border-gray-400 mt-4 mb-4 rounded-md shadow-lg">
-            <h2 class="text-xl font-bold text-gray-800 p-4 border-b border-gray-200">
-                Last 10 Shipments
-            </h2>
-            
-            <!-- Header Row (Desktop only) -->
-            <div class="hidden md:grid md:grid-cols-6 gap-4 font-semibold text-gray-600 p-4 border-b border-gray-200 bg-gray-50 text-sm">
-                <div class="col-span-1">Date</div>
-                <div class="col-span-1">Ref | AWB</div>
-                <div class="col-span-1">Carrier | Mode</div>
-                <div class="col-span-1">Pcs | Wt | Val</div>
-                <div class="col-span-1">Parties</div>
-                <div class="col-span-1">Destination</div>
-            </div>
-
-            <!-- Data List (Responsive Cards) -->
-            <div id="shipmentList" class="divide-y divide-gray-200 md:divide-y-0">
-                <p class="p-4 text-center text-gray-500">Loading shipments...</p>
-            </div>
+            <h2 class="text-base font-bold text-gray-800 p-3 border-b border-gray-200">Last 10 Shipments</h2>
+            <ul id="shipmentList" class="p-4 space-y-2"></ul>
         </div>
     </main>
     
@@ -516,6 +514,7 @@
     <script src="utils/calculations.js"></script>
     <script src="core/book-order.js"></script>
     <script src="jawaS/book-order.js"></script>
+    <script src="utils/docgen.js"></script>
     <script type="module">
         import { openAddContactModal } from './jawaS/book-order-add-contact.js';
         window.openAddContactModal = openAddContactModal;

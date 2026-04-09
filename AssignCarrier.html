@@ -9,36 +9,26 @@
     <!-- Google Fonts for a modern look -->
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <!-- Icon Library (for refresh icon) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; }
+        main { min-height: calc(100vh - 8rem); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        #shipmentsListContainer li {
+            padding: 0.75rem; border-radius: 0.5rem; cursor: pointer;
+            transition: background-color 0.2s; border: 1px solid #e5e7eb; line-height: 1.4;
         }
-        /* Ensure the main container fills the available space between header and footer */
-        main {
-            min-height: calc(100vh - 8rem); /* Adjust based on your header/footer height */
-        }
-        /* Simple animation for spinners */
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .spinner {
-            animation: spin 1s linear infinite;
-        }
-        /* Custom scrollbar for scrollable areas */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+        #shipmentsListContainer li.selected { background-color: #e0e7ff; font-weight: 500; border-color: #c7d2fe; }
+        #shipmentsListContainer li:hover { background-color: #eef2ff; }
+        #shipmentsListContainer li.incomplete { border-color: #fcd34d; background-color: #fffbeb; }
+        #shipmentsListContainer li.incomplete:hover { background-color: #fef3c7; }
+        #shipmentsListContainer li strong { color: #4338ca; display: block; font-size: 0.875rem; font-weight: 600; }
+        #shipmentsListContainer .client-info { font-size: 0.75rem; color: #6b7280; }
+        #shipmentsListContainer .details-info { font-size: 0.75rem; color: #4b5563; margin-top: 4px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col min-h-screen">
@@ -46,31 +36,21 @@
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
     <main class="flex-grow w-full flex items-center justify-center p-4">
-        <div id="mainContainer" class="flex flex-col md:flex-row w-full max-w-7xl mx-auto gap-8 h-[calc(100vh-10rem)]">
+        <div id="mainContainer" class="flex flex-col md:flex-row w-full max-w-7xl mx-auto gap-8" style="height:100vh;">
 
             <!-- Left Column: Shipments List -->
-            <div class="w-full md:w-1/2 bg-white rounded-xl shadow-lg flex flex-col h-full">
-                <div class="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-                    <h2 class="text-xl font-bold text-gray-800">Recent Shipments</h2>
+            <div class="w-full md:w-1/2 bg-white rounded-xl shadow-lg flex flex-col" style="height:100vh;overflow:hidden;">
+                <div class="p-4 border-b border-gray-200 flex-shrink-0">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Shipments</h2>
+                    <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Client..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
                 </div>
-                <div id="shipmentsListContainer" class="custom-scrollbar flex-grow p-4 space-y-3 overflow-y-auto">
-                    <div id="shipmentsPlaceholder" class="text-center text-gray-500 pt-16">
-                        <p>Waiting for application data...</p>
-                    </div>
-                     <div id="shipmentsSpinner" class="text-center text-gray-500 pt-16 hidden">
-                        <i class="fas fa-spinner fa-spin fa-2x"></i>
-                        <p class="mt-2">Loading Shipments...</p>
-                    </div>
+                <div id="shipmentsListContainer" class="custom-scrollbar flex-grow min-h-0 overflow-y-auto">
+                    <p id="shipmentsPlaceholder" class="text-center text-gray-500 pt-16 p-4">Waiting for application data...</p>
+                    <ul id="shipmentsList" class="p-4 space-y-2 hidden"></ul>
                 </div>
-                <div id="loadMoreContainer" class="p-4 border-t border-gray-200 text-center hidden flex-shrink-0">
-                    <button id="loadMoreButton" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                        Load More
-                    </button>
-                </div>
-            </div>
 
             <!-- Right Column: Partial Order Update Form -->
-            <div class="w-full md:w-1/2 overflow-y-auto custom-scrollbar h-full">
+            <div class="w-full md:w-1/2 overflow-y-auto custom-scrollbar" style="height:100vh;">
                 <div class="p-8 space-y-6 bg-white rounded-xl shadow-lg">
                     <div class="text-center">
                         <h1 class="text-3xl font-bold text-gray-800">Assign Carrier</h1>

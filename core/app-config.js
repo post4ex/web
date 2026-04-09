@@ -85,9 +85,8 @@ const PAGE_CONFIG = {
     'dashboard.html':    'CLIENT',
     'tracking.html':     'CLIENT',
     'Calculator.html':   'CLIENT',
-    'BookOrder.html':    'CLIENT',
-    'CreateOrder.html':  'CLIENT',
     'PickupRequest.html':'CLIENT',
+
     'ticket.html':       'CLIENT',
     'wallet.html':       'CLIENT',
     'search.html':       'CLIENT',
@@ -95,7 +94,6 @@ const PAGE_CONFIG = {
 
     'Shipments.html':    'CLIENT',
     'AssignCarrier.html':'STAFF',
-    'EditOrder.html':    'STAFF',
     'OutMenifest.html':  'CLIENT',
     'InMenifest.html':   'CLIENT',
     'RunSheet.html':     'CLIENT',

@@ -84,10 +84,10 @@
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <div class="flex flex-col md:flex-row flex-grow w-full md:h-[calc(100vh-88px)]">
+    <div class="flex flex-col md:flex-row w-full" style="height:100vh;">
         
         <!-- Left Sidebar for Order List -->
-        <aside id="orderListContainer" class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col">
+        <aside id="orderListContainer" class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col" style="height:100vh;overflow:hidden;">
             <div class="p-4 border-b sticky top-0 bg-white z-10">
                 <h2 class="text-xl font-bold text-gray-800 mb-3">Select Order</h2>
                 <input type="text" id="searchMiniOrder" placeholder="Filter by AWB, Ref, Client, Dest..." class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -101,7 +101,7 @@
         </aside>
 
         <!-- Main Content Area for Uploads & Form -->
-        <main id="editFormMainContainer" class="w-full md:w-2/3 lg:w-3/4 p-6 md:p-8 overflow-y-auto bg-gray-50">
+        <main id="editFormMainContainer" class="w-full md:w-2/3 lg:w-3/4 p-6 md:p-8 overflow-y-auto bg-gray-50" style="height:100vh;">
             
             <!-- Response Message Area -->
             <div id="response-message" class="hidden mb-4"></div>

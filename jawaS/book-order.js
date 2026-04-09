@@ -42,7 +42,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let loginData = {};
     let isBookingLocked = false;
+    let currentCalcUid = null;
     let wasModeUnlocked = false;
+
+    // --- ROLE ---
+    loginData = JSON.parse(localStorage.getItem('loginData')) || {};
+    const userRole  = loginData.userData?.ROLE || loginData.ROLE || 'GUEST';
+    const isClient  = (ROLE_LEVELS[userRole] || 0) < ROLE_LEVELS['STAFF'];
+    const canDelete = (ROLE_LEVELS[userRole] || 0) >= ROLE_LEVELS['ADMIN'];
     let userMadeInitialModeChoice = false;
     let appData = {};
     let consignmentBoxes = [];
@@ -199,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedContacts = { sender: null, receiver: null };
         selectedCustomerDetails = {};
         updateDisplayTables();
+        currentCalcUid = null;
         updateAndDisplayCharges();
         toggleWeightProductEntry(true);
     }
@@ -232,6 +240,39 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const key in charges) {
             const element = document.getElementById(`display_${key}`);
             if (element) element.textContent = charges[key];
+        }
+        // Auto-save to CALC_HISTORY on Calculator page
+        if (document.getElementById('calcHistoryList') && window.appDB) {
+            if (!currentCalcUid) currentCalcUid = 'CALC_' + Date.now();
+            const rec = {
+                CALC_UID: currentCalcUid, TIME_STAMP: Date.now(),
+                order_date: orderDateInput?.value || '',
+                customer_name: customerNameSelect?.value || '',
+                transport_type: transportTypeSelect?.value || '',
+                origin_pincode: document.getElementById('origin_pincode')?.value || '',
+                dest_pincode: document.getElementById('dest_pincode')?.value || '',
+                boxes: consignmentBoxes, products: consignmentProducts,
+                payment_global: document.getElementById('payment_global')?.checked || false,
+                payment_topay:  document.getElementById('payment_topay')?.checked  || false,
+                payment_cod:    document.getElementById('payment_cod')?.checked    || false,
+                payment_fov:    document.getElementById('payment_fov')?.checked    || false,
+                display_weight: document.getElementById('display_weight')?.textContent || '',
+                display_chg_wt: document.getElementById('display_chg_wt')?.textContent || '',
+                display_total:  document.getElementById('display_total')?.textContent  || '',
+            };
+            window.appDB.putSheet('CALC_HISTORY', { [currentCalcUid]: rec })
+                .then(async () => {
+                    // Keep only latest 10 entries
+                    const all = await window.IndexedDBManager.getAll('CALC_HISTORY');
+                    if (all.length > 10) {
+                        all.sort((a, b) => a.TIME_STAMP - b.TIME_STAMP);
+                        const toDelete = all.slice(0, all.length - 10);
+                        const tx = window.appDB.db.transaction(['CALC_HISTORY'], 'readwrite');
+                        const store = tx.objectStore('CALC_HISTORY');
+                        toDelete.forEach(r => store.delete(r.CALC_UID));
+                    }
+                    window._loadCalcHistory && window._loadCalcHistory();
+                }).catch(() => {});
         }
     }
 
@@ -550,86 +591,154 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderShipmentList(shipments) {
-        const listBody = document.getElementById('shipmentList');
-        const header = shipmentListContainer.querySelector('h2');
-        listBody.innerHTML = '';
-        header.classList.remove('hidden');
-        if (shipments.length === 0) {
-            listBody.innerHTML = '<p class="p-4 text-center text-gray-500">No recent shipments found.</p>';
+        const listEl = document.getElementById('shipmentList');
+        listEl.innerHTML = '';
+        if (!shipments.length) {
+            listEl.innerHTML = '<li class="text-center text-gray-500 p-4">No recent shipments found.</li>';
             return;
         }
-        shipments.forEach(shipment => {
-            const item = document.createElement('div');
-            item.classList.add('p-4', 'hover:bg-gray-50', 'md:grid', 'md:grid-cols-6', 'md:gap-4', 'md:border-b', 'border-gray-100', 'cursor-pointer');
-            const reference = shipment.REFERENCE || '---';
-            const awb = shipment.AWB_NUMBER || '---';
-            const mode = lookupModeName(shipment.MODE);
-            const consignorName = lookupContactName(shipment.CONSIGNOR);
-            const consigneeName = lookupContactName(shipment.CONSIGNEE);
-            const carrier = shipment.CARRIER || 'N/A';
-            const pieces = shipment.PIECS || 0;
-            const chgWt = shipment.CHG_WT ? parseFloat(shipment.CHG_WT).toFixed(2) : '0.00';
-            const value = formatCurrency(shipment.VALUE);
-            const destCity = shipment.DEST_CITY || 'N/A';
-            const destPincode = shipment.DEST_PINCODE || 'N/A';
-            const orderDate = fmtDate(shipment.ORDER_DATE);
-            item.innerHTML = `
-                <div class="md:hidden space-y-1">
-                    <div class="font-bold text-gray-900">${consigneeName} (${destCity})</div>
-                    <div class="text-xs text-gray-500">AWB: ${awb} | Ref: ${reference}</div>
-                    <div class="text-sm text-gray-700">${carrier} / ${mode} | Pcs: ${pieces} | Wt: ${chgWt}kg | Val: ${value}</div>
-                </div>
-                <div class="hidden md:block col-span-1 text-sm text-gray-800">${orderDate}</div>
-                <div class="hidden md:block col-span-1 text-sm text-gray-800">
-                    <span class="font-medium">${reference}</span><br>
-                    <span class="text-xs text-gray-500">${awb}</span>
-                </div>
-                <div class="hidden md:block col-span-1 text-sm text-gray-800">
-                    <span class="font-medium">${carrier}</span><br>
-                    <span class="text-xs text-gray-500">${mode}</span>
-                </div>
-                <div class="hidden md:block col-span-1 text-sm text-gray-800">
-                    <span class="font-medium">${pieces} pcs</span><br>
-                    <span class="text-xs text-gray-500">${chgWt} kg / ${value}</span>
-                </div>
-                <div class="hidden md:block col-span-1 text-sm text-gray-800">
-                    <span class="font-medium">${consignorName}</span><br>
-                    <span class="text-xs text-gray-500">to ${consigneeName}</span>
-                </div>
-                <div class="hidden md:block col-span-1 text-sm text-gray-800">
-                    <span class="font-medium">${destCity}</span><br>
-                    <span class="text-xs text-gray-500">${destPincode}</span>
-                </div>
-            `;
-            listBody.appendChild(item);
+        shipments.forEach(order => {
+            const ref  = order.REFERENCE;
+            const cnor = lookupContactName(order.CONSIGNOR);
+            const cnee = lookupContactName(order.CONSIGNEE);
+            const li   = document.createElement('li');
+            li.style.cssText = 'padding:0.75rem;border-radius:0.5rem;border:1px solid #e5e7eb;line-height:1.6;';
+            li.innerHTML = `
+                <div class="bo-li-wrap">
+                    <div class="bo-li-main">
+                        <div style="flex:1;min-width:0;">
+                            <strong style="color:#4338ca;display:block;font-size:0.875rem;font-weight:600;">${order.AWB_NUMBER || 'No AWB'}</strong>
+                            <span style="font-size:0.75rem;color:#6b7280;">${cnor} &rarr; ${cnee}</span>
+                            <div class="bo-li-grid" style="margin-top:4px;">
+                                <span><span style="color:#9ca3af;">Ref</span> <b>${ref}</b></span>
+                                <span><span style="color:#9ca3af;">Date</span> <b>${fmtDate(order.ORDER_DATE)}</b></span>
+                                <span><span style="color:#9ca3af;">Dest</span> <b>${order.DEST_CITY || 'N/A'} ${order.DEST_PINCODE || ''}</b></span>
+                                <span><span style="color:#9ca3af;">Carrier</span> <b>${order.CARRIER || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">Mode</span> <b>${lookupModeName(order.MODE) || order.MODE || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">TAT</span> <b>${order.TAT || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">Zone</span> <b>${order.ZONE || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">Wt</span> <b>${order.WEIGHT || 0} kg</b></span>
+                                <span><span style="color:#9ca3af;">ChgWt</span> <b>${order.CHG_WT ? parseFloat(order.CHG_WT).toFixed(2) : '0.00'} kg</b></span>
+                                <span><span style="color:#9ca3af;">Pcs</span> <b>${order.PIECS || 0}</b></span>
+                                <span><span style="color:#9ca3af;">Value</span> <b>&#8377;${order.VALUE ? parseFloat(order.VALUE).toFixed(2) : '0.00'}</b></span>
+                                ${(order.COD && parseFloat(order.COD) > 0) ? `<span><span style="color:#9ca3af;">COD</span> <b>${order.COD}</b></span>` : ''}
+                                ${(order.TOPAY && order.TOPAY !== 'No') ? `<span><span style="color:#9ca3af;">ToPay</span> <b>${order.TOPAY}</b></span>` : ''}
+                                ${(order.FOV && parseFloat(order.FOV) > 0) ? `<span><span style="color:#9ca3af;">FOV</span> <b>${order.FOV}</b></span>` : ''}
+                            </div>
+                        </div>
+                        <div class="bo-li-btns">
+                            <div class="bo-action-row">
+                                ${!isClient ? `<button onclick="boEditOrder('${ref}')" title="Edit" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
+                                ${canDelete ? `<button onclick="boDeleteOrder('${ref}')" title="Delete" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#ef4444;border-radius:4px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
+                                <button onclick="boPrintAll('${ref}')" title="Print All" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
+                            </div>
+                            <div class="bo-print-row">
+                                <button onclick="boPrint('receipt','${ref}')"  title="Receipt"     style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">RCP</button>
+                                <button onclick="boPrint('label','${ref}')"    title="Label"       style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">LBL</button>
+                                <button onclick="boPrint('pod','${ref}')"      title="POD"         style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">POD</button>
+                                <button onclick="boPrint('office','${ref}')"   title="Office Copy" style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">OFC</button>
+                                <button onclick="boPrint('docs','${ref}')"     title="Docs"        style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">DOC</button>
+                                <button onclick="boPrint('multibox','${ref}')" title="Multibox"    style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">MBX</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            listEl.appendChild(li);
         });
     }
 
+    window.boEditOrder = (ref) => console.warn('Edit not implemented', ref);
+    window.boDeleteOrder = async (ref) => {
+        if (!confirm(`Delete order ${ref}? This cannot be undone.`)) return;
+        try { await deleteOrder(ref); fetchShipmentList(); } catch(e) { alert('Delete failed: ' + e.message); }
+    };
+
+    function _boSetupMaps() {
+        window.b2b2cDataMap    = new Map();
+        window.modesDataMap    = new Map();
+        window.carriersDataMap = new Map();
+        window.productDataMap  = new Map();
+        window.multiboxDataMap = new Map();
+        Object.values(appData.B2B2C    || {}).forEach(c => b2b2cDataMap.set(c.UID, c));
+        Object.values(appData.MODES    || {}).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
+        Object.values(appData.CARRIERS || {}).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
+        Object.values(appData.PRODUCTS || {}).forEach(p => { const r = String(p.REFERENCE); if (!r) return; if (!productDataMap.has(r)) productDataMap.set(r, []); productDataMap.get(r).push(p); });
+        Object.values(appData.MULTIBOX || {}).forEach(b => { const r = String(b.REFERENCE); if (!r) return; if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []); multiboxDataMap.get(r).push(b); });
+    }
+
+    function _boGetParts(ref) {
+        _boSetupMaps();
+        const order = Object.values(appData.ORDERS || {}).find(o => String(o.REFERENCE) === String(ref));
+        if (!order) return null;
+        return {
+            order,
+            cnor:  b2b2cDataMap.get(order.CONSIGNOR),
+            cnee:  b2b2cDataMap.get(order.CONSIGNEE),
+            prods: productDataMap.get(String(ref))  || [],
+            boxes: multiboxDataMap.get(String(ref)) || [],
+            awb:   order.AWB_NUMBER || ref
+        };
+    }
+
+    window.boPrintAll = (ref) => {
+        const p = _boGetParts(ref); if (!p) return;
+        const pieces    = p.boxes.length > 0 ? p.boxes.length : (p.order.PIECS || 1);
+        const pageStyle = `<style>@page{size:A4 landscape;margin:8mm;}body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}.label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;height:192mm!important;display:flex;flex-direction:column;overflow:hidden;}</style>`;
+        let labelHtml = pageStyle;
+        const labelIds = [];
+        if (p.boxes.length > 0) {
+            for (let i = 0; i < pieces; i++) { labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'box', index:i }); labelIds.push(`barcode-box-${i}`); }
+        } else {
+            labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, [], { type:'box', index:0 }); labelIds.push('barcode-box-0');
+        }
+        labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'summary' }); labelIds.push('barcode-summary-0');
+        const html = [
+            buildReceipt(p.order, p.cnor, p.cnee, p.prods),
+            labelHtml,
+            buildPOD(p.order, p.cnor, p.cnee, p.prods),
+            buildOfficeCopy(p.order, p.cnor, p.cnee, p.prods),
+            buildDocs(p.order, p.cnor, p.cnee, p.prods),
+            ...(p.boxes.length ? [buildMultibox(p.order, p.cnor, p.cnee, p.prods, p.boxes)] : [])
+        ].join('<div style="page-break-after:always;"></div>');
+        _openInNewTab(`All Docs - ${p.awb}`, html, ['receipt-barcode', ...labelIds]);
+    };
+
+    window.boPrint = (type, ref) => {
+        const p = _boGetParts(ref); if (!p) return;
+        if (type === 'label') {
+            const pieces    = p.boxes.length > 0 ? p.boxes.length : (p.order.PIECS || 1);
+            const isPortrait = false;
+            const pageStyle = `<style>@page{size:A4 landscape;margin:8mm;}body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}.label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;height:192mm!important;display:flex;flex-direction:column;overflow:hidden;}</style>`;
+            let html = pageStyle;
+            const ids = [];
+            if (p.boxes.length > 0) {
+                for (let i = 0; i < pieces; i++) { html += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'box', index:i }); ids.push(`barcode-box-${i}`); }
+            } else {
+                html += buildLabel(p.order, p.cnor, p.cnee, p.prods, [], { type:'box', index:0 }); ids.push('barcode-box-0');
+            }
+            html += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'summary' }); ids.push('barcode-summary-0');
+            _openInNewTab(`Label - ${p.awb}`, html, ids);
+        }
+        else if (type === 'receipt')  _openInNewTab(`Receipt - ${p.awb}`,     buildReceipt(p.order, p.cnor, p.cnee, p.prods), ['receipt-barcode']);
+        else if (type === 'pod')      _openInNewTab(`POD - ${p.awb}`,         buildPOD(p.order, p.cnor, p.cnee, p.prods), ['receipt-barcode']);
+        else if (type === 'office')   _openInNewTab(`Office Copy - ${p.awb}`, buildOfficeCopy(p.order, p.cnor, p.cnee, p.prods), ['receipt-barcode']);
+        else if (type === 'docs')     _openInNewTab(`Docs - ${p.awb}`,        buildDocs(p.order, p.cnor, p.cnee, p.prods));
+        else if (type === 'multibox') _openInNewTab(`Multibox - ${p.awb}`,    buildMultibox(p.order, p.cnor, p.cnee, p.prods, p.boxes));
+    };
+
     async function fetchShipmentList() {
-        const listBody = document.getElementById('shipmentList');
-        const header = shipmentListContainer.querySelector('h2');
-        header.classList.add('hidden');
-        listBody.innerHTML = '<p class="p-4 text-center text-blue-500 flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Fetching recent bookings...</p>';
         try {
             const allOrders = Object.values(appData.ORDERS || {});
-            if (!Array.isArray(allOrders) || allOrders.length === 0) {
-                renderShipmentList([]);
-                return;
-            }
-            const sortedOrders = [...allOrders].sort((a, b) => new Date(b.TIME_STAMP) - new Date(a.TIME_STAMP));
-            const recentShipments = sortedOrders.slice(0, 10);
-            shipmentListContainer.querySelector('h2').classList.remove('hidden');
-            renderShipmentList(recentShipments);
+            if (!Array.isArray(allOrders) || !allOrders.length) { renderShipmentList([]); return; }
+            const sorted = [...allOrders].sort((a, b) => new Date(b.TIME_STAMP) - new Date(a.TIME_STAMP));
+            renderShipmentList(sorted.slice(0, 10));
         } catch (error) {
             console.error('Error reading ORDERS data:', error);
-            listBody.innerHTML = `<p class="p-4 text-center text-red-500">Failed to load shipments: Data structure error or missing Orders sheet.</p>`;
+            document.getElementById('shipmentList').innerHTML = '<li class="p-4 text-center text-red-500">Failed to load shipments.</li>';
         }
     }
 
     // --- MAIN INITIALIZATION & EVENT LISTENERS ---
-    loginData = JSON.parse(localStorage.getItem('loginData')) || {};
-    const userRole = loginData.userData?.ROLE || loginData.ROLE || 'GUEST';
-    const isClient = (ROLE_LEVELS[userRole] || 0) < ROLE_LEVELS['STAFF'];
 
     if (isClient) {
         const awbInput = document.getElementById('awb');
@@ -640,6 +749,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('appDataLoaded', (e) => initializeAppLogic(e.detail));
     window.addEventListener('appDataRefreshed', (e) => handleDataRefresh(e.detail));
+
+    // --- CALC HISTORY ---
+    async function loadCalcHistory() { window._loadCalcHistory = loadCalcHistory;
+        const listEl = document.getElementById('calcHistoryList');
+        if (!listEl || !window.appDB) return;
+        try {
+            const all = await window.IndexedDBManager.getAll('CALC_HISTORY');
+            if (!all || !all.length) { listEl.innerHTML = '<li class="text-center text-gray-500 text-sm">No history yet.</li>'; return; }
+            all.sort((a, b) => b.TIME_STAMP - a.TIME_STAMP);
+            listEl.innerHTML = '';
+            all.forEach(c => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding:0.75rem;border-radius:0.5rem;border:1px solid #e5e7eb;line-height:1.6;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;';
+                li.innerHTML = `
+                    <div style="flex:1;min-width:0;font-size:0.75rem;color:#374151;">
+                        <strong style="color:#4338ca;font-size:0.875rem;">${c.customer_name || 'N/A'}</strong>
+                        <span style="color:#6b7280;"> &mdash; ${new Date(c.TIME_STAMP).toLocaleString()}</span>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
+                            <span>Mode: <b>${c.transport_type || 'N/A'}</b></span>
+                            <span>Wt: <b>${c.display_chg_wt || '---'}</b></span>
+                            <span>Total: <b>${c.display_total || '---'}</b></span>
+                            <span>${c.origin_pincode || '?'} &rarr; ${c.dest_pincode || '?'}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
+                        <button onclick="calcHistoryBookIt('${c.CALC_UID}')"  style="padding:3px 8px;border:none;background:#15803d;color:#fff;border-radius:4px;font-size:0.65rem;cursor:pointer;">Book It</button>
+                        <button onclick="calcHistoryLoad('${c.CALC_UID}')"    style="padding:3px 8px;border:none;background:#1d4ed8;color:#fff;border-radius:4px;font-size:0.65rem;cursor:pointer;">Load</button>
+                        <button onclick="calcHistoryDelete('${c.CALC_UID}')" style="padding:3px 8px;border:none;background:#dc2626;color:#fff;border-radius:4px;font-size:0.65rem;cursor:pointer;">Delete</button>
+                    </div>`;
+                listEl.appendChild(li);
+            });
+        } catch(e) { console.warn('Calc history load failed', e); }
+    }
+
+    window.calcHistoryBookIt = async (calcUid) => {
+        const all = await window.IndexedDBManager.getAll('CALC_HISTORY');
+        const rec = all.find(c => c.CALC_UID === calcUid);
+        if (rec) { localStorage.setItem('calcToBook', JSON.stringify(rec)); window.location.href = 'BookOrder.html'; }
+    };
+
+    window.calcHistoryLoad = async (calcUid) => {
+        const all = await window.IndexedDBManager.getAll('CALC_HISTORY');
+        const rec = all.find(c => c.CALC_UID === calcUid);
+        if (!rec) return;
+        customerNameSelect.value = rec.customer_name || '';
+        customerNameSelect.dispatchEvent(new Event('change'));
+        if (originPincodeInput) originPincodeInput.value = rec.origin_pincode || '';
+        if (destPincodeInput)   destPincodeInput.value   = rec.dest_pincode   || '';
+        if (destPincodeInput)   destPincodeInput.dispatchEvent(new Event('input'));
+        orderDateInput.value = rec.order_date || '';
+        document.getElementById('payment_global').checked = !!rec.payment_global;
+        document.getElementById('payment_topay').checked  = !!rec.payment_topay;
+        document.getElementById('payment_cod').checked    = !!rec.payment_cod;
+        document.getElementById('payment_fov').checked    = !!rec.payment_fov;
+        consignmentBoxes    = rec.boxes    || [];
+        consignmentProducts = rec.products || [];
+        renderMultiboxTable();
+        renderProductTable();
+        setTimeout(() => { transportTypeSelect.value = rec.transport_type || ''; transportTypeSelect.dispatchEvent(new Event('change')); }, 500);
+    };
+
+    window.calcHistoryDelete = async (calcUid) => {
+        if (!confirm('Delete this calculation?')) return;
+        const tx = window.appDB.db.transaction(['CALC_HISTORY'], 'readwrite');
+        tx.objectStore('CALC_HISTORY').delete(calcUid);
+        tx.oncomplete = loadCalcHistory;
+    };
+
+    window.calcHistoryClearAll = async () => {
+        if (!confirm('Clear all calculation history?')) return;
+        const tx = window.appDB.db.transaction(['CALC_HISTORY'], 'readwrite');
+        tx.objectStore('CALC_HISTORY').clear();
+        tx.oncomplete = loadCalcHistory;
+    };
+
+    window.addEventListener('indexedDBReady', loadCalcHistory);
+    if (window.appDB?.db) loadCalcHistory();
 
     // Expose context for book-order-add-contact.js
     window.bookOrderCtx = {
@@ -747,6 +933,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     cancelButton.addEventListener('click', resetFullForm);
+
+    const bookItButton = document.getElementById('book_it_button');
+    if (bookItButton) {
+        bookItButton.addEventListener('click', async () => {
+            const calcUid = 'CALC_' + Date.now();
+            const record = {
+                CALC_UID:       calcUid,
+                TIME_STAMP:     Date.now(),
+                order_date:     orderDateInput.value,
+                customer_name:  customerNameSelect.value,
+                transport_type: transportTypeSelect.value,
+                origin_pincode: originPincodeInput?.value || '',
+                dest_pincode:   destPincodeInput?.value || '',
+                boxes:          consignmentBoxes,
+                products:       consignmentProducts,
+                payment_global: document.getElementById('payment_global').checked,
+                payment_topay:  document.getElementById('payment_topay').checked,
+                payment_cod:    document.getElementById('payment_cod').checked,
+                payment_fov:    document.getElementById('payment_fov').checked,
+                display_weight: document.getElementById('display_weight').textContent,
+                display_chg_wt: document.getElementById('display_chg_wt').textContent,
+                display_total:  document.getElementById('display_total').textContent,
+            };
+            if (window.appDB) await window.appDB.putSheet('CALC_HISTORY', { [calcUid]: record });
+            localStorage.setItem('calcToBook', JSON.stringify(record));
+            window.location.href = 'BookOrder.html';
+        });
+    }
 
     bookButton.addEventListener('click', async () => {
         bookingMessage.textContent = '';

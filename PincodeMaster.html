@@ -14,14 +14,14 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen">
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
     <!-- Main container is now a column on mobile, a row on desktop -->
-    <div class="flex flex-col md:flex-row flex-grow w-full md:h-[calc(100vh-88px)]">
+    <div class="flex flex-col md:flex-row w-full" style="height:100vh;">
         <!-- Left Sidebar for Pincode List -->
-        <aside id="pincodeListContainer" class="w-full md:w-1/4 bg-white border-r flex flex-col">
+        <aside id="pincodeListContainer" class="w-full md:w-1/4 bg-white border-r flex flex-col" style="height:100vh;overflow:hidden;">
             <!-- Sidebar Header (Search) - set to not shrink -->
             <div class="p-4 border-b bg-white z-10 flex-shrink-0">
                 <div class="flex justify-between items-center">
@@ -42,7 +42,7 @@
         </aside>
 
         <!-- Main Content Area for the Form - Hidden on mobile by default -->
-        <main id="pincodeFormContainer" class="w-full md:w-3/4 overflow-y-auto hidden md:flex flex-col">
+        <main id="pincodeFormContainer" class="w-full md:w-3/4 overflow-y-auto hidden md:flex flex-col" style="height:100vh;">
             <!-- Mobile-only back button -->
             <div class="p-4 border-b md:hidden bg-white">
                  <button type="button" id="backToListBtn" class="text-sm bg-gray-200 text-gray-800 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 flex items-center">

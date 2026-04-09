@@ -9,7 +9,7 @@ function getJsBarcodeSrc() {
 // --- SHARED STYLES ---
 function getLabelStyles() {
     return `<style>
-        .label-wrapper { border:1px solid #000; width:100%; max-width:42rem; margin:0 auto; font-family:Arial,sans-serif; background:#fff; color:#000; font-size:12px; line-height:1.4; }
+        .label-wrapper { border:1px solid #000; width:100%; max-width:42rem; margin:0 auto; font-family:Arial,sans-serif; background:#fff; color:#000; font-size:12px; line-height:1.4; display:flex; flex-direction:column; }
         .label-row { display:flex; border-bottom:1px solid #000; }
         .label-row:last-child { border-bottom:none; }
         .label-cell { padding:6px 8px; border-right:1px solid #000; width:100%; box-sizing:border-box; }
@@ -170,16 +170,19 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
             <div class="label-cell w-1-2"><div class="label-header-sm">Destination Pincode</div><div class="font-xxl">${cneePincode}</div></div>
             <div class="label-cell w-1-2"><div class="label-header-sm">Destination</div><div class="font-xxl">${cneeCity}</div></div>
         </div>
-        <div class="label-row">
-            <div class="label-cell consignee-details">
-                <strong>Ship To:</strong> <strong style="font-size:16px;">${cneeName}</strong>, ${cneeAddress}, Contact: <strong>${cneeMobile}</strong>
+        <div class="label-row" style="flex:1;min-height:0;">
+            <div class="label-cell consignee-details" style="display:flex;flex-direction:column;justify-content:center;padding:6px 8px;">
+                <div style="font-size:9px;font-weight:600;text-transform:uppercase;color:#555;margin-bottom:2px;">SHIP TO</div>
+                <div style="font-size:22px;font-weight:900;line-height:1.1;word-break:break-word;">${cneeName}</div>
+                <div style="font-size:13px;font-weight:600;margin-top:4px;line-height:1.3;">${cneeAddress}</div>
+                <div style="font-size:13px;font-weight:700;margin-top:3px;">&#128222; ${cneeMobile}</div>
             </div>
         </div>
         <div class="label-row">
             <div class="label-cell" style="padding:0;">${summaryTableHtml}${productTableHtml}</div>
         </div>
-        <div class="label-row">
-            <div class="label-cell">Return Address: <strong>${cnorName},</strong> ${cnorAddress}</div>
+        <div class="label-row" style="flex-shrink:0;">
+            <div class="label-cell" style="font-size:9px;padding:3px 6px;">Return: <strong>${cnorName}</strong>, ${cnorAddress}</div>
         </div>
     </div>`;
 }
@@ -622,10 +625,25 @@ function printSelectedShipmentLabel() {
     const layout       = layoutSelect ? layoutSelect.value : '2up-landscape';
 
     const isPortrait   = layout === '4up-portrait';
-    const pageStyle    = `<style>@page{size:A4 ${isPortrait?'portrait':'landscape'};margin:10mm;}
-        body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;}
+    const pageStyle    = `<style>@page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
+        body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}
         .label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;
-            height:${isPortrait?'135mm':'190mm'}!important;display:flex;flex-direction:column;overflow:hidden;}
+            height:${isPortrait?'138mm':'192mm'}!important;display:flex;flex-direction:column;overflow:hidden;}
+        ${isPortrait ? `
+        .label-logo{font-size:13px!important;}
+        .label-cell{padding:2px 4px!important;font-size:10px!important;}
+        .label-row:nth-child(1) .label-cell{font-size:10px!important;}
+        .label-row:nth-child(2) .label-cell{font-size:11px!important;}
+        .font-xxl{font-size:18px!important;}
+        .label-header-sm{font-size:8px!important;}
+        .barcode-container{padding:2px 6px!important;}
+        .barcode-container svg{height:55px!important;width:100%!important;}
+        .barcode-number{font-size:12px!important;letter-spacing:1px!important;}
+        .label-table td,.label-table th{padding:1px 3px!important;font-size:9px!important;}
+        .consignee-details div:nth-child(2){font-size:20px!important;}
+        .consignee-details div:nth-child(3){font-size:14px!important;}
+        .consignee-details div:nth-child(4){font-size:14px!important;}
+        ` : ''}
     </style>`;
 
     let bodyHtml = pageStyle;
