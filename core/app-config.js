@@ -52,7 +52,7 @@ const CONSTANTS = {
     OPERATIONS_URL: '__API_URL__',
 
     SYNC_INTERVAL:     5 * 60 * 1000,
-    PING_INTERVAL:      5 * 60 * 1000,
+    PING_INTERVAL:      2 * 60 * 1000,
     IDLE_TIMEOUT:       2 * 60 * 60 * 1000,
     ACTIVITY_THROTTLE: 30 * 1000,
 
