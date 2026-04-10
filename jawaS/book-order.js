@@ -760,15 +760,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('main')?.prepend(banner);
 
         // Change Book button
-        if (bookButton) { bookButton.textContent = 'Update Order'; bookButton.classList.replace('bg-gray-800', 'bg-yellow-600'); }
+        if (bookButton) {
+            bookButton.textContent = 'Update Order';
+        }
 
         // Fill date
         if (orderDateInput && order.ORDER_DATE) orderDateInput.value = fmtDate(order.ORDER_DATE, 'input');
 
         // Fill customer
         if (customerNameSelect && order.CODE) {
-            const b2b = Object.values(appData.B2B || {}).find(c => c.CODE === order.CODE);
-            if (b2b) { customerNameSelect.value = b2b.B2B_NAME; handleCustomerSelectionChange(); }
+            customerNameSelect.value = order.CODE;
+            handleCustomerSelectionChange();
         }
 
         // Fill AWB + carrier
@@ -831,7 +833,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderMultiboxTable();
         renderProductTable();
-        setBookingFieldsLocked(true);
+        // In edit mode — unlock all fields so user can edit freely
+        setBookingFieldsLocked(false);
+        toggleWeightProductEntry(false);
         updateDisplayTables();
     }
 
@@ -1089,8 +1093,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
                 editOrderRef = null;
                 document.getElementById('editOrderBanner')?.remove();
+                bookButton.style.backgroundColor = '';
                 bookButton.textContent = 'Book';
-                bookButton.classList.replace('bg-yellow-600', 'bg-gray-800');
                 resetForNextBooking();
             } catch (error) {
                 bookingMessage.textContent = `Update failed: ${error.message}`;
