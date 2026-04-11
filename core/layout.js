@@ -178,6 +178,20 @@ function initializeUI() {
 
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));
 
+    const pingBtn = document.getElementById('ping-button');
+    if (pingBtn) {
+        pingBtn.addEventListener('click', async () => {
+            const start = Date.now();
+            try {
+                await callApi('/api/ping', {}, 'GET');
+                const ms = Date.now() - start;
+                showNotification(`🟢 Pong! ${ms}ms`, 'success');
+            } catch (e) {
+                showNotification('🔴 No connection', 'error');
+            }
+        });
+    }
+
     window.checkAppData = async () => {
         if (!window.appDB) { console.warn('IndexedDB not available'); return null; }
         const data = await getAppData();

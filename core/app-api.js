@@ -91,8 +91,6 @@ async function verifyAndFetchAppData() {
         }
     }
 
-    showNotification('🔄 Connecting to Server...', 'info');
-
     try {
         const result = await callApi('/api/verifyAndFetchAppData', {});
 
@@ -126,13 +124,8 @@ async function verifyAndFetchAppData() {
                 }
             } catch (_) {}
 
-            if (syncErrors.length > 0) {
-                showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
-            } else if (successCount > 0) {
-                showNotification(`✅ Data Synced (${successCount} collections)`, 'success');
-            } else {
-                showNotification('ℹ️ No data', 'info');
-            }
+            if (syncErrors.length > 0) showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
+
         } else {
             showNotification(`❌ Server Error: ${result.message || 'Unknown error'}`, 'error');
         }
