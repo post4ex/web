@@ -190,7 +190,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
     if (loginData) {
-        verifyAndFetchAppData().then(() => openSSE());
+        const existing = await getAppData();
+        const hasData  = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
+        if (!hasData) await verifyAndFetchAppData();
+        openSSE();
         initHeartbeat();
     }
 
