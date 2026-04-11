@@ -41,7 +41,12 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
     const base = CONSTANTS.OPERATIONS_URL;
     if (!endpoint.startsWith('/api/')) throw new Error('Invalid endpoint');
     const safeEndpoint = endpoint;
-    const res = await fetch(`${base}${safeEndpoint}`, options);
+    const allowedHosts = CONSTANTS.ALLOWED_DOMAINS.concat(['localhost', '127.0.0.1']);
+    const parsedBase   = new URL(base);
+    if (!allowedHosts.some(h => parsedBase.hostname === h || parsedBase.hostname.endsWith('.' + h))) {
+        throw new Error('Disallowed API host');
+    }
+    const res = await fetch(`${parsedBase.origin}${safeEndpoint}`, options);
 
     const contentType = res.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
@@ -214,7 +219,7 @@ async function _handleSSEMessage(payload) {
 
     if (payload.type === 'notification') {
         if (!window.appDB || !window.appDB.db) return;
-        const notif = { ...payload.data };
+        const notif = { ...payload.data, IS_READ: false };
         await window.appDB.mergeSheet('NOTIFICATIONS', { [notif.NOTIF_ID]: notif });
         renderNotificationItem(notif, true);
         return;

@@ -74,12 +74,13 @@ function _levelIcon(level) {
 }
 
 function renderNotificationItem(notif, showToast = false) {
-    const { NOTIF_ID, MESSAGE, LEVEL, TIMESTAMP, READ } = notif;
-    const id        = NOTIF_ID || notif.id || Date.now().toString();
-    const message   = MESSAGE  || notif.message || '';
-    const level     = LEVEL    || notif.type    || 'INFO';
-    const timestamp = TIMESTAMP ? fmtDate(TIMESTAMP, 'full') : (notif.timestamp || '');
+    const { NOTIF_ID, MESSAGE, LEVEL, TIMESTAMP, IS_READ } = notif;
+    const id         = NOTIF_ID || notif.id || Date.now().toString();
+    const message    = MESSAGE  || notif.message || '';
+    const level      = LEVEL    || notif.type    || 'INFO';
+    const timestamp  = TIMESTAMP ? fmtDate(TIMESTAMP, 'full') : (notif.timestamp || '');
     const isCritical = level === 'CRITICAL';
+    const isRead     = IS_READ === true;
 
     const badgeGlobal = document.getElementById('notification-badge-global');
     const listGlobal  = document.getElementById('notification-list-global');
@@ -99,7 +100,7 @@ function renderNotificationItem(notif, showToast = false) {
     const item = document.createElement('div');
     item.className = `group p-3 border-b text-sm hover:bg-gray-50 flex items-start gap-3 transition-colors relative`;
     item.setAttribute('data-id', id);
-    if (READ !== 'Y') item.style.background = '#fafafa';
+    if (!isRead) item.style.background = '#fafafa';
 
     const contentArea = document.createElement('div');
     contentArea.className = 'flex-1 cursor-pointer min-w-0';
@@ -108,25 +109,23 @@ function renderNotificationItem(notif, showToast = false) {
             <span class="text-base flex-shrink-0">${_levelIcon(level)}</span>
             <span class="font-semibold text-xs ${_levelColor(level)} truncate">${timestamp}</span>
             ${isCritical ? '<span class="text-xs bg-red-100 text-red-700 px-1 rounded flex-shrink-0">CRITICAL</span>' : ''}
-            ${READ !== 'Y' ? '<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 ml-auto"></span>' : ''}
+            ${!isRead ? '<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 ml-auto"></span>' : ''}
         </div>
         <p class="leading-snug line-clamp-2 text-gray-700">${message}</p>`;
     contentArea.addEventListener('click', async () => {
         openNotificationModal(message, level, timestamp);
-        if (READ !== 'Y') {
+        if (!isRead) {
             await callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
-            if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, READ: 'Y' } });
+            if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, IS_READ: true } });
         }
     });
 
     item.appendChild(contentArea);
 
-    // action buttons — always visible, right side
     const btnWrap = document.createElement('div');
     btnWrap.className = 'flex flex-col gap-1 flex-shrink-0';
 
-    // mark-read button — envelope open icon, only shown when unread
-    if (READ !== 'Y') {
+    if (!isRead) {
         const readBtn = document.createElement('button');
         readBtn.className = 'text-blue-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition';
         readBtn.title = 'Mark as read';
@@ -134,7 +133,7 @@ function renderNotificationItem(notif, showToast = false) {
         readBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             await callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
-            if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, READ: 'Y' } });
+            if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, IS_READ: true } });
             readBtn.remove();
             item.style.background = '';
             const dot = contentArea.querySelector('.bg-blue-500');
@@ -144,11 +143,10 @@ function renderNotificationItem(notif, showToast = false) {
         btnWrap.appendChild(readBtn);
     }
 
-    // delete button — X icon, not for CRITICAL
     if (!isCritical) {
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition';
-        deleteBtn.title = 'Delete';
+        deleteBtn.title = 'Dismiss';
         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
         deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -161,7 +159,6 @@ function renderNotificationItem(notif, showToast = false) {
     }
 
     item.appendChild(btnWrap);
-
     listGlobal.prepend(item);
 }
 
@@ -186,16 +183,15 @@ async function loadNotificationsFromStorage() {
     if (!window.appDB || !window.appDB.db) return;
 
     try {
-        const all    = await window.appDB.getSheet('NOTIFICATIONS');
-        const notifs = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
+        const all     = await window.appDB.getSheet('NOTIFICATIONS');
+        const notifs  = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
 
-        if (!notifs.length) return; // nothing to show — keep existing list as-is
+        if (!notifs.length) return;
 
-        // only wipe and re-render once we have actual data
         listGlobal.innerHTML = '';
         notifs.forEach(n => renderNotificationItem(n, false));
 
-        const unread = notifs.filter(n => n.READ !== 'Y').length;
+        const unread = notifs.filter(n => !n.IS_READ).length;
         if (badgeGlobal) {
             if (unread > 0) { badgeGlobal.innerText = unread; badgeGlobal.classList.remove('hidden'); }
             else badgeGlobal.classList.add('hidden');

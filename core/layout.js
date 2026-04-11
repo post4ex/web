@@ -136,10 +136,10 @@ function initializeUI() {
             markAllBtn.addEventListener('click', async () => {
                 if (!window.appDB || !window.appDB.db) return;
                 const all = await window.appDB.getSheet('NOTIFICATIONS');
-                const ids = Object.values(all).filter(n => n.READ !== 'Y').map(n => n.NOTIF_ID);
+                const ids = Object.values(all).filter(n => !n.IS_READ).map(n => n.NOTIF_ID);
                 if (ids.length) {
                     await callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
-                    for (const id of ids) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], READ: 'Y' } });
+                    for (const id of ids) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], IS_READ: true } });
                 }
                 await loadNotificationsFromStorage();
             });

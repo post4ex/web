@@ -57,7 +57,7 @@ const CONSTANTS = {
     ACTIVITY_THROTTLE: 30 * 1000,
     SSE_RECONNECT_DELAY: 3000,
 
-    ALLOWED_DOMAINS: ['post4ex.github.io'],
+    ALLOWED_DOMAINS: ['post4ex.github.io', 'huggingface.co', 'hf.space'],
 
     KEYS: {
         LOGIN:          'loginData',
