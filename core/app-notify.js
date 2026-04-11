@@ -211,7 +211,7 @@ window.showNotification = function (message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.id = 'ui-toast';
-    toast.className = `fixed bottom-4 right-4 z-[70] px-4 py-2 rounded shadow-lg text-white text-sm font-medium transition-opacity duration-300 ${bg}`;
+    toast.className = `fixed top-20 right-4 z-[70] px-4 py-2 rounded shadow-lg text-white text-sm font-medium transition-opacity duration-300 ${bg}`;
     toast.textContent = message;
     document.body.appendChild(toast);
 

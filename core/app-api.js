@@ -41,12 +41,7 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
     const base = CONSTANTS.OPERATIONS_URL;
     if (!endpoint.startsWith('/api/')) throw new Error('Invalid endpoint');
     const safeEndpoint = endpoint;
-    const allowedHosts = CONSTANTS.ALLOWED_DOMAINS.concat(['localhost', '127.0.0.1']);
-    const parsedBase   = new URL(base);
-    if (!allowedHosts.some(h => parsedBase.hostname === h || parsedBase.hostname.endsWith('.' + h))) {
-        throw new Error('Disallowed API host');
-    }
-    const res = await fetch(`${parsedBase.origin}${safeEndpoint}`, options);
+    const res = await fetch(`${base}${safeEndpoint}`, options);
 
     const contentType = res.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
