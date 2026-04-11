@@ -97,18 +97,20 @@ function renderNotificationItem(notif, showToast = false) {
     }
 
     const item = document.createElement('div');
-    item.className = `group p-3 border-b text-sm hover:bg-gray-50 flex items-start gap-3 transition-colors ${_levelColor(level)} relative`;
+    item.className = `group p-3 border-b text-sm hover:bg-gray-50 flex items-start gap-3 transition-colors relative`;
     item.setAttribute('data-id', id);
+    if (READ !== 'Y') item.style.background = '#fafafa';
 
     const contentArea = document.createElement('div');
-    contentArea.className = 'flex-1 cursor-pointer';
+    contentArea.className = 'flex-1 cursor-pointer min-w-0';
     contentArea.innerHTML = `
         <div class="flex items-center gap-2 mb-1">
-            <span class="text-base">${_levelIcon(level)}</span>
-            <span class="font-semibold text-xs opacity-75">${timestamp}</span>
-            ${isCritical ? '<span class="text-xs bg-red-100 text-red-700 px-1 rounded">CRITICAL</span>' : ''}
+            <span class="text-base flex-shrink-0">${_levelIcon(level)}</span>
+            <span class="font-semibold text-xs ${_levelColor(level)} truncate">${timestamp}</span>
+            ${isCritical ? '<span class="text-xs bg-red-100 text-red-700 px-1 rounded flex-shrink-0">CRITICAL</span>' : ''}
+            ${READ !== 'Y' ? '<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 ml-auto"></span>' : ''}
         </div>
-        <p class="leading-snug line-clamp-2 text-gray-800">${message}</p>`;
+        <p class="leading-snug line-clamp-2 text-gray-700">${message}</p>`;
     contentArea.addEventListener('click', async () => {
         openNotificationModal(message, level, timestamp);
         if (READ !== 'Y') {

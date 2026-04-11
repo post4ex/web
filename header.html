@@ -41,9 +41,12 @@
                 
                 <!-- Dropdown (Positioned to not overflow on mobile) -->
                 <div id="notification-dropdown" class="absolute right-[-60px] sm:right-0 mt-3 w-72 sm:w-80 bg-white rounded-lg shadow-xl z-50 hidden border border-gray-100 overflow-hidden">
-                    <div class="p-3 border-b bg-gray-50 flex justify-between items-center">
+                    <div class="p-3 border-b bg-gray-50 flex justify-between items-center gap-2">
                         <h3 class="font-semibold text-gray-700 text-sm">Notifications</h3>
-                        <button class="text-xs text-blue-600 hover:underline">Mark all read</button>
+                        <div class="flex items-center gap-2">
+                            <button id="notif-mark-all-read" class="text-xs text-blue-600 hover:underline" title="Mark all read">✓ All read</button>
+                            <button id="notif-clear-all" class="text-xs text-red-500 hover:underline" title="Clear all">🗑 Clear all</button>
+                        </div>
                     </div>
                     <div id="notification-list-global" class="max-h-64 overflow-y-auto p-2 space-y-2">
                         <p class="text-sm text-gray-500 text-center py-4">No new notifications</p>

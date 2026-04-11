@@ -2,6 +2,8 @@
 // LAYOUT.JS — Dispatcher / Orchestrator
 // ============================================================================
 
+const _ALLOWED_COMPONENTS = ['header.html', 'footer.html'];
+
 async function loadComponent(componentUrl, placeholderId) {
     try {
         const placeholder = document.getElementById(placeholderId);
@@ -13,7 +15,9 @@ async function loadComponent(componentUrl, placeholderId) {
             : '<div class="animate-pulse bg-gray-200 h-10 w-full rounded"></div>';
         placeholder.style.minHeight = isHeader ? '56px' : '36px';
 
-        const response = await fetch(componentUrl, { cache: 'default' });
+        const safeComponent = _ALLOWED_COMPONENTS.find(c => c === componentUrl);
+        if (!safeComponent) throw new Error(`Disallowed component: ${componentUrl}`);
+        const response = await fetch(safeComponent, { cache: 'default' });
         if (!response.ok) throw new Error(`Failed to load ${componentUrl}`);
 
         const text = await response.text();
@@ -43,13 +47,17 @@ async function loadComponent(componentUrl, placeholderId) {
     }
 }
 
+const _ALLOWED_PAGES = ['tracking.html', 'services.html'];
+
 async function loadDynamicContent(url, targetElementId) {
     const el = document.getElementById(targetElementId);
     if (!el) return;
     try {
         el.innerHTML = `<div class="text-center p-4 text-gray-500">Loading Content...</div>`;
-        const cacheBuster = url.includes('?') ? '&' : '?';
-        const res = await fetch(`${url}${cacheBuster}v=${Date.now()}`);
+        const safeUrl = _ALLOWED_PAGES.find(p => p === url);
+        if (!safeUrl) throw new Error(`Disallowed page: ${url}`);
+        const cacheBuster = safeUrl.includes('?') ? '&' : '?';
+        const res = await fetch(`${safeUrl}${cacheBuster}v=${Date.now()}`);
         if (!res.ok) throw new Error('Load failed');
 
         const txt = await res.text();
@@ -121,22 +129,51 @@ function initializeUI() {
         if (ov) ov.addEventListener('click', toggleFn);
     }
 
-    const setupClearAll = () => {
-        const clearBtn = document.querySelector('#notification-dropdown button');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                const list        = document.getElementById('notification-list-global');
-                const badgeGlobal = document.getElementById('notification-badge-global');
-                if (list)        list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
-                if (badgeGlobal) { badgeGlobal.innerText = '0'; badgeGlobal.classList.add('hidden'); }
+    const setupNotifActions = () => {
+        const markAllBtn = document.getElementById('notif-mark-all-read');
+        if (markAllBtn && !markAllBtn.dataset.bound) {
+            markAllBtn.dataset.bound = '1';
+            markAllBtn.addEventListener('click', async () => {
+                if (!window.appDB || !window.appDB.db) return;
+                const all = await window.appDB.getSheet('NOTIFICATIONS');
+                const ids = Object.values(all).filter(n => n.READ !== 'Y').map(n => n.NOTIF_ID);
+                if (ids.length) {
+                    await callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
+                    for (const id of ids) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], READ: 'Y' } });
+                }
+                await loadNotificationsFromStorage();
+            });
+        }
+
+        const clearAllBtn = document.getElementById('notif-clear-all');
+        if (clearAllBtn && !clearAllBtn.dataset.bound) {
+            clearAllBtn.dataset.bound = '1';
+            clearAllBtn.addEventListener('click', async () => {
+                if (!window.appDB || !window.appDB.db) return;
+                const all = await window.appDB.getSheet('NOTIFICATIONS');
+                const ids = Object.values(all).filter(n => n.LEVEL !== 'CRITICAL').map(n => n.NOTIF_ID);
+                if (ids.length) {
+                    await callApi('/api/notifclear', { notif_ids: ids }).catch(() => {});
+                    for (const id of ids) await window.appDB.deleteRecord('NOTIFICATIONS', id);
+                }
+                await loadNotificationsFromStorage();
             });
         }
     };
 
-    setupClearAll();
+    const _loadNotifs = async () => {
+        if (window.appDB && window.appDB.db) {
+            await loadNotificationsFromStorage();
+        } else {
+            // wait for DB ready then load
+            window.addEventListener('indexedDBReady', () => loadNotificationsFromStorage(), { once: true });
+        }
+    };
+
+    setupNotifActions();
     window.addEventListener('footerLoaded', () => {
-        setupClearAll();
-        setTimeout(() => loadNotificationsFromStorage(), 100);
+        setupNotifActions();
+        _loadNotifs();
     });
 
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));
@@ -169,6 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetchClientIP();
 
     await loadComponent('header.html', 'header-placeholder');
+    _loadNotifs();
     await loadComponent('footer.html', 'footer-placeholder');
     window.dispatchEvent(new CustomEvent('footerLoaded'));
 

@@ -38,7 +38,10 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
     const options = { method, headers };
     if (method !== 'GET') options.body = JSON.stringify(payload);
 
-    const res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, options);
+    const base = CONSTANTS.OPERATIONS_URL;
+    if (!endpoint.startsWith('/api/')) throw new Error('Invalid endpoint');
+    const safeEndpoint = endpoint;
+    const res = await fetch(`${base}${safeEndpoint}`, options);
 
     const contentType = res.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
@@ -106,6 +109,18 @@ async function verifyAndFetchAppData() {
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+
+            // fetch notifications into IndexedDB
+            try {
+                const notifResult = await callApi('/api/fetchNotifications', {}, 'GET');
+                if (notifResult.status === 'success' && window.appDB) {
+                    await window.appDB.clearSheet('NOTIFICATIONS');
+                    if (Object.keys(notifResult.data).length > 0)
+                        await window.appDB.putSheet('NOTIFICATIONS', notifResult.data);
+                    if (typeof loadNotificationsFromStorage === 'function')
+                        await loadNotificationsFromStorage();
+                }
+            } catch (_) {}
 
             if (syncErrors.length > 0) {
                 showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');

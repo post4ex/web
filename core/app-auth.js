@@ -24,7 +24,6 @@ function initHeartbeat() {
 function handleLogout() {
     callApi('/api/logout').catch(() => {});
     localStorage.removeItem(CONSTANTS.KEYS.LOGIN);
-    localStorage.removeItem(CONSTANTS.KEYS.NOTIFICATIONS);
     sessionStorage.clear();
     if (window.appDB) {
         window.appDB.clearAll().catch(e => console.warn('Failed to clear IndexedDB:', e));
