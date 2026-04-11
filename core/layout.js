@@ -206,7 +206,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetchClientIP();
 
     await loadComponent('header.html', 'header-placeholder');
-    _loadNotifs();
     await loadComponent('footer.html', 'footer-placeholder');
     window.dispatchEvent(new CustomEvent('footerLoaded'));
 
