@@ -206,16 +206,27 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
     const existing = document.getElementById('ui-toast');
     if (existing) existing.remove();
 
-    const colorMap = { success: 'bg-green-600', error: 'bg-red-600', warning: 'bg-yellow-500', info: 'bg-blue-600' };
-    const bg = colorMap[type] || 'bg-gray-700';
-
-    const toast = document.createElement('div');
-    toast.id = 'ui-toast';
-    toast.style.cssText = `position:fixed;top:70px;right:16px;z-index:9999;padding:8px 16px;border-radius:6px;color:#fff;font-size:14px;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.3s;`;
     const colors = { success: '#16a34a', error: '#dc2626', warning: '#d97706', info: '#2563eb' };
-    toast.style.backgroundColor = colors[type] || '#374151';
+    const toast  = document.createElement('div');
+    toast.id     = 'ui-toast';
+    Object.assign(toast.style, {
+        position:        'fixed',
+        top:             '72px',
+        right:           '16px',
+        zIndex:          '99999',
+        padding:         '10px 18px',
+        borderRadius:    '8px',
+        color:           '#fff',
+        fontSize:        '14px',
+        fontWeight:      '500',
+        boxShadow:       '0 4px 12px rgba(0,0,0,0.25)',
+        opacity:         '1',
+        transition:      'opacity 0.3s',
+        backgroundColor: colors[type] || '#374151',
+        pointerEvents:   'none',
+    });
     toast.textContent = message;
-    (document.body || document.documentElement).appendChild(toast);
-
+    const anchor = document.getElementById('header-placeholder') || document.body;
+    anchor.insertAdjacentElement('afterend', toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
 };
