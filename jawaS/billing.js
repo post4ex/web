@@ -70,7 +70,7 @@ function generateInvoicePrint(invoice, shipments, b2b, branch) {
     </tr>`).join('');
 
     const qrUrl = branchUpi
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${grandTotal.toFixed(2)}%26cu=INR`
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${grandTotal.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent('INV-' + invNum)}`
         : '';
 
     // Only show non-zero charge rows
@@ -95,8 +95,8 @@ function generateInvoicePrint(invoice, shipments, b2b, branch) {
     const css = `
         body{font-family:Arial,sans-serif;font-size:13px;line-height:1.5;color:#000;margin:0;padding:20px;background:#f5f5f5;}
         .invoice-box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15);}
-        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:15px;margin-bottom:20px;}
-        .logo{width:100px;height:100px;object-fit:contain;border-radius:4px;}
+        .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:15px;margin-bottom:20px;}
+        .logo{width:240px;height:120px;object-fit:contain;border-radius:4px;}
         .title-section{text-align:right;}
         .title-section h1{margin:0;font-size:28px;text-transform:uppercase;}
         .title-section p{margin:5px 0 0;font-size:13px;}
@@ -122,7 +122,7 @@ function generateInvoicePrint(invoice, shipments, b2b, branch) {
         .terms{font-size:11px;margin-bottom:40px;}
         .terms ol{margin:5px 0 0;padding-left:20px;}
         .signatory{text-align:right;font-weight:bold;}
-        .signatory-box{display:inline-block;text-align:center;}
+        .signatory-box{display:inline-block;text-align:center;min-width:200px;}
         @media print{
             @page{size:A4;margin:10mm;}
             body{background:#fff;padding:0;}
@@ -189,7 +189,7 @@ function generateInvoicePrint(invoice, shipments, b2b, branch) {
             <div class="payment-details">
                 ${branchUpi ? `<p><strong>Pay via UPI:</strong></p>
                 <img src="${qrUrl}" alt="UPI QR Code" style="width:120px;height:120px;margin:10px 0;border:1px solid #ddd;">
-                <p>Name: ${branchUpiName}<br>UPI ID: ${branchUpi}</p>` : ''}
+                <p>Name: ${branchUpiName}<br>UPI ID: ${branchUpi}<br><strong>Note/Comment:</strong> INV-${invNum}</p>` : ''}
                 ${branchBankAc ? `<p><strong>Bank Details:</strong><br>
                 A/C: ${branchBankAc}<br>IFSC: ${branchIfsc}<br>Bank: ${branchBankName}</p>` : ''}
                 <p><strong>Total Amount (in words):</strong><br>${amtWords}</p>
