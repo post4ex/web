@@ -55,10 +55,6 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
         throw new Error(json.message);
     }
 
-    if (MUTATING_ENDPOINTS.includes(endpoint)) {
-        setTimeout(() => verifyAndFetchAppData(true), 0);
-    }
-
     return json;
 }
 
@@ -173,6 +169,87 @@ async function verifyAndFetchAppData(force = false) {
             errorMsg += error.message || 'Unknown network error';
         }
         showNotification(errorMsg, 'error');
+    }
+}
+
+// --- SSE ---
+
+let _sseAbort = null;
+
+async function openSSE() {
+    const loginData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.LOGIN) || '{}');
+    const token = loginData.sessionId || '';
+    if (!token) return;
+
+    if (_sseAbort) _sseAbort.abort();
+    _sseAbort = new AbortController();
+
+    try {
+        const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/events`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal: _sseAbort.signal
+        });
+
+        if (!res.ok || !res.body) throw new Error('SSE connection failed');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop();
+
+            for (const part of parts) {
+                const line = part.trim();
+                if (!line.startsWith('data:')) continue;
+                try {
+                    const payload = JSON.parse(line.slice(5).trim());
+                    await _handleSSEMessage(payload);
+                } catch (e) {
+                    console.warn('[SSE] Parse error', e);
+                }
+            }
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.warn('[SSE] Disconnected, reconnecting...', e.message);
+    }
+
+    // reconnect after delay + full sync to catch up
+    setTimeout(async () => {
+        await verifyAndFetchAppData(true);
+        openSSE();
+    }, CONSTANTS.SSE_RECONNECT_DELAY);
+}
+
+async function _handleSSEMessage(payload) {
+    if (payload.type === 'heartbeat') {
+        lastActivity = Date.now();
+        return;
+    }
+
+    if (payload.type === 'system_status') {
+        // server will return 503 on next request if DEAD — no action needed here
+        return;
+    }
+
+    if (payload.type === 'delta') {
+        const { collection, action, key, data } = payload;
+        if (!window.appDB || !window.appDB.db) return;
+
+        if (action === 'upsert') {
+            await window.appDB.mergeSheet(collection, { [key]: data });
+        } else if (action === 'delete') {
+            await window.appDB.deleteRecord(collection, key);
+        }
+
+        const fullData = await getAppData();
+        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
     }
 }
 

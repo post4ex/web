@@ -55,6 +55,7 @@ const CONSTANTS = {
     PING_INTERVAL:      2 * 60 * 1000,
     IDLE_TIMEOUT:       2 * 60 * 60 * 1000,
     ACTIVITY_THROTTLE: 30 * 1000,
+    SSE_RECONNECT_DELAY: 3000,
 
     ALLOWED_DOMAINS: ['post4ex.github.io'],
 

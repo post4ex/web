@@ -203,9 +203,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
     if (loginData) {
-        verifyAndFetchAppData();
+        verifyAndFetchAppData().then(() => openSSE());
         initHeartbeat();
-        setInterval(() => verifyAndFetchAppData(false), CONSTANTS.SYNC_INTERVAL);
     }
 
     if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/')) {

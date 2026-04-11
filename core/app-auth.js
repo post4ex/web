@@ -18,7 +18,6 @@ function initHeartbeat() {
             handleLogout();
             return;
         }
-        callApi('/api/ping', {}, 'GET').catch(e => console.warn('[Session] Ping failed', e));
     }, CONSTANTS.PING_INTERVAL);
 }
 

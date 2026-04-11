@@ -201,6 +201,17 @@ class AppDatabase {
     });
   }
 
+  async deleteRecord(sheetName, key) {
+    if (!this.db) return;
+    const transaction = this.db.transaction([sheetName], 'readwrite');
+    const store = transaction.objectStore(sheetName);
+    return new Promise((resolve, reject) => {
+      const request = store.delete(key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async clearAll() {
     const sheets = [
       'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
