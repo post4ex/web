@@ -325,21 +325,9 @@ window.IndexedDBManager = null;
     window.IndexedDBManager = new IndexedDBManager(window.appDB);
     
     console.log('[IndexedDB] Database and Manager initialized successfully');
-    
-    // Dispatch custom event to notify other scripts
     window.dispatchEvent(new CustomEvent('indexedDBReady'));
-    
-    // Show success notification if available
-    if (window.showNotification) {
-      window.showNotification('✅ Database ready for offline storage', 'success');
-    }
   } catch (error) {
     console.error('[IndexedDB] Failed to initialize database:', error);
-    // Show error notification if available
-    if (window.showNotification) {
-      window.showNotification(`⚠️ Database initialization failed: ${error.message}`, 'error');
-    }
-    // Set to null to indicate failure
     window.appDB = null;
     window.IndexedDBManager = null;
   }
