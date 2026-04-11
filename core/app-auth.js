@@ -50,7 +50,7 @@ function checkLoginStatus() {
 
     if (isLoggedIn) {
         hide(['login-button', 'login-button-mobile', 'main-nav-public']);
-        show(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button', 'mobile-menu-toggle', 'notification-container-global', 'mobile-tools-section']);
+        show(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'mobile-menu-toggle', 'notification-container-global', 'mobile-tools-section']);
 
         const excludedFields = [
             'token', 'expires', 'userdata', 'pass', 'password', 'reset_token',
@@ -113,7 +113,7 @@ function checkLoginStatus() {
         populateDetails(document.getElementById('mobile-profile-details-container'), true);
     } else {
         show(['login-button', 'login-button-mobile', 'main-nav-public']);
-        hide(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'manual-refresh-button', 'notification-container-global', 'mobile-tools-section', 'mobile-menu-toggle']);
+        hide(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section', 'mobile-menu-toggle']);
     }
 
     setTimeout(() => {

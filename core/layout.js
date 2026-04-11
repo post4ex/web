@@ -121,18 +121,6 @@ function initializeUI() {
         if (ov) ov.addEventListener('click', toggleFn);
     }
 
-    const refBtn = document.getElementById('manual-refresh-button');
-    if (refBtn) {
-        refBtn.addEventListener('click', async () => {
-            const icon = document.getElementById('refresh-icon-static');
-            if (icon) icon.classList.add('animate-spin');
-            refBtn.disabled = true;
-            await verifyAndFetchAppData(true);
-            refBtn.disabled = false;
-            if (icon) icon.classList.remove('animate-spin');
-        });
-    }
-
     const setupClearAll = () => {
         const clearBtn = document.querySelector('#notification-dropdown button');
         if (clearBtn) {
@@ -141,7 +129,6 @@ function initializeUI() {
                 const badgeGlobal = document.getElementById('notification-badge-global');
                 if (list)        list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
                 if (badgeGlobal) { badgeGlobal.innerText = '0'; badgeGlobal.classList.add('hidden'); }
-                localStorage.removeItem(CONSTANTS.KEYS.NOTIFICATIONS);
             });
         }
     };

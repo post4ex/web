@@ -61,11 +61,8 @@ const CONSTANTS = {
 
     KEYS: {
         LOGIN:          'loginData',
-        DATA:           'appData',
-        LAST_SYNC:      'lastSyncTime',
         IP:             'clientIP',
-        SESSION_ACTIVE: 'SESSION_ACTIVE',
-        NOTIFICATIONS:  'sys_notifications'
+        SESSION_ACTIVE: 'SESSION_ACTIVE'
     }
 };
 window.CONSTANTS = CONSTANTS;

@@ -17,6 +17,7 @@ async function fetchClientIP() {
 }
 
 const MUTATING_ENDPOINTS = [
+    // kept for reference only — SSE broadcasts replace post-write sync
     '/api/bookOrder', '/api/updateOrder',
     '/api/writeB2B', '/api/deleteB2B', '/api/writeRateList', '/api/deleteRateList',
     '/api/writeB2B2C', '/api/updateB2B2C', '/api/deleteB2B2C',
@@ -63,7 +64,7 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
 
 // --- DATA ENGINE ---
 
-async function verifyAndFetchAppData(force = false) {
+async function verifyAndFetchAppData() {
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
     if (!loginData) return;
 
@@ -82,92 +83,47 @@ async function verifyAndFetchAppData(force = false) {
         }
     }
 
-    if (!force) {
-        try {
-            const lastSync = await window.appDB.getLastSyncTime();
-            if (lastSync && (Date.now() - parseInt(lastSync) < CONSTANTS.SYNC_INTERVAL)) return;
-        } catch (error) {
-            console.warn('[Data Engine] Failed to check last sync time:', error.message);
-        }
-    }
-
-    let lastSyncTime = '';
-    try {
-        lastSyncTime = force ? '' : (await window.appDB.getLastSyncTime() || '');
-    } catch (error) {
-        console.warn('[Data Engine] Failed to get sync timestamp:', error.message);
-    }
-
-    console.log(`[Data Engine] Syncing... Delta Mode: ${!!lastSyncTime}, Force: ${force}`);
     showNotification('🔄 Connecting to Server...', 'info');
 
     try {
-        const result = await callApi('/api/verifyAndFetchAppData', { lastSyncTime });
+        const result = await callApi('/api/verifyAndFetchAppData', {});
 
         if (result.status === 'success') {
             const incomingData = result.data || {};
-
             let syncErrors  = [];
             let successCount = 0;
-            const totalSheets = Object.keys(incomingData).length;
 
-            if (force || result.meta?.type === 'FULL') {
-                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                    try {
-                        await window.appDB.clearSheet(sheetName);
-                        if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
-                        successCount++;
-                    } catch (error) {
-                        syncErrors.push(`${sheetName}: ${error.message}`);
-                    }
-                }
-            } else {
-                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                    try {
-                        if (Object.keys(sheetData).length === 0) continue;
-                        await window.appDB.mergeSheet(sheetName, sheetData);
-                        successCount++;
-                    } catch (error) {
-                        syncErrors.push(`${sheetName}: ${error.message}`);
-                    }
+            for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+                try {
+                    await window.appDB.clearSheet(sheetName);
+                    if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
+                    successCount++;
+                } catch (error) {
+                    syncErrors.push(`${sheetName}: ${error.message}`);
                 }
             }
 
-            try {
-                await window.appDB.setLastSyncTime(result.syncTimestamp);
-            } catch (error) {
-                syncErrors.push(`Timestamp update: ${error.message}`);
-            }
-
-            // Always load full data from IndexedDB so UI renders existing data even on empty delta
             const fullData = await getAppData();
-            const eventType = force ? 'appDataRefreshed' : 'appDataLoaded';
-            window.dispatchEvent(new CustomEvent(eventType, { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
 
             if (syncErrors.length > 0) {
-                showNotification(`⚠️ Sync completed with errors:\n${successCount}/${totalSheets} collections synced\n\nErrors:\n${syncErrors.join('\n')}`, 'error');
+                showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
             } else if (successCount > 0) {
-                showNotification(`✅ Data Synced Successfully (${result.meta?.type || 'DELTA'}) - ${successCount} collections updated`, 'success');
+                showNotification(`✅ Data Synced (${successCount} collections)`, 'success');
             } else {
-                showNotification('ℹ️ No new data', 'info');
+                showNotification('ℹ️ No data', 'info');
             }
-
-            console.log('[Data Engine] Sync Complete.');
         } else {
-            showNotification(`❌ Server Error: ${result.message || 'Unknown error occurred'}`, 'error');
+            showNotification(`❌ Server Error: ${result.message || 'Unknown error'}`, 'error');
         }
     } catch (error) {
         console.error('[Data Engine] Sync Error:', error);
         let errorMsg = '❌ Sync Failed: ';
-        if (error.message.includes('Invalid Server Response')) {
-            errorMsg += 'Server configuration issue - Check deployment settings';
-        } else if (error.message.includes('Session expired')) {
-            errorMsg += 'Session expired - Please login again';
-        } else if (error.message.includes('Failed to fetch')) {
-            errorMsg += 'Network connection failed - Check internet connection';
-        } else {
-            errorMsg += error.message || 'Unknown network error';
-        }
+        if (error.message.includes('Invalid Server Response')) errorMsg += 'Server configuration issue';
+        else if (error.message.includes('Session expired'))    errorMsg += 'Session expired - Please login again';
+        else if (error.message.includes('Failed to fetch'))    errorMsg += 'Network connection failed';
+        else errorMsg += error.message || 'Unknown error';
         showNotification(errorMsg, 'error');
     }
 }
@@ -222,7 +178,7 @@ async function openSSE() {
 
     // reconnect after delay + full sync to catch up
     setTimeout(async () => {
-        await verifyAndFetchAppData(true);
+        await verifyAndFetchAppData();
         openSSE();
     }, CONSTANTS.SSE_RECONNECT_DELAY);
 }
