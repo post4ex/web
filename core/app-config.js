@@ -94,6 +94,7 @@ const PAGE_CONFIG = {
     'task.html':         'CLIENT',
 
     'Shipments.html':    'CLIENT',
+    'BookOrder.html':    'CLIENT',
     'AssignCarrier.html':'STAFF',
     'OutMenifest.html':  'CLIENT',
     'InMenifest.html':   'CLIENT',
@@ -132,7 +133,7 @@ const PAGE_CONFIG = {
     'Mode.html':         'MASTER',
     'Carrier.html':      'MASTER',
     'B2B.html':          'MASTER',
-    'B2B2C.html':        'MASTER',
+    'B2B2C.html':        'CLIENT',
     'Staff.html':        'MASTER',
     'Stock.html':        'MASTER',
 };
