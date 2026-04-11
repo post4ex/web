@@ -212,9 +212,19 @@ async function loadNotificationsFromStorage() {
     }
 }
 
-// showNotification — for local UI feedback (sync messages, errors etc.) — NOT saved to PB
+// showNotification — UI toast only, NOT saved to PB or IndexedDB, does NOT touch the bell
 window.showNotification = function (message, type = 'info') {
-    const timestamp = fmtDate(new Date(), 'full');
-    const id        = 'LOCAL-' + Date.now().toString();
-    renderNotificationItem({ NOTIF_ID: id, MESSAGE: message, LEVEL: type, TIMESTAMP: Date.now(), READ: 'N' }, true);
+    const existing = document.getElementById('ui-toast');
+    if (existing) existing.remove();
+
+    const colorMap = { success: 'bg-green-600', error: 'bg-red-600', warning: 'bg-yellow-500', info: 'bg-blue-600' };
+    const bg = colorMap[type] || 'bg-gray-700';
+
+    const toast = document.createElement('div');
+    toast.id = 'ui-toast';
+    toast.className = `fixed bottom-4 right-4 z-[70] px-4 py-2 rounded shadow-lg text-white text-sm font-medium transition-opacity duration-300 ${bg}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 };
