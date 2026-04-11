@@ -120,9 +120,11 @@ function renderNotificationItem(notif, showToast = false) {
         }
     });
 
-    item.appendChild(contentArea);
-
-    const btnWrap = document.createElement('div');
+    const loginData  = JSON.parse(localStorage.getItem('loginData') || '{}');
+    const userRole   = loginData?.userData?.ROLE || 'GUEST';
+    const userLevel  = (window.ROLE_LEVELS || {})[userRole] || 0;
+    const isAdmin    = userLevel >= ((window.ROLE_LEVELS || {})['ADMIN'] || 90);
+    const canDismiss = !isCritical || isAdmin;
     btnWrap.className = 'flex flex-col gap-1 flex-shrink-0';
 
     if (!isRead) {
@@ -143,7 +145,7 @@ function renderNotificationItem(notif, showToast = false) {
         btnWrap.appendChild(readBtn);
     }
 
-    if (!isCritical) {
+    if (canDismiss) {
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition';
         deleteBtn.title = 'Dismiss';
