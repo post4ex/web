@@ -189,6 +189,24 @@ async function _handleSSEMessage(payload) {
         return;
     }
 
+    if (payload.type === 'notif_count') {
+        const badge = document.getElementById('notification-badge-global');
+        if (badge && payload.unread > 0) {
+            badge.innerText = payload.unread;
+            badge.classList.remove('hidden');
+        }
+        return;
+    }
+
+    if (payload.type === 'notification') {
+        if (!window.appDB || !window.appDB.db) return;
+        const notif = { ...payload };
+        delete notif.type;
+        await window.appDB.mergeSheet('NOTIFICATIONS', { [notif.NOTIF_ID]: notif });
+        renderNotificationItem(notif, true);
+        return;
+    }
+
     if (payload.type === 'system_status') {
         // server will return 503 on next request if DEAD — no action needed here
         return;

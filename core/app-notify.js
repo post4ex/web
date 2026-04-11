@@ -1,5 +1,5 @@
 // ============================================================================
-// APP-NOTIFY.JS — Notification System
+// APP-NOTIFY.JS — Notification System (IndexedDB backed)
 // ============================================================================
 
 function createNotificationModal() {
@@ -9,7 +9,7 @@ function createNotificationModal() {
     <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300">
             <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-                <h3 class="font-bold text-gray-800" id="notif-modal-title">System Notification</h3>
+                <h3 class="font-bold text-gray-800" id="notif-modal-title">Notification</h3>
                 <button id="notif-modal-close" class="text-gray-500 hover:text-red-500 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -38,16 +38,16 @@ function createNotificationModal() {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeActions(); });
 }
 
-function openNotificationModal(message, type, timestamp) {
+function openNotificationModal(message, level, timestamp) {
     const modal = document.getElementById('notification-modal');
     if (!modal) return;
 
-    const iconMap  = { success: '✅', error: '⚠️', info: 'ℹ️' };
-    const titleMap = { success: 'Success', error: 'Error Alert', info: 'Information' };
+    const iconMap  = { INFO: 'ℹ️', WARNING: '⚠️', ERROR: '❌', CRITICAL: '🚨', success: '✅', error: '⚠️', info: 'ℹ️' };
+    const titleMap = { INFO: 'Information', WARNING: 'Warning', ERROR: 'Error', CRITICAL: 'Critical Alert', success: 'Success', error: 'Error', info: 'Information' };
 
-    document.getElementById('notif-modal-title').textContent   = titleMap[type] || 'Notification';
+    document.getElementById('notif-modal-title').textContent   = titleMap[level] || 'Notification';
     document.getElementById('notif-modal-content').textContent = message;
-    document.getElementById('notif-modal-icon').textContent    = iconMap[type]  || 'ℹ️';
+    document.getElementById('notif-modal-icon').textContent    = iconMap[level]  || 'ℹ️';
     document.getElementById('notif-modal-time').textContent    = timestamp || fmtDate(new Date(), 'full');
 
     modal.classList.remove('hidden');
@@ -57,7 +57,30 @@ function openNotificationModal(message, type, timestamp) {
     }, 10);
 }
 
-function renderNotificationItem(id, message, type, timestamp, showToast = false) {
+function _levelColor(level) {
+    if (level === 'ERROR' || level === 'error')    return 'text-red-600';
+    if (level === 'CRITICAL')                       return 'text-red-800';
+    if (level === 'WARNING' || level === 'warning') return 'text-yellow-600';
+    if (level === 'success')                        return 'text-green-600';
+    return 'text-gray-700';
+}
+
+function _levelIcon(level) {
+    if (level === 'ERROR' || level === 'error')    return '❌';
+    if (level === 'CRITICAL')                       return '🚨';
+    if (level === 'WARNING' || level === 'warning') return '⚠️';
+    if (level === 'success')                        return '✅';
+    return 'ℹ️';
+}
+
+function renderNotificationItem(notif, showToast = false) {
+    const { NOTIF_ID, MESSAGE, LEVEL, TIMESTAMP, READ } = notif;
+    const id        = NOTIF_ID || notif.id || Date.now().toString();
+    const message   = MESSAGE  || notif.message || '';
+    const level     = LEVEL    || notif.type    || 'INFO';
+    const timestamp = TIMESTAMP ? fmtDate(TIMESTAMP, 'full') : (notif.timestamp || '');
+    const isCritical = level === 'CRITICAL';
+
     const badgeGlobal = document.getElementById('notification-badge-global');
     const listGlobal  = document.getElementById('notification-list-global');
 
@@ -73,85 +96,97 @@ function renderNotificationItem(id, message, type, timestamp, showToast = false)
         listGlobal.innerHTML = '';
     }
 
-    const icon       = type === 'error' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️');
-    const colorClass = type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-700');
-
     const item = document.createElement('div');
-    item.className = `group p-3 border-b text-sm hover:bg-gray-50 flex items-start gap-3 transition-colors ${colorClass} relative`;
+    item.className = `group p-3 border-b text-sm hover:bg-gray-50 flex items-start gap-3 transition-colors ${_levelColor(level)} relative`;
     item.setAttribute('data-id', id);
 
     const contentArea = document.createElement('div');
     contentArea.className = 'flex-1 cursor-pointer';
     contentArea.innerHTML = `
         <div class="flex items-center gap-2 mb-1">
-            <span class="text-base">${icon}</span>
+            <span class="text-base">${_levelIcon(level)}</span>
             <span class="font-semibold text-xs opacity-75">${timestamp}</span>
+            ${isCritical ? '<span class="text-xs bg-red-100 text-red-700 px-1 rounded">CRITICAL</span>' : ''}
         </div>
         <p class="leading-snug line-clamp-2 text-gray-800">${message}</p>`;
-    contentArea.addEventListener('click', () => openNotificationModal(message, type, timestamp));
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 transition opacity-0 group-hover:opacity-100';
-    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
-    deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        removeNotification(id, item, badgeGlobal);
+    contentArea.addEventListener('click', async () => {
+        openNotificationModal(message, level, timestamp);
+        if (READ !== 'Y') {
+            await callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
+            if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, READ: 'Y' } });
+        }
     });
 
     item.appendChild(contentArea);
-    item.appendChild(deleteBtn);
+
+    // delete button — not for CRITICAL
+    if (!isCritical) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 transition opacity-0 group-hover:opacity-100';
+        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
+        deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await callApi('/api/notifclear', { notif_ids: [id] }).catch(() => {});
+            if (window.appDB) await window.appDB.deleteRecord('NOTIFICATIONS', id);
+            item.remove();
+            _updateBadge();
+        });
+        item.appendChild(deleteBtn);
+    }
+
     listGlobal.prepend(item);
 }
 
-function removeNotification(id, element, badge) {
-    if (element) element.remove();
-
-    const stored  = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.NOTIFICATIONS) || '[]');
-    const updated = stored.filter(n => n.id !== id);
-    localStorage.setItem(CONSTANTS.KEYS.NOTIFICATIONS, JSON.stringify(updated));
-
-    if (badge && parseInt(badge.innerText) > 0) {
-        badge.innerText = updated.length;
-        if (updated.length === 0) {
-            badge.classList.add('hidden');
-            const list = document.getElementById('notification-list-global');
-            if (list) list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
-        }
+function _updateBadge() {
+    const listGlobal  = document.getElementById('notification-list-global');
+    const badgeGlobal = document.getElementById('notification-badge-global');
+    if (!listGlobal || !badgeGlobal) return;
+    const count = listGlobal.children.length;
+    if (count === 0) {
+        listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
+        badgeGlobal.classList.add('hidden');
+    } else {
+        badgeGlobal.innerText = count;
     }
 }
 
-function loadNotificationsFromStorage() {
-    const stored      = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.NOTIFICATIONS) || '[]');
+async function loadNotificationsFromStorage() {
     const listGlobal  = document.getElementById('notification-list-global');
     const badgeGlobal = document.getElementById('notification-badge-global');
-
     if (!listGlobal) return;
 
     listGlobal.innerHTML = '';
 
-    if (stored.length === 0) {
+    if (!window.appDB || !window.appDB.db) {
         listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
-        if (badgeGlobal) badgeGlobal.classList.add('hidden');
         return;
     }
 
-    stored.slice().reverse().forEach(n => renderNotificationItem(n.id, n.message, n.type, n.timestamp, false));
+    try {
+        const all = await window.appDB.getSheet('NOTIFICATIONS');
+        const notifs = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
 
-    if (badgeGlobal) {
-        badgeGlobal.innerText = stored.length;
-        badgeGlobal.classList.remove('hidden');
+        if (!notifs.length) {
+            listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
+            if (badgeGlobal) badgeGlobal.classList.add('hidden');
+            return;
+        }
+
+        notifs.forEach(n => renderNotificationItem(n, false));
+
+        const unread = notifs.filter(n => n.READ !== 'Y').length;
+        if (badgeGlobal) {
+            if (unread > 0) { badgeGlobal.innerText = unread; badgeGlobal.classList.remove('hidden'); }
+            else badgeGlobal.classList.add('hidden');
+        }
+    } catch (e) {
+        listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
     }
 }
 
+// showNotification — for local UI feedback (sync messages, errors etc.) — NOT saved to PB
 window.showNotification = function (message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const id        = Date.now().toString();
-    const notifObj  = { id, message, type, timestamp };
-
-    const stored = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.NOTIFICATIONS) || '[]');
-    stored.push(notifObj);
-    if (stored.length > 20) stored.shift();
-    localStorage.setItem(CONSTANTS.KEYS.NOTIFICATIONS, JSON.stringify(stored));
-
-    renderNotificationItem(id, message, type, timestamp, true);
+    const timestamp = fmtDate(new Date(), 'full');
+    const id        = 'LOCAL-' + Date.now().toString();
+    renderNotificationItem({ NOTIF_ID: id, MESSAGE: message, LEVEL: type, TIMESTAMP: Date.now(), READ: 'N' }, true);
 };
