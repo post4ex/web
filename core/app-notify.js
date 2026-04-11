@@ -121,10 +121,34 @@ function renderNotificationItem(notif, showToast = false) {
 
     item.appendChild(contentArea);
 
-    // delete button — not for CRITICAL
+    // action buttons — always visible, right side
+    const btnWrap = document.createElement('div');
+    btnWrap.className = 'flex flex-col gap-1 flex-shrink-0';
+
+    // mark-read button — envelope open icon, only shown when unread
+    if (READ !== 'Y') {
+        const readBtn = document.createElement('button');
+        readBtn.className = 'text-blue-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition';
+        readBtn.title = 'Mark as read';
+        readBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>`;
+        readBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
+            if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, READ: 'Y' } });
+            readBtn.remove();
+            item.style.background = '';
+            const dot = contentArea.querySelector('.bg-blue-500');
+            if (dot) dot.remove();
+            _updateBadge();
+        });
+        btnWrap.appendChild(readBtn);
+    }
+
+    // delete button — X icon, not for CRITICAL
     if (!isCritical) {
         const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 transition opacity-0 group-hover:opacity-100';
+        deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition';
+        deleteBtn.title = 'Delete';
         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
         deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -133,8 +157,10 @@ function renderNotificationItem(notif, showToast = false) {
             item.remove();
             _updateBadge();
         });
-        item.appendChild(deleteBtn);
+        btnWrap.appendChild(deleteBtn);
     }
+
+    item.appendChild(btnWrap);
 
     listGlobal.prepend(item);
 }

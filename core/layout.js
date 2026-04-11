@@ -230,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const existing = await getAppData();
         const hasData  = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
         if (!hasData) await verifyAndFetchAppData();
+        else if (typeof loadNotificationsFromStorage === 'function') await loadNotificationsFromStorage();
         openSSE();
         initHeartbeat();
     }

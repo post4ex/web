@@ -114,7 +114,6 @@ async function verifyAndFetchAppData() {
             try {
                 const notifResult = await callApi('/api/fetchNotifications', {}, 'GET');
                 if (notifResult.status === 'success' && window.appDB) {
-                    await window.appDB.clearSheet('NOTIFICATIONS');
                     if (Object.keys(notifResult.data).length > 0)
                         await window.appDB.putSheet('NOTIFICATIONS', notifResult.data);
                     if (typeof loadNotificationsFromStorage === 'function')
