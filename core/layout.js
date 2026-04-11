@@ -173,7 +173,7 @@ function initializeUI() {
     setupNotifActions();
     window.addEventListener('footerLoaded', () => {
         setupNotifActions();
-        _loadNotifs();
+        if (localStorage.getItem(CONSTANTS.KEYS.LOGIN)) _loadNotifs();
     });
 
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));

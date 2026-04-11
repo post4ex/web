@@ -183,16 +183,14 @@ async function loadNotificationsFromStorage() {
     const badgeGlobal = document.getElementById('notification-badge-global');
     if (!listGlobal) return;
 
-    listGlobal.innerHTML = '';
-
-    if (!window.appDB || !window.appDB.db) {
-        listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
-        return;
-    }
+    if (!window.appDB || !window.appDB.db) return;
 
     try {
-        const all = await window.appDB.getSheet('NOTIFICATIONS');
+        const all    = await window.appDB.getSheet('NOTIFICATIONS');
         const notifs = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
+
+        // only wipe and re-render once we have confirmed data state
+        listGlobal.innerHTML = '';
 
         if (!notifs.length) {
             listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
@@ -208,7 +206,7 @@ async function loadNotificationsFromStorage() {
             else badgeGlobal.classList.add('hidden');
         }
     } catch (e) {
-        listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
+        console.warn('[Notif] Failed to load from storage:', e);
     }
 }
 
