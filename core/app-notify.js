@@ -211,9 +211,11 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
 
     const toast = document.createElement('div');
     toast.id = 'ui-toast';
-    toast.className = `fixed top-20 right-4 z-[70] px-4 py-2 rounded shadow-lg text-white text-sm font-medium transition-opacity duration-300 ${bg}`;
+    toast.style.cssText = `position:fixed;top:70px;right:16px;z-index:9999;padding:8px 16px;border-radius:6px;color:#fff;font-size:14px;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.3s;`;
+    const colors = { success: '#16a34a', error: '#dc2626', warning: '#d97706', info: '#2563eb' };
+    toast.style.backgroundColor = colors[type] || '#374151';
     toast.textContent = message;
-    document.body.appendChild(toast);
+    (document.body || document.documentElement).appendChild(toast);
 
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
 };
