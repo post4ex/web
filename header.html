@@ -53,12 +53,6 @@
 
             <!-- Desktop Only Tools (Refresh, Search, Profile) -->
             <div class="hidden xl:flex items-center space-x-4">
-                <button id="manual-refresh-button" class="p-2 rounded-full bg-red-100 transition-colors hidden w-9 h-9 flex items-center justify-center flex-shrink-0" title="Refresh Data" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
-                    <svg id="refresh-icon-static" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-                    </svg>
-                </button>
-
                 <a id="nav-search-private" href="search.html" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                 </a>
@@ -98,12 +92,6 @@
             <!-- Mobile System Tools -->
             <div id="mobile-tools-section" class="hidden mt-2 pt-2 border-t text-sm">
                 <div class="px-4 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">System</div>
-                <button id="mobile-refresh-button" class="w-full text-left px-4 py-2 text-blue-900 hover:bg-blue-50 transition-colors flex items-center gap-2">
-                    <svg class="h-5 w-5 text-blue-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M4 9a9 9 0 0115.12-4.38M20 20v-5h-5M20 15a9 9 0 01-15.12 4.38" />
-                    </svg>
-                    <span>Refresh Data</span>
-                </button>
             </div>
 
             <div class="mt-2 pt-2 border-t">
@@ -356,16 +344,7 @@
             });
         }
         
-        // 3. Setup Mobile Refresh
-        const mobileRefresh = document.getElementById('mobile-refresh-button');
-        const desktopRefresh = document.getElementById('manual-refresh-button');
-        if (mobileRefresh && desktopRefresh) {
-            mobileRefresh.addEventListener('click', () => {
-                desktopRefresh.click();
-                const menu = document.getElementById('dropdownMenu');
-                if (menu) menu.classList.add('hidden');
-            });
-        }
+        // 3. Setup Mobile Refresh removed — SSE handles live updates
         
         const checkMobileTools = () => {
             if (localStorage.getItem('loginData')) {
