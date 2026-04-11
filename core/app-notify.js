@@ -189,15 +189,10 @@ async function loadNotificationsFromStorage() {
         const all    = await window.appDB.getSheet('NOTIFICATIONS');
         const notifs = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
 
-        // only wipe and re-render once we have confirmed data state
+        if (!notifs.length) return; // nothing to show — keep existing list as-is
+
+        // only wipe and re-render once we have actual data
         listGlobal.innerHTML = '';
-
-        if (!notifs.length) {
-            listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
-            if (badgeGlobal) badgeGlobal.classList.add('hidden');
-            return;
-        }
-
         notifs.forEach(n => renderNotificationItem(n, false));
 
         const unread = notifs.filter(n => n.READ !== 'Y').length;

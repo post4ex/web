@@ -214,8 +214,7 @@ async function _handleSSEMessage(payload) {
 
     if (payload.type === 'notification') {
         if (!window.appDB || !window.appDB.db) return;
-        const notif = { ...payload };
-        delete notif.type;
+        const notif = { ...payload.data };
         await window.appDB.mergeSheet('NOTIFICATIONS', { [notif.NOTIF_ID]: notif });
         renderNotificationItem(notif, true);
         return;
