@@ -202,7 +202,7 @@ async function loadNotificationsFromStorage() {
 }
 
 // showNotification — UI toast only, NOT saved to PB or IndexedDB, does NOT touch the bell
-window.showNotification = function (message, type = 'info') {
+window.showNotification = function (message, type = 'info', duration = 3000) {
     const existing = document.getElementById('ui-toast');
     if (existing) existing.remove();
 
@@ -215,5 +215,5 @@ window.showNotification = function (message, type = 'info') {
     toast.textContent = message;
     document.body.appendChild(toast);
 
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
 };

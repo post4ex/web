@@ -119,7 +119,11 @@ async function verifyAndFetchAppData() {
                 }
             } catch (_) {}
 
-            if (syncErrors.length > 0) showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
+            if (syncErrors.length > 0) {
+                showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
+            } else {
+                showNotification(`✅ Synced`, 'success', 1500);
+            }
 
         } else {
             showNotification(`❌ Server Error: ${result.message || 'Unknown error'}`, 'error');
