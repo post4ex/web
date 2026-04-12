@@ -99,7 +99,13 @@ async function loadFromIndexedDB() {
         if (appData && appData.ORDERS && Object.keys(appData.ORDERS).length > 0) {
             initializePageWithData(appData);
         } else {
-            ui.statusMessage.textContent = 'No data yet — syncing...';
+            // data not in IndexedDB yet — wait for sync to complete
+            ui.statusMessage.textContent = 'Syncing...';
+            await new Promise(resolve => {
+                window.addEventListener('appDataLoaded', e => { initializePageWithData(e.detail.data); resolve(); }, { once: true });
+                window.addEventListener('appDataRefreshed', e => { initializePageWithData(e.detail.data); resolve(); }, { once: true });
+                setTimeout(resolve, 15000); // fallback timeout
+            });
         }
     } catch (err) {
         ui.statusMessage.textContent = 'Error loading data.';

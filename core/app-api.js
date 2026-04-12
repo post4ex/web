@@ -196,11 +196,8 @@ async function openSSE() {
         console.warn('[SSE] Disconnected, reconnecting...', e.message);
     }
 
-    // reconnect after delay + full sync to catch up
-    setTimeout(async () => {
-        await verifyAndFetchAppData();
-        openSSE();
-    }, CONSTANTS.SSE_RECONNECT_DELAY);
+    // reconnect after delay — keep-alive handles continuity, no full sync needed
+    setTimeout(() => openSSE(), CONSTANTS.SSE_RECONNECT_DELAY);
 }
 
 async function _handleSSEMessage(payload) {
