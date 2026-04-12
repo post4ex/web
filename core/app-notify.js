@@ -161,6 +161,7 @@ function renderNotificationItem(notif, showToast = false) {
         btnWrap.appendChild(deleteBtn);
     }
 
+    item.appendChild(contentArea);
     item.appendChild(btnWrap);
     listGlobal.prepend(item);
 }
@@ -169,13 +170,37 @@ function _updateBadge() {
     const listGlobal  = document.getElementById('notification-list-global');
     const badgeGlobal = document.getElementById('notification-badge-global');
     if (!listGlobal || !badgeGlobal) return;
-    const count = listGlobal.children.length;
-    if (count === 0) {
+    if (listGlobal.children.length === 0) {
         listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
         badgeGlobal.classList.add('hidden');
-    } else {
-        badgeGlobal.innerText = count;
+        return;
     }
+    const unread = listGlobal.querySelectorAll('.bg-blue-500').length;
+    if (unread > 0) { badgeGlobal.innerText = unread; badgeGlobal.classList.remove('hidden'); }
+    else badgeGlobal.classList.add('hidden');
+}
+
+function setupNotificationActions() {
+    document.getElementById('notif-mark-all-read')?.addEventListener('click', async () => {
+        await callApi('/api/notifread', { all: true }).catch(() => {});
+        if (window.appDB) {
+            const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
+            const updates = {};
+            Object.entries(all).forEach(([k, v]) => { updates[k] = { ...v, IS_READ: true }; });
+            if (Object.keys(updates).length) await window.appDB.mergeSheet('NOTIFICATIONS', updates);
+        }
+        document.getElementById('notification-list-global')?.querySelectorAll('.bg-blue-500').forEach(dot => dot.remove());
+        document.getElementById('notification-list-global')?.querySelectorAll('[data-id]').forEach(item => item.style.background = '');
+        _updateBadge();
+    });
+
+    document.getElementById('notif-clear-all')?.addEventListener('click', async () => {
+        await callApi('/api/notifclear', { all: true }).catch(() => {});
+        if (window.appDB) await window.appDB.clearSheet('NOTIFICATIONS').catch(() => {});
+        const list = document.getElementById('notification-list-global');
+        if (list) list.innerHTML = '';
+        _updateBadge();
+    });
 }
 
 async function loadNotificationsFromStorage() {

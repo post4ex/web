@@ -347,7 +347,10 @@
             });
         }
         
-        // 3. Setup Mobile Refresh removed — SSE handles live updates
+        // 3. Setup notification action buttons
+        if (typeof setupNotificationActions === 'function') setupNotificationActions();
+
+        // 4. Setup Mobile Refresh removed — SSE handles live updates
         
         const checkMobileTools = () => {
             if (localStorage.getItem('loginData')) {
