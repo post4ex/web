@@ -112,6 +112,7 @@ async function verifyAndFetchAppData() {
             // store sync window start for reference
             if (result.meta?.sync_from_ms && window.appDB)
                 await window.appDB.setMetadata('syncFromMs', result.meta.sync_from_ms).catch(() => {});
+            await window.appDB.setMetadata('lastSyncTime', Date.now()).catch(() => {});
 
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));

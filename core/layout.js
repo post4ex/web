@@ -227,13 +227,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
     if (loginData) {
-        const existing = await getAppData();
-        const hasData  = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
+        const existing    = await getAppData();
+        const hasData     = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
+        const lastSync    = await window.appDB.getMetadata('lastSyncTime').catch(() => null);
+        const staleAfter  = 5 * 60 * 1000; // 5 minutes
+        const isStale     = !lastSync || (Date.now() - lastSync) > staleAfter;
+
         if (!hasData) {
             await verifyAndFetchAppData();
         } else {
             if (typeof loadNotificationsFromStorage === 'function') await loadNotificationsFromStorage();
-            verifyAndFetchAppData().catch(() => {}); // background refresh
+            if (isStale) verifyAndFetchAppData().catch(() => {}); // background refresh only if stale
         }
         openSSE();
         initHeartbeat();
