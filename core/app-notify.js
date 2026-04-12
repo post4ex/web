@@ -125,6 +125,7 @@ function renderNotificationItem(notif, showToast = false) {
     const userLevel  = (window.ROLE_LEVELS || {})[userRole] || 0;
     const isAdmin    = userLevel >= ((window.ROLE_LEVELS || {})['ADMIN'] || 90);
     const canDismiss = !isCritical || isAdmin;
+    const btnWrap    = document.createElement('div');
     btnWrap.className = 'flex flex-col gap-1 flex-shrink-0';
 
     if (!isRead) {

@@ -91,18 +91,27 @@ async function verifyAndFetchAppData() {
 
         if (result.status === 'success') {
             const incomingData = result.data || {};
+            const noTimeFilter = new Set(CONSTANTS.SYNC_NO_TIME_FILTER || []);
             let syncErrors  = [];
             let successCount = 0;
 
             for (const [sheetName, sheetData] of Object.entries(incomingData)) {
                 try {
-                    await window.appDB.clearSheet(sheetName);
+                    if (noTimeFilter.has(sheetName)) {
+                        // full sync collections — safe to wipe and replace
+                        await window.appDB.clearSheet(sheetName);
+                    }
+                    // time-filtered collections — putSheet only (merge, preserve business year data)
                     if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
                     successCount++;
                 } catch (error) {
                     syncErrors.push(`${sheetName}: ${error.message}`);
                 }
             }
+
+            // store sync window start for reference
+            if (result.meta?.sync_from_ms && window.appDB)
+                await window.appDB.setMetadata('syncFromMs', result.meta.sync_from_ms).catch(() => {});
 
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
@@ -234,6 +243,35 @@ async function _handleSSEMessage(payload) {
 
         const fullData = await getAppData();
         window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+    }
+}
+
+async function fetchBusinessYearData(fyYear = null) {
+    if (!window.appDB || !window.appDB.db) return;
+    try {
+        const payload = fyYear !== null ? { fy_year: fyYear } : {};
+        const result  = await callApi('/api/fetchBusinessYear', payload);
+
+        if (result.status === 'already_synced' || result.status === 'error') {
+            showNotification('ℹ️ Data already synced for this period', 'info');
+            return;
+        }
+
+        const incomingData = result.data || {};
+        for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+            if (Object.keys(sheetData).length > 0)
+                await window.appDB.putSheet(sheetName, sheetData);
+        }
+
+        // update sync boundary to include business year data
+        if (result.from_ms && window.appDB)
+            await window.appDB.setMetadata('syncFromMs', result.from_ms).catch(() => {});
+
+        const fullData = await getAppData();
+        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+        showNotification(`✅ ${result.fy_label} loaded`, 'success', 2000);
+    } catch (error) {
+        showNotification(`❌ Failed to load business year: ${error.message}`, 'error');
     }
 }
 

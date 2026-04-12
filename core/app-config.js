@@ -59,6 +59,18 @@ const CONSTANTS = {
 
     ALLOWED_DOMAINS: ['post4ex.github.io', 'huggingface.co', 'hf.space'],
 
+    SYNC_MONTHS: {
+        'MASTER': 12, 'ADMIN': 12, 'AUDITOR': 12, 'ACCOUNTANT': 12,
+        'MANAGER': 9, 'STAFF': 6, 'CLIENT': 3, 'GUEST': 0
+    },
+
+    SYNC_FY_YEARS: {
+        'MASTER': null, 'ADMIN': null, 'AUDITOR': null,
+        'ACCOUNTANT': 2, 'MANAGER': 1, 'STAFF': 1, 'CLIENT': 1, 'GUEST': 0
+    },
+
+    SYNC_NO_TIME_FILTER: ['BRANCHES', 'MODES', 'CARRIERS', 'RATES', 'B2B', 'B2B2C'],
+
     KEYS: {
         LOGIN:          'loginData',
         IP:             'clientIP',
