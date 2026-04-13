@@ -350,7 +350,7 @@
         // 3. Setup Mobile Refresh removed — SSE handles live updates
         
         const checkMobileTools = () => {
-            if (isLoggedIn()) {
+            if (localStorage.getItem('loginData')) {
                 const tools = document.getElementById('mobile-tools-section');
                 const globalNotif = document.getElementById('notification-container-global');
                 
