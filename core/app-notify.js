@@ -180,6 +180,101 @@ function _updateBadge() {
 }
 
 // ============================================================================
+// FILE PREVIEW MODAL — global, works for any /api/file/... proxy URL
+// Usage: previewFile('/api/file/POD/xxx.jpg', 'POD Receipt')
+// ============================================================================
+
+function _createFilePreviewModal() {
+    if (document.getElementById('file-preview-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="file-preview-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl flex flex-col" style="max-height:90vh">
+            <div class="p-3 border-b flex justify-between items-center bg-gray-50 flex-shrink-0">
+                <span id="file-preview-title" class="font-semibold text-gray-700 text-sm truncate"></span>
+                <div class="flex items-center gap-2">
+                    <button id="file-preview-download" class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Download</button>
+                    <button id="file-preview-close" class="text-gray-500 hover:text-red-500 p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="file-preview-body" class="flex-1 overflow-auto flex items-center justify-center p-2 min-h-0" style="background:#f3f4f6">
+                <p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>
+            </div>
+        </div>
+    </div>`);
+
+    const modal    = document.getElementById('file-preview-modal');
+    const closeBtn = document.getElementById('file-preview-close');
+    const dlBtn    = document.getElementById('file-preview-download');
+
+    const close = () => {
+        modal.classList.add('hidden');
+        // revoke any blob URLs to free memory
+        const img    = document.getElementById('file-preview-img');
+        const iframe = document.getElementById('file-preview-iframe');
+        if (img    && img.src.startsWith('blob:'))    URL.revokeObjectURL(img.src);
+        if (iframe && iframe.src.startsWith('blob:')) URL.revokeObjectURL(iframe.src);
+        document.getElementById('file-preview-body').innerHTML = '<p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>';
+        dlBtn._blobUrl = null;
+    };
+
+    closeBtn.addEventListener('click', close);
+    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+    dlBtn.addEventListener('click', () => {
+        if (!dlBtn._blobUrl) return;
+        const a = document.createElement('a');
+        a.href     = dlBtn._blobUrl;
+        a.download = dlBtn._filename || 'file';
+        a.click();
+    });
+}
+
+window.previewFile = async function (filePath, title = '') {
+    _createFilePreviewModal();
+
+    const modal   = document.getElementById('file-preview-modal');
+    const body    = document.getElementById('file-preview-body');
+    const titleEl = document.getElementById('file-preview-title');
+    const dlBtn   = document.getElementById('file-preview-download');
+
+    titleEl.textContent = title || filePath.split('/').pop();
+    body.innerHTML = '<p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>';
+    modal.classList.remove('hidden');
+
+    try {
+        // data: URLs are already local — no fetch needed
+        const isDataUrl = filePath.startsWith('data:');
+        const blobUrl   = isDataUrl ? filePath : await fetchFileUrl(filePath);
+        const filename  = isDataUrl ? (title || 'file') : filePath.split('/').pop();
+        const isPdf     = filename.toLowerCase().endsWith('.pdf') ||
+                          (isDataUrl && filePath.startsWith('data:application/pdf'));
+
+        dlBtn._blobUrl  = blobUrl;
+        dlBtn._filename = filename;
+
+        body.innerHTML = '';
+        if (isPdf) {
+            const iframe = document.createElement('iframe');
+            iframe.id    = 'file-preview-iframe';
+            iframe.src   = blobUrl;
+            iframe.style.cssText = 'width:100%;height:75vh;border:none;';
+            body.appendChild(iframe);
+        } else {
+            const img  = document.createElement('img');
+            img.id     = 'file-preview-img';
+            img.src    = blobUrl;
+            img.style.cssText = 'max-width:100%;max-height:75vh;object-fit:contain;';
+            body.appendChild(img);
+        }
+    } catch (e) {
+        body.innerHTML = `<p class="text-red-500 text-sm">Failed to load file: ${e.message}</p>`;
+    }
+};
+
+// ============================================================================
 // NOTIFICATION ACTIONS — full ownership here, layout.js just calls initNotifications()
 // ============================================================================
 
