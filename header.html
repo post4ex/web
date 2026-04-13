@@ -134,7 +134,11 @@
     };
 
     function getUserLevel() {
-        return (NAV_ROLE_LEVELS[getUser().ROLE] || 0);
+        try {
+            const d = JSON.parse(localStorage.getItem('loginData') || '{}');
+            const role = (d.userData || {}).ROLE || 'GUEST';
+            return NAV_ROLE_LEVELS[role] || 0;
+        } catch { return 0; }
     }
 
     // ============================================================================
