@@ -241,6 +241,18 @@ async function _handleSSEMessage(payload) {
     }
 }
 
+// fetchFile — fetch a private /api/file/... URL with auth and return a blob URL
+// Use for <img src> and open-in-tab for private uploaded files
+window.fetchFileUrl = async function (filePath) {
+    const base  = CONSTANTS.OPERATIONS_URL;
+    const token = getSessionId();
+    const url   = filePath.startsWith('http') ? filePath : `${base}${filePath}`;
+    const res   = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`File fetch failed: ${res.status}`);
+    const blob  = await res.blob();
+    return URL.createObjectURL(blob);
+};
+
 async function fetchBusinessYearData(fyYear = null) {
     if (!window.appDB || !window.appDB.db) return;
     try {

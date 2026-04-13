@@ -700,9 +700,6 @@
                 <!-- *** MODIFIED: Added lg:p-5 for responsive padding *** -->
                 <div class="p-3 lg:p-5"> 
 
-                    <!-- *** NEW: Hidden input for GScript URL (from V1) *** -->
-                    <input type="hidden" id="gscript-url" value="https://script.google.com/macros/s/AKfycbwkC3OXNACPPH-LLPJyhkZKaDh6VtNgGbp8lMQbzz1XF327IN_OhFEEapOzNm3REbn5/exec">
-
                     <!-- Image Scroller (from V1) -->
                     <div id="image-scroller-container"><div id="image-scroller"></div></div>
 
@@ -771,7 +768,7 @@
                                     <th>REFERENCE / AWB</th>
                                     <th>CUSTOMER / KYC INFO</th>
                                     <th>DOCUMENT INFO</th>
-                                    <th>IMAGE</th>
+                                    <th>ACTION</th>
                                     <th style="display: none;">BRANCH / CODE</th> <!-- HIDDEN HEADER -->
                                 </tr>
                             </thead>
@@ -799,7 +796,7 @@
                                         <th>REFERENCE / AWB</th>
                                         <th>CUSTOMER / KYC INFO</th>
                                         <th>DOCUMENT INFO</th>
-                                        <th>IMAGE</th>
+                                        <th>ACTION</th>
                                         <th style="display: none;">BRANCH / CODE</th> <!-- HIDDEN HEADER -->
                                     </tr>
                                 </thead>
@@ -891,11 +888,7 @@
         let cropRotateBtn, selectionCanvas, uploadTypeStrip, statusBar; 
         let enhanceBtn, enhancementControls, autoEnhanceBtn, greyscaleBtn, bwBtn, sharpenBtn, resetEnhanceBtn;
         let brightnessSlider, contrastSlider;
-        let tableBody, deleteLastBtn, clearAllBtn, submitBtn; 
-        let dynamicInputArea; // <-- NEW Dynamic Input Area UI
-        let existingUploadsContainer, existingTableBody; // *** NEW: Existing Uploads UI ***
-        let gscriptUrlInput; // *** NEW: GScript URL Input ***
-        let mobilePlaceholder; // *** NEW: Mobile placeholder UI ***
+        let tableBody, deleteLastBtn, clearAllBtn, submitBtn;
 
 
         // --- === IMAGE FUNCTIONS (MOVED TO TOP) === ---
@@ -1828,20 +1821,20 @@
                 newRow.insertCell(3).dataset.label = rowData.docInfo ? 'Doc Info' : 'N/A';
                 newRow.cells[3].innerHTML = rowData.docInfo || 'N/A';
                 
-                // Cell 4: Image
+                // Cell 4: Open button
                 const imageCell = newRow.insertCell(4);
-                imageCell.dataset.label = 'Image';
-                const thumb = document.createElement('img');
-                thumb.src = rowData.image; // Use FILE_URL directly as src
-                const cellDiv = document.createElement('div');
-                cellDiv.className = 'image-cell-content';
-                // Make the image a link
-                const link = document.createElement('a');
-                link.href = rowData.image;
-                link.target = '_blank';
-                link.appendChild(thumb);
-                cellDiv.appendChild(link);
-                imageCell.appendChild(cellDiv);
+                imageCell.dataset.label = 'Action';
+                const openBtn = document.createElement('button');
+                openBtn.className = 'v1-btn';
+                openBtn.textContent = 'Open';
+                openBtn.style.fontSize = '0.75rem';
+                openBtn.addEventListener('click', async () => {
+                    try {
+                        const blobUrl = await fetchFileUrl(rowData.image);
+                        window.open(blobUrl, '_blank');
+                    } catch (e) { showNotification('Failed to open file', 'error'); }
+                });
+                imageCell.appendChild(openBtn);
                 
                 // Cell 5: Hidden Branch/Code Cell
                 const hiddenCell = newRow.insertCell(5);
@@ -2285,12 +2278,10 @@
              deleteLastBtn = document.getElementById('delete-last-btn');
              clearAllBtn = document.getElementById('clear-all-btn');
              submitBtn = document.getElementById('submit-btn');
-             dynamicInputArea = document.getElementById('dynamic-input-area');
-             // *** NEW: Assign Existing Uploads UI ***
+             dynamicInputArea        = document.getElementById('dynamic-input-area');
              existingUploadsContainer = document.getElementById('existing-uploads-container');
-             existingTableBody = document.getElementById('existing-data-table-body');
-             gscriptUrlInput = document.getElementById('gscript-url'); // *** NEW: Assign GScript URL ***
-             mobilePlaceholder = document.getElementById('mobile-order-list-placeholder'); // *** NEW: Assign Mobile Placeholder ***
+             existingTableBody        = document.getElementById('existing-data-table-body');
+             mobilePlaceholder        = document.getElementById('mobile-order-list-placeholder');
 
 
              // Assign canvas contexts
@@ -2789,13 +2780,13 @@
                             newRow.cells[3].innerHTML = rowData.docInfo || 'N/A';
                             
                             const imageCell = newRow.insertCell(4);
-                            imageCell.dataset.label = 'Image';
-                            const thumb = document.createElement('img');
-                            thumb.src = rowData.image;
-                            const cellDiv = document.createElement('div');
-                            cellDiv.className = 'image-cell-content';
-                            cellDiv.appendChild(thumb);
-                            imageCell.appendChild(cellDiv);
+                            imageCell.dataset.label = 'Action';
+                            const openBtn = document.createElement('button');
+                            openBtn.className = 'v1-btn';
+                            openBtn.textContent = 'Preview';
+                            openBtn.style.fontSize = '0.75rem';
+                            openBtn.addEventListener('click', () => window.open(rowData.image, '_blank'));
+                            imageCell.appendChild(openBtn);
                             
                             const hiddenCell = newRow.insertCell(5);
                             hiddenCell.textContent = `Branch: ${submitRowData.branch}, Code: ${submitRowData.code}`;
@@ -2891,120 +2882,78 @@
              
              submitBtn.addEventListener('click', async () => {
                 if (isProcessingImage) {
-                    updateStatus("Please wait for image processing to finish.", true);
+                    updateStatus('Please wait for image processing to finish.', true);
                     return;
                 }
                 const rows = tableBody.rows;
-                const gscriptUrl = gscriptUrlInput.value.trim();
-                
-                if (rows.length === 0) {
-                    updateStatus("No data in the table to submit.", true); return;
-                }
-                if (!gscriptUrl || !gscriptUrl.startsWith('https://script.google.com/macros/s/')) {
-                    updateStatus("Please provide a valid Google Apps Script Web App URL.", true);
-                    return;
-                }
-                
-                // Get Auth Credentials
-                if (!isLoggedIn()) {
-                    updateStatus("Authentication error: Please re-login.", true);
-                    return;
-                }
-                const authCode  = getUser().CODE;
-                const authToken = getSessionId();
-                const authUser  = getUser().NAME;
+                if (rows.length === 0) { updateStatus('No data in the table to submit.', true); return; }
+                if (!isLoggedIn())     { updateStatus('Authentication error: Please re-login.', true); return; }
 
                 submitBtn.disabled = true;
                 let successCount = 0;
-                let failedRows = [];
+                const failedRows = [];
 
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i];
-                    // Skip rows that are already green (successfully submitted)
-                    if (row.style.backgroundColor === 'rgb(212, 237, 218)') { // 'd4edda'
-                        successCount++;
-                        continue;
-                    }
-                    
-                    updateStatus(`Submitting row ${i + 1} of ${rows.length}...`);
-                    
-                    // Retrieve stored data
-                    const rowData = JSON.parse(row.dataset.submitData);
-                    const images = JSON.parse(row.dataset.images);
-                    let finalImageData;
-                    let fileName;
+                    if (row.style.backgroundColor === 'rgb(212, 237, 218)') { successCount++; continue; }
 
-                    // --- *** NEW PDF BUNDLING LOGIC *** ---
+                    updateStatus(`Submitting row ${i + 1} of ${rows.length}...`);
+
+                    const rowData = JSON.parse(row.dataset.submitData);
+                    const images  = JSON.parse(row.dataset.images);
+
+                    // Build file: POD/Reciept → single JPEG, others → PDF bundle
+                    let fileData, contentType;
                     if (rowData.uploadType === 'POD' || rowData.uploadType === 'Reciept') {
-                        finalImageData = images[0]; // Just the single base64 image
-                        fileName = `${rowData.refNumber || rowData.awbNumber}-${Date.now()}.jpg`;
+                        fileData    = images[0].split(',')[1]; // strip data:...;base64,
+                        contentType = 'image/jpeg';
                     } else {
-                        // Bundle multiple images into a PDF
-                        updateStatus(`Bundling ${images.length} images into PDF for ${rowData.uploadType}...`);
-                        finalImageData = await createPdfFromImages(images);
-                        
-                        if (rowData.uploadType === 'KYC') {
-                            fileName = `${rowData.refNumber}-${rowData.customerUid}-${rowData.kycNumber}.pdf`;
-                        } else if (rowData.uploadType === 'Product') {
-                            fileName = `${rowData.refNumber}-${rowData.docNumber}.pdf`;
-                        } else if (rowData.uploadType === 'MultiBox') {
-                            fileName = `${rowData.awbNumber}-multibox.pdf`;
-                        } else {
-                            fileName = `${rowData.refNumber || rowData.awbNumber}-${Date.now()}.pdf`;
-                        }
+                        updateStatus(`Bundling ${images.length} image(s) into PDF...`);
+                        const pdfDataUrl = await createPdfFromImages(images);
+                        fileData    = pdfDataUrl.split(',')[1];
+                        contentType = 'application/pdf';
                     }
-                    // --- *** END PDF BUNDLING LOGIC *** ---
 
                     const payload = {
-                        code: authCode,
-                        token: authToken,
-                        user: authUser, // Sending user
-                        action: 'append',
-                        imageData: finalImageData, // This is now either base64 img or base64 pdf
-                        fileName: fileName,
-                        rowData: rowData,
+                        upload_type:   rowData.uploadType,
+                        content_type:  contentType,
+                        data:          fileData,
+                        reference:     rowData.refNumber    || '',
+                        awb_number:    rowData.awbNumber    || '',
+                        branch:        rowData.branch       || '',
+                        code:          rowData.code         || '',
+                        status_remark: rowData.statusRemark || '',
+                        child_awb:     rowData.childAwb     || '',
+                        customer_uid:  rowData.customerUid  || '',
+                        kyc_number:    rowData.kycNumber    || '',
+                        kyc_type:      rowData.kycType      || '',
+                        doc_number:    rowData.docNumber    || '',
+                        doc_type:      rowData.docType      || '',
                     };
-                    
-                    try {
-                        const response = await fetch(gscriptUrl, {
-                            method: 'POST',
-                            body: JSON.stringify(payload),
-                            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // V1 used text/plain
-                            mode: 'cors',
-                        });
-                        
-                        if (!response.ok) {
-                            throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                        }
 
-                        const result = await response.json();
-                        
-                        if (result.status === 'success') {
-                            successCount++;
-                            row.style.backgroundColor = '#d4edda'; // Green
-                        } else {
-                            throw new Error(result.message || 'Unknown error from server.');
-                        }
-                    } catch (error) {
-                        console.error('Submission error:', error);
-                        row.style.backgroundColor = '#f8d7da'; // Red
+                    try {
+                        const result = await callApi('/api/upload', payload);
+                        successCount++;
+                        row.style.backgroundColor = '#d4edda';
+                        // store the returned URL back into the row for reference
+                        row.dataset.fileUrl = result.url;
+                    } catch (err) {
+                        console.error('Upload error:', err);
+                        row.style.backgroundColor = '#f8d7da';
                         failedRows.push(i + 1);
-                        updateStatus(`Error submitting row ${i + 1}: ${error.message}`, true);
+                        updateStatus(`Error on row ${i + 1}: ${err.message}`, true);
                     }
-                } // End for loop
-                
+                }
+
                 submitBtn.disabled = false;
                 if (failedRows.length > 0) {
-                    updateStatus(`Failed to submit rows: ${failedRows.join(', ')}. Please fix and retry.`, true);
+                    updateStatus(`Failed rows: ${failedRows.join(', ')}. Fix and retry.`, true);
                 } else {
-                    updateStatus(`Successfully submitted all ${successCount} rows.`, false);
-                    setTimeout(() => {
-                        clearAllBtn.click(); // Clear the table (and resetUploader)
-                        updateStatus('All data submitted and table cleared.');
-                    }, 2000);
+                    updateStatus(`All ${successCount} row(s) submitted successfully.`);
+                    setTimeout(() => { clearAllBtn.click(); updateStatus('Table cleared.'); }, 2000);
                 }
              });
-             
+
 
              // --- Barcode Detector Init ---
             if (!('BarcodeDetector' in window)) {

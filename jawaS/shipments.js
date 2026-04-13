@@ -24,13 +24,10 @@ const _docIco = {
 };
 
 function _uploadActionBtns(url, uploadUid) {
-    const cls = (extra = '') => `doc-action-btn${extra ? ' ' + extra : ''}`;
+    const openFn = `(async()=>{try{const b=await fetchFileUrl('${url}');window.open(b,'_blank');}catch(e){showNotification('Failed to open file','error');}})()`;
     return [
-        `<a href="${url}" target="_blank" title="Print"    class="${cls()}">${_docIco.print}</a>`,
-        `<a href="${url}" target="_blank" title="Mail"     class="${cls()}">${_docIco.mail}</a>`,
-        `<a href="${url}" target="_blank" title="Download" class="${cls()}" download>${_docIco.download}</a>`,
-        `<a href="${url}" target="_blank" title="WhatsApp" class="${cls('doc-action-btn--wa')}">${_docIco.whatsapp}</a>`,
-        `<a href="${url}" target="_blank" title="Telegram" class="${cls('doc-action-btn--tg')}">${_docIco.telegram}</a>`,
+        `<button onclick="${openFn}" title="Open"     class="doc-action-btn">${_docIco.print}</button>`,
+        `<button onclick="${openFn}" title="Download" class="doc-action-btn">${_docIco.download}</button>`,
         `<button onclick="console.warn('delete upload not implemented', '${uploadUid}')" title="Delete" class="p-1.5 text-red-400 rounded hover:bg-red-50"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`,
     ].join('');
 }
