@@ -290,15 +290,13 @@
         
         async function handleRequest(action) {
             setLoading(true);
-            const loginDataJSON = localStorage.getItem('loginData');
-            if (!loginDataJSON) {
+            if (!isLoggedIn()) {
                 showResponseMessage('Authentication error. Please log in again.', 'error');
                 setLoading(false); return;
             }
-            const loginData = JSON.parse(loginDataJSON);
             const auth = {
-                code: loginData.CODE || loginData.code,
-                token: loginData.TOKEN || loginData.token
+                code: getUser().CODE,
+                token: getSessionId()
             };
             if (!auth.code || !auth.token) {
                 showResponseMessage('Authentication credentials missing. Please log in again.', 'error');

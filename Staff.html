@@ -411,8 +411,7 @@
             ui.attInTimeInput.addEventListener('input', () => { ui.attOutTimeInput.disabled = !ui.attInTimeInput.value; });
 
             async function handleRequest(payload) {
-                const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
-                payload.auth = { code: loginData.CODE || loginData.code, token: loginData.TOKEN || loginData.token };
+                payload.auth = { code: getUser().CODE, token: getSessionId() };
                 
                 setLoading(true, payload.type);
                 try {

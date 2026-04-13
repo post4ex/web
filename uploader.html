@@ -2955,22 +2955,14 @@
                     return;
                 }
                 
-                // Get Auth Credentials from localStorage (V1 Logic)
-                let authCode = '', authToken = '', authUser = '';
-                const loginDataJSON = localStorage.getItem('loginData');
-                if (!loginDataJSON) {
-                    updateStatus("Authentication error: loginData not found. Please re-login.", true);
+                // Get Auth Credentials
+                if (!isLoggedIn()) {
+                    updateStatus("Authentication error: Please re-login.", true);
                     return;
                 }
-                try {
-                    const loginData = JSON.parse(loginDataJSON);
-                    authCode = loginData.code;
-                    authToken = loginData.token;
-                    authUser = loginData.name; // Or NAME, adjust as needed
-                } catch (e) {
-                     updateStatus("Authentication error: Could not parse loginData. Please re-login.", true);
-                     return;
-                }
+                const authCode  = getUser().CODE;
+                const authToken = getSessionId();
+                const authUser  = getUser().NAME;
 
                 submitBtn.disabled = true;
                 let successCount = 0;

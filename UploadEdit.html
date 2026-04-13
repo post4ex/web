@@ -597,25 +597,12 @@
         // --- GAS Communication ---
         async function sendRequestToGAS(payload, button, spinner, buttonText) {
              const originalButtonText = button.textContent.trim();
-             let authCode = '';
-             let authToken = '';
-
-             const loginDataJSON = localStorage.getItem('loginData');
-             if (!loginDataJSON) {
-                 showResponseMessage("Authentication error: loginData not found. Please re-login.", 'error');
+             if (!isLoggedIn()) {
+                 showResponseMessage("Authentication error: Please re-login.", 'error');
                  return;
              }
-             try {
-                 const loginData = JSON.parse(loginDataJSON);
-                 const codeKey = Object.keys(loginData).find(k => k.toLowerCase() === 'code');
-                 const tokenKey = Object.keys(loginData).find(k => k.toLowerCase() === 'token');
-                 if (!codeKey || !tokenKey) throw new Error("Code or Token missing.");
-                 authCode = loginData[codeKey];
-                 authToken = loginData[tokenKey];
-             } catch (e) {
-                 showResponseMessage(`Authentication error: ${e.message}. Please re-login.`, 'error');
-                 return;
-             }
+             const authCode  = getUser().CODE;
+             const authToken = getSessionId();
 
              payload.code = authCode;
              payload.token = authToken;

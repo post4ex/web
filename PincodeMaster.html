@@ -162,8 +162,7 @@
         };
         
         const fetchAllPincodes = async () => {
-            const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
-            const auth = { code: loginData.CODE || loginData.code, token: loginData.TOKEN || loginData.token };
+            const auth = { code: getUser().CODE, token: getSessionId() };
             if (!auth.code || !auth.token) {
                 ui.loader.textContent = 'Authentication error. Please re-login.';
                 return;
@@ -258,8 +257,7 @@
             const isLoadingDelete = action === 'delete';
             setLoading(true, isLoadingDelete ? 'delete' : 'submit');
 
-            const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
-            const auth = { code: loginData.CODE || loginData.code, token: loginData.TOKEN || loginData.token };
+            const auth = { code: getUser().CODE, token: getSessionId() };
             if (!auth.code || !auth.token) {
                 showResponseMessage('Authentication error.', 'error');
                 setLoading(false, isLoadingDelete ? 'delete' : 'submit');

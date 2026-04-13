@@ -120,8 +120,7 @@ function renderNotificationItem(notif, showToast = false) {
         }
     });
 
-    const loginData  = JSON.parse(localStorage.getItem('loginData') || '{}');
-    const userRole   = loginData?.userData?.ROLE || 'GUEST';
+    const userRole   = getUser().ROLE || 'GUEST';
     const userLevel  = (window.ROLE_LEVELS || {})[userRole] || 0;
     const isAdmin    = userLevel >= ((window.ROLE_LEVELS || {})['ADMIN'] || 90);
     const canDismiss = !isCritical || isAdmin;
@@ -180,28 +179,63 @@ function _updateBadge() {
     else badgeGlobal.classList.add('hidden');
 }
 
-function setupNotificationActions() {
-    document.getElementById('notif-mark-all-read')?.addEventListener('click', async () => {
-        await callApi('/api/notifread', { all: true }).catch(() => {});
-        if (window.appDB) {
-            const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
-            const updates = {};
-            Object.entries(all).forEach(([k, v]) => { updates[k] = { ...v, IS_READ: true }; });
-            if (Object.keys(updates).length) await window.appDB.mergeSheet('NOTIFICATIONS', updates);
-        }
-        document.getElementById('notification-list-global')?.querySelectorAll('.bg-blue-500').forEach(dot => dot.remove());
-        document.getElementById('notification-list-global')?.querySelectorAll('[data-id]').forEach(item => item.style.background = '');
-        _updateBadge();
-    });
+// ============================================================================
+// NOTIFICATION ACTIONS — full ownership here, layout.js just calls initNotifications()
+// ============================================================================
 
-    document.getElementById('notif-clear-all')?.addEventListener('click', async () => {
-        await callApi('/api/notifclear', { all: true }).catch(() => {});
-        if (window.appDB) await window.appDB.clearSheet('NOTIFICATIONS').catch(() => {});
-        const list = document.getElementById('notification-list-global');
-        if (list) list.innerHTML = '';
-        _updateBadge();
-    });
+function _bindNotifActions() {
+    const markAllBtn = document.getElementById('notif-mark-all-read');
+    if (markAllBtn && !markAllBtn.dataset.bound) {
+        markAllBtn.dataset.bound = '1';
+        markAllBtn.addEventListener('click', async () => {
+            if (!window.appDB || !window.appDB.db) return;
+            const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
+            const ids = Object.values(all).filter(n => !n.IS_READ).map(n => n.NOTIF_ID);
+            if (ids.length) {
+                await callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
+                for (const id of ids)
+                    await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], IS_READ: true } });
+            }
+            document.getElementById('notification-list-global')
+                ?.querySelectorAll('.bg-blue-500').forEach(dot => dot.remove());
+            document.getElementById('notification-list-global')
+                ?.querySelectorAll('[data-id]').forEach(item => item.style.background = '');
+            _updateBadge();
+        });
+    }
+
+    const clearAllBtn = document.getElementById('notif-clear-all');
+    if (clearAllBtn && !clearAllBtn.dataset.bound) {
+        clearAllBtn.dataset.bound = '1';
+        clearAllBtn.addEventListener('click', async () => {
+            if (!window.appDB || !window.appDB.db) return;
+            const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
+            // non-CRITICAL only — CRITICAL requires ADMIN to dismiss individually
+            const ids = Object.values(all).filter(n => n.LEVEL !== 'CRITICAL').map(n => n.NOTIF_ID);
+            if (ids.length) {
+                await callApi('/api/notifclear', { notif_ids: ids }).catch(() => {});
+                for (const id of ids) await window.appDB.deleteRecord('NOTIFICATIONS', id);
+            }
+            await loadNotificationsFromStorage();
+        });
+    }
 }
+
+// Called once by layout.js — owns the full notification boot sequence
+window.initNotifications = function () {
+    _bindNotifActions();
+    // re-bind after footerLoaded in case header re-renders
+    window.addEventListener('footerLoaded', () => {
+        _bindNotifActions();
+        if (localStorage.getItem(CONSTANTS.KEYS.LOGIN)) {
+            if (window.appDB && window.appDB.db) {
+                loadNotificationsFromStorage();
+            } else {
+                window.addEventListener('indexedDBReady', () => loadNotificationsFromStorage(), { once: true });
+            }
+        }
+    });
+};
 
 async function loadNotificationsFromStorage() {
     const listGlobal  = document.getElementById('notification-list-global');

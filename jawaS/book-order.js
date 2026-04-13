@@ -40,14 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const shipmentList = document.getElementById('shipmentList');
     const shipmentListContainer = document.getElementById('shipmentListContainer');
 
-    let loginData = {};
     let isBookingLocked = false;
     let currentCalcUid = null;
     let wasModeUnlocked = false;
 
     // --- ROLE ---
-    loginData = JSON.parse(localStorage.getItem('loginData')) || {};
-    const userRole  = loginData.userData?.ROLE || loginData.ROLE || 'GUEST';
+    const userRole  = getUser().ROLE || 'GUEST';
     const isClient  = (ROLE_LEVELS[userRole] || 0) < ROLE_LEVELS['STAFF'];
     const canDelete = (ROLE_LEVELS[userRole] || 0) >= ROLE_LEVELS['ADMIN'];
     let userMadeInitialModeChoice = false;
@@ -327,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(`display_${type}`).textContent = document.getElementById(`payment_${type}`).checked ? 'Yes' : 'No';
         });
         document.getElementById('display_code').textContent = selectedCustomerDetails.CODE || '---';
-        document.getElementById('display_user_name').textContent = loginData.NAME || loginData.name || '---';
+        document.getElementById('display_user_name').textContent = getUser().NAME || '---';
         document.getElementById('display_branch').textContent = selectedCustomerDetails.BRANCH || '---';
     }
 

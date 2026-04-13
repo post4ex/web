@@ -5,8 +5,7 @@
 
     function initializeFAB() {
         // THIS IS THE FIX: Check for login data before doing anything.
-        const loginDataJSON = localStorage.getItem('loginData');
-        if (!loginDataJSON) {
+        if (!isLoggedIn()) {
             return; // Do not initialize the FAB if the user is not logged in.
         }
 

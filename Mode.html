@@ -274,9 +274,7 @@
             const isLoading = action === 'delete';
             setLoading(true, isLoading ? 'delete' : 'submit');
 
-            const loginDataJSON = localStorage.getItem('loginData');
-            const loginData = loginDataJSON ? JSON.parse(loginDataJSON) : null;
-            const auth = { code: loginData?.CODE || loginData?.code, token: loginData?.TOKEN || loginData?.token };
+            const auth = { code: getUser().CODE, token: getSessionId() };
 
             if (!auth.code || !auth.token) {
                 showResponseMessage('Authentication error. Please log in again.', 'error');

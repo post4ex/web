@@ -129,52 +129,7 @@ function initializeUI() {
         if (ov) ov.addEventListener('click', toggleFn);
     }
 
-    const setupNotifActions = () => {
-        const markAllBtn = document.getElementById('notif-mark-all-read');
-        if (markAllBtn && !markAllBtn.dataset.bound) {
-            markAllBtn.dataset.bound = '1';
-            markAllBtn.addEventListener('click', async () => {
-                if (!window.appDB || !window.appDB.db) return;
-                const all = await window.appDB.getSheet('NOTIFICATIONS');
-                const ids = Object.values(all).filter(n => !n.IS_READ).map(n => n.NOTIF_ID);
-                if (ids.length) {
-                    await callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
-                    for (const id of ids) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], IS_READ: true } });
-                }
-                await loadNotificationsFromStorage();
-            });
-        }
-
-        const clearAllBtn = document.getElementById('notif-clear-all');
-        if (clearAllBtn && !clearAllBtn.dataset.bound) {
-            clearAllBtn.dataset.bound = '1';
-            clearAllBtn.addEventListener('click', async () => {
-                if (!window.appDB || !window.appDB.db) return;
-                const all = await window.appDB.getSheet('NOTIFICATIONS');
-                const ids = Object.values(all).filter(n => n.LEVEL !== 'CRITICAL').map(n => n.NOTIF_ID);
-                if (ids.length) {
-                    await callApi('/api/notifclear', { notif_ids: ids }).catch(() => {});
-                    for (const id of ids) await window.appDB.deleteRecord('NOTIFICATIONS', id);
-                }
-                await loadNotificationsFromStorage();
-            });
-        }
-    };
-
-    const _loadNotifs = async () => {
-        if (window.appDB && window.appDB.db) {
-            await loadNotificationsFromStorage();
-        } else {
-            // wait for DB ready then load
-            window.addEventListener('indexedDBReady', () => loadNotificationsFromStorage(), { once: true });
-        }
-    };
-
-    setupNotifActions();
-    window.addEventListener('footerLoaded', () => {
-        setupNotifActions();
-        if (localStorage.getItem(CONSTANTS.KEYS.LOGIN)) _loadNotifs();
-    });
+    initNotifications();
 
     document.querySelectorAll('[id*="logout"]').forEach(b => b.addEventListener('click', handleLogout));
 
@@ -225,8 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
-    if (loginData) {
+    if (isLoggedIn()) {
         const existing    = await getAppData();
         const hasData     = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
         const lastSync    = await window.appDB.getMetadata('lastSyncTime').catch(() => null);
@@ -236,8 +190,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!hasData) {
             await verifyAndFetchAppData();
         } else {
-            if (typeof loadNotificationsFromStorage === 'function') await loadNotificationsFromStorage();
             if (isStale) verifyAndFetchAppData().catch(() => {}); // background refresh only if stale
+            else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
         }
         openSSE();
         initHeartbeat();

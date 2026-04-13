@@ -134,11 +134,7 @@
     };
 
     function getUserLevel() {
-        try {
-            const loginData = JSON.parse(localStorage.getItem('loginData'));
-            const role = loginData?.userData?.ROLE || 'GUEST';
-            return NAV_ROLE_LEVELS[role] || 0;
-        } catch(e) { return 0; }
+        return (NAV_ROLE_LEVELS[getUser().ROLE] || 0);
     }
 
     // ============================================================================
@@ -347,13 +343,10 @@
             });
         }
         
-        // 3. Setup notification action buttons
-        if (typeof setupNotificationActions === 'function') setupNotificationActions();
-
-        // 4. Setup Mobile Refresh removed — SSE handles live updates
+        // 3. Setup Mobile Refresh removed — SSE handles live updates
         
         const checkMobileTools = () => {
-            if (localStorage.getItem('loginData')) {
+            if (isLoggedIn()) {
                 const tools = document.getElementById('mobile-tools-section');
                 const globalNotif = document.getElementById('notification-container-global');
                 

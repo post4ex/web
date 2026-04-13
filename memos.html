@@ -579,8 +579,7 @@
             }
             
             async loadMemos() {
-                const isLoggedIn = !!localStorage.getItem('loginData');
-                const action = isLoggedIn ? 'getMemos' : 'getPublicMemos';
+                const action = isLoggedIn() ? 'getMemos' : 'getPublicMemos';
                 
                 try {
                     const res = await callApi(action);
@@ -865,52 +864,25 @@
             }
             
             checkAdminStatus() {
-                // Check if current user is admin based on localStorage
-                const loginData = localStorage.getItem('loginData');
-                if (loginData) {
-                    try {
-                        const user = JSON.parse(loginData).userData;
-                        this.isAdmin = user && (user.ROLE === 'ADMIN' || user.ROLE === 'MASTER' || user.ROLE === 'MANAGER');
-                    } catch (e) {
-                        this.isAdmin = false;
-                    }
-                }
-                
-                // Show/hide admin controls
-                const adminBtn = document.getElementById('toggleAdminBtn');
+                const role = getUser().ROLE || '';
+                this.isAdmin = (role === 'ADMIN' || role === 'MASTER' || role === 'MANAGER');
+                const adminBtn   = document.getElementById('toggleAdminBtn');
                 const newMemoBtn = document.getElementById('newMemoBtn');
-                
                 if (this.isAdmin) {
-                    if (adminBtn) adminBtn.classList.remove('hidden');
+                    if (adminBtn)   adminBtn.classList.remove('hidden');
                     if (newMemoBtn) newMemoBtn.classList.remove('hidden');
                 }
             }
             
             getUserEmail() {
-                // Get user email from localStorage or return default
-                const loginData = localStorage.getItem('loginData');
-                if (loginData) {
-                    try {
-                        const user = JSON.parse(loginData).userData;
-                        return user.EMAIL || user.USER + '@postman.com';
-                    } catch (e) {
-                        return 'user@postman.com';
-                    }
-                }
+                const user = getUser();
+                return user.EMAIL || (user.USER ? user.USER + '@postman.com' : 'guest@postman.com');
+            }
                 return 'guest@postman.com';
             }
             
             getUserName() {
-                const loginData = localStorage.getItem('loginData');
-                if (loginData) {
-                    try {
-                        const user = JSON.parse(loginData).userData;
-                        return user.NAME || user.USER || 'User';
-                    } catch (e) {
-                        return 'User';
-                    }
-                }
-                return 'Guest';
+                return getUser().NAME || getUser().USER || 'User';
             }
             
             toggleAdminControls() {

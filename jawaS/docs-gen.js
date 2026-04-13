@@ -751,8 +751,7 @@ async function deleteSavedDocument(docId) {
 }
 
 function getCurrentUserId() {
-    const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
-    return loginData.CODE || loginData.code || 'guest';
+    return getUser().CODE || 'guest';
 }
 
 // ============================================================================

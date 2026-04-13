@@ -29,8 +29,7 @@ const MUTATING_ENDPOINTS = [
 ];
 
 async function callApi(endpoint, payload = {}, method = 'POST') {
-    const loginData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.LOGIN) || '{}');
-    const token     = loginData.sessionId || '';
+    const token = getSessionId();
 
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -68,8 +67,7 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
 // --- DATA ENGINE ---
 
 async function verifyAndFetchAppData() {
-    const loginData = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
-    if (!loginData) return;
+    if (!isLoggedIn()) return;
 
     if (!window.appDB) {
         console.warn('[Data Engine] IndexedDB not available');
@@ -154,8 +152,7 @@ async function verifyAndFetchAppData() {
 let _sseAbort = null;
 
 async function openSSE() {
-    const loginData = JSON.parse(localStorage.getItem(CONSTANTS.KEYS.LOGIN) || '{}');
-    const token = loginData.sessionId || '';
+    const token = getSessionId();
     if (!token) return;
 
     if (_sseAbort) _sseAbort.abort();

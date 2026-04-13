@@ -211,8 +211,7 @@
             // Wait a moment for layout.js to finish its checks and for the page to be ready
             setTimeout(() => {
                 // Double-check login status before initializing charts
-                const loginData = localStorage.getItem('loginData');
-                if (!loginData || new Date().getTime() > JSON.parse(loginData).expires) {
+                if (!isLoggedIn() || Date.now() > getSessionExpiry()) {
                     return; // Don't render charts if not logged in
                 }
 

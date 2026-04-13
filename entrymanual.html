@@ -506,7 +506,6 @@
             const shipmentListContainer = document.getElementById('shipmentListContainer');
 
 
-            let loginData = {};
             let isBookingLocked = false;
             let wasModeUnlocked = false; 
             let userMadeInitialModeChoice = false;
@@ -723,7 +722,7 @@
                     document.getElementById(`display_${type}`).textContent = document.getElementById(`payment_${type}`).checked ? 'Yes' : 'No';
                 });
                 document.getElementById('display_code').textContent = selectedCustomerDetails.CODE || '---';
-                document.getElementById('display_user_name').textContent = loginData.NAME || loginData.name || '---';
+                document.getElementById('display_user_name').textContent = getUser().NAME || '---';
                 document.getElementById('display_branch').textContent = selectedCustomerDetails.BRANCH || '---';
             }
 
@@ -1140,7 +1139,6 @@
 
 
             // --- MAIN INITIALIZATION & EVENT LISTENERS ---
-            loginData = JSON.parse(localStorage.getItem('loginData')) || {};
             window.addEventListener('appDataLoaded', (e) => initializeAppLogic(e.detail));
             window.addEventListener('appDataRefreshed', (e) => handleDataRefresh(e.detail));
             const appDataJSON = localStorage.getItem('appData');
@@ -1276,8 +1274,8 @@
                     'TOTAL': document.getElementById('display_total').textContent,
                 };
                 const payload = {
-                    code: loginData.CODE || loginData.code,
-                    token: loginData.TOKEN || loginData.token,
+                    code: getUser().CODE,
+                    token: getSessionId(),
                     orderDetails: orderData,
                     multiboxDetails: consignmentBoxes,
                     productDetails: consignmentProducts
