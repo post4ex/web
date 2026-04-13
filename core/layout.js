@@ -168,29 +168,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     setActiveNavOnLoad();
     initializeUI();
 
-    // IndexedDB init in background
-    if (!window.appDB) {
-        await new Promise((resolve) => {
-            let resolved = false;
-            const timeout = setTimeout(() => { if (!resolved) { resolved = true; resolve(); } }, 5000);
-            window.addEventListener('indexedDBReady', () => {
-                if (!resolved) { resolved = true; clearTimeout(timeout); resolve(); }
-            }, { once: true });
-            if (window.appDB && window.appDB.db) { resolved = true; clearTimeout(timeout); resolve(); }
-        });
-    }
+    // Wait for IndexedDB to be ready (appDB is set immediately but db is null until init completes)
+    await new Promise((resolve) => {
+        if (window.appDB && window.appDB.db) return resolve();
+        let resolved = false;
+        const timeout = setTimeout(() => { if (!resolved) { resolved = true; resolve(); } }, 5000);
+        window.addEventListener('indexedDBReady', () => {
+            if (!resolved) { resolved = true; clearTimeout(timeout); resolve(); }
+        }, { once: true });
+    });
 
     if (isLoggedIn()) {
-        const existing    = await getAppData();
-        const hasData     = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
-        const lastSync    = await window.appDB.getMetadata('lastSyncTime').catch(() => null);
-        const staleAfter  = 5 * 60 * 1000; // 5 minutes
-        const isStale     = !lastSync || (Date.now() - lastSync) > staleAfter;
+        const existing   = await getAppData();
+        const hasData    = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
+        const lastSync   = window.appDB ? await window.appDB.getMetadata('lastSyncTime').catch(() => null) : null;
+        const staleAfter = 5 * 60 * 1000;
+        const isStale    = !lastSync || (Date.now() - lastSync) > staleAfter;
 
         if (!hasData) {
             await verifyAndFetchAppData();
         } else {
-            if (isStale) verifyAndFetchAppData().catch(() => {}); // background refresh only if stale
+            // always fire appDataLoaded so pages that missed it get data
+            const fullData = await getAppData();
+            window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+            if (isStale) verifyAndFetchAppData().catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
         }
         openSSE();
