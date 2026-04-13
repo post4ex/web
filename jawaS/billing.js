@@ -289,8 +289,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (order.INV_NUMBER)  return { key: 'INV-'   + order.INV_NUMBER,  type: 'INV'   };
         if (order.INVOICE_ID)  return { key: 'ID-'    + order.INVOICE_ID,  type: 'ID'    };
         if (order.ORDER_DATE && order.CODE) {
-            const d = new Date(order.ORDER_DATE);
-            if (isNaN(d.getTime())) return null;
+            const d = parseDate(order.ORDER_DATE);
+            if (!d) return null;
             const ym = `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`;
             return { key: `MONTH-${order.CODE}-${ym}`, type: 'MONTH' };
         }

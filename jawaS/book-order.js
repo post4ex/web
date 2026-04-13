@@ -877,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const allOrders = Object.values(appData.ORDERS || {});
             if (!Array.isArray(allOrders) || !allOrders.length) { renderShipmentList([]); return; }
-            const sorted = [...allOrders].sort((a, b) => new Date(b.TIME_STAMP) - new Date(a.TIME_STAMP));
+            const sorted = [...allOrders].sort((a, b) => (parseDate(b.TIME_STAMP)?.getTime() || 0) - (parseDate(a.TIME_STAMP)?.getTime() || 0));
             renderShipmentList(sorted.slice(0, 10));
         } catch (error) {
             console.error('Error reading ORDERS data:', error);
@@ -912,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.innerHTML = `
                     <div style="flex:1;min-width:0;font-size:0.75rem;color:#374151;">
                         <strong style="color:#4338ca;font-size:0.875rem;">${c.customer_name || 'N/A'}</strong>
-                        <span style="color:#6b7280;"> &mdash; ${new Date(c.TIME_STAMP).toLocaleString()}</span>
+                        <span style="color:#6b7280;"> &mdash; ${fmtDate(c.TIME_STAMP, 'full')}</span>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
                             <span>Mode: <b>${c.transport_type || 'N/A'}</b></span>
                             <span>Wt: <b>${c.display_chg_wt || '---'}</b></span>

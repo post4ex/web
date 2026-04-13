@@ -274,7 +274,7 @@
             // Sort orders
             allOrders = allOrders
                 .filter(order => order && order.ORDER_DATE)
-                .sort((a, b) => new Date(b.ORDER_DATE) - new Date(a.ORDER_DATE));
+                .sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
             
             // Initial render
             filterAndRenderOrders(); // Render the orders list

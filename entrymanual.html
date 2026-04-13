@@ -1117,11 +1117,9 @@
                         renderShipmentList([]);
                         return;
                     }
-                    const sortedOrders = [...ordersArray].sort((a, b) => {
-                        const dateA = new Date(a.TIME_STAMP);
-                        const dateB = new Date(b.TIME_STAMP);
-                        return dateB.getTime() - dateA.getTime();
-                    });
+                    const sortedOrders = [...ordersArray].sort((a, b) =>
+                        (parseDate(b.TIME_STAMP)?.getTime() || 0) - (parseDate(a.TIME_STAMP)?.getTime() || 0)
+                    );
 
                     // Take the last 10 (most recent) shipments
                     const recentShipments = sortedOrders.slice(0, 10);

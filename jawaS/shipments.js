@@ -43,7 +43,7 @@ function initializePageWithData(appData) {
     }
     try {
         allOrders = Object.values(appData.ORDERS);
-        allOrders.sort((a, b) => new Date(b.ORDER_DATE) - new Date(a.ORDER_DATE));
+        allOrders.sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
 
         b2b2cDataMap.clear(); productDataMap.clear(); multiboxDataMap.clear();
         uploadsDataMap.clear(); modesDataMap.clear(); carriersDataMap.clear();
@@ -160,7 +160,7 @@ function applyFilters() {
     }
 
     const filteredOrders = allOrders.filter(order => {
-        const orderDate = order.ORDER_DATE ? new Date(order.ORDER_DATE) : null;
+        const orderDate = parseDate(order.ORDER_DATE);
         if (!orderDate) return false;
         const sdMatch  = !startDate || orderDate >= new Date(startDate + 'T00:00:00Z');
         const edMatch  = !endDate   || orderDate <= new Date(endDate   + 'T23:59:59Z');

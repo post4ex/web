@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
             CONSIGNEE: nameLookup.get(s.CONSIGNEE) || s.CONSIGNEE,
         }));
 
-        const byDate     = (a, b) => new Date(b.ORDER_DATE) - new Date(a.ORDER_DATE);
+        const byDate = (a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0);
         const incomplete = processed.filter(s => !s.CARRIER || !s.AWB_NUMBER).sort(byDate);
         const complete   = processed.filter(s =>  s.CARRIER && s.AWB_NUMBER).sort(byDate);
         allShipments     = [...incomplete, ...complete];
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const li  = document.createElement('li');
             const incomplete = !order.CARRIER || !order.AWB_NUMBER;
             if (incomplete) li.classList.add('incomplete');
-            li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="client-info">${order.CONSIGNOR || 'Unknown'} → ${order.CONSIGNEE || 'Unknown'}</span><div class="details-info"><span>Ref: ${ref} | ${order.ORDER_DATE ? new Date(order.ORDER_DATE).toISOString().split('T')[0] : 'No Date'}</span><span>${order.CARRIER || 'No Carrier'}</span></div>`;
+            li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="client-info">${order.CONSIGNOR || 'Unknown'} → ${order.CONSIGNEE || 'Unknown'}</span><div class="details-info"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span>${order.CARRIER || 'No Carrier'}</span></div>`;
             li.dataset.ref = ref;
             li.addEventListener('click', () => selectShipment(order, li));
             listEl.appendChild(li);
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeEl = li;
 
         referenceInput.value = shipment.REFERENCE || '';
-        document.getElementById('order_date').value   = shipment.ORDER_DATE   ? new Date(shipment.ORDER_DATE).toISOString().split('T')[0]   : '';
+        document.getElementById('order_date').value = fmtDate(shipment.ORDER_DATE, 'input');
         document.getElementById('transit_date').value = shipment.TRANSIT_DATE ? new Date(shipment.TRANSIT_DATE).toISOString().split('T')[0] : '';
         carrierSelect.value = shipment.CARRIER    || '';
         document.getElementById('awb_number').value = shipment.AWB_NUMBER || '';

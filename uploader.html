@@ -1659,9 +1659,11 @@
             });
 
             // Sorted array for list rendering
-            allOrdersList = Object.values(ordersData).sort((a, b) =>
-                new Date(b.ORDER_DATE) - new Date(a.ORDER_DATE)
-            );
+            allOrdersList = Object.values(ordersData).sort((a, b) => {
+                const da = parseDate(b.ORDER_DATE);
+                const db = parseDate(a.ORDER_DATE);
+                return (da?.getTime() || 0) - (db?.getTime() || 0);
+            });
 
             filterAndRenderOrders();
 
@@ -1747,7 +1749,7 @@
             cutoff.setDate(cutoff.getDate() - displayDays);
             cutoff.setHours(0, 0, 0, 0);
             return orders.filter(o => {
-                const d = o.ORDER_DATE ? new Date(o.ORDER_DATE) : null;
+                const d = parseDate(o.ORDER_DATE);
                 return d && d >= cutoff;
             });
         }

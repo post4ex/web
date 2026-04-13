@@ -60,8 +60,8 @@
  *  // Time only from a timestamp
  *  span.textContent = fmtDate(order.TIME_STAMP, 'time');
  *
- *  // Sorting — keep raw for new Date() comparison, or use fmtDate for display only
- *  orders.sort((a, b) => new Date(b.ORDER_DATE) - new Date(a.ORDER_DATE));
+ *  // Sorting — use parseDate() for reliable comparison across all raw formats
+ *  orders.sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
  *
  * ============================================================================
  * REVERSE — fromIST(displayStr):
@@ -215,6 +215,12 @@
         if (!dateStr) return 0;
         const d = _parse(dateStr);
         return d ? d.getTime() : 0;
+    };
+
+    // parseDate — expose _parse publicly so any module can get a Date object
+    // from any raw value (Unix ms, YYYY-MM-DD, ISO string, Date object)
+    window.parseDate = function (val) {
+        return _parse(val);
     };
 
 })();
