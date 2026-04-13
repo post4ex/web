@@ -658,11 +658,20 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSelectedRef = ref;
         allOrders          = Object.values(appData.ORDERS || {});
 
-        // render all panes into modal containers
+        // wire ui references to modal containers (shipments bootstrap didn't run here)
+        ui.documentCenterContainer  = document.getElementById('documentCenterContainer');
+        ui.shipmentDetailsContainer = document.getElementById('shipmentDetailsContainer');
+        ui.productBoxDetailsContainer = document.getElementById('productBoxDetailsContainer');
+        ui.trackingStatusContainer  = document.getElementById('trackingStatusContainer');
+        ui.consignorDetailsContainer = document.getElementById('boInfoConsignor');
+        ui.consigneeDetailsContainer = document.getElementById('boInfoConsignee');
+        ui.trackingHistoryContainer  = document.getElementById('trackingHistoryContainer');
+
+        // render all panes
         renderDocumentCenter(p.order);
         renderShipmentDetails(p.order);
-        renderPartyDetails('Consignor', p.cnor?.NAME || p.order.CONSIGNOR, p.order.ORIGIN_CITY, p.cnor?.PINCODE || p.order.ORIGIN_PINCODE, p.cnor?.ADDRESS || '', p.cnor?.MOBILE || '', document.getElementById('boInfoConsignor'));
-        renderPartyDetails('Consignee', p.cnee?.NAME || p.order.CONSIGNEE, p.order.DEST_CITY,   p.cnee?.PINCODE || p.order.DEST_PINCODE,   p.cnee?.ADDRESS || '', p.cnee?.MOBILE || '', document.getElementById('boInfoConsignee'));
+        renderPartyDetails('Consignor', p.cnor?.NAME || p.order.CONSIGNOR, p.order.ORIGIN_CITY, p.cnor?.PINCODE || p.order.ORIGIN_PINCODE, p.cnor?.ADDRESS || '', p.cnor?.MOBILE || '', ui.consignorDetailsContainer);
+        renderPartyDetails('Consignee', p.cnee?.NAME || p.order.CONSIGNEE, p.order.DEST_CITY,   p.cnee?.PINCODE || p.order.DEST_PINCODE,   p.cnee?.ADDRESS || '', p.cnee?.MOBILE || '', ui.consigneeDetailsContainer);
         renderProductAndBoxDetails(p.order);
         renderTrackingStatus(p.order);
 
