@@ -2291,17 +2291,23 @@
              // 3. Set initial state of the uploader
              resetUploader();
              
-             // 4. Load from IndexedDB if available, else wait for appDataLoaded event
+             // 4. Load from IndexedDB — wait for DB ready first, then load
              (async () => {
                  try {
-                     if (window.appDB && window.appDB.db) {
-                         const data = await getAppData();
-                         if (data && data.ORDERS && Object.keys(data.ORDERS).length > 0) {
-                             processAppData(data);
-                             return;
-                         }
+                     // wait for IndexedDB to be ready
+                     if (!window.appDB || !window.appDB.db) {
+                         await new Promise(resolve => {
+                             window.addEventListener('indexedDBReady', resolve, { once: true });
+                             setTimeout(resolve, 5000); // fallback
+                         });
+                     }
+                     const data = await getAppData();
+                     if (data && data.ORDERS && Object.keys(data.ORDERS).length > 0) {
+                         processAppData(data);
+                         return;
                      }
                  } catch (e) { console.warn('[Uploader] IndexedDB load failed:', e); }
+                 // no data yet — wait for sync event
                  updateStatus('Waiting for app data...');
              })();
  
