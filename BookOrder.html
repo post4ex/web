@@ -20,6 +20,14 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
+        .detail-card { background:#fff; border-radius:0.5rem; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+        .detail-card-header { padding:0.75rem 1rem; border-bottom:1px solid #e5e7eb; background:#f9fafb; border-radius:0.5rem 0.5rem 0 0; }
+        .detail-card-body { padding:1rem; }
+        .doc-action-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:4px; border:none; cursor:pointer; background:transparent; color:#6b7280; flex:1; }
+        .doc-action-btn:hover { background:#f3f4f6; color:#111827; }
+        .doc-action-btn--wa { color:#16a34a; } .doc-action-btn--wa:hover { background:#f0fdf4; }
+        .doc-action-btn--tg { color:#2563eb; } .doc-action-btn--tg:hover { background:#eff6ff; }
+        .form-input { border-radius:0.375rem; border:1px solid #d1d5db; padding:0.5rem 0.75rem; font-size:0.875rem; width:100%; }
         .autocomplete-container {
             position: relative;
         }
@@ -502,6 +510,30 @@
     </div>
 
     
+    <!-- Shipment Info Modal -->
+    <div id="boInfoModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl my-6">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="font-bold text-gray-800">Shipment Info</h3>
+                <button id="boInfoModalClose" class="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div id="documentCenterContainer"  class="detail-card"></div>
+                    <div id="shipmentDetailsContainer" class="detail-card"></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div id="boInfoConsignor" class="detail-card"></div>
+                    <div id="boInfoConsignee" class="detail-card"></div>
+                </div>
+                <div id="productBoxDetailsContainer" class="detail-card"></div>
+                <div id="trackingStatusContainer"    class="detail-card"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
@@ -513,6 +545,7 @@
     <script src="core/layout.js"></script>
     <script src="utils/calculations.js"></script>
     <script src="core/book-order.js"></script>
+    <script src="jawaS/shipments.js"></script>
     <script src="jawaS/book-order.js"></script>
     <script src="utils/docgen.js"></script>
     <script type="module">

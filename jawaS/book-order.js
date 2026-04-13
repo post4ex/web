@@ -634,6 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ${!isClient ? `<button onclick="boEditOrder('${ref}')" title="Edit" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
                                 ${canDelete ? `<button onclick="boDeleteOrder('${ref}')" title="Delete" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#ef4444;border-radius:4px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
                                 <button onclick="boPrintAll('${ref}')" title="Print All" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
+                                <button onclick="boShowInfo('${ref}')" title="Info" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#4338ca;border-radius:4px;" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
                             </div>
                             <div class="bo-print-row">
                                 <button onclick="boPrint('receipt','${ref}')"  title="Receipt"     style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">RCP</button>
@@ -649,6 +650,32 @@ document.addEventListener('DOMContentLoaded', () => {
             listEl.appendChild(li);
         });
     }
+
+    window.boShowInfo = (ref) => {
+        const p = _boGetParts(ref); if (!p) return;
+
+        // set globals that shipments render functions depend on
+        currentSelectedRef = ref;
+        allOrders          = Object.values(appData.ORDERS || {});
+
+        // render all panes into modal containers
+        renderDocumentCenter(p.order);
+        renderShipmentDetails(p.order);
+        renderPartyDetails('Consignor', p.cnor?.NAME || p.order.CONSIGNOR, p.order.ORIGIN_CITY, p.cnor?.PINCODE || p.order.ORIGIN_PINCODE, p.cnor?.ADDRESS || '', p.cnor?.MOBILE || '', document.getElementById('boInfoConsignor'));
+        renderPartyDetails('Consignee', p.cnee?.NAME || p.order.CONSIGNEE, p.order.DEST_CITY,   p.cnee?.PINCODE || p.order.DEST_PINCODE,   p.cnee?.ADDRESS || '', p.cnee?.MOBILE || '', document.getElementById('boInfoConsignee'));
+        renderProductAndBoxDetails(p.order);
+        renderTrackingStatus(p.order);
+
+        document.getElementById('boInfoModal').classList.remove('hidden');
+    };
+
+    document.getElementById('boInfoModalClose').addEventListener('click', () => {
+        document.getElementById('boInfoModal').classList.add('hidden');
+    });
+    document.getElementById('boInfoModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('boInfoModal'))
+            document.getElementById('boInfoModal').classList.add('hidden');
+    });
 
     window.boEditOrder = (ref) => {
         if (typeof prefillEditOrder === 'function') {

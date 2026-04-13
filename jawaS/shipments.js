@@ -542,6 +542,7 @@ function renderDocumentCenter(order) {
 
 // --- BOOTSTRAP ---
 document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('shipmentListPane')) return; // not on Shipments.html — render functions still available
     ui = {
         statusMessage:              document.getElementById('status-message'),
         shipmentList:               document.getElementById('shipmentList'),
