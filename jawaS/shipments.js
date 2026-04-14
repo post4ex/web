@@ -211,9 +211,11 @@ function renderShipmentList(orders) {
         return;
     }
     orders.forEach(order => {
-        const ref = order.REFERENCE; if (!ref) return;
-        const li  = document.createElement('li');
-        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="client-info">${order.CONSIGNOR || 'Unknown'} → ${order.CONSIGNEE || 'Unknown'}</span><div class="details-info"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
+        const ref  = order.REFERENCE; if (!ref) return;
+        const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
+        const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
+        const li   = document.createElement('li');
+        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="client-info">${cnor} &rarr; ${cnee}</span><div class="details-info"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
         li.dataset.ref = ref;
         li.addEventListener('click', () => handleShipmentSelection(ref, li));
         if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
