@@ -187,8 +187,8 @@ function _updateBadge() {
 function _createFilePreviewModal() {
     if (document.getElementById('file-preview-modal')) return;
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="file-preview-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[70] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl flex flex-col" style="max-height:90vh">
+    <div id="file-preview-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[70] hidden flex items-center justify-center p-0 sm:p-4">
+        <div class="bg-white shadow-2xl w-full flex flex-col" style="height:100%;max-height:100%;border-radius:0;">
             <div class="p-3 border-b flex justify-between items-center bg-gray-50 flex-shrink-0">
                 <span id="file-preview-title" class="font-semibold text-gray-700 text-sm truncate"></span>
                 <div class="flex items-center gap-2">
@@ -232,7 +232,28 @@ function _createFilePreviewModal() {
     });
 }
 
+// External domains that cannot be proxied/embedded — open directly in new tab
+const _EXTERNAL_PREVIEW_DOMAINS = [
+    'drive.google.com', 'docs.google.com',
+    'dropbox.com', 'onedrive.live.com', '1drv.ms',
+    'sharepoint.com'
+];
+
+function _isExternalUrl(url) {
+    if (!url || url.startsWith('data:') || url.startsWith('/') || url.startsWith('blob:')) return false;
+    try {
+        const host = new URL(url).hostname;
+        return _EXTERNAL_PREVIEW_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+    } catch { return false; }
+}
+
 window.previewFile = async function (filePath, title = '') {
+    // External URLs (GDrive etc.) — open in new tab, no modal
+    if (_isExternalUrl(filePath)) {
+        window.open(filePath, '_blank', 'noopener,noreferrer');
+        return;
+    }
+
     _createFilePreviewModal();
 
     const modal   = document.getElementById('file-preview-modal');
@@ -260,13 +281,13 @@ window.previewFile = async function (filePath, title = '') {
             const iframe = document.createElement('iframe');
             iframe.id    = 'file-preview-iframe';
             iframe.src   = blobUrl;
-            iframe.style.cssText = 'width:100%;height:75vh;border:none;';
+            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
             body.appendChild(iframe);
         } else {
             const img  = document.createElement('img');
             img.id     = 'file-preview-img';
             img.src    = blobUrl;
-            img.style.cssText = 'max-width:100%;max-height:75vh;object-fit:contain;';
+            img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
             body.appendChild(img);
         }
     } catch (e) {
