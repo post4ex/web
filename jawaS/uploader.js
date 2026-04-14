@@ -720,47 +720,47 @@ document.addEventListener('DOMContentLoaded', () => {
      desktopRightPanelParent = rightPanelEl.parentNode;
      
      function handleResponsiveLayout() {
-const toggleBtn = document.getElementById('toggleOrderListBtn');
-if (window.innerWidth < 1024) {
-    if (rightPanelEl.parentNode !== mobilePlaceholder) {
-mobilePlaceholder.appendChild(rightPanelEl);
-    }
-    rightPanelEl.style.height      = 'auto';
-    rightPanelEl.style.maxHeight   = rightPanelEl.classList.contains('collapsed') ? '56px' : '50vh';
-    rightPanelEl.style.overflow    = 'hidden';
-    rightPanelEl.style.display     = 'flex';
-    rightPanelEl.style.flexDirection = 'column';
-    rightPanelEl.style.borderLeft  = 'none';
-    rightPanelEl.style.borderBottom = '1px solid #e2e8f0';
-    leftPanelEl.style.overflowY    = 'visible';
-    // miniOrderListContainer must scroll within the capped panel height
-    if (miniOrderListContainer) {
-miniOrderListContainer.style.overflowY = 'auto';
-miniOrderListContainer.style.minHeight = '0';
-miniOrderListContainer.style.flex      = '1';
-    }
-} else {
-    if (rightPanelEl.parentNode !== desktopRightPanelParent) {
-desktopRightPanelParent.appendChild(rightPanelEl);
-    }
-    rightPanelEl.style.height      = '100%';
-    rightPanelEl.style.maxHeight   = 'none';
-    rightPanelEl.style.overflow    = 'hidden';
-    rightPanelEl.style.display     = 'flex';
-    rightPanelEl.style.flexDirection = 'column';
-    rightPanelEl.style.borderLeft  = '1px solid #e2e8f0';
-    rightPanelEl.style.borderBottom = 'none';
-    leftPanelEl.style.overflowY    = 'auto';
-    if (miniOrderListContainer) {
-miniOrderListContainer.style.overflowY = 'auto';
-miniOrderListContainer.style.minHeight = '0';
-miniOrderListContainer.style.flex      = '1';
-    }
-    if (rightPanelEl.classList.contains('collapsed')) {
-rightPanelEl.classList.remove('collapsed');
-if (toggleBtn) toggleBtn.classList.remove('collapsed');
-    }
-}
+        const toggleBtn = document.getElementById('toggleOrderListBtn');
+        if (window.innerWidth < 1024) {
+            // Mobile: move panel into placeholder, cap at 50vh, internal scroll
+            if (rightPanelEl.parentNode !== mobilePlaceholder) {
+                mobilePlaceholder.appendChild(rightPanelEl);
+            }
+            rightPanelEl.style.position    = '';
+            rightPanelEl.style.height      = 'auto';
+            rightPanelEl.style.maxHeight   = rightPanelEl.classList.contains('collapsed') ? '56px' : '50vh';
+            rightPanelEl.style.overflow    = 'hidden';
+            rightPanelEl.style.borderLeft  = 'none';
+            rightPanelEl.style.borderBottom = '1px solid #e2e8f0';
+            leftPanelEl.style.overflowY    = 'visible';
+            if (miniOrderListContainer) {
+                miniOrderListContainer.style.flex      = '1';
+                miniOrderListContainer.style.minHeight = '0';
+                miniOrderListContainer.style.overflowY = 'auto';
+            }
+        } else {
+            // Desktop: move panel back, CSS handles sticky + height:100vh
+            if (rightPanelEl.parentNode !== desktopRightPanelParent) {
+                desktopRightPanelParent.appendChild(rightPanelEl);
+            }
+            // Clear all mobile inline styles — CSS takes over
+            rightPanelEl.style.position    = '';
+            rightPanelEl.style.height      = '';
+            rightPanelEl.style.maxHeight   = '';
+            rightPanelEl.style.overflow    = '';
+            rightPanelEl.style.borderLeft  = '';
+            rightPanelEl.style.borderBottom = '';
+            leftPanelEl.style.overflowY    = 'auto';
+            if (miniOrderListContainer) {
+                miniOrderListContainer.style.flex      = '';
+                miniOrderListContainer.style.minHeight = '';
+                miniOrderListContainer.style.overflowY = '';
+            }
+            if (rightPanelEl.classList.contains('collapsed')) {
+                rightPanelEl.classList.remove('collapsed');
+                if (toggleBtn) toggleBtn.classList.remove('collapsed');
+            }
+        }
      }
      
      // Run on load and on resize
