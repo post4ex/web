@@ -187,66 +187,46 @@ function _updateBadge() {
 function _createFilePreviewModal() {
     if (document.getElementById('file-preview-modal')) return;
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="file-preview-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[70] hidden flex items-end sm:items-center justify-center">
-        <div id="file-preview-inner" class="bg-white shadow-2xl w-full flex flex-col" style="height:100dvh;border-radius:0;">
-            <div class="p-3 border-b flex justify-between items-center bg-gray-50 flex-shrink-0">
-                <span id="file-preview-title" class="font-semibold text-gray-700 text-sm truncate mr-2"></span>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                    <button id="file-preview-open" class="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700">Open</button>
-                    <button id="file-preview-download" class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Download</button>
-                    <button id="file-preview-close" class="text-gray-500 hover:text-red-500 p-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    <div id="file-preview-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);">
+        <div id="file-preview-inner" style="position:absolute;inset:0;display:flex;flex-direction:column;background:#fff;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+                <span id="file-preview-title" style="font-size:0.875rem;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;"></span>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                    <button id="file-preview-open"     style="font-size:0.75rem;padding:4px 10px;background:#4b5563;color:#fff;border:none;border-radius:4px;cursor:pointer;">Open</button>
+                    <button id="file-preview-download" style="font-size:0.75rem;padding:4px 10px;background:#2563eb;color:#fff;border:none;border-radius:4px;cursor:pointer;">Download</button>
+                    <button id="file-preview-close"    style="background:none;border:none;cursor:pointer;color:#6b7280;padding:4px;line-height:0;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
-            <div id="file-preview-body" class="flex-1 overflow-auto flex items-center justify-center p-2 min-h-0" style="background:#f3f4f6">
-                <p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>
+            <div id="file-preview-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#f3f4f6;min-height:0;">
+                <p id="file-preview-loading" style="color:#6b7280;font-size:0.875rem;">Loading...</p>
             </div>
         </div>
     </div>`);
 
-    // Responsive: full-screen on mobile, centered card on desktop
-    const inner = document.getElementById('file-preview-inner');
-    function _applyPreviewLayout() {
-        if (window.innerWidth >= 640) {
-            inner.style.height      = '90vh';
-            inner.style.maxWidth    = '56rem';
-            inner.style.borderRadius = '0.5rem';
-        } else {
-            inner.style.height      = '100dvh';
-            inner.style.maxWidth    = '100%';
-            inner.style.borderRadius = '0';
-        }
-    }
-    _applyPreviewLayout();
-    window.addEventListener('resize', _applyPreviewLayout);
-
-    const modal    = document.getElementById('file-preview-modal');
-    const closeBtn = document.getElementById('file-preview-close');
-    const dlBtn    = document.getElementById('file-preview-download');
-    const openBtn  = document.getElementById('file-preview-open');
+    const modal   = document.getElementById('file-preview-modal');
+    const dlBtn   = document.getElementById('file-preview-download');
+    const openBtn = document.getElementById('file-preview-open');
 
     const close = () => {
-        modal.classList.add('hidden');
+        modal.style.display = 'none';
         const img    = document.getElementById('file-preview-img');
         const iframe = document.getElementById('file-preview-iframe');
         if (img    && img.src.startsWith('blob:'))    URL.revokeObjectURL(img.src);
         if (iframe && iframe.src.startsWith('blob:')) URL.revokeObjectURL(iframe.src);
-        document.getElementById('file-preview-body').innerHTML = '<p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>';
+        document.getElementById('file-preview-body').innerHTML = '<p id="file-preview-loading" style="color:#6b7280;font-size:0.875rem;">Loading...</p>';
         dlBtn._blobUrl = null;
         openBtn._url   = null;
     };
 
-    closeBtn.addEventListener('click', close);
-    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    document.getElementById('file-preview-close').addEventListener('click', close);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
     dlBtn.addEventListener('click', () => {
         if (!dlBtn._blobUrl) return;
         const a = document.createElement('a');
-        a.href     = dlBtn._blobUrl;
-        a.download = dlBtn._filename || 'file';
-        a.click();
+        a.href = dlBtn._blobUrl; a.download = dlBtn._filename || 'file'; a.click();
     });
 
     openBtn.addEventListener('click', () => {
@@ -270,7 +250,6 @@ function _isExternalUrl(url) {
 }
 
 window.previewFile = async function (filePath, title = '') {
-    // External URLs (GDrive etc.) — open in new tab, no modal
     if (_isExternalUrl(filePath)) {
         window.open(filePath, '_blank', 'noopener,noreferrer');
         return;
@@ -282,17 +261,15 @@ window.previewFile = async function (filePath, title = '') {
     const body    = document.getElementById('file-preview-body');
     const titleEl = document.getElementById('file-preview-title');
     const dlBtn   = document.getElementById('file-preview-download');
-
-    titleEl.textContent = title || filePath.split('/').pop();
-    body.innerHTML = '<p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>';
-    modal.classList.remove('hidden');
-
     const openBtn = document.getElementById('file-preview-open');
-    openBtn._url  = filePath.startsWith('data:') ? null : filePath;  // store original path for Open button
+
+    titleEl.textContent   = title || filePath.split('/').pop();
+    body.innerHTML        = '<p id="file-preview-loading" style="color:#6b7280;font-size:0.875rem;">Loading...</p>';
+    modal.style.display   = 'block';
+    openBtn._url          = filePath.startsWith('data:') ? null : filePath;
     openBtn.style.display = openBtn._url ? '' : 'none';
 
     try {
-        // data: URLs are already local — no fetch needed
         const isDataUrl = filePath.startsWith('data:');
         const blobUrl   = isDataUrl ? filePath : await fetchFileUrl(filePath);
         const filename  = isDataUrl ? (title || 'file') : filePath.split('/').pop();
@@ -310,14 +287,14 @@ window.previewFile = async function (filePath, title = '') {
             iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
             body.appendChild(iframe);
         } else {
-            const img  = document.createElement('img');
-            img.id     = 'file-preview-img';
-            img.src    = blobUrl;
+            const img = document.createElement('img');
+            img.id    = 'file-preview-img';
+            img.src   = blobUrl;
             img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
             body.appendChild(img);
         }
     } catch (e) {
-        body.innerHTML = `<p class="text-red-500 text-sm">Failed to load file: ${e.message}</p>`;
+        body.innerHTML = `<p style="color:#dc2626;font-size:0.875rem;">Failed to load file: ${e.message}</p>`;
     }
 };
 

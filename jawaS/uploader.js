@@ -630,6 +630,7 @@ toggleOrderListBtn.addEventListener('click', () => {
     if (panel) {
 panel.classList.toggle('collapsed');
 toggleOrderListBtn.classList.toggle('collapsed');
+panel.style.maxHeight = panel.classList.contains('collapsed') ? '56px' : '50vh';
     }
 });
     }
@@ -719,36 +720,42 @@ document.addEventListener('DOMContentLoaded', () => {
      desktopRightPanelParent = rightPanelEl.parentNode;
      
      function handleResponsiveLayout() {
-const toggleBtn = document.getElementById('toggleOrderListBtn'); // Get button
+const toggleBtn = document.getElementById('toggleOrderListBtn');
 if (window.innerWidth < 1024) {
-    // Mobile View
     if (rightPanelEl.parentNode !== mobilePlaceholder) {
 mobilePlaceholder.appendChild(rightPanelEl);
     }
-    rightPanelEl.style.height = 'auto';
-    rightPanelEl.style.maxHeight = '50vh'; // Set mobile height
-    rightPanelEl.style.overflow = 'hidden'; // Keep internal flex scroll
-    rightPanelEl.style.borderLeft = 'none';
+    rightPanelEl.style.height      = 'auto';
+    rightPanelEl.style.maxHeight   = rightPanelEl.classList.contains('collapsed') ? '56px' : '50vh';
+    rightPanelEl.style.overflow    = 'hidden';
+    rightPanelEl.style.display     = 'flex';
+    rightPanelEl.style.flexDirection = 'column';
+    rightPanelEl.style.borderLeft  = 'none';
     rightPanelEl.style.borderBottom = '1px solid #e2e8f0';
-    leftPanelEl.style.overflowY = 'visible';
-    // *** NEW: Check collapsed state on move ***
-    if (rightPanelEl.classList.contains('collapsed')) {
-rightPanelEl.style.maxHeight = '56px';
+    leftPanelEl.style.overflowY    = 'visible';
+    // miniOrderListContainer must scroll within the capped panel height
+    if (miniOrderListContainer) {
+miniOrderListContainer.style.overflowY = 'auto';
+miniOrderListContainer.style.minHeight = '0';
+miniOrderListContainer.style.flex      = '1';
     }
-
 } else {
-    // Desktop View
     if (rightPanelEl.parentNode !== desktopRightPanelParent) {
 desktopRightPanelParent.appendChild(rightPanelEl);
     }
-    rightPanelEl.style.height = '100%';
-    rightPanelEl.style.maxHeight = 'none';
-    rightPanelEl.style.overflow = 'hidden';
-    rightPanelEl.style.borderLeft = '1px solid #e2e8f0';
+    rightPanelEl.style.height      = '100%';
+    rightPanelEl.style.maxHeight   = 'none';
+    rightPanelEl.style.overflow    = 'hidden';
+    rightPanelEl.style.display     = 'flex';
+    rightPanelEl.style.flexDirection = 'column';
+    rightPanelEl.style.borderLeft  = '1px solid #e2e8f0';
     rightPanelEl.style.borderBottom = 'none';
-    leftPanelEl.style.overflowY = 'auto';
-
-    // *** NEW: Ensure list is not collapsed on desktop ***
+    leftPanelEl.style.overflowY    = 'auto';
+    if (miniOrderListContainer) {
+miniOrderListContainer.style.overflowY = 'auto';
+miniOrderListContainer.style.minHeight = '0';
+miniOrderListContainer.style.flex      = '1';
+    }
     if (rightPanelEl.classList.contains('collapsed')) {
 rightPanelEl.classList.remove('collapsed');
 if (toggleBtn) toggleBtn.classList.remove('collapsed');
