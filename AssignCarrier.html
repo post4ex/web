@@ -3,115 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UpdateCarrier</title>
-    <!-- Tailwind CSS for styling -->
+    <title>Assign Carrier</title>
     <link href="style.css" rel="stylesheet">
-    <!-- Google Fonts for a modern look -->
     <link href="assets/css/inter-font.css" rel="stylesheet">
-    <!-- Icon Library (for refresh icon) -->
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        main { min-height: calc(100vh - 8rem); }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spinner { animation: spin 1s linear infinite; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        #shipmentsListContainer li {
-            padding: 0.75rem; border-radius: 0.5rem; cursor: pointer;
-            transition: background-color 0.2s; border: 1px solid #e5e7eb; line-height: 1.4;
+        #shipmentsList li {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: 1px solid #e5e7eb;
+            line-height: 1.4;
         }
-        #shipmentsListContainer li.selected { background-color: #e0e7ff; font-weight: 500; border-color: #c7d2fe; }
-        #shipmentsListContainer li:hover { background-color: #eef2ff; }
-        #shipmentsListContainer li.incomplete { border-color: #fcd34d; background-color: #fffbeb; }
-        #shipmentsListContainer li.incomplete:hover { background-color: #fef3c7; }
-        #shipmentsListContainer li strong { color: #4338ca; display: block; font-size: 0.875rem; font-weight: 600; }
-        #shipmentsListContainer .client-info { font-size: 0.75rem; color: #6b7280; }
-        #shipmentsListContainer .details-info { font-size: 0.75rem; color: #4b5563; margin-top: 4px; display: flex; justify-content: space-between; }
+        #shipmentsList li.selected { background-color: #e0e7ff; font-weight: 500; border-color: #c7d2fe; }
+        #shipmentsList li:hover { background-color: #eef2ff; }
+        #shipmentsList li.incomplete { border-color: #fcd34d; background-color: #fffbeb; }
+        #shipmentsList li.incomplete:hover { background-color: #fef3c7; }
+        #shipmentsList li strong { color: #4338ca; display: block; font-size: 0.875rem; font-weight: 600; }
+        #shipmentsList .client-info { font-size: 0.75rem; color: #6b7280; }
+        #shipmentsList .details-info { font-size: 0.75rem; color: #4b5563; margin-top: 4px; display: flex; justify-content: space-between; }
+        .form-input {
+            border-radius: 0.375rem; border: 1px solid #d1d5db; padding: 0.5rem 0.75rem;
+            font-size: 0.875rem; width: 100%; transition: border-color 0.2s;
+        }
+        .form-input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 1px #4f46e5; }
     </style>
 </head>
-<body class="bg-gray-100 flex flex-col min-h-screen">
+<body class="bg-gray-100 flex flex-col">
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <main class="flex-grow w-full flex items-center justify-center p-4">
-        <div id="mainContainer" class="flex flex-col md:flex-row w-full max-w-7xl mx-auto gap-8" style="height:100vh;">
+    <div class="flex flex-col md:flex-row w-full" style="height:100vh;">
 
-            <!-- Left Column: Shipments List -->
-            <div class="w-full md:w-1/2 bg-white rounded-xl shadow-lg flex flex-col" style="height:100vh;overflow:hidden;">
-                <div class="p-4 border-b border-gray-200 flex-shrink-0">
-                    <h2 class="text-xl font-bold text-gray-800 mb-3">Shipments</h2>
-                    <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Client..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-                <div id="shipmentsListContainer" class="custom-scrollbar flex-grow min-h-0 overflow-y-auto">
-                    <p id="shipmentsPlaceholder" class="text-center text-gray-500 pt-16 p-4">Waiting for application data...</p>
-                    <ul id="shipmentsList" class="p-4 space-y-2 hidden"></ul>
-                </div>
+        <!-- Left Sidebar: Shipments List -->
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col" style="height:100vh;overflow:hidden;">
+            <div class="p-4 border-b sticky top-0 bg-white z-10">
+                <h2 class="text-xl font-bold text-gray-800 mb-3">Shipments</h2>
+                <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Client..." class="form-input text-sm">
+            </div>
+            <div class="overflow-y-auto flex-grow min-h-0">
+                <p id="shipmentsPlaceholder" class="text-gray-600 p-4 text-center">Waiting for application data...</p>
+                <ul id="shipmentsList" class="p-4 space-y-2 hidden"></ul>
+            </div>
+        </aside>
 
-            <!-- Right Column: Partial Order Update Form -->
-            <div class="w-full md:w-1/2 overflow-y-auto custom-scrollbar" style="height:100vh;">
-                <div class="p-8 space-y-6 bg-white rounded-xl shadow-lg">
+        <!-- Right Pane: Update Form -->
+        <main class="w-full md:w-2/3 lg:w-3/4 p-6 md:p-8 overflow-y-auto bg-gray-50 hidden md:block" style="height:100vh;">
+
+            <div id="backBtnWrap" class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
+                <button type="button" id="backToListBtn" class="text-sm bg-gray-200 text-gray-800 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Back to List
+                </button>
+            </div>
+
+            <div id="emptyView" class="h-full flex items-center justify-center">
+                <p class="text-gray-500 text-lg">Select a shipment from the list to update.</p>
+            </div>
+
+            <div id="formView" class="hidden max-w-2xl mx-auto">
+                <div class="bg-white rounded-xl shadow-lg p-8 space-y-6">
                     <div class="text-center">
-                        <h1 class="text-3xl font-bold text-gray-800">Assign Carrier</h1>
-                        <p class="mt-2 text-sm text-gray-600">Select a shipment from the left to update its details.</p>
+                        <h1 class="text-2xl font-bold text-gray-800">Assign Carrier</h1>
+                        <p class="mt-1 text-sm text-gray-500">Update carrier and shipment details below.</p>
                     </div>
 
                     <form id="partialUpdateForm" class="space-y-4">
                         <fieldset class="border-t border-gray-200 pt-4">
-                            <legend class="text-lg font-semibold text-gray-700 mb-2">Identify Order</legend>
+                            <legend class="text-sm font-semibold text-gray-700 mb-2">Order</legend>
                             <div>
                                 <label for="reference" class="text-sm font-medium text-gray-700">Reference ID</label>
-                                <input type="number" id="reference" name="REFERENCE" required class="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm" placeholder="Select a shipment" readonly>
+                                <input type="text" id="reference" name="REFERENCE" required readonly
+                                    class="mt-1 form-input bg-gray-100" placeholder="Select a shipment">
                             </div>
                         </fieldset>
+
                         <fieldset class="border-t border-gray-200 pt-4">
-                            <legend class="text-lg font-semibold text-gray-700 mb-2">Fields to Update</legend>
-                             <p class="text-xs text-gray-500 mb-4">Only fill in the fields you want to change.</p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                 <div>
+                            <legend class="text-sm font-semibold text-gray-700 mb-3">Fields to Update</legend>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
                                     <label for="carrier" class="text-sm font-medium text-gray-700">Carrier</label>
-                                    <select id="carrier" name="CARRIER" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    <select id="carrier" name="CARRIER" class="mt-1 form-input bg-white">
                                         <option value="">Select a carrier</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label for="awb_number" class="text-sm font-medium text-gray-700">AWB Number</label>
-                                    <input type="text" id="awb_number" name="AWB_NUMBER" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="New AWB number">
+                                    <input type="text" id="awb_number" name="AWB_NUMBER" class="mt-1 form-input" placeholder="AWB number">
                                 </div>
                                 <div>
                                     <label for="order_date" class="text-sm font-medium text-gray-700">Order Date</label>
-                                    <input type="date" id="order_date" name="ORDER_DATE" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    <input type="date" id="order_date" name="ORDER_DATE" class="mt-1 form-input">
                                 </div>
                                 <div>
                                     <label for="transit_date" class="text-sm font-medium text-gray-700">Transit Date</label>
-                                    <input type="date" id="transit_date" name="TRANSIT_DATE" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    <input type="date" id="transit_date" name="TRANSIT_DATE" class="mt-1 form-input">
                                 </div>
-                                <div class="md:col-span-2">
+                                <div class="sm:col-span-2">
                                     <label for="dyna_awb" class="text-sm font-medium text-gray-700">Dyna AWB</label>
-                                    <input type="text" id="dyna_awb" name="DYNA_AWB" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="New Dyna AWB">
+                                    <input type="text" id="dyna_awb" name="DYNA_AWB" class="mt-1 form-input" placeholder="Dyna AWB">
                                 </div>
                             </div>
                         </fieldset>
-                        <div>
-                            <button type="submit" id="submitButton" class="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300">
-                                <span id="buttonText">Update Order</span>
-                                <svg id="spinner" class="spinner h-5 w-5 ml-3 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </button>
-                        </div>
+
+                        <button type="submit" id="submitButton"
+                            class="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300">
+                            <span id="buttonText">Update Order</span>
+                            <svg id="spinner" class="h-5 w-5 ml-3 text-white hidden animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
                     </form>
-                    <div id="responseMessage" class="mt-4 p-4 text-sm rounded-md hidden"></div>
+
+                    <div id="responseMessage" class="mt-2 p-4 text-sm rounded-md hidden"></div>
                 </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
 
-    
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>

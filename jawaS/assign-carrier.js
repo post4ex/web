@@ -15,6 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput     = document.getElementById('searchShipments');
     const referenceInput  = document.getElementById('reference');
     const carrierSelect   = document.getElementById('carrier');
+    const emptyView       = document.getElementById('emptyView');
+    const formView        = document.getElementById('formView');
+    const mainPane        = document.querySelector('main');
+    const backBtn         = document.getElementById('backToListBtn');
+    const aside           = document.querySelector('aside');
 
     // --- STATE ---
     let allShipments      = [];
@@ -92,13 +97,25 @@ document.addEventListener('DOMContentLoaded', () => {
         activeEl = li;
 
         referenceInput.value = shipment.REFERENCE || '';
-        document.getElementById('order_date').value = fmtDate(shipment.ORDER_DATE, 'input');
-        document.getElementById('transit_date').value = shipment.TRANSIT_DATE ? new Date(shipment.TRANSIT_DATE).toISOString().split('T')[0] : '';
+        document.getElementById('order_date').value   = fmtDate(shipment.ORDER_DATE, 'input');
+        document.getElementById('transit_date').value = shipment.TRANSIT_DATE && shipment.TRANSIT_DATE !== 0 ? fmtDate(shipment.TRANSIT_DATE, 'input') : '';
         carrierSelect.value = shipment.CARRIER    || '';
         document.getElementById('awb_number').value = shipment.AWB_NUMBER || '';
         document.getElementById('dyna_awb').value   = shipment.DYNA_AWB   || '';
-        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        emptyView.classList.add('hidden');
+        formView.classList.remove('hidden');
+        // mobile: show main pane, hide aside
+        mainPane.classList.remove('hidden');
+        aside.classList.add('hidden');
+        aside.classList.add('md:flex');
     }
+
+    // mobile back button
+    backBtn?.addEventListener('click', () => {
+        mainPane.classList.add('hidden');
+        aside.classList.remove('hidden');
+    });
 
     // --- FORM SUBMIT ---
     form.addEventListener('submit', async (e) => {
@@ -112,7 +129,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const fields    = {};
         ['ORDER_DATE', 'TRANSIT_DATE', 'CARRIER', 'AWB_NUMBER', 'DYNA_AWB'].forEach(f => {
             const el = form.querySelector(`[name="${f}"]`);
-            if (el && el.value) fields[f] = el.value;
+            if (!el || !el.value) return;
+            if (f === 'ORDER_DATE' || f === 'TRANSIT_DATE') {
+                const ms = toUnix(el.value);
+                if (ms) fields[f] = ms;
+            } else {
+                fields[f] = el.value;
+            }
         });
 
         try {
