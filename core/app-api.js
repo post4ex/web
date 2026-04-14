@@ -253,6 +253,22 @@ window.fetchFileUrl = async function (filePath) {
     return URL.createObjectURL(blob);
 };
 
+// deleteUploadRecord — shared handler for upload delete buttons on any page
+// Requires MANAGER role (enforced server-side; button hidden client-side for lower roles)
+window.deleteUploadRecord = async function (uploadUid, btnEl) {
+    if (!confirm('Delete this upload? This will permanently remove the file.')) return;
+    if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.4'; }
+    try {
+        await callApi(`/api/upload/${uploadUid}`, {}, 'DELETE');
+        showNotification('\u2705 Upload deleted', 'success');
+        const row = btnEl?.closest('tr') || btnEl?.closest('.p-3');
+        if (row) row.remove();
+    } catch (err) {
+        showNotification(`\u274c Delete failed: ${err.message}`, 'error');
+        if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = ''; }
+    }
+};
+
 async function fetchBusinessYearData(fyYear = null) {
     if (!window.appDB || !window.appDB.db) return;
     try {

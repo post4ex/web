@@ -267,7 +267,7 @@ newRow.cells[2].innerHTML = rowData.customerKyc || 'N/A';
 newRow.insertCell(3).dataset.label = rowData.docInfo ? 'Doc Info' : 'N/A';
 newRow.cells[3].innerHTML = rowData.docInfo || 'N/A';
 
-// Cell 4: Preview button
+// Cell 4: Action buttons
 const imageCell = newRow.insertCell(4);
 imageCell.dataset.label = 'Action';
 const openBtn = document.createElement('button');
@@ -276,6 +276,17 @@ openBtn.textContent = 'Preview';
 openBtn.style.fontSize = '0.75rem';
 openBtn.addEventListener('click', () => previewFile(rowData.image, rowData.type));
 imageCell.appendChild(openBtn);
+
+// Delete button — only for MANAGER and above
+const userLevel = ROLE_LEVELS[getUser().ROLE] || 0;
+if (userLevel >= ROLE_LEVELS['MANAGER']) {
+    const delBtn = document.createElement('button');
+    delBtn.className = 'v1-btn';
+    delBtn.textContent = 'Delete';
+    delBtn.style.cssText = 'font-size:0.75rem;background:#f8d7da;border-color:#f5c6cb;margin-left:4px;';
+    delBtn.addEventListener('click', () => deleteUploadRecord(upload.UPLOAD_UID, delBtn));
+    imageCell.appendChild(delBtn);
+}
 
 // Cell 5: Hidden Branch/Code Cell
 const hiddenCell = newRow.insertCell(5);
