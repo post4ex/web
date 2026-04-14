@@ -91,10 +91,15 @@ function initializePageWithData(appData) {
     }
 }
 
+let _dataListenersRegistered = false;
+
 async function loadFromIndexedDB() {
-    const onData = e => initializePageWithData(e.detail.data);
-    window.addEventListener('appDataLoaded',    onData);
-    window.addEventListener('appDataRefreshed', onData);
+    if (!_dataListenersRegistered) {
+        _dataListenersRegistered = true;
+        const onData = e => initializePageWithData(e.detail.data);
+        window.addEventListener('appDataLoaded',    onData);
+        window.addEventListener('appDataRefreshed', onData);
+    }
     try {
         await new Promise(resolve => {
             if (window.appDB && window.appDB.db) return resolve();
@@ -129,7 +134,11 @@ function populateFilters(orders) {
     carriers.sort().forEach(v => ui.filterCarrier.add(new Option(v, v)));
 }
 
+let _filterListenersSetup = false;
+
 function setupFilterListeners() {
+    if (_filterListenersSetup) return;
+    _filterListenersSetup = true;
     ui.searchShipments.addEventListener('input', applyFilters);
     ui.filterToggleBtn.addEventListener('click', () => ui.filterModal.classList.remove('hidden'));
     ui.applyFiltersBtn.addEventListener('click', () => { applyFilters(); ui.filterModal.classList.add('hidden'); });

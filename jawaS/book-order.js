@@ -701,12 +701,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function _boSetupMaps() {
-        window.b2b2cDataMap    = new Map();
-        window.modesDataMap    = new Map();
-        window.carriersDataMap = new Map();
-        window.productDataMap  = new Map();
-        window.multiboxDataMap = new Map();
-        window.uploadsDataMap  = new Map();
+        b2b2cDataMap.clear();
+        modesDataMap.clear();
+        carriersDataMap.clear();
+        productDataMap.clear();
+        multiboxDataMap.clear();
+        uploadsDataMap.clear();
         Object.values(appData.B2B2C    || {}).forEach(c => b2b2cDataMap.set(c.UID, c));
         Object.values(appData.MODES    || {}).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
         Object.values(appData.CARRIERS || {}).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
