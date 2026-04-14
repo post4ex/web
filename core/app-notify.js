@@ -187,11 +187,12 @@ function _updateBadge() {
 function _createFilePreviewModal() {
     if (document.getElementById('file-preview-modal')) return;
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="file-preview-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[70] hidden flex items-center justify-center p-0 sm:p-4">
-        <div class="bg-white shadow-2xl w-full flex flex-col" style="height:100%;max-height:100%;border-radius:0;">
+    <div id="file-preview-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[70] hidden flex items-end sm:items-center justify-center">
+        <div id="file-preview-inner" class="bg-white shadow-2xl w-full flex flex-col" style="height:100dvh;border-radius:0;">
             <div class="p-3 border-b flex justify-between items-center bg-gray-50 flex-shrink-0">
-                <span id="file-preview-title" class="font-semibold text-gray-700 text-sm truncate"></span>
-                <div class="flex items-center gap-2">
+                <span id="file-preview-title" class="font-semibold text-gray-700 text-sm truncate mr-2"></span>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button id="file-preview-open" class="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700">Open</button>
                     <button id="file-preview-download" class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Download</button>
                     <button id="file-preview-close" class="text-gray-500 hover:text-red-500 p-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -204,19 +205,36 @@ function _createFilePreviewModal() {
         </div>
     </div>`);
 
+    // Responsive: full-screen on mobile, centered card on desktop
+    const inner = document.getElementById('file-preview-inner');
+    function _applyPreviewLayout() {
+        if (window.innerWidth >= 640) {
+            inner.style.height      = '90vh';
+            inner.style.maxWidth    = '56rem';
+            inner.style.borderRadius = '0.5rem';
+        } else {
+            inner.style.height      = '100dvh';
+            inner.style.maxWidth    = '100%';
+            inner.style.borderRadius = '0';
+        }
+    }
+    _applyPreviewLayout();
+    window.addEventListener('resize', _applyPreviewLayout);
+
     const modal    = document.getElementById('file-preview-modal');
     const closeBtn = document.getElementById('file-preview-close');
     const dlBtn    = document.getElementById('file-preview-download');
+    const openBtn  = document.getElementById('file-preview-open');
 
     const close = () => {
         modal.classList.add('hidden');
-        // revoke any blob URLs to free memory
         const img    = document.getElementById('file-preview-img');
         const iframe = document.getElementById('file-preview-iframe');
         if (img    && img.src.startsWith('blob:'))    URL.revokeObjectURL(img.src);
         if (iframe && iframe.src.startsWith('blob:')) URL.revokeObjectURL(iframe.src);
         document.getElementById('file-preview-body').innerHTML = '<p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>';
         dlBtn._blobUrl = null;
+        openBtn._url   = null;
     };
 
     closeBtn.addEventListener('click', close);
@@ -229,6 +247,10 @@ function _createFilePreviewModal() {
         a.href     = dlBtn._blobUrl;
         a.download = dlBtn._filename || 'file';
         a.click();
+    });
+
+    openBtn.addEventListener('click', () => {
+        if (openBtn._url) window.open(openBtn._url, '_blank', 'noopener,noreferrer');
     });
 }
 
@@ -264,6 +286,10 @@ window.previewFile = async function (filePath, title = '') {
     titleEl.textContent = title || filePath.split('/').pop();
     body.innerHTML = '<p id="file-preview-loading" class="text-gray-500 text-sm">Loading...</p>';
     modal.classList.remove('hidden');
+
+    const openBtn = document.getElementById('file-preview-open');
+    openBtn._url  = filePath.startsWith('data:') ? null : filePath;  // store original path for Open button
+    openBtn.style.display = openBtn._url ? '' : 'none';
 
     try {
         // data: URLs are already local — no fetch needed
