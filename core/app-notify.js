@@ -187,9 +187,9 @@ function _updateBadge() {
 function _createFilePreviewModal() {
     if (document.getElementById('file-preview-modal')) return;
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="file-preview-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);">
-        <div id="file-preview-inner" style="position:absolute;inset:0;display:flex;flex-direction:column;background:#fff;">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+    <div id="file-preview-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.75);overflow-y:auto;">
+        <div id="file-preview-inner" style="position:relative;margin:auto;display:flex;flex-direction:column;background:#fff;width:100%;max-width:56rem;min-height:100vh;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;flex-shrink:0;position:sticky;top:0;z-index:1;">
                 <span id="file-preview-title" style="font-size:0.875rem;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px;"></span>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                     <button id="file-preview-open"     style="font-size:0.75rem;padding:4px 10px;background:#4b5563;color:#fff;border:none;border-radius:4px;cursor:pointer;">Open</button>
@@ -199,7 +199,7 @@ function _createFilePreviewModal() {
                     </button>
                 </div>
             </div>
-            <div id="file-preview-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#f3f4f6;min-height:0;">
+            <div id="file-preview-body" style="flex:1;display:flex;align-items:center;justify-content:center;background:#f3f4f6;min-height:80vh;">
                 <p id="file-preview-loading" style="color:#6b7280;font-size:0.875rem;">Loading...</p>
             </div>
         </div>
@@ -221,6 +221,7 @@ function _createFilePreviewModal() {
     };
 
     document.getElementById('file-preview-close').addEventListener('click', close);
+    modal.addEventListener('click', e => { if (e.target === modal) close(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
     dlBtn.addEventListener('click', () => {
@@ -284,13 +285,15 @@ window.previewFile = async function (filePath, title = '') {
             const iframe = document.createElement('iframe');
             iframe.id    = 'file-preview-iframe';
             iframe.src   = blobUrl;
-            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+            iframe.style.cssText = 'width:100%;height:85vh;border:none;display:block;';
+            body.style.alignItems = 'stretch';
             body.appendChild(iframe);
         } else {
             const img = document.createElement('img');
             img.id    = 'file-preview-img';
             img.src   = blobUrl;
-            img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+            img.style.cssText = 'max-width:100%;max-height:85vh;object-fit:contain;display:block;margin:auto;';
+            body.style.alignItems = 'center';
             body.appendChild(img);
         }
     } catch (e) {
@@ -394,7 +397,7 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
         position:        'fixed',
         top:             '72px',
         right:           '16px',
-        zIndex:          '99999',
+        zIndex:          '999999',
         padding:         '10px 18px',
         borderRadius:    '8px',
         color:           '#fff',

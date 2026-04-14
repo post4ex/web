@@ -706,11 +706,13 @@ document.addEventListener('DOMContentLoaded', () => {
         window.carriersDataMap = new Map();
         window.productDataMap  = new Map();
         window.multiboxDataMap = new Map();
+        window.uploadsDataMap  = new Map();
         Object.values(appData.B2B2C    || {}).forEach(c => b2b2cDataMap.set(c.UID, c));
         Object.values(appData.MODES    || {}).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
         Object.values(appData.CARRIERS || {}).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
         Object.values(appData.PRODUCTS || {}).forEach(p => { const r = String(p.REFERENCE); if (!r) return; if (!productDataMap.has(r)) productDataMap.set(r, []); productDataMap.get(r).push(p); });
         Object.values(appData.MULTIBOX || {}).forEach(b => { const r = String(b.REFERENCE); if (!r) return; if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []); multiboxDataMap.get(r).push(b); });
+        Object.values(appData.UPLOADS  || {}).forEach(u => { const r = String(u.REFERENCE); if (!r) return; if (!uploadsDataMap.has(r)) uploadsDataMap.set(r, []); uploadsDataMap.get(r).push(u); });
     }
 
     function _boGetParts(ref) {
