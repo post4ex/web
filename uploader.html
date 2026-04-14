@@ -43,13 +43,25 @@
  
         /* Right Panel - 20% */
         .right-panel {
-            /* *** MODIFIED: Widths/heights now controlled by Tailwind and media queries *** */
             background-color: #f7fafc;
             border-left: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
-            /* height: 100%; <-- REMOVED: Will be controlled by JS */
-            /* overflow: hidden; <-- REMOVED: Will be controlled by JS */
+        }
+
+        /* Desktop: right panel sticks to viewport, left panel scrolls freely */
+        @media (min-width: 1024px) {
+            .right-panel {
+                position: sticky;
+                top: 0;
+                height: 100vh;
+                overflow: hidden;
+            }
+            #miniOrderListContainer {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+            }
         }
  
         /* --- STYLES FROM V1 (Controls Banner) --- */
