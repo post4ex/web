@@ -3,6 +3,12 @@
 // ============================================================================
 
 function getJsBarcodeSrc() {
+    const scripts = document.querySelectorAll('script[src]');
+    for (const s of scripts) {
+        if (s.src.includes('docgen.js')) {
+            return new URL('/assets/js/JsBarcode.all.min.js', s.src).href;
+        }
+    }
     return window.location.origin + '/assets/js/JsBarcode.all.min.js';
 }
 
@@ -71,7 +77,11 @@ function getReceiptStyles() {
     </style>`;
 }
 
-// --- BUILD LABEL ---
+function _esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
 function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type: 'preview' }) {
     const orderDate   = fmtDate(order.ORDER_DATE, 'date');
     const ref         = order.REFERENCE || 'N/A';
@@ -80,13 +90,13 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
     const modeShort   = order.MODE || 'N/A';
     const modeName    = modesDataMap.get(modeShort) || modeShort;
 
-    const cnorName    = cnor?.NAME || 'N/A';
-    const cnorAddress = `${cnor?.ADDRESS||''}, ${cnor?.CITY||''}, ${cnor?.STATE||''} - ${cnor?.PINCODE||''}`;
-    const cneeName    = cnee?.NAME || 'N/A';
-    const cneeAddress = `${cnee?.ADDRESS||''}, ${cnee?.CITY||''}, ${cnee?.STATE||''}, ${cnee?.PINCODE||''}`;
-    const cneeMobile  = cnee?.MOBILE || 'N/A';
-    const cneePincode = cnee?.PINCODE || 'N/A';
-    const cneeCity    = cnee?.CITY || 'N/A';
+    const cnorName    = _esc(cnor?.NAME || 'N/A');
+    const cnorAddress = _esc(`${cnor?.ADDRESS||''}, ${cnor?.CITY||''}, ${cnor?.STATE||''} - ${cnor?.PINCODE||''}`);
+    const cneeName    = _esc(cnee?.NAME || 'N/A');
+    const cneeAddress = _esc(`${cnee?.ADDRESS||''}, ${cnee?.CITY||''}, ${cnee?.STATE||''}, ${cnee?.PINCODE||''}`);
+    const cneeMobile  = _esc(cnee?.MOBILE || 'N/A');
+    const cneePincode = _esc(cnee?.PINCODE || 'N/A');
+    const cneeCity    = _esc(cnee?.CITY || 'N/A');
 
     let paymentMode = 'PREPAID', orderValue = 'N/A';
     if (order.COD && parseFloat(order.COD) > 0)        { paymentMode = 'COD';     orderValue = parseFloat(order.COD).toFixed(2); }
@@ -111,7 +121,7 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
         const L = boxData.LENGTH||'N/A', B = boxData.BREADTH||'N/A', H = boxData.HIGHT||'N/A';
         const chgWt = boxData.CHG_WT ? parseFloat(boxData.CHG_WT).toFixed(2) : 'N/A';
         summaryTableHtml = `<table class="label-table"><thead><tr><th>BOX#</th><th>WEIGHT</th><th>L*B*H</th><th>CHG WT</th></tr></thead><tbody>
-            <tr><td>${boxData.BOX_NO||(options.index+1)}</td><td>${boxData.WEIGHT||'N/A'}</td><td>${L}*${B}*${H}</td><td>${chgWt}</td></tr>
+            <tr><td>${boxData.BOX_NUM||(options.index+1)}</td><td>${boxData.WEIGHT||'N/A'}</td><td>${L}*${B}*${H}</td><td>${chgWt}</td></tr>
         </tbody></table>`;
 
     } else if (options.type === 'summary') {
@@ -127,7 +137,7 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
             multiboxItems.forEach((b, i) => {
                 const L = b.LENGTH||'N/A', B = b.BREADTH||'N/A', H = b.HIGHT||'N/A';
                 const chgWt = b.CHG_WT ? parseFloat(b.CHG_WT).toFixed(2) : 'N/A';
-                summaryTableHtml += `<tr><td>${b.BOX_NO||(i+1)}</td><td>${b.WEIGHT||'N/A'}</td><td>${L}*${B}*${H}</td><td>${chgWt}</td></tr>`;
+                summaryTableHtml += `<tr><td>${b.BOX_NUM||(i+1)}</td><td>${b.WEIGHT||'N/A'}</td><td>${L}*${B}*${H}</td><td>${chgWt}</td></tr>`;
             });
             summaryTableHtml += `<tr style="font-weight:bold;background:#f4f4f4;"><td>TOTALS</td><td>${totalWeight.toFixed(2)}</td><td>-</td><td>${totalChgWt.toFixed(2)}</td></tr></tbody></table>`;
         } else {
@@ -149,8 +159,7 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
 
     const barcodeId = `barcode-${options.type}-${options.index||0}`;
 
-    return `${getLabelStyles()}
-    <div class="label-wrapper">
+    return `<div class="label-wrapper">
         <div class="label-row">
             <div class="label-cell w-1-3"><div class="label-logo">${carrierName}</div></div>
             <div class="label-cell w-1-3">Date: <strong>${orderDate}</strong><br><span class="font-bold" style="font-size:18px;">${paymentMode}</span></div>
@@ -196,19 +205,19 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
     const carrierName = order.CARRIER || 'CARRIER';
     const modeName    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
 
-    const cnorName    = cnor?.NAME || 'N/A';
-    const cnorAddress = `${cnor?.ADDRESS||''}, ${cnor?.CITY||''}, ${cnor?.STATE||''} - ${cnor?.PINCODE||''}`;
-    const cnorMobile  = cnor?.MOBILE || 'N/A';
-    const cneeName    = cnee?.NAME || 'N/A';
-    const cneeAddress = `${cnee?.ADDRESS||''}, ${cnee?.CITY||''}, ${cnee?.STATE||''}, ${cnee?.PINCODE||''}`;
-    const cneeMobile  = cnee?.MOBILE || 'N/A';
+    const cnorName    = _esc(cnor?.NAME || 'N/A');
+    const cnorAddress = _esc(`${cnor?.ADDRESS||''}, ${cnor?.CITY||''}, ${cnor?.STATE||''} - ${cnor?.PINCODE||''}`);
+    const cnorMobile  = _esc(cnor?.MOBILE || 'N/A');
+    const cneeName    = _esc(cnee?.NAME || 'N/A');
+    const cneeAddress = _esc(`${cnee?.ADDRESS||''}, ${cnee?.CITY||''}, ${cnee?.STATE||''}, ${cnee?.PINCODE||''}`);
+    const cneeMobile  = _esc(cnee?.MOBILE || 'N/A');
 
     let paymentMode = 'PREPAID', totalAmt = 0;
     if (order.COD && parseFloat(order.COD) > 0)         paymentMode = 'COD';
     else if (order.TOPAY && parseFloat(order.TOPAY) > 0) paymentMode = 'TO PAY';
 
     const weight = parseFloat(order.WEIGHT || '0.50').toFixed(2);
-    const pieces = order.PIECS || 1;
+    const pieces = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
 
     let productTableHtml = '';
     if (products.length > 0) {
@@ -241,7 +250,7 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
             const wt = parseFloat(b.WEIGHT||0).toFixed(2);
             const chgWt = parseFloat(b.CHG_WT||0).toFixed(2);
             multiboxTableHtml += `<tr>
-                <td class="receipt-table-cell">${b.BOX_NO||(i+1)}</td>
+                <td class="receipt-table-cell">${b.BOX_NUM||(i+1)}</td>
                 <td class="receipt-table-cell">${wt}</td>
                 <td class="receipt-table-cell">${L}*${B}*${H}</td>
                 <td class="receipt-table-cell text-right">${chgWt}</td>
@@ -332,39 +341,7 @@ function buildReceipt(order, cnor, cnee, products)    { return _buildReceiptHtml
 function buildPOD(order, cnor, cnee, products)         { return _buildReceiptHtml(order, cnor, cnee, products, 'POD COPY'); }
 function buildOfficeCopy(order, cnor, cnee, products)  { return _buildReceiptHtml(order, cnor, cnee, products, 'OFFICE COPY'); }
 
-function buildDocs(order, cnor, cnee, products) {
-    const ref         = order.REFERENCE || 'N/A';
-    const awb         = order.AWB_NUMBER || ref;
-    const orderDate   = fmtDate(order.ORDER_DATE, 'date');
-    const carrierName = order.CARRIER || 'N/A';
-    const modeName    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
-
-    const cnorName   = cnor?.NAME   || 'N/A';
-    const cnorAddr   = `${cnor?.ADDRESS||''}, ${cnor?.CITY||''} - ${cnor?.PINCODE||''}`;
-    const cnorMobile = cnor?.MOBILE || 'N/A';
-    const cneeName   = cnee?.NAME   || 'N/A';
-    const cneeAddr   = `${cnee?.ADDRESS||''}, ${cnee?.CITY||''} - ${cnee?.PINCODE||''}`;
-    const cneeMobile = cnee?.MOBILE || 'N/A';
-
-    let totalAmt = 0;
-    let rows = '';
-    products.forEach((p, i) => {
-        const amt = parseFloat(p.AMOUNT || 0);
-        totalAmt += amt;
-        rows += `<tr>
-            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${i + 1}</td>
-            <td style="border:1px solid #ccc;padding:6px 8px;">${p.PRODUCT || 'N/A'}</td>
-            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.DOC_NUMBER || 'N/A'}</td>
-            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.DOC_TYPE || 'N/A'}</td>
-            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.EWAY_IF || 'N/A'}</td>
-            <td style="border:1px solid #ccc;padding:6px 8px;text-align:right;font-weight:bold;">${amt.toFixed(2)}</td>
-            <td style="border:1px solid #ccc;padding:6px 8px;"></td>
-        </tr>`;
-    });
-
-    if (products.length === 0)
-        rows = `<tr><td colspan="7" style="border:1px solid #ccc;padding:8px;text-align:center;color:#888;">No product data.</td></tr>`;
-
+function getPackingSlipStyles() {
     return `<style>
         body{font-family:Arial,sans-serif;font-size:11px;color:#000;}
         .ps-wrapper{border:2px solid #000;max-width:52rem;margin:0 auto;}
@@ -389,7 +366,43 @@ function buildDocs(order, cnor, cnee, products) {
         .ps-sign-cell:last-child{border-right:none;}
         .ps-sign-box{height:48px;border-bottom:1px solid #999;margin-top:4px;}
         @media print{.ps-wrapper{margin:0;border:none;}}
-    </style>
+    </style>`;
+}
+
+function buildDocs(order, cnor, cnee, products) {
+    const ref         = order.REFERENCE || 'N/A';
+    const awb         = order.AWB_NUMBER || ref;
+    const orderDate   = fmtDate(order.ORDER_DATE, 'date');
+    const carrierName = order.CARRIER || 'N/A';
+    const modeName    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
+
+    const cnorName   = _esc(cnor?.NAME   || 'N/A');
+    const cnorAddr   = _esc(`${cnor?.ADDRESS||''}, ${cnor?.CITY||''} - ${cnor?.PINCODE||''}`);
+    const cnorMobile = _esc(cnor?.MOBILE || 'N/A');
+    const cneeName   = _esc(cnee?.NAME   || 'N/A');
+    const cneeAddr   = _esc(`${cnee?.ADDRESS||''}, ${cnee?.CITY||''} - ${cnee?.PINCODE||''}`);
+    const cneeMobile = _esc(cnee?.MOBILE || 'N/A');
+
+    let totalAmt = 0;
+    let rows = '';
+    products.forEach((p, i) => {
+        const amt = parseFloat(p.AMOUNT || 0);
+        totalAmt += amt;
+        rows += `<tr>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${i + 1}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;">${p.PRODUCT || 'N/A'}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.DOC_NUMBER || 'N/A'}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.DOC_TYPE || 'N/A'}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.EWAY_IF || 'N/A'}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:right;font-weight:bold;">${amt.toFixed(2)}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;"></td>
+        </tr>`;
+    });
+
+    if (products.length === 0)
+        rows = `<tr><td colspan="7" style="border:1px solid #ccc;padding:8px;text-align:center;color:#888;">No product data.</td></tr>`;
+
+    return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
             <div class="ps-logo">POSTMAN</div>
@@ -452,12 +465,12 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
     const carrierName = order.CARRIER || 'N/A';
     const modeName    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
 
-    const cnorName    = cnor?.NAME    || 'N/A';
-    const cnorAddr    = `${cnor?.ADDRESS||''}, ${cnor?.CITY||''} - ${cnor?.PINCODE||''}`;
-    const cnorMobile  = cnor?.MOBILE  || 'N/A';
-    const cneeName    = cnee?.NAME    || 'N/A';
-    const cneeAddr    = `${cnee?.ADDRESS||''}, ${cnee?.CITY||''} - ${cnee?.PINCODE||''}`;
-    const cneeMobile  = cnee?.MOBILE  || 'N/A';
+    const cnorName    = _esc(cnor?.NAME    || 'N/A');
+    const cnorAddr    = _esc(`${cnor?.ADDRESS||''}, ${cnor?.CITY||''} - ${cnor?.PINCODE||''}`);
+    const cnorMobile  = _esc(cnor?.MOBILE  || 'N/A');
+    const cneeName    = _esc(cnee?.NAME    || 'N/A');
+    const cneeAddr    = _esc(`${cnee?.ADDRESS||''}, ${cnee?.CITY||''} - ${cnee?.PINCODE||''}`);
+    const cneeMobile  = _esc(cnee?.MOBILE  || 'N/A');
 
     let totalWt = 0, totalChgWt = 0;
     let rows = '';
@@ -483,31 +496,7 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
     if (multiboxItems.length === 0)
         rows = `<tr><td colspan="6" style="border:1px solid #ccc;padding:8px;text-align:center;color:#888;">No multibox data.</td></tr>`;
 
-    return `<style>
-        body{font-family:Arial,sans-serif;font-size:11px;color:#000;}
-        .ps-wrapper{border:2px solid #000;max-width:52rem;margin:0 auto;}
-        .ps-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #000;background:#f4f4f4;}
-        .ps-logo{font-size:22px;font-weight:bold;text-transform:uppercase;}
-        .ps-title{font-size:16px;font-weight:bold;letter-spacing:1px;}
-        .ps-meta{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid #000;}
-        .ps-meta-cell{padding:5px 10px;border-right:1px solid #ccc;}
-        .ps-meta-cell:last-child{border-right:none;}
-        .ps-meta-cell .lbl{font-size:9px;font-weight:bold;text-transform:uppercase;color:#555;}
-        .ps-meta-cell .val{font-size:12px;font-weight:bold;margin-top:1px;}
-        .ps-party{display:flex;border-bottom:2px solid #000;}
-        .ps-party-cell{width:50%;padding:8px 12px;border-right:1px solid #ccc;}
-        .ps-party-cell:last-child{border-right:none;}
-        .ps-party-cell .lbl{font-size:9px;font-weight:bold;text-transform:uppercase;color:#555;margin-bottom:3px;}
-        .ps-party-cell .name{font-size:13px;font-weight:bold;}
-        .ps-table{width:100%;border-collapse:collapse;font-size:11px;}
-        .ps-table th{background:#f4f4f4;font-weight:bold;text-transform:uppercase;font-size:9px;border:1px solid #ccc;padding:6px 8px;text-align:center;}
-        .ps-totals td{background:#f4f4f4;font-weight:bold;border:1px solid #ccc;padding:6px 8px;text-align:center;}
-        .ps-footer{display:flex;border-top:2px solid #000;}
-        .ps-sign-cell{width:50%;padding:8px 12px;border-right:1px solid #ccc;}
-        .ps-sign-cell:last-child{border-right:none;}
-        .ps-sign-box{height:48px;border-bottom:1px solid #999;margin-top:4px;}
-        @media print{.ps-wrapper{margin:0;border:none;}}
-    </style>
+    return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
             <div class="ps-logo">POSTMAN</div>
@@ -565,17 +554,6 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
     </div>`;
 }
 
-function buildChallan(order, cnor, cnee, products) {
-    const list = products.map(p => `<li>${p.PRODUCT||'N/A'}</li>`).join('') || '<li>No products.</li>';
-    return `<div style="padding:1rem;font-family:Arial,sans-serif;">
-        <h3 style="font-weight:bold;">Delivery Challan</h3>
-        <p><strong>From:</strong> ${cnor?.NAME||'N/A'}</p>
-        <p><strong>To:</strong> ${cnee?.NAME||'N/A'}</p>
-        <ul style="margin-top:0.5rem;">${list}</ul>
-        <p style="color:#888;font-size:11px;margin-top:1rem;">(Full challan template pending)</p>
-    </div>`;
-}
-
 // --- OPEN DOC IN NEW TAB ---
 function _openInNewTab(title, bodyHtml, barcodeIds = []) {
     const jsSrc = getJsBarcodeSrc();
@@ -604,6 +582,7 @@ function _openInNewTab(title, bodyHtml, barcodeIds = []) {
     const blob = new Blob([html], { type: 'text/html' });
     const url  = URL.createObjectURL(blob);
     window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 function _getSelectedOrder() {
@@ -646,7 +625,7 @@ function printSelectedShipmentLabel() {
         ` : ''}
     </style>`;
 
-    let bodyHtml = pageStyle;
+    let bodyHtml = pageStyle + getLabelStyles();
     const barcodeIds = [];
 
     if (multiboxItems.length > 0) {
@@ -654,12 +633,12 @@ function printSelectedShipmentLabel() {
             bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'box', index:i });
             barcodeIds.push(`barcode-box-${i}`);
         }
+        bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'summary' });
+        barcodeIds.push('barcode-summary-0');
     } else {
         bodyHtml += buildLabel(order, cnor, cnee, products, [], { type:'box', index:0 });
         barcodeIds.push('barcode-box-0');
     }
-    bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'summary' });
-    barcodeIds.push('barcode-summary-0');
 
     _openInNewTab(`Label - ${awb}`, bodyHtml, barcodeIds);
 }

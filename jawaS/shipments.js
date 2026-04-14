@@ -92,6 +92,9 @@ function initializePageWithData(appData) {
 }
 
 async function loadFromIndexedDB() {
+    const onData = e => initializePageWithData(e.detail.data);
+    window.addEventListener('appDataLoaded',    onData);
+    window.addEventListener('appDataRefreshed', onData);
     try {
         await new Promise(resolve => {
             if (window.appDB && window.appDB.db) return resolve();
@@ -102,12 +105,11 @@ async function loadFromIndexedDB() {
         if (appData && appData.ORDERS && Object.keys(appData.ORDERS).length > 0) {
             initializePageWithData(appData);
         } else {
-            // data not in IndexedDB yet — wait for sync to complete
             ui.statusMessage.textContent = 'Syncing...';
             await new Promise(resolve => {
-                window.addEventListener('appDataLoaded', e => { initializePageWithData(e.detail.data); resolve(); }, { once: true });
-                window.addEventListener('appDataRefreshed', e => { initializePageWithData(e.detail.data); resolve(); }, { once: true });
-                setTimeout(resolve, 15000); // fallback timeout
+                window.addEventListener('appDataLoaded',    resolve, { once: true });
+                window.addEventListener('appDataRefreshed', resolve, { once: true });
+                setTimeout(resolve, 15000);
             });
         }
     } catch (err) {
@@ -580,9 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.shipmentDetailPane.classList.add('hidden');
         }
     });
-
-    window.addEventListener('appDataLoaded',    e => initializePageWithData(e.detail.data));
-    window.addEventListener('appDataRefreshed', e => initializePageWithData(e.detail.data));
 
     loadFromIndexedDB();
 });
