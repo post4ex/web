@@ -167,18 +167,18 @@
                         </div>
 
                         <!-- Product Details Grid -->
-                        <div class="grid grid-cols-5 border border-gray-400">
+                        <div class="grid grid-cols-4 border border-gray-400">
                             <input type="text" id="product_name" name="product_name" placeholder="Prod" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-xs">
                             <input type="text" id="doc_no" name="doc_no" placeholder="DocNo" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-xs">
                             <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-xs" pattern="\d{12}" maxlength="12" title="EWay bill must be a 12-digit numeric number.">
-                            <select id="product_type" name="product_type" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-xs">
-                                <option value="INV">INV</option>
-                                <option value="CLN">CLN</option>
-                                <option value="DEC">DEC</option>
-                                <option value="ADH">ADH</option>
-                            </select>
-                            <div class="flex">
-                                <input type="number" id="amount" name="amount" placeholder="Amt" class="w-full p-1 focus:ring-blue-500 focus:border-blue-500 text-xs min-w-0">
+                            <div class="flex border-r border-gray-300">
+                                <select id="product_type" name="product_type" class="w-0 flex-1 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-xs min-w-0">
+                                    <option value="INV">INV</option>
+                                    <option value="CLN">CLN</option>
+                                    <option value="DEC">DEC</option>
+                                    <option value="ADH">ADH</option>
+                                </select>
+                                <input type="number" id="amount" name="amount" placeholder="Amt" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 text-xs min-w-0">
                                 <button type="button" id="addProductButton" class="md:hidden shrink-0 px-2 bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700">+</button>
                             </div>
                         </div>
