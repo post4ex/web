@@ -146,6 +146,197 @@ function initializeUI() {
 // ============================================================================
 // MAIN ENTRY POINT
 // ============================================================================
+
+// --- SSE state ---
+window._lastEventTime  = null;
+window._lastDeltaSync  = null;
+window._sseConnected   = false;
+window._sseGapStart    = null;
+window._idbLastStamp   = 0;
+window._idbHasData     = false;
+
+let _sseWorker        = null;
+let _sseConnectedOnce = false;
+let _refreshTimer     = null;
+
+function _scheduleRefresh() {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(async () => {
+        const fullData = await getAppData();
+        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+    }, 100);
+}
+
+async function _handleSSEMessage(payload) {
+    window._lastEventTime = Date.now();
+
+    if (payload.type === 'heartbeat') {
+        lastActivity          = Date.now();
+        window._lastHeartbeat = Date.now();
+        window._sseConnected  = true;
+        window._sseGapStart   = null;
+        _sseConnectedOnce     = true;
+        _sseBackoff           = 3000;
+        return;
+    }
+
+    if (payload.type === 'logout') {
+        handleLogout();
+        return;
+    }
+
+    if (payload.type === 'resync') {
+        if (!window._syncInProgress)
+            verifyAndFetchAppData(_sseConnectedOnce).catch(() => {});
+        return;
+    }
+
+    if (payload.type === 'notif_count') {
+        const badge = document.getElementById('notification-badge-global');
+        if (badge && payload.unread > 0) {
+            badge.innerText = payload.unread;
+            badge.classList.remove('hidden');
+        }
+        return;
+    }
+
+    if (payload.type === 'notification') {
+        if (!window.appDB || !window.appDB.db) return;
+        const notif = { ...payload.data, IS_READ: false };
+        await window.appDB.mergeSheet('NOTIFICATIONS', { [notif.NOTIF_ID]: notif });
+        await loadNotificationsFromStorage();  // re-render full list instead of prepend
+        return;
+    }
+
+    if (payload.type === 'system_status') return;
+
+    if (payload.type === 'delta') {
+        if (!window.appDB || !window.appDB.db) return;
+        if (document.hidden) return;  // background tab — skip write, visibilitychange will catch up
+        if (window._syncInProgress) { window._sseBuffer.push(payload); return; }
+        await _applyDelta(payload);
+        _scheduleRefresh();
+    }
+}
+
+// --- Direct SSE fallback (mobile / Safari / no SharedWorker) ---
+let _sseDirect   = false;
+let _sseAbort    = null;
+let _sseBackoff  = 3000;
+let _sseWatchdog = null;
+
+function _resetWatchdog() {
+    clearTimeout(_sseWatchdog);
+    _sseWatchdog = setTimeout(() => {
+        _sseAbort?.abort();
+        _sseDirect = false;
+        _openSSEDirect();
+    }, 45000);
+}
+
+async function _openSSEDirect() {
+    if (_sseDirect) return;                          // already running
+    if (!isLoggedIn()) return;
+    const token = getSessionId();
+    if (!token) { handleLogout(); return; }
+    _sseDirect = true;
+    if (_sseAbort) _sseAbort.abort();
+    _sseAbort = new AbortController();
+    try {
+        const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/events`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal:  _sseAbort.signal
+        });
+        if (res.status === 401) { _sseDirect = false; handleLogout(); return; }
+        if (!res.ok || !res.body) throw new Error('SSE failed');
+        _resetWatchdog();
+        const reader  = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const parts = buf.split('\n\n');
+            buf = parts.pop();
+            for (const part of parts) {
+                const line = part.trim();
+                if (!line.startsWith('data:')) continue;
+                try { _handleSSEMessage(JSON.parse(line.slice(5).trim())); } catch (_) {}
+            }
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') { _sseDirect = false; return; }
+    }
+    clearTimeout(_sseWatchdog);
+    _sseDirect  = false;
+    const delay = _sseBackoff;
+    _sseBackoff = Math.min(_sseBackoff * 2, 30000);
+    setTimeout(_openSSEDirect, delay);
+}
+
+function openSSE() {
+    if (!isLoggedIn()) return;
+    if (typeof SharedWorker !== 'undefined') {
+        // desktop Chrome/Edge/Firefox — one shared connection for all tabs
+        if (!_sseWorker) {
+            try {
+                _sseWorker = new SharedWorker('core/sse-worker.js');
+                _sseWorker.port.start();
+                _sseWorker.port.onmessage = (e) => { _handleSSEMessage(e.data); };
+                _sseWorker.onerror = () => { _sseWorker = null; };
+            } catch (_) {
+                _sseWorker = null;
+                return;
+            }
+        }
+        _sseWorker.port.postMessage({ type: 'init', token: getSessionId(), url: CONSTANTS.OPERATIONS_URL });
+        if (_sseConnectedOnce && !window._sseConnected)
+            window._sseGapStart = window._sseGapStart || Date.now();
+    } else {
+        // mobile Chrome / Safari / iOS — direct fetch per tab
+        _openSSEDirect();
+    }
+}
+
+// online / visibilitychange recovery
+window.addEventListener('online', () => {
+    if (!isLoggedIn()) return;
+    pullDeltaSince(window._lastEventTime || window._idbLastStamp).catch(() => {});
+    openSSE();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
+    const since = window._lastEventTime || window._idbLastStamp;
+    if (since) pullDeltaSince(since).catch(() => {});
+    if (!_sseConnectedOnce || (Date.now() - (window._lastHeartbeat || 0)) > 45000) openSSE();
+});
+
+// 5-min safety net tick
+setInterval(() => {
+    if (document.hidden || !isLoggedIn()) return;
+    if (window._sseConnected && window._lastEventTime && (Date.now() - window._lastEventTime) < 60000) return;
+    pullDeltaSince(window._lastEventTime || window._idbLastStamp).catch(() => {});
+}, 5 * 60 * 1000);
+
+// multi-tab sync coordination (#10)
+const _syncChannel = new BroadcastChannel('post4ex-sync');
+let _syncLeader = false;
+_syncChannel.addEventListener('message', async (e) => {
+    if (e.data === 'sync-started') {
+        localStorage.setItem('post4ex-sync-active', '1');
+    }
+    if (e.data === 'sync-complete') {
+        localStorage.removeItem('post4ex-sync-active');
+        const fullData = await getAppData();
+        window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
+        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+    }
+});
+
+function _isSyncActive() { return !!localStorage.getItem('post4ex-sync-active'); }
+
 document.addEventListener('DOMContentLoaded', async () => {
 
     // Resolve API URL
@@ -179,20 +370,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     if (isLoggedIn()) {
-        const existing   = await getAppData();
-        const hasData    = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
-        const lastSync   = window.appDB ? await window.appDB.getMetadata('lastSyncTime').catch(() => null) : null;
-        const staleAfter = 5 * 60 * 1000;
-        const isStale    = !lastSync || (Date.now() - lastSync) > staleAfter;
+        const existing  = await getAppData();
+        const hasData   = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
+        window._idbHasData = hasData;
 
-        if (!hasData) {
+        // compute _idbLastStamp from actual TIME_STAMP index
+        const timeFiltered = ['ORDERS','MULTIBOX','PRODUCTS','UPLOADS','ATTENDANCE','STAFF'];
+        window._idbLastStamp = window.appDB ? await window.appDB.getLastStamp(timeFiltered).catch(() => 0) : 0;
+
+        if (!hasData && !_isSyncActive()) {
+            _syncLeader = true;
+            localStorage.setItem('post4ex-sync-active', '1');
+            _syncChannel.postMessage('sync-started');
             await verifyAndFetchAppData();
-        } else {
-            // always fire appDataLoaded so pages that missed it get data
+            localStorage.removeItem('post4ex-sync-active');
+            _syncChannel.postMessage('sync-complete');
+        } else if (!_isSyncActive()) {
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
-            if (isStale) verifyAndFetchAppData().catch(() => {});
+            // fill gap since last known record instead of full re-sync
+            if (window._idbLastStamp) pullDeltaSince(window._idbLastStamp).catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
         }
         openSSE();

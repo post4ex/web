@@ -66,7 +66,31 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
 
 // --- DATA ENGINE ---
 
-async function verifyAndFetchAppData() {
+window._syncInProgress = false;
+window._sseBuffer      = [];
+
+async function _applyDelta({ collection, action, key, data }) {
+    if (action === 'upsert') await window.appDB.mergeSheet(collection, { [key]: data });
+    else if (action === 'delete') await window.appDB.deleteRecord(collection, key);
+}
+window._applyDelta = _applyDelta;
+
+async function pullDeltaSince(since_ms) {
+    if (!since_ms || !isLoggedIn() || !window.appDB || !window.appDB.db) return;
+    try {
+        const result = await callApi('/api/verifyAndFetchAppData', { since_ms });
+        if (result.status !== 'success') return;
+        const incomingData = result.data || {};
+        for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+            if (Object.keys(sheetData).length > 0)
+                await window.appDB.mergeSheet(sheetName, sheetData);
+        }
+        window._lastDeltaSync = Date.now();
+        _scheduleRefresh();
+    } catch (_) {}
+}
+
+async function verifyAndFetchAppData(clearAll = false) {
     if (!isLoggedIn()) return;
 
     if (!window.appDB) {
@@ -93,18 +117,23 @@ async function verifyAndFetchAppData() {
             let syncErrors  = [];
             let successCount = 0;
 
-            for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                try {
-                    if (noTimeFilter.has(sheetName)) {
-                        // full sync collections — safe to wipe and replace
-                        await window.appDB.clearSheet(sheetName);
+            window._syncInProgress = true;
+            try {
+                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+                    try {
+                        if (clearAll || noTimeFilter.has(sheetName)) {
+                            await window.appDB.clearSheet(sheetName);
+                        }
+                        if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
+                        successCount++;
+                    } catch (error) {
+                        syncErrors.push(`${sheetName}: ${error.message}`);
                     }
-                    // time-filtered collections — putSheet only (merge, preserve business year data)
-                    if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
-                    successCount++;
-                } catch (error) {
-                    syncErrors.push(`${sheetName}: ${error.message}`);
                 }
+            } finally {
+                window._syncInProgress = false;
+                for (const delta of window._sseBuffer) { await _applyDelta(delta); }
+                window._sseBuffer = [];
             }
 
             // store sync window start for reference
@@ -113,8 +142,8 @@ async function verifyAndFetchAppData() {
             await window.appDB.setMetadata('lastSyncTime', Date.now()).catch(() => {});
 
             const fullData = await getAppData();
-            window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
-            window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
+            _scheduleRefresh();  // appDataRefreshed fires after appDataLoaded
 
             // fetch notifications into IndexedDB
             try {
@@ -144,100 +173,6 @@ async function verifyAndFetchAppData() {
         else if (error.message.includes('Failed to fetch'))    errorMsg += 'Network connection failed';
         else errorMsg += error.message || 'Unknown error';
         showNotification(errorMsg, 'error');
-    }
-}
-
-// --- SSE ---
-
-let _sseAbort = null;
-
-async function openSSE() {
-    const token = getSessionId();
-    if (!token) return;
-
-    if (_sseAbort) _sseAbort.abort();
-    _sseAbort = new AbortController();
-
-    try {
-        const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/events`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-            signal: _sseAbort.signal
-        });
-
-        if (!res.ok || !res.body) throw new Error('SSE connection failed');
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const parts = buffer.split('\n\n');
-            buffer = parts.pop();
-
-            for (const part of parts) {
-                const line = part.trim();
-                if (!line.startsWith('data:')) continue;
-                try {
-                    const payload = JSON.parse(line.slice(5).trim());
-                    await _handleSSEMessage(payload);
-                } catch (e) {
-                    console.warn('[SSE] Parse error', e);
-                }
-            }
-        }
-    } catch (e) {
-        if (e.name === 'AbortError') return;
-        console.warn('[SSE] Disconnected, reconnecting...', e.message);
-    }
-
-    // reconnect after delay — keep-alive handles continuity, no full sync needed
-    setTimeout(() => openSSE(), CONSTANTS.SSE_RECONNECT_DELAY);
-}
-
-async function _handleSSEMessage(payload) {
-    if (payload.type === 'heartbeat') {
-        lastActivity = Date.now();
-        return;
-    }
-
-    if (payload.type === 'notif_count') {
-        const badge = document.getElementById('notification-badge-global');
-        if (badge && payload.unread > 0) {
-            badge.innerText = payload.unread;
-            badge.classList.remove('hidden');
-        }
-        return;
-    }
-
-    if (payload.type === 'notification') {
-        if (!window.appDB || !window.appDB.db) return;
-        const notif = { ...payload.data, IS_READ: false };
-        await window.appDB.mergeSheet('NOTIFICATIONS', { [notif.NOTIF_ID]: notif });
-        renderNotificationItem(notif, true);
-        return;
-    }
-
-    if (payload.type === 'system_status') {
-        // server will return 503 on next request if DEAD — no action needed here
-        return;
-    }
-
-    if (payload.type === 'delta') {
-        const { collection, action, key, data } = payload;
-        if (!window.appDB || !window.appDB.db) return;
-
-        if (action === 'upsert') {
-            await window.appDB.mergeSheet(collection, { [key]: data });
-        } else if (action === 'delete') {
-            await window.appDB.deleteRecord(collection, key);
-        }
-
-        const fullData = await getAppData();
-        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
     }
 }
 
@@ -308,15 +243,9 @@ async function getAppData(sheetName = null) {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
         const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS'];
-        const result = {};
-        for (const sheet of sheets) {
-            try {
-                result[sheet] = await window.appDB.getSheet(sheet);
-            } catch (error) {
-                console.warn(`Failed to load ${sheet}:`, error);
-                result[sheet] = {};
-            }
-        }
+        const result  = {};
+        const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
+        sheets.forEach((s, i) => result[s] = results[i]);
         return result;
     } catch (error) {
         console.error('Failed to get app data:', error);

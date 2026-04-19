@@ -363,16 +363,20 @@ async function loadNotificationsFromStorage() {
     const listGlobal  = document.getElementById('notification-list-global');
     const badgeGlobal = document.getElementById('notification-badge-global');
     if (!listGlobal) return;
-
     if (!window.appDB || !window.appDB.db) return;
 
     try {
-        const all     = await window.appDB.getSheet('NOTIFICATIONS');
-        const notifs  = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
-
-        if (!notifs.length) return;
+        const all    = await window.appDB.getSheet('NOTIFICATIONS');
+        const notifs = Object.values(all).sort((a, b) => (b.TIMESTAMP || 0) - (a.TIMESTAMP || 0));
 
         listGlobal.innerHTML = '';
+
+        if (!notifs.length) {
+            listGlobal.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No new notifications</p>';
+            if (badgeGlobal) badgeGlobal.classList.add('hidden');
+            return;
+        }
+
         notifs.forEach(n => renderNotificationItem(n, false));
 
         const unread = notifs.filter(n => !n.IS_READ).length;

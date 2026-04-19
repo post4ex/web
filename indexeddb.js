@@ -253,6 +253,27 @@ class AppDatabase {
       console.warn('[IndexedDB] Failed to set lastSyncTime:', error);
     }
   }
+
+  async getLastStamp(collections) {
+    if (!this.db) return 0;
+    let max = 0;
+    await Promise.all(collections.map(name => new Promise(resolve => {
+      try {
+        const tx    = this.db.transaction([name], 'readonly');
+        const index = tx.objectStore(name).index('TIME_STAMP');
+        const req   = index.openCursor(null, 'prev');
+        req.onsuccess = () => {
+          if (req.result) {
+            const ts = Number(req.result.value.TIME_STAMP);
+            if (ts > max) max = ts;
+          }
+          resolve();
+        };
+        req.onerror = () => resolve();
+      } catch (_) { resolve(); }
+    })));
+    return max;
+  }
 }
 
 // Global database instance
