@@ -69,7 +69,7 @@
             <!-- Top Row -->
             <div class="flex flex-col md:flex-row border-b border-gray-400">
                 <!-- Top Left: Booking Form -->
-                <div class="w-full md:w-1/2 border-r border-gray-400 overflow-hidden">
+                <div class="w-full md:w-1/2 border-r border-gray-400 min-w-0">
                     <form id="bookingForm" class="">
                         <!-- Hidden timestamp input to preserve JS logic -->
                         <input type="text" id="timestamp" name="timestamp" readonly class="hidden">
@@ -156,27 +156,27 @@
 
                         <!-- Consignment Details Grid -->
                         <div id="multiboxErrorMessage" class="text-xs text-red-500 px-2 pt-2"></div>
-                        <div class="flex items-center gap-0 border border-gray-400">
-                            <input type="number" id="actual_weight" name="actual_weight" placeholder="Wgt" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <input type="number" id="length" name="length" placeholder="L" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <input type="number" id="breadth" name="breadth" placeholder="B" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <input type="number" id="height" name="height" placeholder="H" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <button type="button" id="addBoxButton" class="md:hidden flex-shrink-0 w-10 p-1 bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700">+B</button>
+                        <div class="flex items-center w-full border border-gray-400">
+                            <input type="number" id="actual_weight" name="actual_weight" placeholder="Wgt" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="number" id="length" name="length" placeholder="L" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="number" id="breadth" name="breadth" placeholder="B" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="number" id="height" name="height" placeholder="H" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <button type="button" id="addBoxButton" class="md:hidden shrink-0 px-2 py-1 bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700">+B</button>
                         </div>
 
                         <!-- Product Details Grid -->
-                        <div class="flex items-end gap-0 border border-gray-400">
-                            <input type="text" id="product_name" name="product_name" placeholder="Product" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <input type="text" id="doc_no" name="doc_no" placeholder="DocNo" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500" pattern="\d{12}" maxlength="12" title="EWay bill must be a 12-digit numeric number.">
-                            <select id="product_type" name="product_type" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                        <div class="flex items-end w-full border border-gray-400">
+                            <input type="text" id="product_name" name="product_name" placeholder="Product" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" id="doc_no" name="doc_no" placeholder="DocNo" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500" pattern="\d{12}" maxlength="12" title="EWay bill must be a 12-digit numeric number.">
+                            <select id="product_type" name="product_type" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="INV">INV</option>
                                 <option value="CLN">CLN</option>
                                 <option value="DEC">DEC</option>
                                 <option value="ADH">ADH</option>
                             </select>
-                            <input type="number" id="amount" name="amount" placeholder="Amount (₹)" class="flex-1 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                            <button type="button" id="addProductButton" class="md:hidden flex-shrink-0 w-10 p-1 bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700">+P</button>
+                            <input type="number" id="amount" name="amount" placeholder="Amt" class="flex-1 basis-0 min-w-0 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <button type="button" id="addProductButton" class="md:hidden shrink-0 px-2 py-1 bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700">+P</button>
                         </div>
                         <div id="ewayStatusMessage" class="text-xs text-red-500 mt-1 px-2"></div>
                         
