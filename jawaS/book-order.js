@@ -1053,6 +1053,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ewayBillInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); amountInput.focus(); } });
     amountInput.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); addProductEntry(); productNameInput.focus(); } });
 
+    document.getElementById('addBoxButton')?.addEventListener('click', () => { addMultiboxEntry(); actualWeightInput.focus(); });
+    document.getElementById('addProductButton')?.addEventListener('click', () => { addProductEntry(); productNameInput.focus(); });
+
     clearMultiboxButton.addEventListener('click', () => {
         consignmentBoxes.pop();
         renderMultiboxTable();

@@ -177,6 +177,7 @@ async function _handleSSEMessage(payload) {
         window._sseGapStart   = null;
         _sseConnectedOnce     = true;
         _sseBackoff           = 3000;
+        console.log('[SSE] heartbeat ts:', payload.ts);
         return;
     }
 
@@ -186,6 +187,7 @@ async function _handleSSEMessage(payload) {
     }
 
     if (payload.type === 'resync') {
+        console.log('[SSE] resync received, _syncInProgress:', window._syncInProgress, '_sseConnectedOnce:', _sseConnectedOnce);
         if (!window._syncInProgress)
             verifyAndFetchAppData(_sseConnectedOnce).catch(() => {});
         return;
@@ -212,8 +214,9 @@ async function _handleSSEMessage(payload) {
 
     if (payload.type === 'delta') {
         if (!window.appDB || !window.appDB.db) return;
-        if (document.hidden) return;  // background tab — skip write, visibilitychange will catch up
+        if (document.hidden) { console.log('[SSE] delta hidden tab — skip', payload.collection, payload.action, payload.key); return; }
         if (window._syncInProgress) { window._sseBuffer.push(payload); return; }
+        console.log('[SSE] delta applying:', payload.collection, payload.action, payload.key);
         await _applyDelta(payload);
         _scheduleRefresh();
     }
@@ -235,10 +238,11 @@ function _resetWatchdog() {
 }
 
 async function _openSSEDirect() {
-    if (_sseDirect) return;                          // already running
+    if (_sseDirect) { console.log('[SSE-direct] already running, skip'); return; }
     if (!isLoggedIn()) return;
     const token = getSessionId();
     if (!token) { handleLogout(); return; }
+    console.log('[SSE-direct] opening connection...');
     _sseDirect = true;
     if (_sseAbort) _sseAbort.abort();
     _sseAbort = new AbortController();
@@ -249,6 +253,7 @@ async function _openSSEDirect() {
         });
         if (res.status === 401) { _sseDirect = false; handleLogout(); return; }
         if (!res.ok || !res.body) throw new Error('SSE failed');
+        console.log('[SSE-direct] connected, reading stream...');
         _resetWatchdog();
         const reader  = res.body.getReader();
         const decoder = new TextDecoder();
@@ -267,34 +272,39 @@ async function _openSSEDirect() {
         }
     } catch (e) {
         if (e.name === 'AbortError') { _sseDirect = false; return; }
+        console.warn('[SSE-direct] error:', e.message);
     }
     clearTimeout(_sseWatchdog);
     _sseDirect  = false;
     const delay = _sseBackoff;
     _sseBackoff = Math.min(_sseBackoff * 2, 30000);
+    console.log('[SSE-direct] reconnecting in', delay, 'ms');
     setTimeout(_openSSEDirect, delay);
 }
 
 function openSSE() {
     if (!isLoggedIn()) return;
     if (typeof SharedWorker !== 'undefined') {
-        // desktop Chrome/Edge/Firefox — one shared connection for all tabs
+        console.log('[SSE] SharedWorker path');
         if (!_sseWorker) {
             try {
                 _sseWorker = new SharedWorker('core/sse-worker.js');
                 _sseWorker.port.start();
                 _sseWorker.port.onmessage = (e) => { _handleSSEMessage(e.data); };
-                _sseWorker.onerror = () => { _sseWorker = null; };
-            } catch (_) {
+                _sseWorker.onerror = () => { console.warn('[SSE] SharedWorker error'); _sseWorker = null; };
+                console.log('[SSE] SharedWorker created');
+            } catch (e) {
+                console.warn('[SSE] SharedWorker failed:', e.message);
                 _sseWorker = null;
                 return;
             }
         }
         _sseWorker.port.postMessage({ type: 'init', token: getSessionId(), url: CONSTANTS.OPERATIONS_URL });
+        console.log('[SSE] init sent to worker, url:', CONSTANTS.OPERATIONS_URL);
         if (_sseConnectedOnce && !window._sseConnected)
             window._sseGapStart = window._sseGapStart || Date.now();
     } else {
-        // mobile Chrome / Safari / iOS — direct fetch per tab
+        console.log('[SSE] direct path (no SharedWorker)');
         _openSSEDirect();
     }
 }
@@ -302,14 +312,17 @@ function openSSE() {
 // online / visibilitychange recovery
 window.addEventListener('online', () => {
     if (!isLoggedIn()) return;
-    pullDeltaSince(window._lastEventTime || window._idbLastStamp).catch(() => {});
+    const since = window._lastEventTime ?? window._idbLastStamp;
+    console.log('[online] pullDeltaSince:', since, 'openSSE');
+    if (since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
     openSSE();
 });
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
-    const since = window._lastEventTime || window._idbLastStamp;
-    if (since) pullDeltaSince(since).catch(() => {});
+    const since = window._lastEventTime ?? window._idbLastStamp;
+    console.log('[visibilitychange] visible, since:', since, '_sseConnected:', window._sseConnected, '_lastHeartbeat age:', Date.now() - (window._lastHeartbeat||0), 'ms');
+    if (since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
     if (!_sseConnectedOnce || (Date.now() - (window._lastHeartbeat || 0)) > 45000) openSSE();
 });
 
@@ -317,7 +330,9 @@ document.addEventListener('visibilitychange', () => {
 setInterval(() => {
     if (document.hidden || !isLoggedIn()) return;
     if (window._sseConnected && window._lastEventTime && (Date.now() - window._lastEventTime) < 60000) return;
-    pullDeltaSince(window._lastEventTime || window._idbLastStamp).catch(() => {});
+    const since = window._lastEventTime ?? window._idbLastStamp;
+    console.log('[5min-tick] pullDeltaSince:', since);
+    if (since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
 }, 5 * 60 * 1000);
 
 // multi-tab sync coordination (#10)
@@ -371,14 +386,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (isLoggedIn()) {
         const existing  = await getAppData();
-        const hasData   = existing && Object.values(existing).some(s => Object.keys(s || {}).length > 0);
+        const timeFilteredSheets = ['ORDERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'ATTENDANCE', 'STAFF'];
+        const hasData   = existing && timeFilteredSheets.some(s => Object.keys(existing[s] || {}).length > 0);
         window._idbHasData = hasData;
+        console.log('[Layout] hasData:', hasData, '| sheets:', timeFilteredSheets.map(s => `${s}:${Object.keys(existing?.[s]||{}).length}`).join(' '));
 
-        // compute _idbLastStamp from actual TIME_STAMP index
         const timeFiltered = ['ORDERS','MULTIBOX','PRODUCTS','UPLOADS','ATTENDANCE','STAFF'];
         window._idbLastStamp = window.appDB ? await window.appDB.getLastStamp(timeFiltered).catch(() => 0) : 0;
+        console.log('[Layout] _idbLastStamp:', window._idbLastStamp);
 
         if (!hasData && !_isSyncActive()) {
+            console.log('[Layout] No data — running full verifyAndFetchAppData');
             _syncLeader = true;
             localStorage.setItem('post4ex-sync-active', '1');
             _syncChannel.postMessage('sync-started');
@@ -386,12 +404,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.removeItem('post4ex-sync-active');
             _syncChannel.postMessage('sync-complete');
         } else if (!_isSyncActive()) {
+            console.log('[Layout] Has data — firing events, pullDeltaSince:', window._idbLastStamp);
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
-            // fill gap since last known record instead of full re-sync
-            if (window._idbLastStamp) pullDeltaSince(window._idbLastStamp).catch(() => {});
+            if (window._idbLastStamp !== null && window._idbLastStamp !== undefined)
+                pullDeltaSince(window._idbLastStamp).catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
+        } else {
+            console.log('[Layout] Sync already active — skipping');
         }
         openSSE();
         initHeartbeat();

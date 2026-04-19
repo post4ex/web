@@ -76,21 +76,29 @@ async function _applyDelta({ collection, action, key, data }) {
 window._applyDelta = _applyDelta;
 
 async function pullDeltaSince(since_ms) {
-    if (!since_ms || !isLoggedIn() || !window.appDB || !window.appDB.db) return;
+    if (since_ms === null || since_ms === undefined || !isLoggedIn() || !window.appDB || !window.appDB.db) {
+        console.log('[pullDeltaSince] skipped — since_ms:', since_ms, 'loggedIn:', isLoggedIn());
+        return;
+    }
+    // since_ms=0 is invalid for PocketBase TIME_STAMP filter — use 1
+    const effective = since_ms || 1;
+    console.log('[pullDeltaSince] calling with since_ms:', effective);
     try {
-        const result = await callApi('/api/verifyAndFetchAppData', { since_ms });
+        const result = await callApi('/api/verifyAndFetchAppData', { since_ms: effective });
         if (result.status !== 'success') return;
         const incomingData = result.data || {};
+        console.log('[pullDeltaSince] response meta:', result.meta, '| collections:', Object.entries(incomingData).map(([k,v]) => `${k}:${Object.keys(v).length}`).join(' '));
         for (const [sheetName, sheetData] of Object.entries(incomingData)) {
             if (Object.keys(sheetData).length > 0)
                 await window.appDB.mergeSheet(sheetName, sheetData);
         }
         window._lastDeltaSync = Date.now();
         _scheduleRefresh();
-    } catch (_) {}
+    } catch (e) { console.warn('[pullDeltaSince] error:', e.message); }
 }
 
 async function verifyAndFetchAppData(clearAll = false) {
+    console.log('[verifyAndFetchAppData] called, clearAll:', clearAll);
     if (!isLoggedIn()) return;
 
     if (!window.appDB) {
