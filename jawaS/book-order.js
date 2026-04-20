@@ -172,6 +172,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function checkMainDetailsAndToggleInputs() {
         toggleWeightProductEntry(!areMainDetailsComplete());
+        // also toggle mobile add buttons
+        const complete = areMainDetailsComplete();
+        const boxBtn  = document.getElementById('mobileBoxPopup')  ? document.querySelector('[onclick*="mobileBoxPopup"]')  : null;
+        const prodBtn = document.getElementById('mobileProdPopup') ? document.querySelector('[onclick*="mobileProdPopup"]') : null;
+        if (boxBtn)  { boxBtn.disabled  = !complete; boxBtn.classList.toggle('opacity-40', !complete);  boxBtn.classList.toggle('cursor-not-allowed', !complete); }
+        if (prodBtn) { prodBtn.disabled = !complete; prodBtn.classList.toggle('opacity-40', !complete); prodBtn.classList.toggle('cursor-not-allowed', !complete); }
     }
 
     function resetForNextBooking() {
@@ -1173,5 +1179,50 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDisplayTables();
     updateSummaryDisplay();
     toggleWeightProductEntry(true);
+    checkMainDetailsAndToggleInputs();
     if (appData.ORDERS) fetchShipmentList();
+
+    // expose for mobile popup bridge
+    window._addMultiboxEntry      = addMultiboxEntry;
+    window._addProductEntry       = addProductEntry;
+    window._areMainDetailsComplete = areMainDetailsComplete;
 });
+
+// Mobile popup bridge functions — called from inline onclick in HTML
+window.mobileAddBox = function() {
+    document.getElementById('actual_weight').value = document.getElementById('m_actual_weight').value;
+    document.getElementById('length').value        = document.getElementById('m_length').value;
+    document.getElementById('breadth').value       = document.getElementById('m_breadth').value;
+    document.getElementById('height').value        = document.getElementById('m_height').value;
+    if (typeof window._addMultiboxEntry === 'function') window._addMultiboxEntry();
+    const err = document.getElementById('multiboxErrorMessage').textContent;
+    if (err) {
+        const el = document.getElementById('mobileBoxError');
+        el.textContent = err;
+        el.classList.remove('hidden');
+        return;
+    }
+    ['m_actual_weight','m_length','m_breadth','m_height'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('mobileBoxError').classList.add('hidden');
+    // popup stays open for next entry
+};
+
+window.mobileAddProduct = function() {
+    document.getElementById('product_name').value  = document.getElementById('m_product_name').value;
+    document.getElementById('doc_no').value        = document.getElementById('m_doc_no').value;
+    document.getElementById('eway_bill').value     = document.getElementById('m_eway_bill').value;
+    document.getElementById('product_type').value  = document.getElementById('m_product_type').value;
+    document.getElementById('amount').value        = document.getElementById('m_amount').value;
+    if (typeof window._addProductEntry === 'function') window._addProductEntry();
+    const err = document.getElementById('ewayStatusMessage').textContent;
+    if (err) {
+        const el = document.getElementById('mobileProdError');
+        el.textContent = err;
+        el.classList.remove('hidden');
+        return;
+    }
+    ['m_product_name','m_doc_no','m_eway_bill','m_amount'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('m_product_type').value = 'INV';
+    document.getElementById('mobileProdError').classList.add('hidden');
+    // popup stays open for next entry
+};
