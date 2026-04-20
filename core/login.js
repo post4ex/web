@@ -102,6 +102,17 @@ async function handleLogin(e) {
                 loginTime: Date.now(),
                 expires:   Date.now() + 8 * 60 * 60 * 1000
             }));
+
+            // check if same user — wipe IndexedDB if different user logging in
+            if (window.appDB && window.appDB.db) {
+                const lastUser = await window.appDB.getMetadata('lastUser').catch(() => null);
+                const newUser  = user.trim().toLowerCase();
+                if (lastUser && lastUser !== newUser) {
+                    await window.appDB.clearAll().catch(() => {});
+                }
+                await window.appDB.setMetadata('lastUser', newUser).catch(() => {});
+            }
+
             showMessage('Login successful! Redirecting...', 'success');
             setTimeout(() => { location.href = 'dashboard.html'; }, 1000);
         }

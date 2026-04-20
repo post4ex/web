@@ -80,8 +80,8 @@ async function pullDeltaSince(since_ms) {
         console.log('[pullDeltaSince] skipped — since_ms:', since_ms, 'loggedIn:', isLoggedIn());
         return;
     }
-    // since_ms=0 is invalid for PocketBase TIME_STAMP filter — use 1
-    const effective = since_ms || 1;
+    // since_ms=0 — pass as-is, backend handles fallback to sync_start_ms
+    const effective = since_ms;
     console.log('[pullDeltaSince] calling with since_ms:', effective);
     try {
         const result = await callApi('/api/verifyAndFetchAppData', { since_ms: effective });

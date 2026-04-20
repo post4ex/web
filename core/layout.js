@@ -171,7 +171,6 @@ async function _handleSSEMessage(payload) {
     window._lastEventTime = Date.now();
 
     if (payload.type === 'heartbeat') {
-        lastActivity          = Date.now();
         window._lastHeartbeat = Date.now();
         window._sseConnected  = true;
         window._sseGapStart   = null;
@@ -279,7 +278,7 @@ async function _openSSEDirect() {
     const delay = _sseBackoff;
     _sseBackoff = Math.min(_sseBackoff * 2, 30000);
     console.log('[SSE-direct] reconnecting in', delay, 'ms');
-    setTimeout(_openSSEDirect, delay);
+    if (isLoggedIn()) setTimeout(_openSSEDirect, delay);
 }
 
 function openSSE() {
@@ -321,8 +320,10 @@ window.addEventListener('online', () => {
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
     const since = window._lastEventTime ?? window._idbLastStamp;
+    // skip delta pull if SSE is live and recent (< 60s)
+    const sseRecent = window._sseConnected && window._lastEventTime && (Date.now() - window._lastEventTime) < 60000;
+    if (!sseRecent && since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
     console.log('[visibilitychange] visible, since:', since, '_sseConnected:', window._sseConnected, '_lastHeartbeat age:', Date.now() - (window._lastHeartbeat||0), 'ms');
-    if (since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
     if (!_sseConnectedOnce || (Date.now() - (window._lastHeartbeat || 0)) > 45000) openSSE();
 });
 
@@ -411,6 +412,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (window._idbLastStamp !== null && window._idbLastStamp !== undefined)
                 pullDeltaSince(window._idbLastStamp).catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
+            // full sync in background — merges on top, user already sees data
+            verifyAndFetchAppData().catch(() => {});
         } else {
             console.log('[Layout] Sync already active — skipping');
         }

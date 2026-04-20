@@ -51,12 +51,15 @@ function initHeartbeat() {
     }, CONSTANTS.PING_INTERVAL);
 }
 
-function handleLogout() {
+async function handleLogout() {
     callApi('/api/logout').catch(() => {});
     localStorage.removeItem(CONSTANTS.KEYS.LOGIN);
     sessionStorage.clear();
+    if (window._sseWorker) {
+        try { window._sseWorker.port.postMessage({ type: 'logout' }); } catch (_) {}
+    }
     if (window.appDB) {
-        window.appDB.clearAll().catch(e => console.warn('Failed to clear IndexedDB:', e));
+        await window.appDB.clearAll().catch(e => console.warn('Failed to clear IndexedDB:', e));
     }
     window.location.href = 'login.html';
 }
