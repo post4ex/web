@@ -11,6 +11,7 @@ let multiboxDataMap = new Map(); // REFERENCE → [boxes]
 let uploadsDataMap  = new Map(); // REFERENCE → [uploads]
 let modesDataMap    = new Map(); // SHORT → MODE name
 let carriersDataMap = new Map(); // COMPANY_CODE → COMPANY_NAME
+let branchDataMap   = new Map(); // BRANCH_CODE → branch record
 
 let ui = {};
 
@@ -49,7 +50,7 @@ function initializePageWithData(appData) {
         allOrders.sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
 
         b2b2cDataMap.clear(); productDataMap.clear(); multiboxDataMap.clear();
-        uploadsDataMap.clear(); modesDataMap.clear(); carriersDataMap.clear();
+        uploadsDataMap.clear(); modesDataMap.clear(); carriersDataMap.clear(); branchDataMap.clear();
 
         if (appData.B2B2C)
             Object.values(appData.B2B2C).forEach(c => b2b2cDataMap.set(c.UID, c));
@@ -80,6 +81,9 @@ function initializePageWithData(appData) {
 
         if (appData.CARRIERS)
             Object.values(appData.CARRIERS).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
+
+        if (appData.BRANCHES)
+            Object.values(appData.BRANCHES).forEach(b => { if (b.BRANCH_CODE) branchDataMap.set(b.BRANCH_CODE, b); });
 
         populateFilters(allOrders);
         setupFilterListeners();
@@ -314,17 +318,70 @@ function renderShipmentDetails(order) {
     const userRole  = getUser().ROLE || 'GUEST';
     const canDelete = (ROLE_LEVELS[userRole] || 0) >= ROLE_LEVELS['ADMIN'];
 
-    const editBtn = `<button id="editOrderBtn" title="Edit" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
-    const mailBtn = `<button id="mailOrderBtn" title="Email" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`;
-    const waBtn   = `<button id="waOrderBtn"   title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`;
-    const tgBtn   = `<button id="tgOrderBtn"   title="Telegram" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`;
-    const delBtn  = canDelete ? `<button id="deleteOrderBtn" title="Delete" class="p-1.5 text-red-500 rounded hover:bg-red-50"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : '';
+    const editBtn  = `<button id="editOrderBtn"  title="Edit"   class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>`;
+    const copyBtn  = `<button id="copyOrderBtn"  title="Copy"   class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`;
+    const shareBtn = `<button id="shareOrderBtn" title="Share"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg></button>`;
+    const mailBtn  = `<button id="mailOrderBtn"  title="Email"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`;
+    const waBtn    = `<button id="waOrderBtn"    title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`;
+    const tgBtn    = `<button id="tgOrderBtn"    title="Telegram" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`;
+    const delBtn   = canDelete ? `<button id="deleteOrderBtn" title="Delete" class="p-1.5 text-red-500 rounded hover:bg-red-50"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : '';
 
-    ui.shipmentDetailsContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Shipment Details</h3><div class="flex items-center gap-0.5">${editBtn}${mailBtn}${waBtn}${tgBtn}${delBtn}</div></div><div class="detail-card-body">${h}</div>`;
+    ui.shipmentDetailsContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Shipment Details</h3><div class="flex items-center gap-0.5">${editBtn}${copyBtn}${shareBtn}${mailBtn}${waBtn}${tgBtn}${delBtn}</div></div><div class="detail-card-body">${h}</div>`;
+
+    function _buildOrderText() {
+        const cnor  = b2b2cDataMap.get(order.CONSIGNOR) || {};
+        const cnee  = b2b2cDataMap.get(order.CONSIGNEE) || {};
+        const prods = productDataMap.get(order.REFERENCE)  || [];
+        const boxes = multiboxDataMap.get(order.REFERENCE) || [];
+        return [
+            `Date: ${fmtDate(order.ORDER_DATE)}`,
+            `AWB: ${order.AWB_NUMBER || 'N/A'}`,
+            `Carrier: ${carriersDataMap.get(order.CARRIER) || order.CARRIER || 'N/A'}`,
+            order.TOPAY === 'Yes' ? `ToPay: Yes (${order.TOTAL || 'N/A'})` : null,
+            order.COD && parseFloat(order.COD) > 0 ? `COD: ${order.COD}` : null,
+            `Value: ${order.VALUE || 'N/A'}`,
+            `Pcs: ${order.PIECS || 'N/A'}`,
+            `Wt: ${order.WEIGHT || 'N/A'} kg`,
+            ``,
+            `Consignee: ${cnee.NAME || order.CONSIGNEE || 'N/A'}`,
+            cnee.ADDRESS ? `  ${cnee.ADDRESS}` : null,
+            cnee.CITY    ? `  ${cnee.CITY} - ${cnee.PINCODE || ''}` : null,
+            cnee.MOBILE  ? `  Ph: ${cnee.MOBILE}` : null,
+            ``,
+            `Consignor: ${cnor.NAME || order.CONSIGNOR || 'N/A'}`,
+            cnor.CITY   ? `  ${cnor.CITY} - ${cnor.PINCODE || ''}` : null,
+            cnor.MOBILE ? `  Ph: ${cnor.MOBILE}` : null,
+            prods.length > 0 ? `` : null,
+            prods.length > 0 ? `Products:` : null,
+            ...prods.map(p => `  ${p.PRODUCT || 'N/A'} | Doc: ${p.DOC_NUMBER || 'N/A'} | Amt: ${p.AMOUNT || 0}`),
+            boxes.length > 0 ? `` : null,
+            boxes.length > 0 ? `Boxes:` : null,
+            ...boxes.map(b => `  Box#${b.BOX_NUM || 'N/A'} | Wt:${b.WEIGHT || 0} | ${parseFloat(b.LENGTH)||0}x${parseFloat(b.BREADTH)||0}x${parseFloat(b.HIGHT)||0} | ChgWt:${parseFloat(b.CHG_WT||0).toFixed(2)}`),
+        ].filter(l => l !== null).join('\n');
+    }
 
     document.getElementById('editOrderBtn').addEventListener('click', () => {
         sessionStorage.setItem('editOrderRef', order.REFERENCE);
         window.location.href = 'BookOrder.html';
+    });
+    document.getElementById('copyOrderBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(_buildOrderText())
+            .then(() => showNotification('\u2705 Copied to clipboard', 'success', 1500))
+            .catch(() => showNotification('\u274c Copy failed', 'error'));
+    });
+    document.getElementById('shareOrderBtn').addEventListener('click', async () => {
+        const text = _buildOrderText();
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: `Shipment ${order.AWB_NUMBER || order.REFERENCE}`, text });
+            } catch (e) {
+                if (e.name !== 'AbortError') showNotification('\u274c Share failed', 'error');
+            }
+        } else {
+            navigator.clipboard.writeText(text)
+                .then(() => showNotification('\u2705 Copied (share not supported)', 'info', 2000))
+                .catch(() => showNotification('\u274c Share not supported', 'error'));
+        }
     });
     document.getElementById('mailOrderBtn').addEventListener('click', () => showNotification('Email not implemented yet.', 'info'));
     document.getElementById('waOrderBtn').addEventListener('click',   () => showNotification('WhatsApp not implemented yet.', 'info'));
@@ -335,12 +392,12 @@ function renderShipmentDetails(order) {
             if (!confirm(`Delete order ${order.REFERENCE}? This cannot be undone.`)) return;
             try {
                 await deleteOrder(order.REFERENCE);
-                showNotification(`✅ Order ${order.REFERENCE} deleted`, 'success');
+                showNotification(`\u2705 Order ${order.REFERENCE} deleted`, 'success');
                 currentSelectedRef = null;
                 ui.detailView.classList.add('hidden');
                 ui.emptyView.classList.remove('hidden');
             } catch (err) {
-                showNotification(`❌ Delete failed: ${err.message}`, 'error');
+                showNotification(`\u274c Delete failed: ${err.message}`, 'error');
             }
         });
     }
@@ -349,9 +406,10 @@ function renderShipmentDetails(order) {
 // --- RENDER: TRACKING STATUS ---
 function renderTrackingStatus(order) {
     const h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+        <div><div class="text-gray-500 text-xs">AWB Number</div><div class="font-semibold text-gray-800">${order.AWB_NUMBER || 'N/A'}</div></div>
         <div><div class="text-gray-500 text-xs">Order Date</div><div class="font-semibold text-gray-800">${fmtDate(order.ORDER_DATE)}</div></div>
         <div><div class="text-gray-500 text-xs">Transit Date</div><div class="font-semibold text-gray-800">${fmtDate(order.TRANSIT_DATE)}</div></div>
-        <div><div class="text-gray-500 text-xs">Invoice Date</div><div class="font-semibold text-gray-800">${fmtDate(order.INVOICE_DATE)}</div></div>
+        <div><div class="text-gray-500 text-xs">Document Date</div><div class="font-semibold text-gray-800">${order.INVOICE_DATE && order.INVOICE_DATE !== '0' && order.INVOICE_DATE !== 0 ? fmtDate(order.INVOICE_DATE) : 'N/A'}</div></div>
     </div>`;
     ui.trackingStatusContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center">
         <h3 class="font-semibold text-gray-700">Tracking Status</h3>
@@ -493,7 +551,7 @@ function renderProductAndBoxDetails(order) {
     let h_header = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Product, Box & Upload Details</h3><div class="flex items-center gap-0.5">`;
     if (u.length > 0) {
         h_header += [
-            `<button onclick="console.warn('print uploads not implemented')" title="Print All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
+            `<button onclick="printSelectedShipmentDocsAndBox()" title="Print Docs+Box" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
             `<button onclick="console.warn('mail uploads not implemented')"  title="Mail All"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
             `<button onclick="console.warn('wa uploads not implemented')"    title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
             `<button onclick="console.warn('tg uploads not implemented')"    title="Telegram All" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
@@ -520,12 +578,11 @@ function renderDocumentCenter(order) {
     }
 
     const docs = [
-        { label: 'Receipt',     sys: actionBtns('printSelectedShipmentReceipt') },
         { label: 'Label',       sys: actionBtns('printSelectedShipmentLabel') },
+        { label: 'Receipt',     sys: actionBtns('printSelectedShipmentReceipt') },
         { label: 'POD',         sys: actionBtns('printSelectedShipmentPOD') },
         { label: 'Office Copy', sys: actionBtns('printSelectedShipmentOfficeCopy') },
-        { label: 'Docs',        sys: actionBtns('printSelectedShipmentDocs') },
-        { label: 'Multibox',    sys: actionBtns('printSelectedShipmentMultibox') },
+        { label: 'Docs + Box',  sys: actionBtns('printSelectedShipmentDocsAndBox') },
     ];
 
     let h = `<div class="divide-y divide-gray-100">`;
@@ -546,7 +603,7 @@ function renderDocumentCenter(order) {
     </div>`;
 
     const headerBtns = [
-        `<button onclick="console.warn('print all not implemented')" title="Print All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
+        `<button onclick="printSelectedShipmentAll()" title="Print All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
         `<button onclick="console.warn('mail all not implemented')"  title="Mail All"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
         `<button onclick="console.warn('wa all not implemented')"    title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button onclick="console.warn('tg all not implemented')"    title="Telegram All" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,

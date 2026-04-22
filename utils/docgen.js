@@ -12,6 +12,41 @@ function getJsBarcodeSrc() {
     return window.location.origin + '/assets/js/JsBarcode.all.min.js';
 }
 
+function getLogoSrc() {
+    const scripts = document.querySelectorAll('script[src]');
+    for (const s of scripts) {
+        if (s.src.includes('docgen.js')) {
+            return new URL('/assets/images/post4ex-logo.svg', s.src).href;
+        }
+    }
+    return window.location.origin + '/assets/images/post4ex-logo.svg';
+}
+
+function getCarrierLogoSrc(carrier) {
+    const base = (() => {
+        const scripts = document.querySelectorAll('script[src]');
+        for (const s of scripts) { if (s.src.includes('docgen.js')) return new URL('/assets/images/', s.src).href; }
+        return window.location.origin + '/assets/images/';
+    })();
+    const c = (carrier || '').toLowerCase();
+    if (c.includes('dtdc'))        return base + 'dtdc-logo.webp';
+    if (c.includes('bluedart'))    return base + 'bluedart-logo.png';
+    if (c.includes('delhivery'))   return base + 'delhivery-logo.webp';
+    if (c.includes('trackon'))     return base + 'trackon-logo.png';
+    if (c.includes('jetline') || c === 'jetline') return base + 'jetline-logo.png';
+    if (c.includes('dailyx'))      return base + 'dailyxpress-logo.png';
+    if (c.includes('xpressbees') || c.includes('expressbees')) return base + 'xpressbees-logo.webp';
+    if (c.includes('maruti'))      return base + 'shreemaruti-logo.png';
+    if (c.includes('postoffice') || c.includes('indiapost')) return base + 'indiapost-logo.png';
+    return base + 'post4ex-logo.svg';
+}
+
+function getCarrierLogoBg(carrier) {
+    const c = (carrier || '').toLowerCase();
+    if (c.includes('delhivery')) return 'background:#000;border-radius:4px;padding:3px;';
+    return '';
+}
+
 // --- SHARED STYLES ---
 function getLabelStyles() {
     return `<style>
@@ -41,7 +76,7 @@ function getLabelStyles() {
 
 function getReceiptStyles() {
     return `<style>
-        .receipt-wrapper{border:1px solid #333;width:100%;max-width:48rem;margin:0 auto;font-family:Arial,sans-serif;background:#fff;color:#000;font-size:11px;line-height:1.4;}
+        .receipt-wrapper{border:1px solid #333;width:100%;max-width:48rem;margin:0 auto;font-family:Arial,sans-serif;background:#fff;color:#000;font-size:11px;line-height:1.4;box-sizing:border-box;}
         .receipt-header{display:flex;justify-content:space-between;align-items:center;padding:0.5rem 1rem;border-bottom:2px solid #000;}
         .receipt-logo{font-size:24px;font-weight:bold;text-transform:uppercase;}
         .receipt-copy-type{font-size:16px;font-weight:bold;text-align:right;}
@@ -73,7 +108,7 @@ function getReceiptStyles() {
         .receipt-terms-cell .label{font-size:10px;color:#555;}
         .receipt-qr-cell{width:75%;padding:0.5rem 0.75rem;font-size:6px;line-height:1.5;color:#333;overflow-y:hidden;max-height:120px;border-left:1px solid #ccc;}
         .sign-box{height:50px;}
-        @media print{.receipt-wrapper{margin:0!important;box-shadow:none!important;width:100%!important;max-width:100%!important;}}
+        @media print{.receipt-wrapper{margin:0!important;box-shadow:none!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;}}
     </style>`;
 }
 
@@ -99,8 +134,26 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
     const cneeCity    = _esc(cnee?.CITY || 'N/A');
 
     let paymentMode = 'PREPAID', orderValue = 'N/A';
-    if (order.COD && parseFloat(order.COD) > 0)        { paymentMode = 'COD';     orderValue = parseFloat(order.COD).toFixed(2); }
-    else if (order.TOPAY && parseFloat(order.TOPAY) > 0){ paymentMode = 'TO PAY'; orderValue = parseFloat(order.TOPAY).toFixed(2); }
+    const isCOD   = order.COD   === 'Y' || parseFloat(order.COD)   > 0;
+    const isTopay  = order.TOPAY === 'Y' || parseFloat(order.TOPAY_CHG) > 0;
+    const codVal   = isCOD   ? parseFloat(order.VALUE || 0).toFixed(2) : null;
+    const topayVal = isTopay ? parseFloat(order.TOTAL || 0).toFixed(2) : null;
+    let paymentDisplay = '';
+    if (codVal && topayVal) {
+        paymentMode = 'TOPAY+COD';
+        paymentDisplay = `<div style="font-size:16px;font-weight:bold;">TOPAY + COD</div><div style="font-size:13px;">${topayVal} + ${codVal} INR</div>`;
+    } else if (codVal) {
+        paymentMode = 'COD';
+        paymentDisplay = `<div style="font-size:16px;font-weight:bold;">COD</div><div style="font-size:13px;">${codVal} INR</div>`;
+    } else if (topayVal) {
+        paymentMode = 'TO PAY';
+        paymentDisplay = `<div style="font-size:16px;font-weight:bold;">TOPAY</div><div style="font-size:13px;">${topayVal} INR</div>`;
+    } else {
+        paymentMode = 'PREPAID';
+        paymentDisplay = `<div style="font-size:16px;font-weight:bold;">PREPAID</div>`;
+    }
+    if (codVal) orderValue = codVal;
+    else if (topayVal) orderValue = topayVal;
 
     const weight  = order.WEIGHT || '0.50';
     const pieces  = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
@@ -161,18 +214,18 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
 
     return `<div class="label-wrapper">
         <div class="label-row">
-            <div class="label-cell w-1-3"><div class="label-logo">${carrierName}</div></div>
-            <div class="label-cell w-1-3">Date: <strong>${orderDate}</strong><br><span class="font-bold" style="font-size:18px;">${paymentMode}</span></div>
+            <div class="label-cell w-1-3" style="display:flex;align-items:center;justify-content:center;padding:4px;"><img src="${getCarrierLogoSrc(carrierName)}" alt="${carrierName}" style="max-height:40px;max-width:100%;width:auto;object-fit:contain;${getCarrierLogoBg(carrierName)}"></div>
+            <div class="label-cell w-1-3">${paymentDisplay}</div>
             <div class="label-cell w-1-3"><div class="label-logo" style="font-size:20px;font-weight:bold;">${piecesDisplay}</div></div>
         </div>
         <div class="label-row">
-            <div class="label-cell w-1-2" style="font-size:18px;font-weight:bold;">Mode: ${modeName}</div>
-            <div class="label-cell w-1-2" style="font-size:18px;font-weight:bold;">Ref No: ${ref}</div>
+            <div class="label-cell w-1-3" style="font-size:14px;font-weight:bold;">Date: ${orderDate}</div>
+            <div class="label-cell w-1-3" style="font-size:14px;font-weight:bold;">Mode: ${modeName}</div>
+            <div class="label-cell w-1-3" style="font-size:14px;font-weight:bold;">Ref: ${ref}</div>
         </div>
         <div class="label-row">
             <div class="label-cell">
                 <div class="barcode-container"><svg id="${barcodeId}" class="barcode-svg" data-value="${awb}"></svg></div>
-                <div class="barcode-number">${awb}</div>
             </div>
         </div>
         <div class="label-row">
@@ -197,7 +250,7 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
 }
 
 // --- SHARED RECEIPT HTML BUILDER ---
-function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
+function _buildReceiptHtml(order, cnor, cnee, products, copyType, branch) {
     const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     const orderDate   = fmtDate(order.ORDER_DATE, 'date');
     const ref         = order.REFERENCE || 'N/A';
@@ -212,9 +265,12 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
     const cneeAddress = _esc(`${cnee?.ADDRESS||''}, ${cnee?.CITY||''}, ${cnee?.STATE||''}, ${cnee?.PINCODE||''}`);
     const cneeMobile  = _esc(cnee?.MOBILE || 'N/A');
 
+    const hasCOD   = order.COD   === 'Y' || parseFloat(order.COD)   > 0;
+    const hasTopay = order.TOPAY === 'Y' || parseFloat(order.TOPAY_CHG) > 0;
     let paymentMode = 'PREPAID', totalAmt = 0;
-    if (order.COD && parseFloat(order.COD) > 0)         paymentMode = 'COD';
-    else if (order.TOPAY && parseFloat(order.TOPAY) > 0) paymentMode = 'TO PAY';
+    if (hasCOD && hasTopay)   paymentMode = 'TOPAY+COD';
+    else if (hasCOD)          paymentMode = 'COD';
+    else if (hasTopay)        paymentMode = 'TO PAY';
 
     const weight = parseFloat(order.WEIGHT || '0.50').toFixed(2);
     const pieces = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
@@ -259,47 +315,107 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
         multiboxTableHtml += `</tbody></table>`;
     }
 
-    const isClientCopy = copyType === 'CLIENT COPY';
-    const footerHtml = isClientCopy ? `
+    const disclaimer = `<div style="border-top:1px solid #ccc;padding:6px 12px;background:#fafafa;">
+        <div style="font-size:8px;color:#555;line-height:1.4;">This document is for information purposes only and does not constitute a legal receipt, proof of delivery, or official record.</div>
+    </div>`;
+    const chargeFields = [
+            { lbl: 'Freight',   key: 'FRIGHT' },
+            { lbl: 'DEV',       key: 'DEV_CHG' },
+            { lbl: 'Fuel',      key: 'FUEL_CHG' },
+            { lbl: 'COD Chg',   key: 'COD_CHG' },
+            { lbl: 'ToPay Chg', key: 'TOPAY_CHG' },
+            { lbl: 'AWB',       key: 'AWB_CHG' },
+            { lbl: 'E-Way',     key: 'EWAY_CHG' },
+            { lbl: 'FOV',       key: 'FOV_CHG' },
+            { lbl: 'Packing',   key: 'PACK_CHG' },
+            { lbl: 'Taxable',   key: 'TAXABLE' },
+            { lbl: 'CGST',      key: 'CGST' },
+            { lbl: 'SGST',      key: 'SGST' },
+            { lbl: 'IGST',      key: 'IGST' },
+    ];
+    const chargeCells = chargeFields
+        .filter(f => parseFloat(order[f.key] || 0) > 0)
+        .map(f => `<td style="border:1px solid #ccc;padding:5px 8px;text-align:center;">
+            <div style="font-size:9px;font-weight:bold;text-transform:uppercase;color:#555;">${f.lbl}</div>
+            <div style="font-size:12px;font-weight:bold;">${parseFloat(order[f.key]).toFixed(2)}</div>
+        </td>`).join('');
+    const branchUpi     = branch?.BRANCH_UPI      || '';
+    const branchUpiName = branch?.BRANCH_UPI_NAME  || branch?.BRANCH_NAME || '';
+    const total         = parseFloat(order.TOTAL || 0);
+    const codAmt        = hasCOD ? parseFloat(order.VALUE || 0) : 0;
+
+    // Charges visibility
+    const showCharges =
+        copyType === 'OFFICE COPY' ||
+        (copyType === 'CLIENT COPY' && paymentMode === 'PREPAID') ||
+        (copyType === 'POD COPY'    && (paymentMode === 'TO PAY' || paymentMode === 'TOPAY+COD'));
+
+    // QR visibility + amount
+    const showQR =
+        (copyType === 'CLIENT COPY' && paymentMode === 'PREPAID') ||
+        (copyType === 'POD COPY'    && paymentMode !== 'PREPAID');
+    const qrAmt = (copyType === 'POD COPY' && paymentMode === 'COD') ? codAmt : total;
+
+    const chargesHtml = showCharges ? `<div style="border-top:2px solid #000;">
+        <table style="width:100%;border-collapse:collapse;">
+            <tbody><tr>
+                ${chargeCells}
+                <td style="border:1px solid #ccc;padding:5px 8px;text-align:center;background:#f4f4f4;">
+                    <div style="font-size:9px;font-weight:bold;text-transform:uppercase;color:#555;">TOTAL</div>
+                    <div style="font-size:12px;font-weight:bold;">&#8377;${total.toFixed(2)}</div>
+                </td>
+            </tr></tbody>
+        </table>
+    </div>` : '';
+
+    const qrUrl = branchUpi
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${qrAmt.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent(ref)}`
+        : `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrAmt.toFixed(2))}`;
+    const qrCell = showQR ? `<div style="width:25%;padding:0.5rem;border-left:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+        <img src="${qrUrl}" style="width:80px;height:80px;" alt="QR">
+        <div style="font-size:8px;color:#555;margin-top:3px;">&#8377;${qrAmt.toFixed(2)}</div>
+    </div>` : '';
+    const termsWidth = showQR ? 'width:50%;' : 'width:75%;';
+
+    const footerHtml = copyType === 'CLIENT COPY' ? `
         <div class="receipt-terms-row">
             <div class="receipt-terms-cell">
                 <span class="label">Admits to T&C</span>
                 <div class="sign-box"></div>
                 <span class="label">Consignor's Sign & Stamp</span>
             </div>
-            <div class="receipt-qr-cell">
-                <p style="text-align:left;margin:0;padding:0;">
-                    1. Consignor is fully responsible for restricted/prohibited items. 2. This is a Customer Copy, not a Tax Invoice. 3. This receipt means shipment has been handed over for shipping. 4. TAT may differ due to transport, air traffic or natural calamity. 5. Custom, Clearance and Penalty not paid here. 6. Higher Value shipments must be insured by shipper. 7. Freight refund not entertained for service failure due to strikes, floods, fire, accidents or natural calamities. 8. NO FRAGILE or Perishable items under Carrier's Risk. 9. This receipt has 30 days life from booking date. 10. Carrier's liabilities are specifically limited. 11. Carrier has the right to open consignment for inspection.
-                </p>
+            <div class="receipt-qr-cell" style="${termsWidth}">
+                <p style="text-align:left;margin:0;padding:0;">1. Consignor is fully responsible for restricted/prohibited items. 2. This is a Customer Copy, not a Tax Invoice. 3. This receipt means shipment has been handed over for shipping. 4. TAT may differ due to transport, air traffic or natural calamity. 5. Custom, Clearance and Penalty not paid here. 6. Higher Value shipments must be insured by shipper. 7. Freight refund not entertained for service failure due to strikes, floods, fire, accidents or natural calamities. 8. NO FRAGILE or Perishable items under Carrier's Risk. 9. This receipt has 30 days life from booking date. 10. Carrier's liabilities are specifically limited. 11. Carrier has the right to open consignment for inspection.</p>
             </div>
-        </div>` : (copyType === 'POD COPY' ? `
+            ${qrCell}
+        </div>${disclaimer}` : copyType === 'POD COPY' ? `
         <div class="receipt-terms-row">
             <div class="receipt-terms-cell">
                 <span class="label">Received in Good Condition</span>
                 <div class="sign-box"></div>
                 <span class="label">Receiver's Sign & Stamp</span>
             </div>
-            <div class="receipt-qr-cell">
-                <p style="text-align:left;margin:0;padding:0;">
-                    1. Consignor is fully responsible for restricted/prohibited items. 2. This is a Customer Copy, not a Tax Invoice. 3. This receipt means shipment has been handed over for shipping. 4. TAT may differ due to transport, air traffic or natural calamity. 5. Custom, Clearance and Penalty not paid here. 6. Higher Value shipments must be insured by shipper. 7. Freight refund not entertained for service failure due to strikes, floods, fire, accidents or natural calamities. 8. NO FRAGILE or Perishable items under Carrier's Risk. 9. This receipt has 30 days life from booking date. 10. Carrier's liabilities are specifically limited. 11. Carrier has the right to open consignment for inspection.
-                </p>
+            <div class="receipt-qr-cell" style="${termsWidth}">
+                <p style="text-align:left;margin:0;padding:0;">1. Consignor is fully responsible for restricted/prohibited items. 2. This is a Customer Copy, not a Tax Invoice. 3. This receipt means shipment has been handed over for shipping. 4. TAT may differ due to transport, air traffic or natural calamity. 5. Custom, Clearance and Penalty not paid here. 6. Higher Value shipments must be insured by shipper. 7. Freight refund not entertained for service failure due to strikes, floods, fire, accidents or natural calamities. 8. NO FRAGILE or Perishable items under Carrier's Risk. 9. This receipt has 30 days life from booking date. 10. Carrier's liabilities are specifically limited. 11. Carrier has the right to open consignment for inspection.</p>
             </div>
-        </div>` : '');
+            ${qrCell}
+        </div>${disclaimer}` : disclaimer;
 
     return `${getReceiptStyles()}
     <div class="receipt-wrapper">
         <div class="receipt-header">
-            <div class="receipt-logo">POSTMAN</div>
-            <div class="receipt-copy-type">${copyType}</div>
+            <div class="receipt-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:36px;width:auto;"></div>
+            <div class="receipt-copy-type">${copyType}<div style="font-size:10px;font-weight:normal;color:#555;margin-top:2px;">Informational Copy</div></div>
         </div>
         <div class="receipt-meta">
-            <div class="receipt-meta-cell"><strong>AWB No: ${awb}</strong></div>
             <div class="receipt-meta-cell"><strong>Date:</strong> ${orderDate}</div>
-            <div class="receipt-meta-cell" style="grid-row:1/3;grid-column:3/4;border-left:1px solid #333;border-top:none;border-right:none;padding:0.5rem;">
-                <div class="receipt-barcode-container"><svg id="receipt-barcode" data-value="${awb}"></svg></div>
+            <div class="receipt-meta-cell" style="grid-row:1/3;grid-column:2/3;display:flex;align-items:center;justify-content:center;padding:6px;border-top:none;">
+                <img src="${getCarrierLogoSrc(carrierName)}" alt="${carrierName}" style="max-height:48px;max-width:100%;width:auto;object-fit:contain;${getCarrierLogoBg(carrierName)}">
             </div>
-            <div class="receipt-meta-cell"><strong>Ref No:</strong> ${ref}</div>
-            <div class="receipt-meta-cell"><strong>Carrier:</strong> ${carrierName}</div>
+            <div class="receipt-meta-cell" style="grid-row:1/3;grid-column:3/4;border-left:1px solid #333;border-top:none;border-right:none;padding:0.5rem;">
+                <div class="receipt-barcode-container"><svg id="receipt-barcode" class="barcode-svg" data-value="${awb}"></svg></div>
+            </div>
+            <div class="receipt-meta-cell" style="border-right:1px solid #333;"><strong>Ref No:</strong> ${ref}</div>
         </div>
         <div class="receipt-party">
             <div class="receipt-party-cell">
@@ -320,7 +436,7 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
             <div class="receipt-details-cell" style="flex-grow:1;"><span class="label">Pieces</span><span class="value">${pieces}</span></div>
             <div class="receipt-details-cell" style="flex-grow:1;"><span class="label">Weight (Kg)</span><span class="value">${weight}</span></div>
             <div class="receipt-details-cell" style="flex-grow:2;"><span class="label">Service</span><span class="value">${modeName}</span></div>
-            <div class="receipt-details-cell" style="flex-grow:2;"><span class="label">Value</span><span class="value">INR ${totalAmt.toFixed(2)}</span></div>
+            <div class="receipt-details-cell" style="flex-grow:2;"><span class="label">${hasCOD ? 'COD' : 'Value'}</span><span class="value">INR ${hasCOD ? parseFloat(order.VALUE || 0).toFixed(2) : totalAmt.toFixed(2)}</span></div>
         </div>
         ${multiboxTableHtml}
         <table class="receipt-table" style="${multiboxTableHtml ? '' : 'border-top:2px solid #000;'}">
@@ -333,13 +449,14 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType) {
             </tr></thead>
             <tbody>${productTableHtml}</tbody>
         </table>
+        ${chargesHtml}
         ${footerHtml}
     </div>`;
 }
 
-function buildReceipt(order, cnor, cnee, products)    { return _buildReceiptHtml(order, cnor, cnee, products, 'CLIENT COPY'); }
-function buildPOD(order, cnor, cnee, products)         { return _buildReceiptHtml(order, cnor, cnee, products, 'POD COPY'); }
-function buildOfficeCopy(order, cnor, cnee, products)  { return _buildReceiptHtml(order, cnor, cnee, products, 'OFFICE COPY'); }
+function buildReceipt(order, cnor, cnee, products, branch)   { return _buildReceiptHtml(order, cnor, cnee, products, 'CLIENT COPY', branch); }
+function buildPOD(order, cnor, cnee, products, branch)        { return _buildReceiptHtml(order, cnor, cnee, products, 'POD COPY', branch); }
+function buildOfficeCopy(order, cnor, cnee, products, branch) { return _buildReceiptHtml(order, cnor, cnee, products, 'OFFICE COPY', branch); }
 
 function getPackingSlipStyles() {
     return `<style>
@@ -365,7 +482,10 @@ function getPackingSlipStyles() {
         .ps-sign-cell{width:50%;padding:8px 12px;border-right:1px solid #ccc;}
         .ps-sign-cell:last-child{border-right:none;}
         .ps-sign-box{height:48px;border-bottom:1px solid #999;margin-top:4px;}
-        @media print{.ps-wrapper{margin:0;border:none;}}
+        @media print{.ps-wrapper{margin:0;border:none;page-break-inside:avoid;break-inside:avoid;}
+        .ps-table{page-break-inside:auto;}
+        .ps-table tr{page-break-inside:avoid;break-inside:avoid;}
+        .ps-footer{page-break-inside:avoid;break-inside:avoid;}}
     </style>`;
 }
 
@@ -405,7 +525,7 @@ function buildDocs(order, cnor, cnee, products) {
     return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo">POSTMAN</div>
+            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:32px;width:auto;"></div>
             <div class="ps-title">PRODUCT PACKING SLIP</div>
         </div>
         <div class="ps-meta">
@@ -499,7 +619,7 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
     return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo">POSTMAN</div>
+            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:32px;width:auto;"></div>
             <div class="ps-title">PACKING SLIP</div>
         </div>
         <div class="ps-meta">
@@ -555,20 +675,20 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
 }
 
 // --- OPEN DOC IN NEW TAB ---
-function _openInNewTab(title, bodyHtml, barcodeIds = []) {
+function _openInNewTab(title, bodyHtml) {
     const jsSrc = getJsBarcodeSrc();
-    const barcodeScript = barcodeIds.length > 0 ? `
+    const barcodeScript = `
         <script src="${jsSrc}"><\/script>
         <script>
             window.addEventListener('load', function() {
-                ${barcodeIds.map(id => `
-                try {
-                    var el = document.getElementById('${id}') || document.querySelector('[id="${id}"]');
-                    if (el) JsBarcode(el, el.getAttribute('data-value'), { format:'CODE128', displayValue:true, fontSize:14, margin:5, height:40, width:2 });
-                } catch(e) { console.error('Barcode error ${id}:', e); }
-                `).join('')}
+                document.querySelectorAll('svg.barcode-svg[data-value]').forEach(function(el) {
+                    try {
+                        var val = el.getAttribute('data-value');
+                        if (val) JsBarcode(el, val, { format:'CODE128', displayValue:true, fontSize:14, margin:5, height:40, width:2 });
+                    } catch(e) { console.error('Barcode error:', e); }
+                });
             });
-        <\/script>` : '';
+        <\/script>`;
 
     const html = `<!DOCTYPE html><html><head>
         <meta charset="UTF-8">
@@ -626,21 +746,17 @@ function printSelectedShipmentLabel() {
     </style>`;
 
     let bodyHtml = pageStyle + getLabelStyles();
-    const barcodeIds = [];
 
     if (multiboxItems.length > 0) {
         for (let i = 0; i < pieces; i++) {
             bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'box', index:i });
-            barcodeIds.push(`barcode-box-${i}`);
         }
         bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'summary' });
-        barcodeIds.push('barcode-summary-0');
     } else {
         bodyHtml += buildLabel(order, cnor, cnee, products, [], { type:'box', index:0 });
-        barcodeIds.push('barcode-box-0');
     }
 
-    _openInNewTab(`Label - ${awb}`, bodyHtml, barcodeIds);
+    _openInNewTab(`Label - ${awb}`, bodyHtml);
 }
 
 function printSelectedShipmentReceipt() {
@@ -648,7 +764,8 @@ function printSelectedShipmentReceipt() {
     const cnor     = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee     = b2b2cDataMap.get(order.CONSIGNEE);
     const products = productDataMap.get(order.REFERENCE) || [];
-    _openInNewTab(`Receipt - ${order.AWB_NUMBER||order.REFERENCE}`, buildReceipt(order, cnor, cnee, products), ['receipt-barcode']);
+    const branch   = branchDataMap.get(order.BRANCH);
+    _openInNewTab(`Receipt - ${order.AWB_NUMBER||order.REFERENCE}`, buildReceipt(order, cnor, cnee, products, branch));
 }
 
 function printSelectedShipmentPOD() {
@@ -656,7 +773,8 @@ function printSelectedShipmentPOD() {
     const cnor     = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee     = b2b2cDataMap.get(order.CONSIGNEE);
     const products = productDataMap.get(order.REFERENCE) || [];
-    _openInNewTab(`POD - ${order.AWB_NUMBER||order.REFERENCE}`, buildPOD(order, cnor, cnee, products), ['receipt-barcode']);
+    const branch   = branchDataMap.get(order.BRANCH);
+    _openInNewTab(`POD - ${order.AWB_NUMBER||order.REFERENCE}`, buildPOD(order, cnor, cnee, products, branch));
 }
 
 function printSelectedShipmentOfficeCopy() {
@@ -664,7 +782,8 @@ function printSelectedShipmentOfficeCopy() {
     const cnor     = b2b2cDataMap.get(order.CONSIGNOR);
     const cnee     = b2b2cDataMap.get(order.CONSIGNEE);
     const products = productDataMap.get(order.REFERENCE) || [];
-    _openInNewTab(`Office Copy - ${order.AWB_NUMBER||order.REFERENCE}`, buildOfficeCopy(order, cnor, cnee, products), ['receipt-barcode']);
+    const branch   = branchDataMap.get(order.BRANCH);
+    _openInNewTab(`Office Copy - ${order.AWB_NUMBER||order.REFERENCE}`, buildOfficeCopy(order, cnor, cnee, products, branch));
 }
 
 function printSelectedShipmentDocs() {
@@ -682,4 +801,175 @@ function printSelectedShipmentMultibox() {
     const products     = productDataMap.get(order.REFERENCE) || [];
     const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     _openInNewTab(`Multibox - ${order.AWB_NUMBER||order.REFERENCE}`, buildMultibox(order, cnor, cnee, products, multiboxItems));
+}
+
+function printSelectedShipmentAll() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor          = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee          = b2b2cDataMap.get(order.CONSIGNEE);
+    const products      = productDataMap.get(order.REFERENCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    const branch        = branchDataMap.get(order.BRANCH);
+    const awb           = order.AWB_NUMBER || order.REFERENCE;
+    const pieces        = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
+    const layoutSelect  = document.getElementById('label-print-layout');
+    const layout        = layoutSelect ? layoutSelect.value : '2up-landscape';
+    const isPortrait    = layout === '4up-portrait';
+
+    const pageStyle = `<style>
+        @page label-page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
+        @page doc-page{size:A4 portrait;margin:8mm;}
+        .label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;
+            height:${isPortrait?'138mm':'192mm'}!important;display:flex;flex-direction:column;overflow:hidden;}
+        .label-section{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;page:label-page;}
+        .receipt-wrapper,.ps-wrapper{page-break-before:always;break-before:always;page:doc-page;}</style>`;
+
+    let labelHtml = pageStyle + getLabelStyles() + '<div class="label-section">';
+    if (multiboxItems.length > 0) {
+        for (let i = 0; i < pieces; i++) { labelHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'box', index:i }); }
+        labelHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'summary' });
+    } else {
+        labelHtml += buildLabel(order, cnor, cnee, products, [], { type:'box', index:0 });
+    }
+    labelHtml += '</div>';
+
+    const combined = labelHtml
+        + buildReceipt(order, cnor, cnee, products, branch)
+        + buildPOD(order, cnor, cnee, products, branch)
+        + buildOfficeCopy(order, cnor, cnee, products, branch)
+        + buildDocsAndBox(order, cnor, cnee, products, multiboxItems);
+
+    _openInNewTab(`All Docs - ${awb}`, combined);
+}
+
+function buildDocsAndBox(order, cnor, cnee, products, multiboxItems) {
+    const ref         = order.REFERENCE || 'N/A';
+    const awb         = order.AWB_NUMBER || ref;
+    const orderDate   = fmtDate(order.ORDER_DATE, 'date');
+    const carrierName = order.CARRIER || 'N/A';
+    const modeName    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
+    const cnorName    = _esc(cnor?.NAME   || 'N/A');
+    const cnorAddr    = _esc(`${cnor?.ADDRESS||''}, ${cnor?.CITY||''} - ${cnor?.PINCODE||''}`);
+    const cnorMobile  = _esc(cnor?.MOBILE || 'N/A');
+    const cneeName    = _esc(cnee?.NAME   || 'N/A');
+    const cneeAddr    = _esc(`${cnee?.ADDRESS||''}, ${cnee?.CITY||''} - ${cnee?.PINCODE||''}`);
+    const cneeMobile  = _esc(cnee?.MOBILE || 'N/A');
+
+    // Products table
+    const isDec = products.length > 0 && products[0].DOC_TYPE === 'DEC';
+    let totalAmt = 0, prodRows = '';
+    products.forEach((p, i) => {
+        const amt = parseFloat(p.AMOUNT || 0); totalAmt += amt;
+        prodRows += `<tr>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${i+1}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;">${p.PRODUCT||'N/A'}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.DOC_NUMBER||'N/A'}</td>
+            ${!isDec ? `<td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.DOC_TYPE||'N/A'}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${p.EWAY_IF||'N/A'}</td>` : ''}
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:right;font-weight:bold;">${amt.toFixed(2)}</td>
+        </tr>`;
+    });
+    if (!prodRows) prodRows = `<tr><td colspan="${isDec ? 4 : 6}" style="border:1px solid #ccc;padding:8px;text-align:center;color:#888;">No product data.</td></tr>`;
+
+    // Multibox table
+    let totalWt = 0, totalChgWt = 0, boxRows = '';
+    multiboxItems.forEach((b, i) => {
+        const wt = parseFloat(b.WEIGHT||0), chgWt = parseFloat(b.CHG_WT||0);
+        const L = parseFloat(b.LENGTH||0), B = parseFloat(b.BREADTH||0), H = parseFloat(b.HIGHT||0);
+        const vol = L && B && H ? ((L*B*H)/5000).toFixed(2) : 'N/A';
+        totalWt += wt; totalChgWt += chgWt;
+        boxRows += `<tr>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${b.BOX_NUM||(i+1)}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${wt.toFixed(2)}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${L} × ${B} × ${H}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;">${vol}</td>
+            <td style="border:1px solid #ccc;padding:6px 8px;text-align:center;font-weight:bold;">${chgWt.toFixed(2)}</td>
+        </tr>`;
+    });
+
+    const combined = `${getPackingSlipStyles()}
+    <div class="ps-wrapper">
+        <div class="ps-header">
+            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:32px;width:auto;"></div>
+            <div class="ps-title">${isDec ? 'PACKAGING LIST CUM DECLARATION' : 'PACKING SLIP'}</div>
+        </div>
+        <div class="ps-meta">
+            <div class="ps-meta-cell"><div class="lbl">AWB No</div><div class="val">${awb}</div></div>
+            <div class="ps-meta-cell"><div class="lbl">Ref No</div><div class="val">${ref}</div></div>
+            <div class="ps-meta-cell"><div class="lbl">Date</div><div class="val">${orderDate}</div></div>
+            <div class="ps-meta-cell"><div class="lbl">Carrier / Mode</div><div class="val">${carrierName} / ${modeName}</div></div>
+        </div>
+        <div class="ps-party">
+            <div class="ps-party-cell">
+                <div class="lbl">From (Shipper)</div>
+                <div class="name">${cnorName}</div>
+                <div>${cnorAddr}</div>
+                <div>Mob: ${cnorMobile}</div>
+            </div>
+            <div class="ps-party-cell">
+                <div class="lbl">To (Consignee)</div>
+                <div class="name">${cneeName}</div>
+                <div>${cneeAddr}</div>
+                <div>Mob: ${cneeMobile}</div>
+            </div>
+        </div>
+        ${products.length > 0 ? `
+        <table class="ps-table">
+            <thead><tr>
+                <th>#</th><th style="text-align:left;">Product</th><th>${isDec ? 'NOS / Qty' : 'Doc No'}</th>${!isDec ? '<th>Doc Type</th><th>E-Way Bill</th>' : ''}<th>Amount (&#8377;)</th>
+            </tr></thead>
+            <tbody>${prodRows}</tbody>
+            <tfoot><tr class="ps-totals">
+                <td colspan="${isDec ? 2 : 4}" style="text-align:right;">TOTAL (${products.length} item${products.length!==1?'s':''})</td>
+                <td colspan="2">${totalAmt.toFixed(2)}</td>
+            </tr></tfoot>
+        </table>` : ''}
+        ${multiboxItems.length > 0 ? `
+        <table class="ps-table" style="border-top:2px solid #000;">
+            <thead><tr>
+                <th>Box #</th><th>Weight (kg)</th><th>L × B × H (cm)</th><th>Vol. Wt (kg)</th><th>Chg. Wt (kg)</th>
+            </tr></thead>
+            <tbody>${boxRows}</tbody>
+            <tfoot><tr class="ps-totals">
+                <td>TOTAL (${multiboxItems.length} boxes)</td>
+                <td>${totalWt.toFixed(2)}</td><td>—</td><td>—</td>
+                <td>${totalChgWt.toFixed(2)}</td>
+            </tr></tfoot>
+        </table>` : ''}
+        ${isDec ? `
+        <div style="border-top:2px solid #000;padding:8px 12px;font-size:8px;color:#333;line-height:1.6;">
+            <div style="font-size:9px;font-weight:bold;text-transform:uppercase;margin-bottom:4px;">Declaration &amp; Liability Waiver</div>
+            1. I/We hereby declare that the contents described above are true, correct and complete to the best of my/our knowledge.
+            2. The shipment does not contain any Dangerous Goods (DGR) as classified under IATA Dangerous Goods Regulations, IMDG Code, or any applicable transport regulations.
+            3. The shipment does not contain any prohibited, restricted, or hazardous materials including but not limited to explosives, flammable liquids/solids, oxidizers, toxic substances, radioactive materials, or corrosives.
+            4. The sender takes full responsibility for the accuracy of the declared contents and value. The carrier shall not be held liable for any loss, damage, or penalty arising from incorrect, incomplete, or false declaration.
+            5. In case of any violation of DGR/IATA regulations, the sender shall bear all costs, fines, penalties, and legal consequences.
+            6. The carrier reserves the right to inspect the shipment at any point and refuse carriage if contents are found inconsistent with this declaration.
+        </div>` : ''}
+        <div class="ps-footer">
+            ${isDec ? `
+            <div class="ps-sign-cell" style="width:60%;">
+                <div class="lbl">Sender's Signature &amp; Date</div>
+                <div class="ps-sign-box"></div>
+                <div style="font-size:8px;color:#555;margin-top:3px;">By signing, the sender agrees to the above declaration and liability waiver.</div>
+            </div>
+            <div class="ps-sign-cell" style="width:40%;">
+                <div class="lbl">Checked By</div>
+                <div class="ps-sign-box"></div>
+            </div>` : `
+            <div class="ps-sign-cell"><div class="lbl">Packed By</div><div class="ps-sign-box"></div></div>
+            <div class="ps-sign-cell"><div class="lbl">Checked By</div><div class="ps-sign-box"></div></div>`}
+        </div>
+    </div>`;
+
+    return combined;
+}
+
+function printSelectedShipmentDocsAndBox() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor          = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee          = b2b2cDataMap.get(order.CONSIGNEE);
+    const products      = productDataMap.get(order.REFERENCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    _openInNewTab(`Docs+Box - ${order.AWB_NUMBER||order.REFERENCE}`, buildDocsAndBox(order, cnor, cnee, products, multiboxItems));
 }

@@ -28,6 +28,11 @@
         <!-- Right Section: Auth Controls & Tools -->
         <div class="flex items-center space-x-3 sm:space-x-4">
             
+            <!-- Eruda DevTools Button (MANAGER+ only) -->
+            <button id="eruda-btn" class="hidden p-2 rounded-full bg-red-100 transition-colors focus:outline-none" title="DevTools" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+            </button>
+
             <!-- Global Notification Bell (Visible on ALL devices) -->
             <!-- We added 'id="notification-container-global"' to toggle visibility based on login status -->
             <div class="relative hidden" id="notification-container-global">
@@ -356,6 +361,26 @@
                 
                 if (tools) tools.classList.remove('hidden');
                 if (globalNotif) globalNotif.classList.remove('hidden');
+
+                if (getUserLevel() >= NAV_ROLE_LEVELS['MANAGER']) {
+                    const erudaBtn = document.getElementById('eruda-btn');
+                    if (erudaBtn) {
+                        erudaBtn.classList.remove('hidden');
+                        erudaBtn.addEventListener('click', () => {
+                            if (window.eruda) { eruda._isShow ? eruda.hide() : eruda.show(); return; }
+                            const s = document.createElement('script');
+                            s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+                            s.onload = () => {
+                                eruda.init();
+                                const style = document.createElement('style');
+                                style.textContent = '.eruda-entry-btn { display: none !important; }';
+                                document.head.appendChild(style);
+                                eruda.show();
+                            };
+                            document.head.appendChild(s);
+                        });
+                    }
+                }
                 
                 document.getElementById('container-desktop-private')?.classList.remove('hidden');
                 document.getElementById('container-desktop-private')?.classList.add('flex');
