@@ -1060,14 +1060,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Detect carrier from AWB
         const detectedCarrier  = typeof detectCarrierFromAWB  === 'function' ? detectCarrierFromAWB(awbVal)  : null;
+        // Detect product directly from AWB series — independent of form values
+        const awbProduct       = typeof detectProductFromAWB  === 'function' ? detectProductFromAWB(awbVal)  : null;
         // Detect expected product from current form values
         const expectedProduct  = typeof detectProductCode === 'function' ? detectProductCode({
             CARRIER: carrier, MODE: mode, WEIGHT: weight,
-            COD: isCOD ? 'Y' : '0', TOPAY: isTopay ? 'Y' : 'N', TOPAY_CHG: 0
-        }) : null;
-        // Detect product implied by the AWB itself
-        const awbProduct = detectedCarrier ? detectProductCode({
-            CARRIER: detectedCarrier, MODE: mode, WEIGHT: weight,
             COD: isCOD ? 'Y' : '0', TOPAY: isTopay ? 'Y' : 'N', TOPAY_CHG: 0
         }) : null;
 

@@ -188,8 +188,41 @@ const AWB_PATTERNS = [
 
 
 // ============================================================================
-// detectCarrierFromAWB(awb)
+// detectProductFromAWB(awb)
 // ============================================================================
+// Detects the product suffix directly from AWB series pattern
+// Returns e.g. 'JETLINE-STD', 'TRACKON-VAS', 'JETLINE-PRO' or null
+// This is independent of form values — purely AWB-series based
+// ============================================================================
+const AWB_PRODUCT_PATTERNS = [
+    { test: (a, l) => /^[A-Z]{2}\d{9}IN$/i.test(a),                          product: 'POSTOFFICE-STD'    },
+    { test: (a, l) => l === 15 && a.startsWith('15'),                         product: 'EXPRESSBEES-ECOM'  },
+    { test: (a, l) => (l===14||l===13) && (a.startsWith('130')||a.startsWith('170')||a.startsWith('190')||a.startsWith('150')), product: 'DELHIVERY-ECOM' },
+    { test: (a, l) => l === 9  && (a.startsWith('28')||a.startsWith('29')||a.startsWith('30')), product: 'DELHIVERY-LTL' },
+    { test: (a, l) => l === 11 && (a.startsWith('9')||a.startsWith('7')||a.startsWith('6')),    product: 'BLUEDART-ECOM' },
+    { test: (a, l) => l === 12 && a.startsWith('200'),                        product: 'TRACKON-PRO'       },
+    { test: (a, l) => l === 12 && a.startsWith('500'),                        product: 'TRACKON-PARX'      },
+    { test: (a, l) => l === 12 && a.startsWith('100'),                        product: 'TRACKON-STD'       },
+    { test: (a, l) => l === 12 && a.startsWith('900'),                        product: 'TRACKON-VAS'       },
+    { test: (a, l) => l === 9  && a.startsWith('4102'),                       product: 'DAILYX-PARX'       },
+    { test: (a, l) => l === 8  && a.startsWith('155'),                        product: 'DAILYX-STD'        },
+    { test: (a, l) => l === 9  && a.startsWith('90'),                         product: 'JETLINE-PARX'      },
+    { test: (a, l) => l === 8  && a.startsWith('50'),                         product: 'JETLINE-PRO'       },
+    { test: (a, l) => l === 8  && (a.startsWith('11')||a.startsWith('13')||a.startsWith('14')||a.startsWith('15')), product: 'JETLINE-STD' },
+    { test: (a, l) => l === 14 && a.startsWith('25'),                         product: 'MARUTI-STD'        },
+    { test: (a, l) => l === 10 && a.startsWith('10000'),                      product: 'POSTMAN-STD'       },
+];
+
+function detectProductFromAWB(awb) {
+    if (!awb) return null;
+    const a = String(awb).trim();
+    const l = a.length;
+    for (const rule of AWB_PRODUCT_PATTERNS) {
+        if (rule.test(a, l)) return rule.product;
+    }
+    return null;
+}
+
 // Takes an AWB number string, returns carrier name or null
 // Example: detectCarrierFromAWB('905120446') => 'JetLine'
 //          detectCarrierFromAWB('500529844007') => 'Trackon'
