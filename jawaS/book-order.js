@@ -645,8 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button onclick="boPrint('label','${ref}')"    title="Label"       style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">LBL</button>
                                 <button onclick="boPrint('pod','${ref}')"      title="POD"         style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">POD</button>
                                 <button onclick="boPrint('office','${ref}')"   title="Office Copy" style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">OFC</button>
-                                <button onclick="boPrint('docs','${ref}')"     title="Docs"        style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">DOC</button>
-                                <button onclick="boPrint('multibox','${ref}')" title="Multibox"    style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">MBX</button>
+                                <button onclick="boPrint('docs','${ref}')"     title="Docs+Box"    style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">DOC+BOX</button>
                             </div>
                         </div>
                     </div>
@@ -725,60 +724,62 @@ document.addEventListener('DOMContentLoaded', () => {
         _boSetupMaps();
         const order = Object.values(appData.ORDERS || {}).find(o => String(o.REFERENCE) === String(ref));
         if (!order) return null;
+        const branchMap = new Map();
+        Object.values(appData.BRANCHES || {}).forEach(b => { if (b.BRANCH_CODE) branchMap.set(b.BRANCH_CODE, b); });
         return {
             order,
-            cnor:  b2b2cDataMap.get(order.CONSIGNOR),
-            cnee:  b2b2cDataMap.get(order.CONSIGNEE),
-            prods: productDataMap.get(String(ref))  || [],
-            boxes: multiboxDataMap.get(String(ref)) || [],
-            awb:   order.AWB_NUMBER || ref
+            cnor:   b2b2cDataMap.get(order.CONSIGNOR),
+            cnee:   b2b2cDataMap.get(order.CONSIGNEE),
+            prods:  productDataMap.get(String(ref))  || [],
+            boxes:  multiboxDataMap.get(String(ref)) || [],
+            branch: branchMap.get(order.BRANCH),
+            awb:    order.AWB_NUMBER || ref
         };
     }
 
     window.boPrintAll = (ref) => {
         const p = _boGetParts(ref); if (!p) return;
-        const pieces    = p.boxes.length > 0 ? p.boxes.length : (p.order.PIECS || 1);
-        const pageStyle = `<style>@page{size:A4 landscape;margin:8mm;}body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}.label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;height:192mm!important;display:flex;flex-direction:column;overflow:hidden;}</style>`;
-        let labelHtml = pageStyle;
-        const labelIds = [];
+        const pieces = p.boxes.length > 0 ? p.boxes.length : (p.order.PIECS || 1);
+        const pageStyle = `<style>
+            @page label-page{size:A4 landscape;margin:8mm;}
+            @page doc-page{size:A4 portrait;margin:8mm;}
+            .label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;height:192mm!important;display:flex;flex-direction:column;overflow:hidden;}
+            .label-section{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;page:label-page;}
+            .receipt-wrapper,.ps-wrapper{page-break-before:always;break-before:always;page:doc-page;}</style>`;
+        let labelHtml = pageStyle + getLabelStyles() + '<div class="label-section">';
         if (p.boxes.length > 0) {
-            for (let i = 0; i < pieces; i++) { labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'box', index:i }); labelIds.push(`barcode-box-${i}`); }
+            for (let i = 0; i < pieces; i++) { labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'box', index:i }); }
+            labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'summary' });
         } else {
-            labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, [], { type:'box', index:0 }); labelIds.push('barcode-box-0');
+            labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, [], { type:'box', index:0 });
         }
-        labelHtml += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'summary' }); labelIds.push('barcode-summary-0');
-        const html = [
-            buildReceipt(p.order, p.cnor, p.cnee, p.prods),
-            labelHtml,
-            buildPOD(p.order, p.cnor, p.cnee, p.prods),
-            buildOfficeCopy(p.order, p.cnor, p.cnee, p.prods),
-            buildDocs(p.order, p.cnor, p.cnee, p.prods),
-            ...(p.boxes.length ? [buildMultibox(p.order, p.cnor, p.cnee, p.prods, p.boxes)] : [])
-        ].join('<div style="page-break-after:always;"></div>');
-        _openInNewTab(`All Docs - ${p.awb}`, html, ['receipt-barcode', ...labelIds]);
+        labelHtml += '</div>';
+        const html = labelHtml
+            + buildReceipt(p.order, p.cnor, p.cnee, p.prods, p.branch)
+            + buildPOD(p.order, p.cnor, p.cnee, p.prods, p.branch)
+            + buildOfficeCopy(p.order, p.cnor, p.cnee, p.prods, p.branch)
+            + buildDocsAndBox(p.order, p.cnor, p.cnee, p.prods, p.boxes);
+        _openInNewTab(`All Docs - ${p.awb}`, html);
     };
 
     window.boPrint = (type, ref) => {
         const p = _boGetParts(ref); if (!p) return;
         if (type === 'label') {
-            const pieces    = p.boxes.length > 0 ? p.boxes.length : (p.order.PIECS || 1);
-            const isPortrait = false;
+            const pieces = p.boxes.length > 0 ? p.boxes.length : (p.order.PIECS || 1);
             const pageStyle = `<style>@page{size:A4 landscape;margin:8mm;}body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}.label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;height:192mm!important;display:flex;flex-direction:column;overflow:hidden;}</style>`;
-            let html = pageStyle;
-            const ids = [];
+            let html = pageStyle + getLabelStyles();
             if (p.boxes.length > 0) {
-                for (let i = 0; i < pieces; i++) { html += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'box', index:i }); ids.push(`barcode-box-${i}`); }
+                for (let i = 0; i < pieces; i++) { html += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'box', index:i }); }
+                html += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'summary' });
             } else {
-                html += buildLabel(p.order, p.cnor, p.cnee, p.prods, [], { type:'box', index:0 }); ids.push('barcode-box-0');
+                html += buildLabel(p.order, p.cnor, p.cnee, p.prods, [], { type:'box', index:0 });
             }
-            html += buildLabel(p.order, p.cnor, p.cnee, p.prods, p.boxes, { type:'summary' }); ids.push('barcode-summary-0');
-            _openInNewTab(`Label - ${p.awb}`, html, ids);
+            _openInNewTab(`Label - ${p.awb}`, html);
         }
-        else if (type === 'receipt')  _openInNewTab(`Receipt - ${p.awb}`,     buildReceipt(p.order, p.cnor, p.cnee, p.prods), ['receipt-barcode']);
-        else if (type === 'pod')      _openInNewTab(`POD - ${p.awb}`,         buildPOD(p.order, p.cnor, p.cnee, p.prods), ['receipt-barcode']);
-        else if (type === 'office')   _openInNewTab(`Office Copy - ${p.awb}`, buildOfficeCopy(p.order, p.cnor, p.cnee, p.prods), ['receipt-barcode']);
-        else if (type === 'docs')     _openInNewTab(`Docs - ${p.awb}`,        buildDocs(p.order, p.cnor, p.cnee, p.prods));
-        else if (type === 'multibox') _openInNewTab(`Multibox - ${p.awb}`,    buildMultibox(p.order, p.cnor, p.cnee, p.prods, p.boxes));
+        else if (type === 'receipt')  _openInNewTab(`Receipt - ${p.awb}`,     buildReceipt(p.order, p.cnor, p.cnee, p.prods, p.branch));
+        else if (type === 'pod')      _openInNewTab(`POD - ${p.awb}`,         buildPOD(p.order, p.cnor, p.cnee, p.prods, p.branch));
+        else if (type === 'office')   _openInNewTab(`Office Copy - ${p.awb}`, buildOfficeCopy(p.order, p.cnor, p.cnee, p.prods, p.branch));
+        else if (type === 'docs')     _openInNewTab(`Docs+Box - ${p.awb}`,    buildDocsAndBox(p.order, p.cnor, p.cnee, p.prods, p.boxes));
     };
 
     // --- EDIT ORDER ---
@@ -1042,6 +1043,60 @@ document.addEventListener('DOMContentLoaded', () => {
     ['order_date', 'carrier_select', 'awb', 'sender_name', 'origin_pincode', 'receiver_name', 'dest_pincode', 'transport_type'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', updateDisplayTables);
     });
+
+    // AWB pattern validation — warns user if AWB doesn't match selected carrier/weight/mode
+    // Does NOT block submission — informational only
+    function validateAwbPattern() {
+        const hint    = document.getElementById('awb-pattern-hint');
+        const awbVal  = document.getElementById('awb')?.value?.trim();
+        if (!hint) return;
+        if (!awbVal) { hint.className = 'text-xs mt-1 hidden'; hint.textContent = ''; return; }
+
+        const carrier  = carrierSelect?.value?.trim()   || '';
+        const mode     = transportTypeSelect?.value?.trim() || '';
+        const weight   = parseFloat(actualWeightInput?.value || 0);
+        const isCOD    = document.getElementById('payment_cod')?.checked;
+        const isTopay  = document.getElementById('payment_topay')?.checked;
+
+        // Detect carrier from AWB
+        const detectedCarrier  = typeof detectCarrierFromAWB  === 'function' ? detectCarrierFromAWB(awbVal)  : null;
+        // Detect expected product from current form values
+        const expectedProduct  = typeof detectProductCode === 'function' ? detectProductCode({
+            CARRIER: carrier, MODE: mode, WEIGHT: weight,
+            COD: isCOD ? 'Y' : '0', TOPAY: isTopay ? 'Y' : 'N', TOPAY_CHG: 0
+        }) : null;
+        // Detect product implied by the AWB itself
+        const awbProduct = detectedCarrier ? detectProductCode({
+            CARRIER: detectedCarrier, MODE: mode, WEIGHT: weight,
+            COD: isCOD ? 'Y' : '0', TOPAY: isTopay ? 'Y' : 'N', TOPAY_CHG: 0
+        }) : null;
+
+        const carrierMismatch = detectedCarrier && carrier &&
+            detectedCarrier.toLowerCase() !== carrier.toLowerCase();
+        const productMismatch = expectedProduct && awbProduct && expectedProduct !== awbProduct;
+
+        if (!detectedCarrier) {
+            hint.className = 'text-xs mt-1 text-yellow-600';
+            hint.textContent = '⚠ AWB pattern not recognised — verify carrier manually';
+        } else if (carrierMismatch) {
+            hint.className = 'text-xs mt-1 text-red-600';
+            hint.textContent = `⚠ AWB looks like ${detectedCarrier} but carrier selected is ${carrier}`;
+        } else if (productMismatch) {
+            hint.className = 'text-xs mt-1 text-orange-500';
+            hint.textContent = `⚠ AWB series matches ${awbProduct} but shipment needs ${expectedProduct}`;
+        } else {
+            hint.className = 'text-xs mt-1 text-green-600';
+            hint.textContent = `✓ AWB pattern matches ${expectedProduct || detectedCarrier}`;
+        }
+    }
+
+    document.getElementById('awb')?.addEventListener('blur',   validateAwbPattern);
+    document.getElementById('awb')?.addEventListener('input',  validateAwbPattern);
+    carrierSelect?.addEventListener('change',        validateAwbPattern);
+    transportTypeSelect?.addEventListener('change',  validateAwbPattern);
+    actualWeightInput?.addEventListener('input',     validateAwbPattern);
+    document.getElementById('payment_cod')?.addEventListener('change',   validateAwbPattern);
+    document.getElementById('payment_topay')?.addEventListener('change', validateAwbPattern);
 
     ['payment_global', 'payment_topay', 'payment_cod', 'payment_fov'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => {
