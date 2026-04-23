@@ -1047,10 +1047,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // AWB pattern validation — warns user if AWB doesn't match selected carrier/weight/mode
     // Does NOT block submission — informational only
     function validateAwbPattern() {
-        const hint    = document.getElementById('awb-pattern-hint');
+        const hint    = document.getElementById('bookingMessage');
         const awbVal  = document.getElementById('awb')?.value?.trim();
         if (!hint) return;
-        if (!awbVal) { hint.className = 'text-xs mt-1 hidden'; hint.textContent = ''; return; }
+        if (!awbVal) { hint.className = 'p-2 text-sm text-center rounded-md mt-2'; hint.textContent = ''; return; }
 
         const carrier  = carrierSelect?.value?.trim()   || '';
         const mode     = transportTypeSelect?.value?.trim() || '';
@@ -1073,16 +1073,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const productMismatch = expectedProduct && awbProduct && expectedProduct !== awbProduct;
 
         if (!detectedCarrier) {
-            hint.className = 'text-xs mt-1 text-yellow-600';
+            hint.className = 'p-2 text-sm text-center rounded-md mt-2 bg-yellow-50 text-yellow-700';
             hint.textContent = '⚠ AWB pattern not recognised — verify carrier manually';
         } else if (carrierMismatch) {
-            hint.className = 'text-xs mt-1 text-red-600';
+            hint.className = 'p-2 text-sm text-center rounded-md mt-2 bg-red-50 text-red-600';
             hint.textContent = `⚠ AWB looks like ${detectedCarrier} but carrier selected is ${carrier}`;
         } else if (productMismatch) {
-            hint.className = 'text-xs mt-1 text-orange-500';
+            hint.className = 'p-2 text-sm text-center rounded-md mt-2 bg-orange-50 text-orange-600';
             hint.textContent = `⚠ AWB series matches ${awbProduct} but shipment needs ${expectedProduct}`;
         } else {
-            hint.className = 'text-xs mt-1 text-green-600';
+            hint.className = 'p-2 text-sm text-center rounded-md mt-2 bg-green-50 text-green-600';
             hint.textContent = `✓ AWB pattern matches ${expectedProduct || detectedCarrier}`;
         }
     }
