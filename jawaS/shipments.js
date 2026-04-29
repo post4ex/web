@@ -421,12 +421,19 @@ function renderTrackingStatus(order) {
         <div><div class="text-gray-500 text-xs">Document Date</div><div class="font-semibold text-gray-800">${order.INVOICE_DATE && order.INVOICE_DATE !== '0' && order.INVOICE_DATE !== 0 ? fmtDate(order.INVOICE_DATE) : 'N/A'}</div></div>
     </div>`;
 
-    const refreshBtn = `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`;
+    const headerBtns = [
+        `<button onclick="console.warn('ticket not implemented')" title="Ticket" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg></button>`,
+        `<button onclick="console.warn('mark not implemented')" title="Mark" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>`,
+        `<button onclick="console.warn('mail tracking not implemented')" title="Mail" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
+        `<button onclick="console.warn('wa tracking not implemented')" title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
+        `<button onclick="console.warn('tg tracking not implemented')" title="Telegram" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
+        `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`,
+    ].join('');
 
     ui.trackingStatusContainer.innerHTML = `
         <div class="detail-card-header flex justify-between items-center">
             <h3 class="font-semibold text-gray-700">Tracking Status</h3>
-            <div class="flex items-center gap-0.5">${refreshBtn}</div>
+            <div class="flex items-center gap-0.5">${headerBtns}</div>
         </div>
         <div class="detail-card-body">
             ${staticGrid}
@@ -469,7 +476,11 @@ async function _fetchAndRenderTracking(order) {
 
         // --- pod image ---
         if (t.pod_image) {
-            statusEl.innerHTML += `<div class="mt-3"><div class="text-gray-500 text-xs mb-1">POD</div><img src="${t.pod_image}" class="max-h-40 rounded border" alt="POD"></div>`;
+            statusEl.innerHTML += `<div class="mt-3 flex items-center gap-2">
+                <span class="text-gray-500 text-xs">POD:</span>
+                <button onclick="_showPodImage('${t.pod_image.startsWith('data:') ? '__inline__' : t.pod_image}', ${t.pod_image.startsWith('data:') ? 'true' : 'false'})" class="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 border border-indigo-200">Show Image</button>
+            </div>`;
+            if (t.pod_image.startsWith('data:')) window._podInlineData = t.pod_image;
         }
 
         // --- history panel ---
@@ -479,6 +490,15 @@ async function _fetchAndRenderTracking(order) {
         statusEl.innerHTML = `<p class="text-xs text-red-500">${err.message}</p>`;
         if (historyEl) historyEl.innerHTML = '';
     }
+}
+
+// --- POD IMAGE VIEWER ---
+function _showPodImage(src, isInline) {
+    const url = isInline ? window._podInlineData : src;
+    if (!url) return;
+    const w = window.open();
+    w.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${url}" style="max-width:100%;max-height:100vh"></body></html>`);
+    w.document.close();
 }
 
 // --- RENDER: PARTY DETAILS ---
