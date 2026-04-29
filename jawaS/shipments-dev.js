@@ -403,82 +403,27 @@ function renderShipmentDetails(order) {
     }
 }
 
-// --- TRACKING STATE CONFIG ---
-const _stateConfig = {
-    delivered:       { label: 'Delivered',        cls: 'bg-green-100 text-green-800' },
-    outfordelivery:  { label: 'Out for Delivery',  cls: 'bg-blue-100 text-blue-800'  },
-    intransit:       { label: 'In Transit',        cls: 'bg-yellow-100 text-yellow-800' },
-    pending:         { label: 'Pending',           cls: 'bg-gray-100 text-gray-600'  },
-    exception:       { label: 'Exception',         cls: 'bg-red-100 text-red-800'    },
-};
-
 // --- RENDER: TRACKING STATUS ---
 function renderTrackingStatus(order) {
-    const staticGrid = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm mb-3">
+    const h = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
         <div><div class="text-gray-500 text-xs">AWB Number</div><div class="font-semibold text-gray-800">${order.AWB_NUMBER || 'N/A'}</div></div>
         <div><div class="text-gray-500 text-xs">Order Date</div><div class="font-semibold text-gray-800">${fmtDate(order.ORDER_DATE)}</div></div>
         <div><div class="text-gray-500 text-xs">Transit Date</div><div class="font-semibold text-gray-800">${fmtDate(order.TRANSIT_DATE)}</div></div>
         <div><div class="text-gray-500 text-xs">Document Date</div><div class="font-semibold text-gray-800">${order.INVOICE_DATE && order.INVOICE_DATE !== '0' && order.INVOICE_DATE !== 0 ? fmtDate(order.INVOICE_DATE) : 'N/A'}</div></div>
     </div>`;
-
-    const refreshBtn = `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`;
-
-    ui.trackingStatusContainer.innerHTML = `
-        <div class="detail-card-header flex justify-between items-center">
-            <h3 class="font-semibold text-gray-700">Tracking Status</h3>
-            <div class="flex items-center gap-0.5">${refreshBtn}</div>
+    const _trackBtn = order.AWB_NUMBER
+        ? `<button onclick="fetchLiveTracking('${order.CARRIER}','${order.AWB_NUMBER}')" title="Live Track" class="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>`
+        : '';
+    ui.trackingStatusContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center">
+        <h3 class="font-semibold text-gray-700">Tracking Status</h3>
+        <div class="flex items-center gap-0.5">${_trackBtn}
+            <button onclick="console.warn('ticket not implemented')" title="Ticket"   class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg></button>
+            <button onclick="console.warn('mark not implemented')"   title="Mark"    class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+            <button onclick="console.warn('mail tracking not implemented')"  title="Mail"     class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>
+            <button onclick="console.warn('wa tracking not implemented')"    title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>
+            <button onclick="console.warn('tg tracking not implemented')"    title="Telegram" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>
         </div>
-        <div class="detail-card-body">
-            ${staticGrid}
-            <div id="liveTrackingStatus"><p class="text-xs text-gray-400">Live status not loaded.</p></div>
-        </div>`;
-
-    document.getElementById('refreshTrackingBtn').addEventListener('click', () => _fetchAndRenderTracking(order));
-
-    if (order.AWB_NUMBER && order.CARRIER)
-        _fetchAndRenderTracking(order);
-}
-
-async function _fetchAndRenderTracking(order) {
-    const statusEl  = document.getElementById('liveTrackingStatus');
-    const historyEl = ui.trackingHistoryContainer.querySelector('#liveTrackingHistory');
-    if (!statusEl) return;
-
-    if (!order.AWB_NUMBER || !order.CARRIER) {
-        statusEl.innerHTML = `<p class="text-xs text-gray-400">No AWB or carrier assigned.</p>`;
-        return;
-    }
-
-    statusEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Fetching live status…</p>`;
-    if (historyEl) historyEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Loading…</p>`;
-
-    try {
-        const t = await trackShipment(order.CARRIER, order.AWB_NUMBER);
-
-        // --- status panel ---
-        const sc   = _stateConfig[t.state] || _stateConfig.intransit;
-        const badge = `<span class="status-badge ${sc.cls}">${sc.label}</span>`;
-        const rows  = [
-            t.status       ? `<div><div class="text-gray-500 text-xs">Status</div><div class="font-semibold text-gray-800 flex items-center gap-2">${t.status} ${badge}</div></div>` : '',
-            t.origin       ? `<div><div class="text-gray-500 text-xs">Origin</div><div class="font-semibold text-gray-800">${t.origin}</div></div>` : '',
-            t.destination  ? `<div><div class="text-gray-500 text-xs">Destination</div><div class="font-semibold text-gray-800">${t.destination}</div></div>` : '',
-            t.booked_date  ? `<div><div class="text-gray-500 text-xs">Booked</div><div class="font-semibold text-gray-800">${t.booked_date}</div></div>` : '',
-            t.additional_info ? `<div class="sm:col-span-2"><div class="text-gray-500 text-xs">Info</div><div class="text-gray-700 text-xs">${t.additional_info}</div></div>` : '',
-        ].filter(Boolean).join('');
-        statusEl.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">${rows}</div>`;
-
-        // --- pod image ---
-        if (t.pod_image) {
-            statusEl.innerHTML += `<div class="mt-3"><div class="text-gray-500 text-xs mb-1">POD</div><img src="${t.pod_image}" class="max-h-40 rounded border" alt="POD"></div>`;
-        }
-
-        // --- history panel ---
-        _renderTrackingHistoryData(t.movements || []);
-
-    } catch (err) {
-        statusEl.innerHTML = `<p class="text-xs text-red-500">${err.message}</p>`;
-        if (historyEl) historyEl.innerHTML = '';
-    }
+    </div><div class="detail-card-body">${h}</div>`;
 }
 
 // --- RENDER: PARTY DETAILS ---
@@ -492,53 +437,52 @@ function renderPartyDetails(label, name, city, pincode, state, mobile, container
     container.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">${label} Details</h3></div><div class="detail-card-body">${h}</div>`;
 }
 
-// --- RENDER: TRACKING HISTORY ---
-function renderTrackingHistory(order) {
-    ui.trackingHistoryContainer.innerHTML = `
-        <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div>
-        <div class="detail-card-body"><div id="liveTrackingHistory"><p class="text-sm text-gray-400">Loading…</p></div></div>`;
+// --- LIVE TRACKING ---
+let _trackingCache = new Map();
+
+async function fetchLiveTracking(carrier, awb) {
+    const key = carrier + ':' + awb;
+    if (_trackingCache.has(key)) { renderTrackingHistory(_trackingCache.get(key)); return; }
+    ui.trackingHistoryContainer.innerHTML = '<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body"><p class="text-sm text-gray-500 animate-pulse">Loading...</p></div>';
+    try {
+        const _trackBase = window.location.hostname === 'localhost'
+            ? 'http://localhost:9003'
+            : window.location.origin.replace(/^(https?:\/\/)[^-]+-/, '$19003-');
+        const r    = await fetch(_trackBase + '/track?carrier=' + encodeURIComponent(carrier) + '&awb=' + encodeURIComponent(awb));
+        const data = await r.json();
+        if (data.error || !data.movements || !data.movements.length) {
+            ui.trackingHistoryContainer.innerHTML = '<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body"><p class="text-sm text-red-500">' + (data.error || 'No data found.') + '</p></div>';
+            return;
+        }
+        _trackingCache.set(key, data);
+        renderTrackingHistory(data);
+    } catch (e) {
+        ui.trackingHistoryContainer.innerHTML = '<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body"><p class="text-sm text-red-500">Error: ' + e.message + '</p></div>';
+    }
 }
 
-function _renderTrackingHistoryData(movements) {
-    const el = document.getElementById('liveTrackingHistory');
-    if (!el) return;
-    if (!movements.length) {
-        el.innerHTML = `<p class="text-sm text-gray-400">No movement history available.</p>`;
-        return;
+// --- RENDER: TRACKING HISTORY ---
+function renderTrackingHistory(trackData) {
+    const colors = { delivered: 'bg-green-100 text-green-800', outfordelivery: 'bg-blue-100 text-blue-800', intransit: 'bg-yellow-100 text-yellow-800', pending: 'bg-gray-100 text-gray-600', exception: 'bg-red-100 text-red-800' };
+    const cls = colors[trackData.state] || 'bg-gray-100 text-gray-600';
+    let h = '<div class="mb-4 p-3 rounded-lg ' + cls + '">'
+          + '<div class="font-semibold">' + (trackData.status || 'Unknown') + '</div>'
+          + '<div class="text-xs mt-1">Carrier: ' + (trackData.carrier || '') + '</div>'
+          + (trackData.additional_info ? '<div class="text-xs mt-1">' + trackData.additional_info + '</div>' : '')
+          + '</div>';
+    if (trackData.movements && trackData.movements.length) {
+        h += '<div class="timeline">';
+        trackData.movements.forEach(function(m, i) {
+            h += '<div class="timeline-item relative pl-4">'
+               + (i === 0 ? '<div class="timeline-dot"></div>' : '')
+               + '<div class="text-xs text-gray-500">' + m.date + (m.time ? ' ' + m.time : '') + '</div>'
+               + '<div class="font-medium text-gray-800 text-sm">' + m.activity + '</div>'
+               + (m.location ? '<div class="text-xs text-gray-500">' + m.location + '</div>' : '')
+               + '</div>';
+        });
+        h += '</div>';
     }
-    // Desktop table / mobile cards
-    let cards = `<div class="space-y-2 sm:hidden">`;
-    movements.forEach(m => {
-        cards += `<div class="p-3 bg-gray-50 rounded-md border text-xs">
-            <div class="font-semibold text-gray-800">${m.activity || 'N/A'}</div>
-            <div class="text-gray-500 mt-1">${[m.date, m.time].filter(Boolean).join(' ')}</div>
-            ${m.location ? `<div class="text-gray-600 mt-0.5">${m.location}</div>` : ''}
-        </div>`;
-    });
-    cards += `</div>`;
-
-    let rows = '';
-    movements.forEach(m => {
-        rows += `<tr>
-            <td class="px-3 py-2 whitespace-nowrap">${m.date || ''}</td>
-            <td class="px-3 py-2 whitespace-nowrap">${m.time || ''}</td>
-            <td class="px-3 py-2">${m.location || ''}</td>
-            <td class="px-3 py-2">${m.activity || ''}</td>
-        </tr>`;
-    });
-    const table = `<div class="hidden sm:block overflow-x-auto border rounded-md">
-        <table id="trackingHistoryTable" class="min-w-full text-xs divide-y divide-gray-200">
-            <thead class="bg-gray-50"><tr>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Activity</th>
-            </tr></thead>
-            <tbody class="bg-white divide-y divide-gray-200">${rows}</tbody>
-        </table>
-    </div>`;
-
-    el.innerHTML = cards + table;
+    ui.trackingHistoryContainer.innerHTML = '<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body">' + h + '</div>';
 }
 
 // --- RENDER: PRODUCT, BOX & UPLOADS ---

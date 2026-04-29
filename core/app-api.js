@@ -212,6 +212,19 @@ window.deleteUploadRecord = async function (uploadUid, btnEl) {
     }
 };
 
+// trackShipment — fetch live tracking data for a shipment
+// Returns the unified tracking object or throws on error
+window.trackShipment = async function (carrier, awb) {
+    const base  = CONSTANTS.OPERATIONS_URL;
+    const token = getSessionId();
+    const res   = await fetch(`${base}/api/track?carrier=${encodeURIComponent(carrier)}&awb=${encodeURIComponent(awb)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (!res.ok || json.status === 'error') throw new Error(json.message || json.detail || 'Tracking failed');
+    return json.data;
+};
+
 async function fetchBusinessYearData(fyYear = null) {
     if (!window.appDB || !window.appDB.db) return;
     try {
