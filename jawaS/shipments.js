@@ -462,25 +462,38 @@ async function _fetchAndRenderTracking(order) {
     try {
         const t = await trackShipment(order.CARRIER, order.AWB_NUMBER);
 
-        // --- status panel ---
-        const sc   = _stateConfig[t.state] || _stateConfig.intransit;
-        const badge = `<span class="status-badge ${sc.cls}">${sc.label}</span>`;
-        const rows  = [
-            t.status       ? `<div><div class="text-gray-500 text-xs">Status</div><div class="font-semibold text-gray-800 flex items-center gap-2">${t.status} ${badge}</div></div>` : '',
-            t.origin       ? `<div><div class="text-gray-500 text-xs">Origin</div><div class="font-semibold text-gray-800">${t.origin}</div></div>` : '',
-            t.destination  ? `<div><div class="text-gray-500 text-xs">Destination</div><div class="font-semibold text-gray-800">${t.destination}</div></div>` : '',
-            t.booked_date  ? `<div><div class="text-gray-500 text-xs">Booked</div><div class="font-semibold text-gray-800">${t.booked_date}</div></div>` : '',
+        // --- status + date banner ---
+        const sc        = _stateConfig[t.state] || _stateConfig.intransit;
+        const badge     = `<span class="status-badge ${sc.cls}">${sc.label}</span>`;
+        const latestDate = t.movements?.[0]?.date || '';
+        const latestTime = t.movements?.[0]?.time || '';
+        const dateStr    = [latestDate, latestTime].filter(Boolean).join(' ');
+
+        const rows = [
+            t.status      ? `<div class="sm:col-span-2"><div class="text-gray-500 text-xs">Status</div><div class="font-semibold text-gray-800 flex flex-wrap items-center gap-2">${t.status} ${badge}${dateStr ? `<span class="text-xs text-gray-400">${dateStr}</span>` : ''}</div></div>` : '',
+            t.origin      ? `<div><div class="text-gray-500 text-xs">Origin</div><div class="font-semibold text-gray-800">${t.origin}</div></div>` : '',
+            t.destination ? `<div><div class="text-gray-500 text-xs">Destination</div><div class="font-semibold text-gray-800">${t.destination}</div></div>` : '',
+            t.booked_date ? `<div><div class="text-gray-500 text-xs">Booked</div><div class="font-semibold text-gray-800">${t.booked_date}</div></div>` : '',
             t.additional_info ? `<div class="sm:col-span-2"><div class="text-gray-500 text-xs">Info</div><div class="text-gray-700 text-xs">${t.additional_info}</div></div>` : '',
         ].filter(Boolean).join('');
         statusEl.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">${rows}</div>`;
 
-        // --- pod image ---
+        // --- POD icon button injected into header ---
+        const podBtnContainer = document.getElementById('trackingPodBtn');
+        if (podBtnContainer) podBtnContainer.remove();
         if (t.pod_image) {
-            statusEl.innerHTML += `<div class="mt-3 flex items-center gap-2">
-                <span class="text-gray-500 text-xs">POD:</span>
-                <button onclick="_showPodImage('${t.pod_image.startsWith('data:') ? '__inline__' : t.pod_image}', ${t.pod_image.startsWith('data:') ? 'true' : 'false'})" class="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 border border-indigo-200">Show Image</button>
-            </div>`;
             if (t.pod_image.startsWith('data:')) window._podInlineData = t.pod_image;
+            const podSrc  = t.pod_image.startsWith('data:') ? '__inline__' : t.pod_image;
+            const isInline = t.pod_image.startsWith('data:');
+            const podBtn  = document.createElement('button');
+            podBtn.id     = 'trackingPodBtn';
+            podBtn.title  = 'Show POD Image';
+            podBtn.className = 'p-1.5 text-indigo-600 rounded hover:bg-indigo-50';
+            podBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`;
+            podBtn.onclick = () => _showPodImage(podSrc, isInline);
+            // insert before the refresh button
+            const refreshBtn = document.getElementById('refreshTrackingBtn');
+            refreshBtn.parentNode.insertBefore(podBtn, refreshBtn);
         }
 
         // --- history panel ---
