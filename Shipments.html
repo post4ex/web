@@ -175,6 +175,14 @@
         </main>
     </div>
 
+    <!-- POD Image Popup -->
+    <div id="podImagePopup" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70" onclick="document.getElementById('podImagePopup').classList.add('hidden')">
+        <div class="relative max-w-3xl w-full mx-4" onclick="event.stopPropagation()">
+            <button onclick="document.getElementById('podImagePopup').classList.add('hidden')" class="absolute -top-8 right-0 text-white text-sm hover:text-gray-300">&#x2715; Close</button>
+            <img id="podImageEl" src="" class="w-full rounded shadow-lg" alt="POD">
+        </div>
+    </div>
+
     <!-- Filter Modal (uses modal styles from style.css) -->
     <div id="filterModal" class="modal-overlay hidden">
         <div class="modal-content space-y-4">

@@ -462,15 +462,18 @@ async function _fetchAndRenderTracking(order) {
     try {
         const t = await trackShipment(order.CARRIER, order.AWB_NUMBER);
 
-        // --- status + date banner ---
+        // --- update card header title with status + date ---
         const sc        = _stateConfig[t.state] || _stateConfig.intransit;
         const badge     = `<span class="status-badge ${sc.cls}">${sc.label}</span>`;
         const latestDate = t.movements?.[0]?.date || '';
         const latestTime = t.movements?.[0]?.time || '';
         const dateStr    = [latestDate, latestTime].filter(Boolean).join(' ');
+        const titleEl    = ui.trackingStatusContainer.querySelector('.detail-card-header h3');
+        if (titleEl) titleEl.innerHTML = `Tracking Status &nbsp;${badge}${dateStr ? `<span class="text-xs font-normal text-gray-400 ml-1">${dateStr}</span>` : ''}`;
 
+        // --- live status body ---
         const rows = [
-            t.status      ? `<div class="sm:col-span-2"><div class="text-gray-500 text-xs">Status</div><div class="font-semibold text-gray-800 flex flex-wrap items-center gap-2">${t.status} ${badge}${dateStr ? `<span class="text-xs text-gray-400">${dateStr}</span>` : ''}</div></div>` : '',
+            t.status      ? `<div class="sm:col-span-2"><div class="text-gray-500 text-xs">Status</div><div class="font-semibold text-gray-800">${t.status}</div></div>` : '',
             t.origin      ? `<div><div class="text-gray-500 text-xs">Origin</div><div class="font-semibold text-gray-800">${t.origin}</div></div>` : '',
             t.destination ? `<div><div class="text-gray-500 text-xs">Destination</div><div class="font-semibold text-gray-800">${t.destination}</div></div>` : '',
             t.booked_date ? `<div><div class="text-gray-500 text-xs">Booked</div><div class="font-semibold text-gray-800">${t.booked_date}</div></div>` : '',
@@ -509,9 +512,10 @@ async function _fetchAndRenderTracking(order) {
 function _showPodImage(src, isInline) {
     const url = isInline ? window._podInlineData : src;
     if (!url) return;
-    const w = window.open();
-    w.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${url}" style="max-width:100%;max-height:100vh"></body></html>`);
-    w.document.close();
+    const popup = document.getElementById('podImagePopup');
+    const img   = document.getElementById('podImageEl');
+    img.src = url;
+    popup.classList.remove('hidden');
 }
 
 // --- RENDER: PARTY DETAILS ---
