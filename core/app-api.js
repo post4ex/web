@@ -190,7 +190,7 @@ window.fetchFileUrl = async function (filePath) {
     const base  = CONSTANTS.OPERATIONS_URL;
     const token = getSessionId();
     const url   = filePath.startsWith('http') ? filePath : `${base}${filePath}`;
-    const res   = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const res   = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
     if (!res.ok) throw new Error(`File fetch failed: ${res.status}`);
     const blob  = await res.blob();
     return URL.createObjectURL(blob);
@@ -219,6 +219,7 @@ window.trackShipment = async function (ref) {
     const token = getSessionId();
     const res   = await fetch(`${base}/api/track?ref=${encodeURIComponent(ref)}`, {
         headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store',
     });
     const json = await res.json();
     if (!res.ok || json.status === 'error') throw new Error(json.message || json.detail || 'Tracking failed');
@@ -231,6 +232,7 @@ window.trackShipmentLive = async function (ref) {
     const token = getSessionId();
     const res   = await fetch(`${base}/api/track?ref=${encodeURIComponent(ref)}&live=true`, {
         headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store',
     });
     const json = await res.json();
     if (!res.ok || json.status === 'error') throw new Error(json.message || json.detail || 'Tracking failed');
