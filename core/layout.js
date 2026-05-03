@@ -68,11 +68,13 @@ async function loadDynamicContent(url, targetElementId) {
 
         if (content) {
             el.innerHTML = content.innerHTML;
-            content.querySelectorAll('script').forEach(s => {
-                const ns = document.createElement('script');
-                ns.textContent = s.textContent;
-                document.body.appendChild(ns).remove();
-            });
+            setTimeout(() => {
+                content.querySelectorAll('script').forEach(s => {
+                    const ns = document.createElement('script');
+                    ns.textContent = s.textContent;
+                    document.body.appendChild(ns).remove();
+                });
+            }, 0);
         }
     } catch (e) {
         el.innerHTML = `<div class="text-red-500 text-center">Content unavailable.</div>`;
