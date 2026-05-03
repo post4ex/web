@@ -26,26 +26,6 @@
                     </button>
                 </div>
 
-                <!-- CAPTCHA AREA -->
-                <div id="captchaArea" class="hidden mb-4">
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                        <p class="text-xs text-gray-500 font-medium">Security check — please solve the challenge below</p>
-                        <div class="flex items-center gap-3">
-                            <img id="captchaImg" class="rounded border border-gray-200 h-[70px]" alt="captcha">
-                            <button id="refreshCaptcha" class="text-gray-400 hover:text-blue-700 transition-colors" title="Refresh">
-                                <i class="fa-solid fa-rotate-right"></i>
-                            </button>
-                        </div>
-                        <input type="text" id="captchaInput" placeholder="Enter answer"
-                            autocomplete="off" maxlength="10"
-                            class="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 text-sm font-bold tracking-widest uppercase">
-                        <button id="submitTrack"
-                            class="w-full py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm">
-                            Submit
-                        </button>
-                    </div>
-                </div>
-
                 <!-- LOADING -->
                 <div id="loadingIndicator" class="hidden text-center text-gray-500 py-4">
                     <i class="fa-solid fa-circle-notch fa-spin text-blue-800 text-xl"></i>
@@ -75,92 +55,25 @@
     (function () {
         const API = () => CONSTANTS.OPERATIONS_URL;
 
-        let _captchaId  = '';
-        let _pendingQuery = '';
-
-        // ── helpers ──────────────────────────────────────────────────────────
-
         function showMsg(text, type) {
             const el = document.getElementById('messageBox');
             el.textContent = text;
             el.className = 'p-3 rounded-lg text-sm font-semibold text-center';
-            if (type === 'error')   el.classList.add('bg-red-100', 'text-red-700');
+            if (type === 'error')        el.classList.add('bg-red-100',   'text-red-700');
             else if (type === 'success') el.classList.add('bg-green-100', 'text-green-700');
-            else el.classList.add('bg-blue-50', 'text-blue-700');
+            else                         el.classList.add('bg-blue-50',   'text-blue-700');
             el.classList.remove('hidden');
         }
 
-        function hideMsg()    { document.getElementById('messageBox').classList.add('hidden'); }
+        function hideMsg()      { document.getElementById('messageBox').classList.add('hidden'); }
         function showLoading(v) { document.getElementById('loadingIndicator').classList.toggle('hidden', !v); }
 
-        // ── captcha ──────────────────────────────────────────────────────────
-
-        async function loadCaptcha() {
-            try {
-                const res  = await fetch(`${API()}/api/public/captcha/generate`, { method: 'POST' });
-                if (res.status === 429) { window.location.href = 'login.html'; return; }
-                const data = await res.json();
-                _captchaId = data.id;
-                document.getElementById('captchaImg').src = data.image;
-                document.getElementById('captchaInput').value = '';
-                document.getElementById('captchaInput').focus();
-                document.getElementById('captchaArea').classList.remove('hidden');
-                hideMsg();
-            } catch (e) {
-                showMsg('Failed to load security check. Please try again.', 'error');
-            }
-        }
-
-        // ── track ─────────────────────────────────────────────────────────────
-
-        async function startTrack() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) { showMsg('Please enter an AWB or Reference number.', 'error'); return; }
-            _pendingQuery = query;
-            document.getElementById('resultsContainer').classList.add('hidden');
-            document.getElementById('resultsContainer').innerHTML = '';
-            hideMsg();
-            await loadCaptcha();
-        }
-
-        async function submitTrack() {
-            const answer = document.getElementById('captchaInput').value.trim();
-            if (!answer) { showMsg('Please enter the captcha answer.', 'error'); return; }
-
-            document.getElementById('captchaArea').classList.add('hidden');
-            showLoading(true);
-            hideMsg();
-
-            try {
-                const res  = await fetch(`${API()}/api/public/track`, {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ query: _pendingQuery, captcha_id: _captchaId, answer }),
-                });
-
-                const data = await res.json();
-                showLoading(false);
-
-                if (res.status === 403) { showMsg('Wrong answer. Please try again.', 'error'); await loadCaptcha(); return; }
-                if (res.status === 429) { window.location.href = 'login.html'; return; }
-                if (res.status === 404) { showMsg('Shipment not found.', 'error'); return; }
-                if (!res.ok)            { showMsg(data.detail || 'Something went wrong.', 'error'); return; }
-
-                renderResult(data);
-            } catch (e) {
-                showLoading(false);
-                showMsg('Network error. Please try again.', 'error');
-            }
-        }
-
-        // ── render ────────────────────────────────────────────────────────────
-
         const STATE_BADGE = {
-            delivered:      { bg: 'bg-green-100',  text: 'text-green-700',  icon: 'fa-circle-check',    label: 'Delivered'        },
-            outfordelivery: { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: 'fa-truck',            label: 'Out for Delivery' },
-            intransit:      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-route',            label: 'In Transit'       },
-            exception:      { bg: 'bg-red-100',    text: 'text-red-700',    icon: 'fa-triangle-exclamation', label: 'Exception'    },
-            pending:        { bg: 'bg-gray-100',   text: 'text-gray-600',   icon: 'fa-clock',            label: 'Pending'          },
+            delivered:      { bg: 'bg-green-100',  text: 'text-green-700',  icon: 'fa-circle-check',         label: 'Delivered'        },
+            outfordelivery: { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: 'fa-truck',                label: 'Out for Delivery' },
+            intransit:      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-route',                label: 'In Transit'       },
+            exception:      { bg: 'bg-red-100',    text: 'text-red-700',    icon: 'fa-triangle-exclamation', label: 'Exception'        },
+            pending:        { bg: 'bg-gray-100',   text: 'text-gray-600',   icon: 'fa-clock',                label: 'Pending'          },
         };
 
         function renderResult(data) {
@@ -189,12 +102,16 @@
                     </div>
                     <div class="text-xs text-gray-500 space-y-1">
                         ${s.carrier_name ? `<p><span class="font-semibold text-gray-700">Carrier:</span> ${s.carrier_name}</p>` : ''}
+                        ${s.carrier      ? `<p><span class="font-semibold text-gray-700">Service:</span> ${s.carrier}</p>` : ''}
                         ${s.status_raw   ? `<p><span class="font-semibold text-gray-700">Status:</span> ${s.status_raw}</p>` : ''}
+                        ${s.origin       ? `<p><span class="font-semibold text-gray-700">Origin:</span> ${s.origin}</p>` : ''}
+                        ${s.destination  ? `<p><span class="font-semibold text-gray-700">Destination:</span> ${s.destination}</p>` : ''}
                         ${s.booked_date  ? `<p><span class="font-semibold text-gray-700">Booked:</span> ${s.booked_date}</p>` : ''}
+                        ${s.weight       ? `<p><span class="font-semibold text-gray-700">Weight:</span> ${s.weight} kg</p>` : ''}
                     </div>
                     <div>
                         <p class="text-xs font-bold text-gray-500 uppercase mb-2">Movement History</p>
-                        <div class="max-h-64 overflow-y-auto pr-1">${movHtml}</div>
+                        <div class="max-h-96 overflow-y-auto pr-1">${movHtml}</div>
                     </div>
                 </div>`;
 
@@ -203,14 +120,39 @@
             rc.classList.remove('hidden');
         }
 
-        // ── events ────────────────────────────────────────────────────────────
+        async function doTrack() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) { showMsg('Please enter an AWB or Reference number.', 'error'); return; }
+
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('resultsContainer').innerHTML = '';
+            hideMsg();
+            showLoading(true);
+
+            try {
+                const token = getSessionId();
+                // detect ref (14 digits) or awb
+                const param = (query.match(/^\d{14}$/) ? 'ref' : 'awb') ;
+                const res   = await fetch(`${API()}/api/track?${param}=${encodeURIComponent(query)}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                showLoading(false);
+
+                if (res.status === 401) { handleLogout(); return; }
+                if (res.status === 404) { showMsg('Shipment not found.', 'error'); return; }
+                if (!res.ok)            { showMsg('Something went wrong. Please try again.', 'error'); return; }
+
+                const data = await res.json();
+                renderResult(data);
+            } catch (e) {
+                showLoading(false);
+                showMsg('Network error. Please try again.', 'error');
+            }
+        }
 
         function init() {
-            document.getElementById('searchButton').addEventListener('click', startTrack);
-            document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') startTrack(); });
-            document.getElementById('submitTrack').addEventListener('click', submitTrack);
-            document.getElementById('captchaInput').addEventListener('keypress', e => { if (e.key === 'Enter') submitTrack(); });
-            document.getElementById('refreshCaptcha').addEventListener('click', loadCaptcha);
+            document.getElementById('searchButton').addEventListener('click', doTrack);
+            document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') doTrack(); });
         }
 
         if (document.readyState === 'loading') {
