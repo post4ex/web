@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initHeartbeat();
     }
 
-    if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/')) {
+    if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/main') || window.location.pathname.endsWith('/')) {
         loadDynamicContent('tracking.html', 'tracking-content-area');
         if (window.innerWidth >= 1024) {
             loadDynamicContent('services.html', 'services-content-area');
