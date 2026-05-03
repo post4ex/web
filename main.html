@@ -153,37 +153,57 @@
 
                 <!-- RIGHT: Tracking Widget -->
                 <div class="w-full lg:w-[35%]">
-                    <div class="card">
-                        <div class="flex gap-2 mb-3">
-                            <input type="text" id="main-track-input" placeholder="AWB or Reference No."
-                                class="flex-1 p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 text-sm font-semibold">
-                            <button id="main-track-btn"
-                                class="px-4 py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm">
-                                <i class="fa-solid fa-magnifying-glass"></i>
+                    <div style="background:#F5A623;border-radius:1.25rem;padding:1.75rem;box-shadow:0 20px 60px -10px rgba(245,166,35,0.35),0 4px 16px rgba(0,0,0,0.12);">
+                        <!-- Input -->
+                        <div style="position:relative;margin-bottom:0.875rem;">
+                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:rgba(0,0,0,0.3);font-size:1rem;pointer-events:none;"></i>
+                            <input type="text" id="main-track-input" placeholder="AWB or Reference Number"
+                                style="width:100%;padding:1.1rem 3rem 1.1rem 2.75rem;background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.5);border-radius:0.875rem;color:#1e293b;font-size:0.95rem;font-weight:600;outline:none;transition:border-color 0.2s,background 0.2s;box-sizing:border-box;"
+                                onfocus="this.style.borderColor='rgba(255,255,255,0.9)';this.style.background='rgba(255,255,255,0.35)'"
+                                onblur="this.style.borderColor='rgba(255,255,255,0.5)';this.style.background='rgba(255,255,255,0.25)'">
+                            <style>#main-track-input::placeholder{color:rgba(0,0,0,0.35);}</style>
+                            <!-- Camera scan button — mobile only -->
+                            <button id="barcode-scan-btn" title="Scan barcode"
+                                style="display:none;position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:0.25rem;color:rgba(0,0,0,0.45);">
+                                <i class="fa-solid fa-camera" style="font-size:1rem;"></i>
                             </button>
+                            <!-- Hidden file input for iOS fallback -->
+                            <input type="file" id="barcode-file-input" accept="image/*" capture="environment" style="display:none;">
                         </div>
-                        <div id="main-track-loading" class="hidden text-center py-4">
-                            <i class="fa-solid fa-circle-notch fa-spin text-blue-800"></i>
+
+                        <!-- Button -->
+                        <button id="main-track-btn"
+                            style="width:100%;padding:0.95rem;background:#9C2007;border:none;border-radius:0.875rem;color:#ffffff;font-size:0.9rem;font-weight:800;letter-spacing:0.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;box-shadow:0 4px 20px rgba(156,32,7,0.5);transition:transform 0.15s,box-shadow 0.15s;"
+                            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 28px rgba(156,32,7,0.6)'"
+                            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 20px rgba(156,32,7,0.5)'"
+                            onmousedown="this.style.transform='scale(0.97)'"
+                            onmouseup="this.style.transform='translateY(-1px)'">
+                            <i class="fa-solid fa-magnifying-glass" style="color:#ffffff;"></i><span style="color:#ffffff;">Track Shipment</span>
+                        </button>
+
+                        <!-- Loading -->
+                        <div id="main-track-loading" class="hidden" style="margin-top:1.25rem;text-align:center;">
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:0.6rem;">
+                                <div style="display:flex;gap:0.4rem;">
+                                    <span style="width:8px;height:8px;background:rgba(255,255,255,0.8);border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:0ms;display:inline-block;"></span>
+                                    <span style="width:8px;height:8px;background:rgba(255,255,255,0.8);border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:180ms;display:inline-block;"></span>
+                                    <span style="width:8px;height:8px;background:rgba(255,255,255,0.8);border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:360ms;display:inline-block;"></span>
+                                </div>
+                                <p id="main-track-loading-text" style="color:rgba(255,255,255,0.7);font-size:0.75rem;font-weight:600;letter-spacing:0.05em;"></p>
+                            </div>
                         </div>
-                        <div id="main-track-msg" class="hidden p-2 rounded text-xs font-semibold text-center"></div>
-                        <div id="main-track-result" class="hidden"></div>
+                        <style>
+                            @keyframes trackBounce{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-6px);opacity:1}}
+                        </style>
+
+                        <!-- Message -->
+                        <div id="main-track-msg" class="hidden" style="margin-top:0.875rem;padding:0.75rem 1rem;border-radius:0.75rem;font-size:0.78rem;font-weight:600;text-align:center;"></div>
+                        <div id="main-track-result" class="hidden" style="margin-top:1rem;"></div>
                     </div>
                 </div>
             </div>
 
             <!-- RESULTS AREA (replaces services on track) -->
-            <div id="main-track-full" class="hidden">
-                <div class="card">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-gray-700">Tracking Result</h3>
-                        <button id="main-track-close" class="text-gray-400 hover:text-red-500 text-sm">
-                            <i class="fa-solid fa-xmark"></i> Close
-                        </button>
-                    </div>
-                    <div id="main-track-full-result"></div>
-                </div>
-            </div>
-
             <div id="services-content-area"></div>
         </div>
     </main>
@@ -310,9 +330,17 @@
                 const el = document.getElementById(id);
                 if (!el) return;
                 el.textContent = text;
-                el.className = 'p-2 rounded text-xs font-semibold text-center';
-                if (type === 'error') el.classList.add('bg-red-100', 'text-red-700');
-                else el.classList.add('bg-blue-50', 'text-blue-700');
+                const isMainMsg = id === 'main-track-msg';
+                if (isMainMsg) {
+                    el.style.cssText = `margin-top:0.875rem;padding:0.75rem 1rem;border-radius:0.75rem;font-size:0.78rem;font-weight:600;text-align:center;display:block;`;
+                    el.style.background = type === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)';
+                    el.style.color      = type === 'error' ? '#fca5a5' : 'rgba(255,255,255,0.8)';
+                    el.style.border     = type === 'error' ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.15)';
+                } else {
+                    el.className = 'p-2 rounded text-xs font-semibold text-center';
+                    if (type === 'error') el.classList.add('bg-red-100', 'text-red-700');
+                    else el.classList.add('bg-blue-50', 'text-blue-700');
+                }
                 el.classList.remove('hidden');
             }
 
@@ -328,6 +356,11 @@
                 setTimeout(() => m.classList.add('hidden'), 300);
             }
 
+            function setLoadingText(text) {
+                const el = document.getElementById('main-track-loading-text');
+                if (el) el.textContent = text;
+            }
+
             async function loadCaptcha() {
                 try {
                     const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/captcha/generate`, { method: 'POST' });
@@ -341,18 +374,34 @@
             }
 
             function showFullResult(data) {
-                const full = document.getElementById('main-track-full');
-                const svc  = document.getElementById('services-content-area');
-                if (svc)  svc.classList.add('hidden');
-                if (full) full.classList.remove('hidden');
+                const svc = document.getElementById('services-content-area');
+                if (!svc) return;
+                svc.classList.remove('hidden');
+                svc.innerHTML = `
+                    <div style="background:white;border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                            <p style="font-size:0.75rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">Tracking Result</p>
+                            <button id="main-track-close" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.8rem;display:flex;align-items:center;gap:0.3rem;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#94a3b8'">
+                                <i class="fa-solid fa-xmark"></i> Close
+                            </button>
+                        </div>
+                        <div id="main-track-full-result"></div>
+                    </div>`;
                 if (typeof renderTrackingResult === 'function')
                     renderTrackingResult(data, 'main-track-full-result');
+                document.getElementById('main-track-close').addEventListener('click', () => {
+                    svc.innerHTML = '';
+                    if (window.innerWidth >= 1024) loadDynamicContent('services.html', 'services-content-area');
+                    else if (typeof window.loadMobileServicesSlideshow === 'function') window.loadMobileServicesSlideshow();
+                });
+                svc.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             async function doPublicTrack() {
                 const answer = document.getElementById('captcha-answer').value.trim();
                 if (!answer) { showMsg('captcha-msg', 'Enter the answer.', 'error'); return; }
                 closeCaptchaModal();
+                setLoadingText('Fetching result...');
                 document.getElementById('main-track-loading').classList.remove('hidden');
                 try {
                     const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/track`, {
@@ -374,6 +423,7 @@
 
             async function doAuthTrack(query) {
                 document.getElementById('main-track-loading').classList.remove('hidden');
+                setLoadingText('Fetching result...');
                 try {
                     const token = getSessionId();
                     const param = query.match(/^\d{14}$/) ? 'ref' : 'awb';
@@ -400,7 +450,10 @@
                     await doAuthTrack(query);
                 } else {
                     _pendingQuery = query;
+                    setLoadingText('Loading captcha...');
+                    document.getElementById('main-track-loading').classList.remove('hidden');
                     await loadCaptcha();
+                    document.getElementById('main-track-loading').classList.add('hidden');
                     openCaptchaModal();
                 }
             }
@@ -411,13 +464,48 @@
                 document.getElementById('captcha-submit').addEventListener('click', doPublicTrack);
                 document.getElementById('captcha-answer').addEventListener('keypress', e => { if (e.key === 'Enter') doPublicTrack(); });
                 document.getElementById('captcha-refresh').addEventListener('click', loadCaptcha);
-                document.getElementById('main-track-close').addEventListener('click', () => {
-                    document.getElementById('main-track-full').classList.add('hidden');
-                    document.getElementById('services-content-area').classList.remove('hidden');
+
+                // ── Barcode scan (mobile only) ──
+                const scanBtn  = document.getElementById('barcode-scan-btn');
+                const fileInput = document.getElementById('barcode-file-input');
+                const trackInput = document.getElementById('main-track-input');
+
+                // Show camera button only on touch/mobile devices
+                if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                    scanBtn.style.display = 'block';
+                }
+
+                async function decodeFromImage(blob) {
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const bd = new BarcodeDetector({ formats: ['code_128','code_39','qr_code','data_matrix','ean_13','ean_8','itf','pdf417'] });
+                            const img = await createImageBitmap(blob);
+                            const results = await bd.detect(img);
+                            if (results.length) return results[0].rawValue;
+                        } catch(e) {}
+                    }
+                    return null;
+                }
+
+                scanBtn.addEventListener('click', () => fileInput.click());
+
+                fileInput.addEventListener('change', async () => {
+                    const file = fileInput.files[0];
+                    if (!file) return;
+                    scanBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:1rem;"></i>';
+                    const val = await decodeFromImage(file);
+                    scanBtn.innerHTML = '<i class="fa-solid fa-camera" style="font-size:1rem;"></i>';
+                    if (val) {
+                        trackInput.value = val;
+                        startTrack();
+                    } else {
+                        showMsg('main-track-msg', 'No barcode found. Enter manually.', 'error');
+                    }
+                    fileInput.value = '';
                 });
             });
         })();
-    </script>
+
         // ============================================================================
         // 1. INJECTION LOGIC (Replacer)
         // ============================================================================

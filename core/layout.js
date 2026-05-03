@@ -58,8 +58,10 @@ async function loadDynamicContent(url, targetElementId) {
         const safeUrl = _ALLOWED_PAGES.find(p => p === url);
         if (!safeUrl) throw new Error(`Disallowed page: ${url}`);
         const cacheBuster = safeUrl.includes('?') ? '&' : '?';
-        const fetchUrl = safeUrl.replace(/\.html$/, '');
-        const res = await fetch(`${fetchUrl}${cacheBuster}v=${Date.now()}`);
+        const urlWithExt    = safeUrl;
+        const urlWithoutExt = safeUrl.replace(/\.html$/, '');
+        let res = await fetch(`${urlWithExt}${cacheBuster}v=${Date.now()}`);
+        if (!res.ok) res = await fetch(`${urlWithoutExt}${cacheBuster}v=${Date.now()}`);
         if (!res.ok) throw new Error('Load failed');
 
         const txt = await res.text();
