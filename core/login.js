@@ -3,6 +3,44 @@
 // ============================================================================
 
 let currentView = 'login', regState = 'init', forgotState = 'send', resetToken = '';
+let _turnstileToken = '', _turnstileResolve = null;
+
+function onTurnstileSuccess(token) {
+    _turnstileToken = token;
+    // enable login button once security check passes
+    const btn = document.getElementById('login-btn');
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-40', 'cursor-not-allowed');
+        btn.classList.add('hover:bg-blue-800');
+    }
+    if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
+}
+
+function onTurnstileExpired() {
+    _turnstileToken = '';
+    const btn = document.getElementById('login-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-40', 'cursor-not-allowed');
+        btn.classList.remove('hover:bg-blue-800');
+    }
+    if (typeof turnstile !== 'undefined') turnstile.reset();
+}
+
+function onTurnstileError() { onTurnstileExpired(); }
+
+async function getTurnstileToken() {
+    if (_turnstileToken) {
+        const t = _turnstileToken;
+        _turnstileToken = '';
+        if (typeof turnstile !== 'undefined') turnstile.reset();
+        return t;
+    }
+    return new Promise((resolve) => {
+        _turnstileResolve = resolve;
+    });
+}
 
 async function callApi(endpoint, payload = {}) {
     setLoading(true, 'Connecting...');
@@ -94,7 +132,7 @@ async function handleLogin(e) {
     if (pass.length < 4) return showMessage('Password is too short.', 'error');
 
     try {
-        const token = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+        const token = await getTurnstileToken();
         const res = await callApi('/api/login', { username: user, password: pass, 'cf-turnstile-response': token });
         if (res.status === 'success' && res.sessionId) {
             localStorage.setItem('loginData', JSON.stringify({
@@ -141,7 +179,7 @@ async function handleRegister(e) {
         if (data.PASS !== confirmPass)      return showMessage('Passwords do not match.', 'error');
 
         try {
-            const token = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+            const token = await getTurnstileToken();
             await callApi('/api/initiateRegistration', { ...data, 'cf-turnstile-response': token });
             document.getElementById('reg-step-1').classList.add('hidden');
             document.getElementById('reg-step-2').classList.remove('hidden');
@@ -173,7 +211,7 @@ async function handleForgot(e) {
     if (forgotState === 'send') {
         if (!id) return showMessage('Enter Username or Email', 'error');
         try {
-            const token = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+            const token = await getTurnstileToken();
             await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim(), 'cf-turnstile-response': token });
             document.getElementById('forgot-step-1').classList.add('hidden');
             document.getElementById('forgot-step-2').classList.remove('hidden');
