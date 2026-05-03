@@ -15,207 +15,204 @@
     <main class="w-full flex-grow p-4 sm:p-8">
         <div class="container">
             <div class="card">
-                <div class="flex flex-col sm:flex-row items-center gap-4 mb-8">
-                    <div class="flex rounded-lg overflow-hidden w-full sm:w-1/4">
-                        <button id="refButton" class="p-3 text-white font-semibold rounded-l-lg transition-colors w-1/2 bg-blue-800 hover:bg-blue-900">AWB/Ref</button>
-                        <button id="mobileButton" class="p-3 text-gray-700 font-semibold rounded-r-lg transition-colors w-1/2 bg-gray-200 hover:bg-gray-300">Mobile</button>
-                    </div>
-                    <input type="text" id="searchInput" placeholder="Enter AWB/Ref Number(s), comma-separated" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 w-full">
-                    <button id="searchButton" class="px-6 py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 transition-colors w-full sm:w-auto">Search</button>
+
+                <!-- SEARCH ROW -->
+                <div class="flex flex-col sm:flex-row items-center gap-3 mb-4">
+                    <input type="text" id="searchInput" placeholder="Enter AWB or Reference Number"
+                        class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 w-full text-sm font-semibold">
+                    <button id="searchButton"
+                        class="px-6 py-3 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors w-full sm:w-auto text-sm">
+                        <i class="fa-solid fa-magnifying-glass mr-1"></i> Track
+                    </button>
                 </div>
-                <div id="loadingIndicator" class="hidden text-center text-gray-500 mb-4"><p>Loading data...</p></div>
-                <div id="resultsContainer" class="hidden space-y-6"></div>
-                <div id="messageBox" class="hidden p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg" role="alert"><p id="messageText"></p></div>
+
+                <!-- CAPTCHA AREA -->
+                <div id="captchaArea" class="hidden mb-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                        <p class="text-xs text-gray-500 font-medium">Security check — please solve the challenge below</p>
+                        <div class="flex items-center gap-3">
+                            <img id="captchaImg" class="rounded border border-gray-200 h-[70px]" alt="captcha">
+                            <button id="refreshCaptcha" class="text-gray-400 hover:text-blue-700 transition-colors" title="Refresh">
+                                <i class="fa-solid fa-rotate-right"></i>
+                            </button>
+                        </div>
+                        <input type="text" id="captchaInput" placeholder="Enter answer"
+                            autocomplete="off" maxlength="10"
+                            class="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 text-sm font-bold tracking-widest uppercase">
+                        <button id="submitTrack"
+                            class="w-full py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm">
+                            Submit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LOADING -->
+                <div id="loadingIndicator" class="hidden text-center text-gray-500 py-4">
+                    <i class="fa-solid fa-circle-notch fa-spin text-blue-800 text-xl"></i>
+                    <p class="text-xs mt-1">Fetching tracking data...</p>
+                </div>
+
+                <!-- RESULTS -->
+                <div id="resultsContainer" class="hidden space-y-4"></div>
+
+                <!-- MESSAGE -->
+                <div id="messageBox" class="hidden p-3 rounded-lg text-sm font-semibold text-center"></div>
+
             </div>
         </div>
     </main>
 
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
 
-    <!-- Modal for Scan History -->
-    <div id="scanHistoryModal" class="modal-overlay hidden">
-        <div class="modal-content relative card">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Scan History</h2>
-            <button id="closeModalButton" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <div id="modalContent"></div>
-        </div>
-    </div>
-    
+    <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
+    <script src="core/app-notify.js"></script>
+    <script src="core/app-api.js"></script>
+    <script src="core/app-auth.js"></script>
+    <script src="indexeddb.js"></script>
+    <script src="core/layout.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Tracking Specific Logic ---
-            const API_URL = 'https://script.google.com/macros/s/AKfycbwdEPTko2RsIDO4T3-11nwsCUcVR3jtzC8Xpya5FTqZo13aNWfn1uNhZQ9Zfw_r7hk4aQ/exec';
-            const searchInput = document.getElementById('searchInput');
-            const searchButton = document.getElementById('searchButton');
-            const refButton = document.getElementById('refButton');
-            const mobileButton = document.getElementById('mobileButton');
-            const resultsContainer = document.getElementById('resultsContainer');
-            const messageBox = document.getElementById('messageBox');
-            const messageText = document.getElementById('messageText');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const scanHistoryModal = document.getElementById('scanHistoryModal');
-            const closeModalButton = document.getElementById('closeModalButton');
-            const modalContent = document.getElementById('modalContent');
-            
-            let currentSearchType = 'ref';
-            let allConsignments = [];-${month}-${year} ${hours}:${minutes}:${seconds}`;
+    (function () {
+        const API = () => CONSTANTS.OPERATIONS_URL;
+
+        let _captchaId  = '';
+        let _pendingQuery = '';
+
+        // ── helpers ──────────────────────────────────────────────────────────
+
+        function showMsg(text, type) {
+            const el = document.getElementById('messageBox');
+            el.textContent = text;
+            el.className = 'p-3 rounded-lg text-sm font-semibold text-center';
+            if (type === 'error')   el.classList.add('bg-red-100', 'text-red-700');
+            else if (type === 'success') el.classList.add('bg-green-100', 'text-green-700');
+            else el.classList.add('bg-blue-50', 'text-blue-700');
+            el.classList.remove('hidden');
+        }
+
+        function hideMsg()    { document.getElementById('messageBox').classList.add('hidden'); }
+        function showLoading(v) { document.getElementById('loadingIndicator').classList.toggle('hidden', !v); }
+
+        // ── captcha ──────────────────────────────────────────────────────────
+
+        async function loadCaptcha() {
+            try {
+                const res  = await fetch(`${API()}/api/public/captcha/generate`, { method: 'POST' });
+                if (res.status === 429) { showMsg('Too many requests. Please wait a moment.', 'error'); return; }
+                const data = await res.json();
+                _captchaId = data.id;
+                document.getElementById('captchaImg').src = data.image;
+                document.getElementById('captchaInput').value = '';
+                document.getElementById('captchaInput').focus();
+                document.getElementById('captchaArea').classList.remove('hidden');
+                hideMsg();
+            } catch (e) {
+                showMsg('Failed to load security check. Please try again.', 'error');
             }
+        }
 
-            function updateButtonStyles() {
-                if (currentSearchType === 'ref') {
-                    refButton.classList.add('bg-blue-800', 'text-white');
-                    refButton.classList.remove('bg-gray-200', 'text-gray-700');
-                    mobileButton.classList.add('bg-gray-200', 'text-gray-700');
-                    mobileButton.classList.remove('bg-blue-800', 'text-white');
-                    searchInput.placeholder = 'Enter AWB/Ref Number(s), comma-separated';
-                    searchInput.type = 'text';
-                } else {
-                    mobileButton.classList.add('bg-blue-800', 'text-white');
-                    mobileButton.classList.remove('bg-gray-200', 'text-gray-700');
-                    refButton.classList.add('bg-gray-200', 'text-gray-700');
-                    refButton.classList.remove('bg-blue-800', 'text-white');
-                    searchInput.placeholder = 'Enter Mobile Number';
-                    searchInput.type = 'tel';
-                }
+        // ── track ─────────────────────────────────────────────────────────────
+
+        async function startTrack() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) { showMsg('Please enter an AWB or Reference number.', 'error'); return; }
+            _pendingQuery = query;
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('resultsContainer').innerHTML = '';
+            hideMsg();
+            await loadCaptcha();
+        }
+
+        async function submitTrack() {
+            const answer = document.getElementById('captchaInput').value.trim();
+            if (!answer) { showMsg('Please enter the captcha answer.', 'error'); return; }
+
+            document.getElementById('captchaArea').classList.add('hidden');
+            showLoading(true);
+            hideMsg();
+
+            try {
+                const res  = await fetch(`${API()}/api/public/track`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ query: _pendingQuery, captcha_id: _captchaId, answer }),
+                });
+
+                const data = await res.json();
+                showLoading(false);
+
+                if (res.status === 403) { showMsg('Wrong answer. Please try again.', 'error'); await loadCaptcha(); return; }
+                if (res.status === 429) { showMsg('Too many requests. Please wait a moment.', 'error'); return; }
+                if (res.status === 404) { showMsg('Shipment not found.', 'error'); return; }
+                if (!res.ok)            { showMsg(data.detail || 'Something went wrong.', 'error'); return; }
+
+                renderResult(data);
+            } catch (e) {
+                showLoading(false);
+                showMsg('Network error. Please try again.', 'error');
             }
+        }
 
-            refButton.addEventListener('click', () => { currentSearchType = 'ref'; updateButtonStyles(); });
-            mobileButton.addEventListener('click', () => { currentSearchType = 'mobile'; updateButtonStyles(); });
-            searchButton.addEventListener('click', trackConsignment);
-            searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') trackConsignment(); });
-            resultsContainer.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON' && e.target.closest('.track-btn')) {
-                    const button = e.target.closest('.track-btn');
-                    const index = button.dataset.index;
-                    if (allConsignments[index]) showScanHistoryModal(allConsignments[index]);
-                }
-            });
-            closeModalButton.addEventListener('click', () => scanHistoryModal.classList.add('hidden'));
-            scanHistoryModal.addEventListener('click', (e) => { if (e.target === scanHistoryModal) scanHistoryModal.classList.add('hidden'); });
+        // ── render ────────────────────────────────────────────────────────────
 
-            async function trackConsignment() {
-                let query = searchInput.value.trim();
-                resultsContainer.innerHTML = '';
-                resultsContainer.classList.add('hidden');
-                messageBox.classList.add('hidden');
-                allConsignments = [];
-                loadingIndicator.classList.remove('hidden');
+        const STATE_BADGE = {
+            delivered:      { bg: 'bg-green-100',  text: 'text-green-700',  icon: 'fa-circle-check',    label: 'Delivered'        },
+            outfordelivery: { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: 'fa-truck',            label: 'Out for Delivery' },
+            intransit:      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-route',            label: 'In Transit'       },
+            exception:      { bg: 'bg-red-100',    text: 'text-red-700',    icon: 'fa-triangle-exclamation', label: 'Exception'    },
+            pending:        { bg: 'bg-gray-100',   text: 'text-gray-600',   icon: 'fa-clock',            label: 'Pending'          },
+        };
 
-                if (!query) {
-                    showMessage(`Please enter a valid ${currentSearchType === 'ref' ? 'Reference/AWB Number(s)' : 'Mobile Number'}.`, 'error');
-                    loadingIndicator.classList.add('hidden');
-                    return;
-                }
+        function renderResult(data) {
+            const s   = data.shipment || {};
+            const mvs = data.movements || [];
+            const st  = STATE_BADGE[s.state] || STATE_BADGE.pending;
 
-                const queries = currentSearchType === 'ref' ? query.split(',').map(item => item.trim()).filter(Boolean) : [query];
-                
-                try {
-                    const fetchPromises = queries.map(q => fetch(`${API_URL}?searchType=${currentSearchType}&query=${encodeURIComponent(q)}`));
-                    const responses = await Promise.all(fetchPromises);
-                    const results = await Promise.all(responses.map(res => res.ok ? res.json() : Promise.reject(new Error(`Status: ${res.status}`))));
-
-                    let allOrdersFound = false;
-                    results.forEach(responseData => {
-                        if (responseData.orders && responseData.orders.length > 0) {
-                            allConsignments.push(...responseData.orders);
-                            allOrdersFound = true;
-                        }
-                    });
-
-                    if (allOrdersFound) {
-                        resultsContainer.classList.remove('hidden');
-                        if (currentSearchType === 'mobile') {
-                            allConsignments.sort((a, b) => new Date(b.order['Order Date']) - new Date(a.order['Order Date']));
-                            renderOrderList(allConsignments);
-                        } else {
-                            resultsContainer.innerHTML = '';
-                            allConsignments.forEach(showConsignmentDetails);
-                        }
-                        showMessage('Tracking results successfully loaded.', 'success');
-                    } else {
-                        showMessage(`No orders found for the ${currentSearchType} number(s) provided.`, 'error');
-                    }
-                } catch (error) {
-                    console.error('An unexpected error occurred:', error);
-                    showMessage('A network error occurred. Please check your internet connection and try again.', 'error');
-                } finally {
-                    loadingIndicator.classList.add('hidden');
-                }
-            }
-
-            function renderOrderList(consignments) {
-                const modeMap = {'E': 'Express', 'P': 'Premium', 'A': 'Airline', 'S': 'Surface'};
-                resultsContainer.innerHTML = `<div class="card space-y-4"><h2 class="text-xl font-semibold text-gray-700">Orders Found</h2><ul class="space-y-4">${consignments.map((c, i) => `
-                    <li class="order-list-item">
-                        <div class="grid grid-cols-2 gap-x-6 gap-y-2 flex-grow">
-                            <div class="col-span-2 sm:col-span-1">
-                                <p class="font-medium text-gray-800">Status: ${c.track?.['Current Status'] || 'N/A'}</p>
-                                <p class="text-sm text-gray-600">AWB: ${c.order['AWB Booked']}</p>
-                                <p class="text-sm text-gray-600">Date: ${fmtDate(c.order['Order Date'], 'full')}</p>
-                            </div>
-                            <div class="col-span-2 sm:col-span-1">
-                                <p class="text-sm text-gray-600">Carrier: ${c.order['Carrier Name']}</p>
-                                <p class="text-sm text-gray-500">Mode: ${modeMap[c.order['Billing Mode']] || c.order['Billing Mode']}</p>
-                            </div>
-                            <div class="col-span-2"><p class="text-sm text-gray-600">To: ${c.order['Consignee Name']} - ${c.order['Consignee City']}</p></div>
-                        </div>
-                        <button class="track-btn px-4 py-2 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900" data-index="${i}">Track</button>
-                    </li>`).join('')}</ul></div>`;
-            }
-
-            function showConsignmentDetails(consignment) {
-                const { order, track, logs } = consignment;
-                if (logs) logs.sort((a, b) => new Date(b['Scan Date']) - new Date(a['Scan Date']));
-                const modeMap = {'E': 'Express', 'P': 'Premium', 'A': 'Airline', 'S': 'Surface'};
-                const latestLogDate = logs && logs.length > 0 ? logs[0]['Scan Date'] : null;
-                const currentUpdateDate = track?.['Current Date'] || latestLogDate;
-                const currentStatus = track?.['Current Status'] || 'Status N/A';
-                const edd = order.EDD ? fmtDate(order.EDD, 'full') : 'N/A';
-                
-                let html = `<div class="card space-y-4 mb-8">
-                    <h2 class="text-xl font-semibold text-gray-700">Order Details for AWB: ${order['AWB Booked']}</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
-                        <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Reference & AWB</h3><p>Ref: <span class="font-semibold">${order.Ref}</span></p><p>AWB: <span class="font-semibold">${order['AWB Booked']}</span></p></div>
-                        <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Dates</h3><p>Order: <span class="font-semibold">${fmtDate(order['Order Date'], 'full')}</span></p><p>EDD: <span class="font-semibold">${edd}</span></p></div>
-                        <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">Shipment</h3><p>Carrier: <span class="font-semibold">${order['Carrier Name']}</span></p><p>Mode: <span class="font-semibold">${modeMap[order['Billing Mode']] || order['Billing Mode']}</span></p></div>
-                        <div class="bg-blue-50 p-4 rounded-lg border"><h3 class="font-medium text-gray-800">From / To</h3><p>From: <span class="font-semibold">${order.Customer} - ${order['Sender City']}</span></p><p>To: <span class="font-semibold">${order['Consignee Name']} - ${order['Consignee City']}</span></p></div>
+            const movHtml = mvs.length ? mvs.map(m => `
+                <div class="flex gap-3 text-xs">
+                    <div class="flex flex-col items-center">
+                        <div class="w-2 h-2 rounded-full bg-blue-400 mt-1 shrink-0"></div>
+                        <div class="w-px flex-1 bg-gray-200"></div>
                     </div>
-                    <div class="mt-6"><h2 class="text-xl font-semibold text-gray-700">Current Status</h2><p class="text-3xl font-bold text-gray-800">${currentStatus}</p><p class="text-gray-500">Last updated: ${fmtDate(currentUpdateDate, 'full')}</p></div>
-                    <div class="mt-6"><h2 class="text-xl font-semibold text-gray-700 mb-4">Scan History</h2>${(logs && logs.length > 0) ? `
-                        <div class="overflow-x-auto rounded-lg border"><table class="scan-history-table w-full text-sm"><thead><tr><th class="py-3 px-4 font-semibold">Date</th><th class="py-3 px-4 font-semibold">Status & Remarks</th><th class="py-3 px-4 font-semibold">Location</th></tr></thead><tbody>
-                        ${logs.map(log => `<tr class="hover:bg-gray-50"><td>${fmtDate(log['Scan Date'], 'full')}</td><td>${log['Scan Status']} - ${log.Remark}</td><td>${log['Scan Location']}</td></tr>`).join('')}
-                        </tbody></table></div>` : `<p class="text-gray-500">No scan history found.</p>`}
-                    </div></div>`;
-                resultsContainer.insertAdjacentHTML('beforeend', html);
-            }
-            
-            function showScanHistoryModal(consignment) {
-                const logs = consignment.logs;
-                if (logs) logs.sort((a, b) => new Date(b['Scan Date']) - new Date(a['Scan Date']));
-                let modalHtml = (logs && logs.length > 0) ? `
-                    <div class="overflow-x-auto rounded-lg border"><table class="scan-history-table w-full text-sm">
-                        <thead><tr><th class="py-3 px-4 font-semibold">Date</th><th class="py-3 px-4 font-semibold">Status & Remarks</th><th class="py-3 px-4 font-semibold">Location</th></tr></thead>
-                        <tbody>${logs.map(log => `<tr class="hover:bg-gray-50"><td>${fmtDate(log['Scan Date'], 'full')}</td><td>${log['Scan Status']} - ${log.Remark}</td><td>${log['Scan Location']}</td></tr>`).join('')}</tbody>
-                    </table></div>` : `<p class="text-gray-500">No scan history found.</p>`;
-                modalContent.innerHTML = modalHtml;
-                scanHistoryModal.classList.remove('hidden');
-            }
+                    <div class="pb-3">
+                        <p class="font-semibold text-gray-700">${m.activity || ''}</p>
+                        <p class="text-gray-400">${m.location || ''} &nbsp;·&nbsp; ${m.date || ''} ${m.time || ''}</p>
+                    </div>
+                </div>`).join('') : '<p class="text-xs text-gray-400">No movements yet.</p>';
 
-            function showMessage(text, type) {
-                messageText.textContent = text;
-                messageBox.classList.remove('hidden');
-                messageBox.className = 'p-4 rounded-lg border';
-                if (type === 'error') {
-                    messageBox.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
-                } else {
-                    messageBox.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
-                }
-            }
-            updateButtonStyles();
+            const html = `
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${st.bg} ${st.text}">
+                            <i class="fa-solid ${st.icon}"></i> ${st.label}
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        ${s.carrier_name ? `<p><span class="font-semibold text-gray-700">Carrier:</span> ${s.carrier_name}</p>` : ''}
+                        ${s.status_raw   ? `<p><span class="font-semibold text-gray-700">Status:</span> ${s.status_raw}</p>` : ''}
+                        ${s.booked_date  ? `<p><span class="font-semibold text-gray-700">Booked:</span> ${s.booked_date}</p>` : ''}
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase mb-2">Movement History</p>
+                        <div class="max-h-64 overflow-y-auto pr-1">${movHtml}</div>
+                    </div>
+                </div>`;
+
+            const rc = document.getElementById('resultsContainer');
+            rc.innerHTML = html;
+            rc.classList.remove('hidden');
+        }
+
+        // ── events ────────────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('searchButton').addEventListener('click', startTrack);
+            document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') startTrack(); });
+            document.getElementById('submitTrack').addEventListener('click', submitTrack);
+            document.getElementById('captchaInput').addEventListener('keypress', e => { if (e.key === 'Enter') submitTrack(); });
+            document.getElementById('refreshCaptcha').addEventListener('click', loadCaptcha);
         });
+    })();
     </script>
 </body>
 </html>
-

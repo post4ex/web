@@ -7,24 +7,11 @@ let _turnstileToken = '', _turnstileResolve = null;
 
 function onTurnstileSuccess(token) {
     _turnstileToken = token;
-    // enable login button once security check passes
-    const btn = document.getElementById('login-btn');
-    if (btn) {
-        btn.disabled = false;
-        btn.classList.remove('opacity-40', 'cursor-not-allowed');
-        btn.classList.add('hover:bg-blue-800');
-    }
     if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
 }
 
 function onTurnstileExpired() {
     _turnstileToken = '';
-    const btn = document.getElementById('login-btn');
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-40', 'cursor-not-allowed');
-        btn.classList.remove('hover:bg-blue-800');
-    }
     if (typeof turnstile !== 'undefined') turnstile.reset();
 }
 
