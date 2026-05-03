@@ -98,7 +98,7 @@
         async function loadCaptcha() {
             try {
                 const res  = await fetch(`${API()}/api/public/captcha/generate`, { method: 'POST' });
-                if (res.status === 429) { showMsg('Too many requests. Please wait a moment.', 'error'); return; }
+                if (res.status === 429) { window.location.href = 'login.html'; return; }
                 const data = await res.json();
                 _captchaId = data.id;
                 document.getElementById('captchaImg').src = data.image;
@@ -142,7 +142,7 @@
                 showLoading(false);
 
                 if (res.status === 403) { showMsg('Wrong answer. Please try again.', 'error'); await loadCaptcha(); return; }
-                if (res.status === 429) { showMsg('Too many requests. Please wait a moment.', 'error'); return; }
+                if (res.status === 429) { window.location.href = 'login.html'; return; }
                 if (res.status === 404) { showMsg('Shipment not found.', 'error'); return; }
                 if (!res.ok)            { showMsg(data.detail || 'Something went wrong.', 'error'); return; }
 
@@ -205,13 +205,19 @@
 
         // ── events ────────────────────────────────────────────────────────────
 
-        document.addEventListener('DOMContentLoaded', () => {
+        function init() {
             document.getElementById('searchButton').addEventListener('click', startTrack);
             document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') startTrack(); });
             document.getElementById('submitTrack').addEventListener('click', submitTrack);
             document.getElementById('captchaInput').addEventListener('keypress', e => { if (e.key === 'Enter') submitTrack(); });
             document.getElementById('refreshCaptcha').addEventListener('click', loadCaptcha);
-        });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     })();
     </script>
 </body>
