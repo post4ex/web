@@ -153,15 +153,15 @@
 
                 <!-- RIGHT: Tracking Widget -->
                 <div class="w-full lg:w-[35%]">
-                    <div style="background:#F5A623;border-radius:1.25rem;padding:1.75rem;box-shadow:0 20px 60px -10px rgba(245,166,35,0.35),0 4px 16px rgba(0,0,0,0.12);">
+                    <div style="background:#ffffff;border-radius:1.25rem;padding:1.75rem;box-shadow:0 20px 60px -10px rgba(0,0,0,0.12),0 4px 16px rgba(0,0,0,0.08);">
                         <!-- Input -->
                         <div style="position:relative;margin-bottom:0.875rem;">
-                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:rgba(0,0,0,0.3);font-size:1rem;pointer-events:none;"></i>
+                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;pointer-events:none;"></i>
                             <input type="text" id="main-track-input" placeholder="AWB or Reference Number"
-                                style="width:100%;padding:1.1rem 3rem 1.1rem 2.75rem;background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.5);border-radius:0.875rem;color:#1e293b;font-size:0.95rem;font-weight:600;outline:none;transition:border-color 0.2s,background 0.2s;box-sizing:border-box;"
-                                onfocus="this.style.borderColor='rgba(255,255,255,0.9)';this.style.background='rgba(255,255,255,0.35)'"
-                                onblur="this.style.borderColor='rgba(255,255,255,0.5)';this.style.background='rgba(255,255,255,0.25)'">
-                            <style>#main-track-input::placeholder{color:rgba(0,0,0,0.35);}</style>
+                                style="width:100%;padding:1.1rem 3rem 1.1rem 2.75rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:0.875rem;color:#1e293b;font-size:0.95rem;font-weight:600;outline:none;transition:border-color 0.2s,background 0.2s;box-sizing:border-box;"
+                                onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
+                                onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+                            <style>#main-track-input::placeholder{color:#94a3b8;}</style>
                             <!-- Camera scan button — mobile only -->
                             <button id="barcode-scan-btn" title="Scan barcode"
                                 style="display:none;position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:0.25rem;color:rgba(0,0,0,0.45);">
@@ -185,11 +185,11 @@
                         <div id="main-track-loading" class="hidden" style="margin-top:1.25rem;text-align:center;">
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.6rem;">
                                 <div style="display:flex;gap:0.4rem;">
-                                    <span style="width:8px;height:8px;background:rgba(255,255,255,0.8);border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:0ms;display:inline-block;"></span>
-                                    <span style="width:8px;height:8px;background:rgba(255,255,255,0.8);border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:180ms;display:inline-block;"></span>
-                                    <span style="width:8px;height:8px;background:rgba(255,255,255,0.8);border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:360ms;display:inline-block;"></span>
+                                    <span style="width:8px;height:8px;background:#9C2007;border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:0ms;display:inline-block;"></span>
+                                    <span style="width:8px;height:8px;background:#9C2007;border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:180ms;display:inline-block;"></span>
+                                    <span style="width:8px;height:8px;background:#9C2007;border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:360ms;display:inline-block;"></span>
                                 </div>
-                                <p id="main-track-loading-text" style="color:rgba(255,255,255,0.7);font-size:0.75rem;font-weight:600;letter-spacing:0.05em;"></p>
+                                <p id="main-track-loading-text" style="color:#64748b;font-size:0.75rem;font-weight:600;letter-spacing:0.05em;"></p>
                             </div>
                         </div>
                         <style>
@@ -357,8 +357,46 @@
             }
 
             function setLoadingText(text) {
-                const el = document.getElementById('main-track-loading-text');
-                if (el) el.textContent = text;
+                const btn = document.getElementById('main-track-btn');
+                if (text) {
+                    btn.innerHTML = `<span style="display:flex;align-items:center;gap:0.5rem;color:#ffffff;">
+                        <span style="display:flex;gap:0.3rem;">
+                            <span style="width:6px;height:6px;background:#fff;border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:0ms;display:inline-block;"></span>
+                            <span style="width:6px;height:6px;background:#fff;border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:180ms;display:inline-block;"></span>
+                            <span style="width:6px;height:6px;background:#fff;border-radius:50%;animation:trackBounce 1s ease-in-out infinite;animation-delay:360ms;display:inline-block;"></span>
+                        </span>
+                        <span style="color:#ffffff;font-size:0.85rem;">${text}</span>
+                    </span>`;
+                    btn.disabled = true;
+                    btn.style.opacity = '0.85';
+                } else {
+                    btn.innerHTML = `<i class="fa-solid fa-magnifying-glass" style="color:#ffffff;"></i><span style="color:#ffffff;">Track Shipment</span>`;
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                }
+                // hide the separate loading div
+                document.getElementById('main-track-loading').classList.add('hidden');
+            }
+
+            function showResultMsg(text, type) {
+                const svc = document.getElementById('services-content-area');
+                if (!svc) return;
+                const color   = type === 'error' ? '#dc2626' : '#2563eb';
+                const bgColor = type === 'error' ? '#fef2f2' : '#eff6ff';
+                const icon    = type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info';
+                svc.classList.remove('hidden');
+                svc.innerHTML = `
+                    <div style="background:white;border-radius:1.25rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.08);text-align:center;">
+                        <div style="width:3rem;height:3rem;background:${bgColor};border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;">
+                            <i class="fa-solid ${icon}" style="color:${color};font-size:1.25rem;"></i>
+                        </div>
+                        <p style="font-size:0.95rem;font-weight:700;color:#1e293b;margin-bottom:0.25rem;">${text}</p>
+                        <button onclick="document.getElementById('services-content-area').innerHTML='';${window.innerWidth>=1024?'loadDynamicContent(\'services.html\',\'services-content-area\')':'typeof window.loadMobileServicesSlideshow===\'function\'&&window.loadMobileServicesSlideshow()'}"
+                            style="margin-top:1rem;padding:0.5rem 1.25rem;background:#9C2007;color:white;border:none;border-radius:0.625rem;font-size:0.8rem;font-weight:700;cursor:pointer;">
+                            Try Again
+                        </button>
+                    </div>`;
+                svc.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             async function loadCaptcha() {
@@ -402,27 +440,25 @@
                 if (!answer) { showMsg('captcha-msg', 'Enter the answer.', 'error'); return; }
                 closeCaptchaModal();
                 setLoadingText('Fetching result...');
-                document.getElementById('main-track-loading').classList.remove('hidden');
                 try {
                     const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/track`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ query: _pendingQuery, captcha_id: _captchaId, answer })
                     });
-                    document.getElementById('main-track-loading').classList.add('hidden');
-                    if (res.status === 403) { showMsg('main-track-msg', 'Wrong answer.', 'error'); await loadCaptcha(); openCaptchaModal(); return; }
+                    setLoadingText(null);
+                    if (res.status === 403) { showMsg('captcha-msg', 'Wrong answer.', 'error'); await loadCaptcha(); openCaptchaModal(); return; }
                     if (res.status === 429) { window.location.href = 'login.html'; return; }
-                    if (res.status === 404) { showMsg('main-track-msg', 'Shipment not found.', 'error'); return; }
-                    if (!res.ok) { showMsg('main-track-msg', 'Something went wrong.', 'error'); return; }
+                    if (res.status === 404) { showResultMsg('Shipment not found.', 'error'); return; }
+                    if (!res.ok) { showResultMsg('Something went wrong. Please try again.', 'error'); return; }
                     showFullResult(await res.json());
                 } catch(e) {
-                    document.getElementById('main-track-loading').classList.add('hidden');
-                    showMsg('main-track-msg', 'Network error.', 'error');
+                    setLoadingText(null);
+                    showResultMsg('Network error. Please try again.', 'error');
                 }
             }
 
             async function doAuthTrack(query) {
-                document.getElementById('main-track-loading').classList.remove('hidden');
                 setLoadingText('Fetching result...');
                 try {
                     const token = getSessionId();
@@ -430,14 +466,14 @@
                     const res   = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/track?${param}=${encodeURIComponent(query)}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    document.getElementById('main-track-loading').classList.add('hidden');
+                    setLoadingText(null);
                     if (res.status === 401) { handleLogout(); return; }
-                    if (res.status === 404) { showMsg('main-track-msg', 'Shipment not found.', 'error'); return; }
-                    if (!res.ok) { showMsg('main-track-msg', 'Something went wrong.', 'error'); return; }
+                    if (res.status === 404) { showResultMsg('Shipment not found.', 'error'); return; }
+                    if (!res.ok) { showResultMsg('Something went wrong. Please try again.', 'error'); return; }
                     showFullResult(await res.json());
                 } catch(e) {
-                    document.getElementById('main-track-loading').classList.add('hidden');
-                    showMsg('main-track-msg', 'Network error.', 'error');
+                    setLoadingText(null);
+                    showResultMsg('Network error. Please try again.', 'error');
                 }
             }
 
@@ -451,9 +487,8 @@
                 } else {
                     _pendingQuery = query;
                     setLoadingText('Loading captcha...');
-                    document.getElementById('main-track-loading').classList.remove('hidden');
                     await loadCaptcha();
-                    document.getElementById('main-track-loading').classList.add('hidden');
+                    setLoadingText(null);
                     openCaptchaModal();
                 }
             }

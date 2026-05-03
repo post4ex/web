@@ -16,11 +16,11 @@ function renderTrackingResult(data, containerId) {
     const st  = STATE_BADGE[s.state] || STATE_BADGE.pending;
 
     const stateStyle = {
-        delivered:      { bg: '#059669', glow: 'rgba(5,150,105,0.25)'  },
-        outfordelivery: { bg: '#2563eb', glow: 'rgba(37,99,235,0.25)'  },
-        intransit:      { bg: '#d97706', glow: 'rgba(217,119,6,0.25)'  },
-        exception:      { bg: '#dc2626', glow: 'rgba(220,38,38,0.25)'  },
-        pending:        { bg: '#6b7280', glow: 'rgba(107,114,128,0.2)' },
+        delivered:      { bg: 'linear-gradient(135deg,#059669,#047857)', glow: 'rgba(5,150,105,0.3)'  },
+        outfordelivery: { bg: 'linear-gradient(135deg,#2563eb,#1d4ed8)', glow: 'rgba(37,99,235,0.3)'  },
+        intransit:      { bg: 'linear-gradient(135deg,#d97706,#b45309)', glow: 'rgba(217,119,6,0.3)'  },
+        exception:      { bg: 'linear-gradient(135deg,#dc2626,#b91c1c)', glow: 'rgba(220,38,38,0.3)'  },
+        pending:        { bg: 'linear-gradient(135deg,#6b7280,#4b5563)', glow: 'rgba(107,114,128,0.2)' },
     };
     const ss = stateStyle[s.state] || stateStyle.pending;
 
@@ -45,6 +45,30 @@ function renderTrackingResult(data, containerId) {
                 }
             </td>
         </tr>`).join('');
+
+    const movTable = mvs.length ? `
+        <div style="max-height:280px;overflow-y:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="background:linear-gradient(to right,#f8fafc,#f1f5f9);position:sticky;top:0;">
+                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Date</th>
+                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Time</th>
+                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Location</th>
+                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Activity</th>
+                    </tr>
+                </thead>
+                <tbody>${movRows}</tbody>
+            </table>
+        </div>` : `<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:2rem;">No movements recorded yet.</p>`;
+
+    const movCards = mvs.length ? mvs.map((m, i) => `
+        <div style="border-radius:0.75rem;padding:0.75rem 1rem;border:1px solid ${i===0?'#bfdbfe':'#e2e8f0'};background:${i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.5rem;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.25rem;">
+                <span style="font-size:0.75rem;font-weight:700;color:${i===0?'#1d4ed8':'#374151'};">${m.activity||''}</span>
+                <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;">${m.date||''} ${m.time||''}</span>
+            </div>
+            ${m.location?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">${m.location}</p>`:''}
+        </div>`).join('') : `<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem;">No movements recorded yet.</p>`;
 
     const html = `
         <div style="font-family:'Inter',sans-serif;">
@@ -87,20 +111,10 @@ function renderTrackingResult(data, containerId) {
                     </div>
                     ${mvs.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.65rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:2rem;">${mvs.length} events</span>` : ''}
                 </div>
-                ${mvs.length ? `
-                <div style="max-height:280px;overflow-y:auto;">
-                    <table style="width:100%;border-collapse:collapse;">
-                        <thead>
-                            <tr style="background:linear-gradient(to right,#f8fafc,#f1f5f9);position:sticky;top:0;">
-                                <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Date</th>
-                                <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Time</th>
-                                <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Location</th>
-                                <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Activity</th>
-                            </tr>
-                        </thead>
-                        <tbody>${movRows}</tbody>
-                    </table>
-                </div>` : `<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:2rem;">No movements recorded yet.</p>`}
+                <!-- Desktop: table -->
+                <div class="hidden sm:block">${movTable}</div>
+                <!-- Mobile: cards -->
+                <div class="sm:hidden" style="padding:0.75rem;">${movCards}</div>
             </div>
         </div>`;
 
