@@ -76,15 +76,13 @@
         /* --- DYNAMIC LAYOUT EXPANSION (CSS :has TRICK) --- */
         @media (min-width: 1024px) {
             #main-split-layout:has(#resultsContainer:not(.hidden)),
-            #main-split-layout:has(#results-container:not(.hidden)) {
-                flex-wrap: wrap; 
+            #main-split-layout.has-results {
+                flex-direction: column;
             }
             #main-split-layout:has(#resultsContainer:not(.hidden)) > div:first-child,
-            #main-split-layout:has(#results-container:not(.hidden)) > div:first-child {
-                width: 100%;
-            }
             #main-split-layout:has(#resultsContainer:not(.hidden)) > #tracking-content-area,
-            #main-split-layout:has(#results-container:not(.hidden)) > #tracking-content-area {
+            #main-split-layout.has-results > div:first-child,
+            #main-split-layout.has-results > #tracking-content-area {
                 width: 100%;
             }
         }

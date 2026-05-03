@@ -95,43 +95,64 @@
             const mvs = data.movements || [];
             const st  = STATE_BADGE[s.state] || STATE_BADGE.pending;
 
-            const movHtml = mvs.length ? mvs.map(m => `
-                <div class="flex gap-3 text-xs">
-                    <div class="flex flex-col items-center">
-                        <div class="w-2 h-2 rounded-full bg-blue-400 mt-1 shrink-0"></div>
-                        <div class="w-px flex-1 bg-gray-200"></div>
-                    </div>
-                    <div class="pb-3">
-                        <p class="font-semibold text-gray-700">${m.activity || ''}</p>
-                        <p class="text-gray-400">${m.location || ''} &nbsp;·&nbsp; ${m.date || ''} ${m.time || ''}</p>
-                    </div>
-                </div>`).join('') : '<p class="text-xs text-gray-400">No movements yet.</p>';
+            const movHtml = mvs.length ? `
+                <div class="hidden sm:block overflow-x-auto rounded-lg border border-gray-100">
+                    <table class="w-full text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 text-gray-500 uppercase">
+                                <th class="text-left py-2 px-3 border-b font-semibold w-24">Date</th>
+                                <th class="text-left py-2 px-3 border-b font-semibold">Activity</th>
+                                <th class="text-left py-2 px-3 border-b font-semibold">Location</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mvs.map((m, i) => `
+                            <tr class="${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors">
+                                <td class="py-2 px-3 border-b text-gray-500 whitespace-nowrap align-top">${m.date || ''} ${m.time || ''}</td>
+                                <td class="py-2 px-3 border-b font-medium text-gray-700 align-top">${m.activity || ''}</td>
+                                <td class="py-2 px-3 border-b text-gray-400 align-top">${m.location || ''}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="sm:hidden space-y-2">
+                    ${mvs.map((m, i) => `
+                    <div class="bg-${i === 0 ? 'blue-50 border-blue-100' : 'gray-50 border-gray-100'} border rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold text-gray-700">${m.activity || ''}</span>
+                            <span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${m.date || ''}</span>
+                        </div>
+                        ${m.location ? `<p class="text-[10px] text-gray-400 leading-tight">${m.location}</p>` : ''}
+                    </div>`).join('')}
+                </div>` : '<p class="text-xs text-gray-400 p-2">No movements yet.</p>';
 
             const html = `
                 <div class="space-y-4">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between">
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${st.bg} ${st.text}">
                             <i class="fa-solid ${st.icon}"></i> ${st.label}
                         </span>
+                        <span class="text-xs text-gray-400">${s.carrier_name || s.carrier || ''}</span>
                     </div>
-                    <div class="text-xs text-gray-500 space-y-1">
-                        ${s.carrier_name ? `<p><span class="font-semibold text-gray-700">Carrier:</span> ${s.carrier_name}</p>` : ''}
-                        ${s.carrier      ? `<p><span class="font-semibold text-gray-700">Service:</span> ${s.carrier}</p>` : ''}
-                        ${s.status_raw   ? `<p><span class="font-semibold text-gray-700">Status:</span> ${s.status_raw}</p>` : ''}
-                        ${s.origin       ? `<p><span class="font-semibold text-gray-700">Origin:</span> ${s.origin}</p>` : ''}
-                        ${s.destination  ? `<p><span class="font-semibold text-gray-700">Destination:</span> ${s.destination}</p>` : ''}
-                        ${s.booked_date  ? `<p><span class="font-semibold text-gray-700">Booked:</span> ${s.booked_date}</p>` : ''}
-                        ${s.weight       ? `<p><span class="font-semibold text-gray-700">Weight:</span> ${s.weight} kg</p>` : ''}
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        ${s.status_raw        ? `<div class="col-span-2 bg-gray-50 rounded p-2"><span class="text-gray-400">Status</span><p class="font-semibold text-gray-700 mt-0.5">${s.status_raw}</p></div>` : ''}
+                        ${s.origin            ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Origin</span><p class="font-semibold text-gray-700 mt-0.5">${s.carrier_origin || s.origin}</p></div>` : ''}
+                        ${s.destination       ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Destination</span><p class="font-semibold text-gray-700 mt-0.5">${s.carrier_destination || s.destination}</p></div>` : ''}
+                        ${s.booked_date       ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Booked</span><p class="font-semibold text-gray-700 mt-0.5">${s.booked_date}</p></div>` : ''}
+                        ${s.weight            ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Weight</span><p class="font-semibold text-gray-700 mt-0.5">${s.weight} kg · ${s.pieces || 1} pcs</p></div>` : ''}
                     </div>
                     <div>
                         <p class="text-xs font-bold text-gray-500 uppercase mb-2">Movement History</p>
-                        <div class="max-h-96 overflow-y-auto pr-1">${movHtml}</div>
+                        <div class="max-h-96 overflow-y-auto">${movHtml}</div>
                     </div>
                 </div>`;
 
             const rc = document.getElementById('resultsContainer');
             rc.innerHTML = html;
             rc.classList.remove('hidden');
+            // expand layout on main page
+            const layout = document.getElementById('main-split-layout');
+            if (layout) layout.classList.add('has-results');
         }
 
         // ── authenticated track ───────────────────────────────────────────────
