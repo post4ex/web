@@ -369,6 +369,93 @@
             </div>
 
         </div>
+        <script>
+        function updateLastUpdatedTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-IN', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            const element = document.getElementById('lastUpdatedTime');
+            if (element) element.textContent = `${timeString}`;
+        }
+        
+        function shareAwareness() {
+            const appName = window.CONSTANTS?.APP_NAME || 'Post4Ex';
+            const shareText = `Stay safe from fraud! Learn about common scams and how to protect yourself on ${appName}'s Security Awareness page.`;
+            const shareUrl = window.location.href;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: `${appName} Security Awareness`,
+                    text: shareText,
+                    url: shareUrl,
+                });
+            } else {
+                navigator.clipboard.writeText(`${shareText} ${shareUrl}`).then(() => {
+                    alert('Link copied to clipboard! Share it with friends and family.');
+                });
+            }
+        }
+        
+        function downloadChecklist() {
+            const appName = window.CONSTANTS?.APP_NAME || 'Post4Ex';
+            const checklistContent = `
+                ${appName} SECURITY CHECKLIST
+                ==========================
+                
+                ✅ VERIFY BEFORE YOU TRUST:
+                - Official ${appName} website only
+                - SSL Padlock in address bar
+                
+                ✅ PHONE CALL SAFETY:
+                - Ask for official employee ID
+                - NEVER share OTP, UPI PIN, passwords
+                - ${appName} never asks for immediate payments
+                
+                ✅ EMAIL/SMS SAFETY:
+                - Check sender is from official domain
+                - Never click suspicious links
+                - Report phishing attempts
+                
+                ✅ ACCOUNT SAFETY:
+                - Use strong, unique passwords
+                - Enable two-factor authentication
+                - Monitor account activity
+                - Log out from shared devices
+                
+                ✅ IF YOU SUSPECT FRAUD:
+                1. DO NOT share any information
+                2. Take screenshot/call recording
+                3. Note phone number/email used
+                4. Report immediately
+                5. Contact bank if payment made
+            `;
+            
+            const blob = new Blob([checklistContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${appName}-Security-Checklist.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Security checklist downloaded!');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLastUpdatedTime();
+            setInterval(updateLastUpdatedTime, 60000);
+        });
+
+        window.addEventListener('footerLoaded', () => {
+            const n = window.CONSTANTS?.APP_NAME || 'Post4Ex';
+            document.querySelectorAll('.app-name').forEach(el => el.textContent = n);
+        });
+    </script>
     </main>
 
     <!-- FRAUD REPORT MODAL -->
@@ -487,92 +574,6 @@
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
     <script src="core/layout.js"></script>
-    <script>
-        function updateLastUpdatedTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-IN', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true 
-            });
-            const element = document.getElementById('lastUpdatedTime');
-            if (element) element.textContent = `${timeString}`;
-        }
-        
-        function shareAwareness() {
-            const appName = window.CONSTANTS?.APP_NAME || 'Post4Ex';
-            const shareText = `Stay safe from fraud! Learn about common scams and how to protect yourself on ${appName}'s Security Awareness page.`;
-            const shareUrl = window.location.href;
-            
-            if (navigator.share) {
-                navigator.share({
-                    title: `${appName} Security Awareness`,
-                    text: shareText,
-                    url: shareUrl,
-                });
-            } else {
-                navigator.clipboard.writeText(`${shareText} ${shareUrl}`).then(() => {
-                    alert('Link copied to clipboard! Share it with friends and family.');
-                });
-            }
-        }
-        
-        function downloadChecklist() {
-            const appName = window.CONSTANTS?.APP_NAME || 'Post4Ex';
-            const checklistContent = `
-                ${appName} SECURITY CHECKLIST
-                ==========================
-                
-                ✅ VERIFY BEFORE YOU TRUST:
-                - Official ${appName} website only
-                - SSL Padlock in address bar
-                
-                ✅ PHONE CALL SAFETY:
-                - Ask for official employee ID
-                - NEVER share OTP, UPI PIN, passwords
-                - ${appName} never asks for immediate payments
-                
-                ✅ EMAIL/SMS SAFETY:
-                - Check sender is from official domain
-                - Never click suspicious links
-                - Report phishing attempts
-                
-                ✅ ACCOUNT SAFETY:
-                - Use strong, unique passwords
-                - Enable two-factor authentication
-                - Monitor account activity
-                - Log out from shared devices
-                
-                ✅ IF YOU SUSPECT FRAUD:
-                1. DO NOT share any information
-                2. Take screenshot/call recording
-                3. Note phone number/email used
-                4. Report immediately
-                5. Contact bank if payment made
-            `;
-            
-            const blob = new Blob([checklistContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${appName}-Security-Checklist.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            alert('Security checklist downloaded!');
-        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            updateLastUpdatedTime();
-            setInterval(updateLastUpdatedTime, 60000);
-        });
-
-        window.addEventListener('footerLoaded', () => {
-            const n = window.CONSTANTS?.APP_NAME || 'Post4Ex';
-            document.querySelectorAll('.app-name').forEach(el => el.textContent = n);
-        });
-    </script>
 </body>
 </html>

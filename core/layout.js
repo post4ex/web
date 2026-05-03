@@ -47,7 +47,8 @@ async function loadComponent(componentUrl, placeholderId) {
     }
 }
 
-const _ALLOWED_PAGES = ['tracking.html', 'services.html'];
+const _ALLOWED_PAGES = ['tracking.html', 'services.html', 'dgr.html', 'awareness.html', 'Pincode.html', 'faqs.html',
+                        'tracking', 'services', 'dgr', 'awareness', 'Pincode', 'faqs'];
 
 async function loadDynamicContent(url, targetElementId) {
     const el = document.getElementById(targetElementId);
@@ -57,7 +58,8 @@ async function loadDynamicContent(url, targetElementId) {
         const safeUrl = _ALLOWED_PAGES.find(p => p === url);
         if (!safeUrl) throw new Error(`Disallowed page: ${url}`);
         const cacheBuster = safeUrl.includes('?') ? '&' : '?';
-        const res = await fetch(`${safeUrl}${cacheBuster}v=${Date.now()}`);
+        const fetchUrl = safeUrl.replace(/\.html$/, '');
+        const res = await fetch(`${fetchUrl}${cacheBuster}v=${Date.now()}`);
         if (!res.ok) throw new Error('Load failed');
 
         const txt = await res.text();
