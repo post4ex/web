@@ -94,7 +94,8 @@ async function handleLogin(e) {
     if (pass.length < 4) return showMessage('Password is too short.', 'error');
 
     try {
-        const res = await callApi('/api/login', { username: user, password: pass });
+        const token = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+        const res = await callApi('/api/login', { username: user, password: pass, 'cf-turnstile-response': token });
         if (res.status === 'success' && res.sessionId) {
             localStorage.setItem('loginData', JSON.stringify({
                 sessionId: res.sessionId,
@@ -140,7 +141,8 @@ async function handleRegister(e) {
         if (data.PASS !== confirmPass)      return showMessage('Passwords do not match.', 'error');
 
         try {
-            await callApi('/api/initiateRegistration', data);
+            const token = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+            await callApi('/api/initiateRegistration', { ...data, 'cf-turnstile-response': token });
             document.getElementById('reg-step-1').classList.add('hidden');
             document.getElementById('reg-step-2').classList.remove('hidden');
             document.getElementById('reg-btn').textContent = 'Confirm OTP';
@@ -171,7 +173,8 @@ async function handleForgot(e) {
     if (forgotState === 'send') {
         if (!id) return showMessage('Enter Username or Email', 'error');
         try {
-            await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
+            const token = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+            await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim(), 'cf-turnstile-response': token });
             document.getElementById('forgot-step-1').classList.add('hidden');
             document.getElementById('forgot-step-2').classList.remove('hidden');
             document.getElementById('forgot-btn').textContent = 'Verify OTP';

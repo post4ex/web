@@ -219,3 +219,4 @@ const DATE_FIELDS = [
 
     window.addEventListener('footerLoaded', () => window.setTheme(appTheme));
 })();
+ 
