@@ -56,36 +56,10 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* --- TRACKING WIDGET OVERRIDES --- */
-        #tracking-content-area .sm\:flex-row {
-            flex-direction: column !important;
-            align-items: stretch !important;
-        }
-        #tracking-content-area .sm\:w-1\/4 {
-            width: 100% !important;
-        }
-        #tracking-content-area .sm\:w-auto {
-            width: 100% !important;
-        }
-
         /* --- SERVICES SLIDESHOW --- */
         #svc-viewport { overflow: hidden; }
         #svc-track { display: flex; transition: transform 0.4s ease; will-change: transform; }
         #svc-track > div { flex: 0 0 100%; }
-
-        /* --- DYNAMIC LAYOUT EXPANSION (CSS :has TRICK) --- */
-        @media (min-width: 1024px) {
-            #main-split-layout:has(#resultsContainer:not(.hidden)),
-            #main-split-layout.has-results {
-                flex-direction: column;
-            }
-            #main-split-layout:has(#resultsContainer:not(.hidden)) > div:first-child,
-            #main-split-layout:has(#resultsContainer:not(.hidden)) > #tracking-content-area,
-            #main-split-layout.has-results > div:first-child,
-            #main-split-layout.has-results > #tracking-content-area {
-                width: 100%;
-            }
-        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
@@ -106,7 +80,7 @@
             <!-- SPLIT LAYOUT CONTAINER -->
             <div id="main-split-layout" class="flex flex-col lg:flex-row gap-6 items-start">
                 
-                <!-- LEFT/TOP CONTAINER: Buttons -->
+                <!-- LEFT/TOP: Buttons -->
                 <div class="w-full lg:w-[65%] space-y-4">
                     <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 w-full">
                         
@@ -177,9 +151,39 @@
                     </div>
                 </div>
 
-                <div id="tracking-content-area" class="w-full lg:w-[35%]"></div>
+                <!-- RIGHT: Tracking Widget -->
+                <div class="w-full lg:w-[35%]">
+                    <div class="card">
+                        <div class="flex gap-2 mb-3">
+                            <input type="text" id="main-track-input" placeholder="AWB or Reference No."
+                                class="flex-1 p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 text-sm font-semibold">
+                            <button id="main-track-btn"
+                                class="px-4 py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
+                        <div id="main-track-loading" class="hidden text-center py-4">
+                            <i class="fa-solid fa-circle-notch fa-spin text-blue-800"></i>
+                        </div>
+                        <div id="main-track-msg" class="hidden p-2 rounded text-xs font-semibold text-center"></div>
+                        <div id="main-track-result" class="hidden"></div>
+                    </div>
+                </div>
             </div>
-            
+
+            <!-- RESULTS AREA (replaces services on track) -->
+            <div id="main-track-full" class="hidden">
+                <div class="card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-gray-700">Tracking Result</h3>
+                        <button id="main-track-close" class="text-gray-400 hover:text-red-500 text-sm">
+                            <i class="fa-solid fa-xmark"></i> Close
+                        </button>
+                    </div>
+                    <div id="main-track-full-result"></div>
+                </div>
+            </div>
+
             <div id="services-content-area"></div>
         </div>
     </main>
@@ -264,6 +268,28 @@
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
 
     
+    <!-- CAPTCHA MODAL -->
+    <div id="captchaModal" class="modal-overlay hidden">
+        <div class="modal-content relative" style="max-width:340px">
+            <button onclick="document.getElementById('captchaModal').classList.remove('active');setTimeout(()=>document.getElementById('captchaModal').classList.add('hidden'),300)" class="absolute top-3 right-3 text-gray-400 hover:text-red-500">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-bold text-gray-700 mb-3">Security Check</h3>
+            <div class="flex items-center gap-3 mb-3">
+                <img id="captcha-img" class="rounded border border-gray-200 h-[70px]" alt="captcha">
+                <button id="captcha-refresh" class="text-gray-400 hover:text-blue-700">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+            <input type="text" id="captcha-answer" placeholder="Enter answer" autocomplete="off" maxlength="10"
+                class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-bold tracking-widest uppercase mb-3 focus:outline-none focus:ring-2 focus:ring-blue-700">
+            <button id="captcha-submit" class="w-full py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 text-sm">
+                Submit
+            </button>
+            <div id="captcha-msg" class="hidden mt-2 p-2 rounded text-xs font-semibold text-center"></div>
+        </div>
+    </div>
+
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
@@ -271,7 +297,127 @@
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
     <script src="core/layout.js"></script>
+    <script src="jawaS/tracking.js"></script>
     <script>
+        // ============================================================================
+        // MAIN PAGE TRACKING WIDGET
+        // ============================================================================
+        (function() {
+            let _captchaId = '', _pendingQuery = '';
+            const _loggedIn = () => typeof isLoggedIn === 'function' && isLoggedIn();
+
+            function showMsg(id, text, type) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.textContent = text;
+                el.className = 'p-2 rounded text-xs font-semibold text-center';
+                if (type === 'error') el.classList.add('bg-red-100', 'text-red-700');
+                else el.classList.add('bg-blue-50', 'text-blue-700');
+                el.classList.remove('hidden');
+            }
+
+            function openCaptchaModal() {
+                const m = document.getElementById('captchaModal');
+                m.classList.remove('hidden');
+                setTimeout(() => m.classList.add('active'), 10);
+            }
+
+            function closeCaptchaModal() {
+                const m = document.getElementById('captchaModal');
+                m.classList.remove('active');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+
+            async function loadCaptcha() {
+                try {
+                    const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/captcha/generate`, { method: 'POST' });
+                    if (res.status === 429) { window.location.href = 'login.html'; return; }
+                    const data = await res.json();
+                    _captchaId = data.id;
+                    document.getElementById('captcha-img').src = data.image;
+                    document.getElementById('captcha-answer').value = '';
+                    document.getElementById('captcha-msg').classList.add('hidden');
+                } catch(e) { showMsg('captcha-msg', 'Failed to load. Try again.', 'error'); }
+            }
+
+            function showFullResult(data) {
+                const full = document.getElementById('main-track-full');
+                const svc  = document.getElementById('services-content-area');
+                if (svc)  svc.classList.add('hidden');
+                if (full) full.classList.remove('hidden');
+                if (typeof renderTrackingResult === 'function')
+                    renderTrackingResult(data, 'main-track-full-result');
+            }
+
+            async function doPublicTrack() {
+                const answer = document.getElementById('captcha-answer').value.trim();
+                if (!answer) { showMsg('captcha-msg', 'Enter the answer.', 'error'); return; }
+                closeCaptchaModal();
+                document.getElementById('main-track-loading').classList.remove('hidden');
+                try {
+                    const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/track`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: _pendingQuery, captcha_id: _captchaId, answer })
+                    });
+                    document.getElementById('main-track-loading').classList.add('hidden');
+                    if (res.status === 403) { showMsg('main-track-msg', 'Wrong answer.', 'error'); await loadCaptcha(); openCaptchaModal(); return; }
+                    if (res.status === 429) { window.location.href = 'login.html'; return; }
+                    if (res.status === 404) { showMsg('main-track-msg', 'Shipment not found.', 'error'); return; }
+                    if (!res.ok) { showMsg('main-track-msg', 'Something went wrong.', 'error'); return; }
+                    showFullResult(await res.json());
+                } catch(e) {
+                    document.getElementById('main-track-loading').classList.add('hidden');
+                    showMsg('main-track-msg', 'Network error.', 'error');
+                }
+            }
+
+            async function doAuthTrack(query) {
+                document.getElementById('main-track-loading').classList.remove('hidden');
+                try {
+                    const token = getSessionId();
+                    const param = query.match(/^\d{14}$/) ? 'ref' : 'awb';
+                    const res   = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/track?${param}=${encodeURIComponent(query)}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    document.getElementById('main-track-loading').classList.add('hidden');
+                    if (res.status === 401) { handleLogout(); return; }
+                    if (res.status === 404) { showMsg('main-track-msg', 'Shipment not found.', 'error'); return; }
+                    if (!res.ok) { showMsg('main-track-msg', 'Something went wrong.', 'error'); return; }
+                    showFullResult(await res.json());
+                } catch(e) {
+                    document.getElementById('main-track-loading').classList.add('hidden');
+                    showMsg('main-track-msg', 'Network error.', 'error');
+                }
+            }
+
+            async function startTrack() {
+                const query = document.getElementById('main-track-input').value.trim();
+                if (!query) return;
+                document.getElementById('main-track-msg').classList.add('hidden');
+                document.getElementById('main-track-result').classList.add('hidden');
+                if (_loggedIn()) {
+                    await doAuthTrack(query);
+                } else {
+                    _pendingQuery = query;
+                    await loadCaptcha();
+                    openCaptchaModal();
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('main-track-btn').addEventListener('click', startTrack);
+                document.getElementById('main-track-input').addEventListener('keypress', e => { if (e.key === 'Enter') startTrack(); });
+                document.getElementById('captcha-submit').addEventListener('click', doPublicTrack);
+                document.getElementById('captcha-answer').addEventListener('keypress', e => { if (e.key === 'Enter') doPublicTrack(); });
+                document.getElementById('captcha-refresh').addEventListener('click', loadCaptcha);
+                document.getElementById('main-track-close').addEventListener('click', () => {
+                    document.getElementById('main-track-full').classList.add('hidden');
+                    document.getElementById('services-content-area').classList.remove('hidden');
+                });
+            });
+        })();
+    </script>
         // ============================================================================
         // 1. INJECTION LOGIC (Replacer)
         // ============================================================================

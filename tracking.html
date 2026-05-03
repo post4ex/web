@@ -13,248 +13,29 @@
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
     <main class="w-full flex-grow p-4 sm:p-8">
-        <div class="container">
+        <div class="container mx-auto max-w-4xl">
             <div class="card">
+                <h2 class="text-lg font-bold text-gray-700 mb-4">Track Shipment</h2>
 
-                <!-- SEARCH ROW -->
-                <div class="flex flex-col sm:flex-row items-center gap-3 mb-4">
+                <div class="flex gap-3 mb-6">
                     <input type="text" id="searchInput" placeholder="Enter AWB or Reference Number"
-                        class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 w-full text-sm font-semibold">
+                        class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 text-sm font-semibold">
                     <button id="searchButton"
-                        class="px-6 py-3 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors w-full sm:w-auto text-sm">
+                        class="px-6 py-3 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm whitespace-nowrap">
                         <i class="fa-solid fa-magnifying-glass mr-1"></i> Track
                     </button>
                 </div>
 
-                <!-- CAPTCHA AREA -->
-                <div id="captchaArea" class="hidden mb-4">
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                        <p class="text-xs text-gray-500 font-medium">Security check — please solve the challenge below</p>
-                        <div class="flex items-center gap-3">
-                            <img id="captchaImg" class="rounded border border-gray-200 h-[70px]" alt="captcha">
-                            <button id="refreshCaptcha" class="text-gray-400 hover:text-blue-700 transition-colors" title="Refresh">
-                                <i class="fa-solid fa-rotate-right"></i>
-                            </button>
-                        </div>
-                        <input type="text" id="captchaInput" placeholder="Enter answer"
-                            autocomplete="off" maxlength="10"
-                            class="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 text-sm font-bold tracking-widest uppercase">
-                        <button id="submitTrack"
-                            class="w-full py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm">
-                            Submit
-                        </button>
-                    </div>
+                <div id="loadingIndicator" class="hidden text-center py-6">
+                    <i class="fa-solid fa-circle-notch fa-spin text-blue-800 text-2xl"></i>
+                    <p class="text-xs mt-2 text-gray-500">Fetching tracking data...</p>
                 </div>
 
-                <!-- LOADING -->
-                <div id="loadingIndicator" class="hidden text-center text-gray-500 py-4">
-                    <i class="fa-solid fa-circle-notch fa-spin text-blue-800 text-xl"></i>
-                    <p class="text-xs mt-1">Fetching tracking data...</p>
-                </div>
+                <div id="messageBox" class="hidden p-3 rounded-lg text-sm font-semibold text-center mb-4"></div>
 
-                <!-- RESULTS -->
-                <div id="resultsContainer" class="hidden space-y-4"></div>
-
-                <!-- MESSAGE -->
-                <div id="messageBox" class="hidden p-3 rounded-lg text-sm font-semibold text-center"></div>
-
+                <div id="resultsContainer" class="hidden"></div>
             </div>
         </div>
-
-        <script>
-    (function () {
-        const API = () => CONSTANTS.OPERATIONS_URL;
-
-        let _captchaId    = '';
-        let _pendingQuery = '';
-        const _loggedIn   = () => typeof isLoggedIn === 'function' && isLoggedIn();
-
-        function showMsg(text, type) {
-            const el = document.getElementById('messageBox');
-            el.textContent = text;
-            el.className = 'p-3 rounded-lg text-sm font-semibold text-center';
-            if (type === 'error')        el.classList.add('bg-red-100',   'text-red-700');
-            else if (type === 'success') el.classList.add('bg-green-100', 'text-green-700');
-            else                         el.classList.add('bg-blue-50',   'text-blue-700');
-            el.classList.remove('hidden');
-        }
-
-        function hideMsg()      { document.getElementById('messageBox').classList.add('hidden'); }
-        function showLoading(v) { document.getElementById('loadingIndicator').classList.toggle('hidden', !v); }
-
-        const STATE_BADGE = {
-            delivered:      { bg: 'bg-green-100',  text: 'text-green-700',  icon: 'fa-circle-check',         label: 'Delivered'        },
-            outfordelivery: { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: 'fa-truck',                label: 'Out for Delivery' },
-            intransit:      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-route',                label: 'In Transit'       },
-            exception:      { bg: 'bg-red-100',    text: 'text-red-700',    icon: 'fa-triangle-exclamation', label: 'Exception'        },
-            pending:        { bg: 'bg-gray-100',   text: 'text-gray-600',   icon: 'fa-clock',                label: 'Pending'          },
-        };
-
-        function renderResult(data) {
-            const s   = data.shipment || {};
-            const mvs = data.movements || [];
-            const st  = STATE_BADGE[s.state] || STATE_BADGE.pending;
-
-            const movHtml = mvs.length ? `
-                <div class="hidden sm:block overflow-x-auto rounded-lg border border-gray-100">
-                    <table class="w-full text-xs border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 text-gray-500 uppercase">
-                                <th class="text-left py-2 px-3 border-b font-semibold w-24">Date</th>
-                                <th class="text-left py-2 px-3 border-b font-semibold">Activity</th>
-                                <th class="text-left py-2 px-3 border-b font-semibold">Location</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${mvs.map((m, i) => `
-                            <tr class="${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors">
-                                <td class="py-2 px-3 border-b text-gray-500 whitespace-nowrap align-top">${m.date || ''} ${m.time || ''}</td>
-                                <td class="py-2 px-3 border-b font-medium text-gray-700 align-top">${m.activity || ''}</td>
-                                <td class="py-2 px-3 border-b text-gray-400 align-top">${m.location || ''}</td>
-                            </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="sm:hidden space-y-2">
-                    ${mvs.map((m, i) => `
-                    <div class="bg-${i === 0 ? 'blue-50 border-blue-100' : 'gray-50 border-gray-100'} border rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-bold text-gray-700">${m.activity || ''}</span>
-                            <span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${m.date || ''}</span>
-                        </div>
-                        ${m.location ? `<p class="text-[10px] text-gray-400 leading-tight">${m.location}</p>` : ''}
-                    </div>`).join('')}
-                </div>` : '<p class="text-xs text-gray-400 p-2">No movements yet.</p>';
-
-            const html = `
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${st.bg} ${st.text}">
-                            <i class="fa-solid ${st.icon}"></i> ${st.label}
-                        </span>
-                        <span class="text-xs text-gray-400">${s.carrier_name || s.carrier || ''}</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        ${s.status_raw        ? `<div class="col-span-2 bg-gray-50 rounded p-2"><span class="text-gray-400">Status</span><p class="font-semibold text-gray-700 mt-0.5">${s.status_raw}</p></div>` : ''}
-                        ${s.origin            ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Origin</span><p class="font-semibold text-gray-700 mt-0.5">${s.carrier_origin || s.origin}</p></div>` : ''}
-                        ${s.destination       ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Destination</span><p class="font-semibold text-gray-700 mt-0.5">${s.carrier_destination || s.destination}</p></div>` : ''}
-                        ${s.booked_date       ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Booked</span><p class="font-semibold text-gray-700 mt-0.5">${s.booked_date}</p></div>` : ''}
-                        ${s.weight            ? `<div class="bg-gray-50 rounded p-2"><span class="text-gray-400">Weight</span><p class="font-semibold text-gray-700 mt-0.5">${s.weight} kg · ${s.pieces || 1} pcs</p></div>` : ''}
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold text-gray-500 uppercase mb-2">Movement History</p>
-                        <div class="max-h-96 overflow-y-auto">${movHtml}</div>
-                    </div>
-                </div>`;
-
-            const rc = document.getElementById('resultsContainer');
-            rc.innerHTML = html;
-            rc.classList.remove('hidden');
-            // expand layout on main page
-            const layout = document.getElementById('main-split-layout');
-            if (layout) layout.classList.add('has-results');
-        }
-
-        // ── authenticated track ───────────────────────────────────────────────
-
-        async function doAuthTrack(query) {
-            showLoading(true);
-            try {
-                const token = getSessionId();
-                const param = query.match(/^\d{14}$/) ? 'ref' : 'awb';
-                const res   = await fetch(`${API()}/api/track?${param}=${encodeURIComponent(query)}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                showLoading(false);
-                if (res.status === 401) { handleLogout(); return; }
-                if (res.status === 404) { showMsg('Shipment not found.', 'error'); return; }
-                if (!res.ok)            { showMsg('Something went wrong.', 'error'); return; }
-                renderResult(await res.json());
-            } catch (e) {
-                showLoading(false);
-                showMsg('Network error. Please try again.', 'error');
-            }
-        }
-
-        // ── public captcha track ──────────────────────────────────────────────
-
-        async function loadCaptcha() {
-            try {
-                const res  = await fetch(`${API()}/api/public/captcha/generate`, { method: 'POST' });
-                if (res.status === 429) { window.location.href = 'login.html'; return; }
-                const data = await res.json();
-                _captchaId = data.id;
-                document.getElementById('captchaImg').src = data.image;
-                document.getElementById('captchaInput').value = '';
-                document.getElementById('captchaInput').focus();
-                document.getElementById('captchaArea').classList.remove('hidden');
-                hideMsg();
-            } catch (e) {
-                showMsg('Failed to load security check. Please try again.', 'error');
-            }
-        }
-
-        async function doPublicTrack(query) {
-            _pendingQuery = query;
-            await loadCaptcha();
-        }
-
-        async function submitCaptcha() {
-            const answer = document.getElementById('captchaInput').value.trim();
-            if (!answer) { showMsg('Please enter the captcha answer.', 'error'); return; }
-            document.getElementById('captchaArea').classList.add('hidden');
-            showLoading(true);
-            hideMsg();
-            try {
-                const res  = await fetch(`${API()}/api/public/track`, {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ query: _pendingQuery, captcha_id: _captchaId, answer }),
-                });
-                showLoading(false);
-                if (res.status === 403) { showMsg('Wrong answer. Please try again.', 'error'); await loadCaptcha(); return; }
-                if (res.status === 429) { window.location.href = 'login.html'; return; }
-                if (res.status === 404) { showMsg('Shipment not found.', 'error'); return; }
-                if (!res.ok)            { showMsg((await res.json()).detail || 'Something went wrong.', 'error'); return; }
-                renderResult(await res.json());
-            } catch (e) {
-                showLoading(false);
-                showMsg('Network error. Please try again.', 'error');
-            }
-        }
-
-        // ── entry point ───────────────────────────────────────────────────────
-
-        async function startTrack() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) { showMsg('Please enter an AWB or Reference number.', 'error'); return; }
-            document.getElementById('resultsContainer').classList.add('hidden');
-            document.getElementById('resultsContainer').innerHTML = '';
-            document.getElementById('captchaArea').classList.add('hidden');
-            hideMsg();
-            if (_loggedIn()) {
-                await doAuthTrack(query);
-            } else {
-                await doPublicTrack(query);
-            }
-        }
-
-        function init() {
-            document.getElementById('searchButton').addEventListener('click', startTrack);
-            document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') startTrack(); });
-            document.getElementById('submitTrack').addEventListener('click', submitCaptcha);
-            document.getElementById('captchaInput').addEventListener('keypress', e => { if (e.key === 'Enter') submitCaptcha(); });
-            document.getElementById('refreshCaptcha').addEventListener('click', loadCaptcha);
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    })();
-        </script>
-    </div>
     </main>
 
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
@@ -266,5 +47,6 @@
     <script src="core/app-auth.js"></script>
     <script src="indexeddb.js"></script>
     <script src="core/layout.js"></script>
+    <script src="jawaS/tracking.js"></script>
 </body>
 </html>

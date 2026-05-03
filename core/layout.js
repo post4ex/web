@@ -450,28 +450,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/main') || window.location.pathname.endsWith('/')) {
-        loadDynamicContent('tracking.html', 'tracking-content-area');
         if (window.innerWidth >= 1024) {
             loadDynamicContent('services.html', 'services-content-area');
         } else {
             if (typeof window.loadMobileServicesSlideshow === 'function') window.loadMobileServicesSlideshow();
-        }
-
-        const trackingArea = document.getElementById('tracking-content-area');
-        const servicesArea = document.getElementById('services-content-area');
-        if (trackingArea && servicesArea) {
-            const observer = new MutationObserver(() => {
-                const resultsContainer = trackingArea.querySelector('#results-container');
-                const searchButton     = trackingArea.querySelector('#tracking-search-button');
-                if (resultsContainer && resultsContainer.innerHTML.trim() !== '' && !resultsContainer.classList.contains('hidden')) {
-                    servicesArea.classList.add('hidden');
-                }
-                if (searchButton && !searchButton.hasAttribute('data-listener-added')) {
-                    searchButton.addEventListener('click', () => { if (servicesArea) servicesArea.classList.remove('hidden'); });
-                    searchButton.setAttribute('data-listener-added', 'true');
-                }
-            });
-            observer.observe(trackingArea, { childList: true, subtree: true });
         }
     }
 });
