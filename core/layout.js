@@ -69,7 +69,7 @@ async function loadDynamicContent(url, targetElementId) {
         if (content) {
             el.innerHTML = content.innerHTML;
             setTimeout(() => {
-                content.querySelectorAll('script').forEach(s => {
+                doc.body.querySelectorAll('script:not([src])').forEach(s => {
                     const ns = document.createElement('script');
                     ns.textContent = s.textContent;
                     document.body.appendChild(ns).remove();
