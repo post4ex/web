@@ -453,7 +453,7 @@
                     setLoadingText(null);
                     if (res.status === 403) {
                         const err = await res.json();
-                        if (err.detail?.id) { _captchaId = err.detail.id; document.getElementById('captcha-img').src = err.detail.image; }
+                        if (err.id) { _captchaId = err.id; document.getElementById('captcha-img').src = err.image; }
                         showMsg('captcha-msg', 'Wrong answer.', 'error');
                         openCaptchaModal();
                         return;
