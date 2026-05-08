@@ -172,8 +172,15 @@
                         <!-- Inline barcode scanner -->
                         <div id="barcode-scanner-wrap" style="display:none;position:relative;margin-bottom:0.875rem;border-radius:0.875rem;overflow:hidden;background:#000;">
                             <video id="barcode-video" muted playsinline style="width:100%;max-height:220px;object-fit:cover;display:block;"></video>
+                            <!-- scan region indicator -->
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;height:60%;border:2px solid rgba(255,255,255,0.7);border-radius:4px;pointer-events:none;">
+                                <div style="position:absolute;top:0;left:0;width:16px;height:16px;border-top:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:2px 0 0 0;"></div>
+                                <div style="position:absolute;top:0;right:0;width:16px;height:16px;border-top:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 2px 0 0;"></div>
+                                <div style="position:absolute;bottom:0;left:0;width:16px;height:16px;border-bottom:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:0 0 0 2px;"></div>
+                                <div style="position:absolute;bottom:0;right:0;width:16px;height:16px;border-bottom:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 0 2px 0;"></div>
+                            </div>
                             <button id="barcode-cancel" style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.55);border:none;border-radius:0.5rem;color:#fff;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">✕ Cancel</button>
-                            <div style="position:absolute;bottom:0.5rem;left:0;right:0;text-align:center;color:rgba(255,255,255,0.7);font-size:0.7rem;">Point camera at barcode</div>
+                            <div style="position:absolute;bottom:0.5rem;left:0;right:0;text-align:center;color:rgba(255,255,255,0.7);font-size:0.7rem;">Align barcode within the box</div>
                         </div>
 
                         <!-- Button -->

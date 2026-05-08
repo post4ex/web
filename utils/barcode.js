@@ -68,9 +68,14 @@ async function _scanZXing(video, canvas, onResult, onError) {
             if (ts - last < 150) { _rafId = requestAnimationFrame(tick); return; }
             last = ts;
             if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-                canvas.width  = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
+                // decode center 60% of frame — barcode is usually centered
+                const sw = Math.floor(video.videoWidth  * 0.6);
+                const sh = Math.floor(video.videoHeight * 0.6);
+                const sx = Math.floor((video.videoWidth  - sw) / 2);
+                const sy = Math.floor((video.videoHeight - sh) / 2);
+                canvas.width  = sw;
+                canvas.height = sh;
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
                 try {
                     const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
                     // try fast binarizer first, fall back to hybrid
@@ -95,10 +100,22 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
     stopBarcode();
     try {
         _stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+            video: {
+                facingMode: 'environment',
+                width:  { ideal: 1920 },
+                height: { ideal: 1080 },
+                focusMode:        { ideal: 'continuous' },
+                focusDistance:    { ideal: 0 },
+                zoom:             { ideal: 1 },
+            }
         });
         videoEl.srcObject = _stream;
         await videoEl.play();
+        // apply advanced constraints if supported (Android Chrome)
+        const track = _stream.getVideoTracks()[0];
+        if (track?.applyConstraints) {
+            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+        }
     } catch(e) {
         onError('Camera access denied.');
         return;
