@@ -10,11 +10,9 @@ const ZXING_CDN = '/utils/zxing-browser.min.js';
 
 let _rafId = null;
 let _stream = null;
-let _zxingReader = null;
 
 export function stopBarcode() {
     if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
-    if (_zxingReader) { try { _zxingReader.reset(); } catch(_) {} _zxingReader = null; }
     if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
 }
 
@@ -49,16 +47,38 @@ async function _scanNative(video, canvas, onResult) {
     _rafId = requestAnimationFrame(tick);
 }
 
-async function _scanZXing(video, onResult, onError) {
+async function _scanZXing(video, canvas, onResult, onError) {
     try {
         const ZXing = await _loadZXing();
-        _zxingReader = new ZXing.BrowserMultiFormatReader();
-        await _zxingReader.decodeFromVideoElement(video, (result, err) => {
-            if (result) { stopBarcode(); onResult(result.getText()); }
-            // err here is just "not found yet" on each frame — not a fatal error
-        });
+        const reader = new ZXing.MultiFormatReader();
+        const hints  = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+            ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+            ZXing.BarcodeFormat.QR_CODE,  ZXing.BarcodeFormat.EAN_13,
+            ZXing.BarcodeFormat.EAN_8,    ZXing.BarcodeFormat.ITF,
+            ZXing.BarcodeFormat.PDF_417,  ZXing.BarcodeFormat.DATA_MATRIX,
+        ]);
+        reader.setHints(hints);
+        const ctx = canvas.getContext('2d');
+
+        const tick = () => {
+            if (!_stream) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width  = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                try {
+                    const lum    = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+                    const bmp    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+                    const result = reader.decode(bmp);
+                    if (result) { stopBarcode(); onResult(result.getText()); return; }
+                } catch(_) {} // NotFoundException on every empty frame — expected
+            }
+            _rafId = requestAnimationFrame(tick);
+        };
+        _rafId = requestAnimationFrame(tick);
     } catch(e) {
-        onError('Camera access denied or scanner unavailable.');
+        onError('Barcode scanner unavailable.');
     }
 }
 
@@ -78,6 +98,6 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
     if ('BarcodeDetector' in window) {
         _scanNative(videoEl, canvas, onResult);
     } else {
-        _scanZXing(videoEl, onResult, onError);
+        _scanZXing(videoEl, canvas, onResult, onError);
     }
 }
