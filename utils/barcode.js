@@ -6,7 +6,6 @@
 // ============================================================================
 
 const BARCODE_FORMATS = ['code_128', 'code_39', 'qr_code', 'ean_13', 'ean_8', 'itf', 'pdf417', 'data_matrix'];
-const ZXING_CDN = '/utils/zxing-browser.min.js';
 
 let _rafId = null;
 let _stream = null;
@@ -20,7 +19,7 @@ async function _loadZXing() {
     if (window.ZXing) return window.ZXing;
     await new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = ZXING_CDN;
+        s.src = new URL('zxing-browser.min.js', import.meta.url).href;
         s.onload = res; s.onerror = rej;
         document.head.appendChild(s);
     });
