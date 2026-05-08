@@ -4,20 +4,57 @@
 
 let currentView = 'login', regState = 'init', forgotState = 'send', resetToken = '';
 
+// ── Captcha ──────────────────────────────────────────────────────────────────
+let _captchaResolve = null;
+
+function _showCaptcha(imgSrc, isWrong = false) {
+    document.getElementById('captcha-img').src = imgSrc;
+    document.getElementById('captcha-answer').value = '';
+    document.getElementById('captcha-msg').classList.toggle('hidden', !isWrong);
+    document.getElementById('captcha-modal').classList.remove('hidden');
+    document.getElementById('captcha-answer').focus();
+}
+
+function _hideCaptcha() {
+    document.getElementById('captcha-modal').classList.add('hidden');
+}
+
+function _waitForCaptcha(imgSrc, isWrong = false) {
+    _showCaptcha(imgSrc, isWrong);
+    return new Promise(resolve => { _captchaResolve = resolve; });
+}
+
 async function callApi(endpoint, payload = {}) {
     setLoading(true, 'Connecting...');
+    let captchaId = null;
     try {
-        const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload)
+        // Step 1 — initial request (no captcha)
+        let res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
-        const json = await res.json();
+        let json = await res.json();
         setLoading(false);
+
+        // Captcha challenge loop
+        while (json.id && json.image) {
+            captchaId = json.id;
+            const answer = await _waitForCaptcha(json.image, res.status === 403);
+            _hideCaptcha();
+            setLoading(true, 'Verifying...');
+            res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, captcha_id: captchaId, answer })
+            });
+            json = await res.json();
+            setLoading(false);
+        }
+
         if (json.status === 'error') throw new Error(json.message);
         return json;
     } catch (err) {
         setLoading(false);
+        _hideCaptcha();
         let msg = err.message;
         if (msg.includes('Blocked')) msg = '⚠️ Account Blocked (Suspicious Activity)';
         showMessage(msg, 'error');
@@ -94,7 +131,7 @@ async function handleLogin(e) {
     if (pass.length < 4) return showMessage('Password is too short.', 'error');
 
     try {
-        const res = await callApi('/api/login', { username: user, password: pass });
+        const res = await callApi('/api/public/login', { username: user, password: pass });
         if (res.status === 'success' && res.sessionId) {
             localStorage.setItem('loginData', JSON.stringify({
                 sessionId: res.sessionId,
@@ -140,7 +177,7 @@ async function handleRegister(e) {
         if (data.PASS !== confirmPass)      return showMessage('Passwords do not match.', 'error');
 
         try {
-            await callApi('/api/initiateRegistration', { ...data });
+            await callApi('/api/public/initiateRegistration', { ...data });
             document.getElementById('reg-step-1').classList.add('hidden');
             document.getElementById('reg-step-2').classList.remove('hidden');
             document.getElementById('reg-btn').textContent = 'Confirm OTP';
@@ -151,7 +188,7 @@ async function handleRegister(e) {
             const otp   = document.getElementById('reg-otp').value.trim();
             const email = document.getElementById('reg-email').value.trim().toLowerCase();
             if (!otp) return showMessage('Enter OTP.', 'error');
-            await callApi('/api/confirmRegistration', { email, otp });
+            await callApi('/api/public/confirmRegistration', { email, otp });
             showMessage('Registration submitted! Awaiting admin approval.', 'success');
             setTimeout(() => switchView('login'), 3000);
         } catch (err) {}
@@ -180,11 +217,9 @@ async function handleForgot(e) {
 
     } else if (forgotState === 'verify') {
         try {
-            const formData = new FormData();
-            formData.append('identifier', id);
-            formData.append('otp', document.getElementById('forgot-otp').value.trim());
+            const otp = document.getElementById('forgot-otp').value.trim();
             setLoading(true, 'Verifying...');
-            const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/verifyResetOtp`, { method: 'POST', body: formData }).then(r => r.json());
+            const res = await callApi('/api/public/verifyResetOtp', { identifier: id, otp });
             setLoading(false);
             if (res.detail) { showMessage(res.detail, 'error'); return; }
             resetToken = res.token;
@@ -200,7 +235,7 @@ async function handleForgot(e) {
             const newPass = document.getElementById('forgot-newpass').value.trim();
             if (newPass.length < 8)     return showMessage('Password must be at least 8 characters.', 'error');
             if (!/[A-Z]/.test(newPass)) return showMessage('Password must contain at least one uppercase letter.', 'error');
-            await callApi('/api/resetPass', { identifier: id, token: resetToken, newPassword: newPass });
+            await callApi('/api/public/resetPass', { identifier: id, token: resetToken, newPassword: newPass });
             showMessage('Password Reset!', 'success');
             setTimeout(() => switchView('login'), 2000);
         } catch (err) {}
@@ -251,6 +286,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('form-register').addEventListener('submit', handleRegister);
     document.getElementById('form-forgot').addEventListener('submit',   handleForgot);
     document.getElementById('form-kyc').addEventListener('submit',      handleKYCSubmit);
+
+    // Captcha modal
+    document.getElementById('captcha-submit').addEventListener('click', () => {
+        const answer = document.getElementById('captcha-answer').value.trim();
+        if (!answer) return;
+        if (_captchaResolve) { _captchaResolve(answer); _captchaResolve = null; }
+    });
+    document.getElementById('captcha-answer').addEventListener('keypress', e => {
+        if (e.key === 'Enter') document.getElementById('captcha-submit').click();
+    });
+    document.getElementById('captcha-refresh').addEventListener('click', async () => {
+        // re-trigger by resolving with empty — callApi will get a fresh captcha on next request
+        // instead, fetch a fresh captcha from the same endpoint with no payload
+        try {
+            const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+            const data = await res.json();
+            if (data.id && data.image) { document.getElementById('captcha-img').src = data.image; document.getElementById('captcha-answer').value = ''; }
+        } catch (_) {}
+    });
 
     document.querySelectorAll('.toggle-password').forEach(btn => {
         btn.addEventListener('click', function () {
