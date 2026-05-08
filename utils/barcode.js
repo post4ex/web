@@ -48,10 +48,11 @@ async function _scanNative(video, canvas, onResult) {
 }
 
 async function _scanZXing(video, canvas, onResult, onError) {
+    let reader;
     try {
         const ZXing = await _loadZXing();
-        const reader = new ZXing.MultiFormatReader();
-        const hints  = new Map();
+        reader = new ZXing.MultiFormatReader();
+        const hints = new Map();
         hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
             ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
             ZXing.BarcodeFormat.QR_CODE,  ZXing.BarcodeFormat.EAN_13,
@@ -63,7 +64,7 @@ async function _scanZXing(video, canvas, onResult, onError) {
 
         const tick = () => {
             if (!_stream) return;
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
                 canvas.width  = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
@@ -78,7 +79,8 @@ async function _scanZXing(video, canvas, onResult, onError) {
         };
         _rafId = requestAnimationFrame(tick);
     } catch(e) {
-        onError('Barcode scanner unavailable.');
+        console.error('[barcode] ZXing init failed:', e);
+        onError('Scanner error: ' + (e?.message || String(e)));
     }
 }
 
