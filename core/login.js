@@ -190,7 +190,7 @@ async function handleRegister(e) {
             const otp   = document.getElementById('reg-otp').value.trim();
             const email = document.getElementById('reg-email').value.trim().toLowerCase();
             if (!otp) return showMessage('Enter OTP.', 'error');
-            const { json } = await callApi('/api/public/confirmRegistration', { email, otp });
+            const { json } = await callApi('/api/confirmRegistration', { email, otp });
             showMessage('Registration submitted! Awaiting admin approval.', 'success');
             setTimeout(() => switchView('login'), 3000);
         } catch (err) {}
@@ -225,7 +225,7 @@ async function handleForgot(e) {
         try {
             const otp = document.getElementById('forgot-otp').value.trim();
             setLoading(true, 'Verifying...');
-            const { json } = await callApi('/api/public/verifyResetOtp', { identifier: id, otp });
+            const { json } = await callApi('/api/verifyResetOtp', { identifier: id, otp });
             setLoading(false);
             if (json.detail) { showMessage(json.detail, 'error'); return; }
             resetToken = json.token;
@@ -241,7 +241,7 @@ async function handleForgot(e) {
             const newPass = document.getElementById('forgot-newpass').value.trim();
             if (newPass.length < 8)     return showMessage('Password must be at least 8 characters.', 'error');
             if (!/[A-Z]/.test(newPass)) return showMessage('Password must contain at least one uppercase letter.', 'error');
-            await callApi('/api/public/resetPass', { identifier: id, token: resetToken, newPassword: newPass });
+            await callApi('/api/resetPass', { identifier: id, token: resetToken, newPassword: newPass });
             showMessage('Password Reset!', 'success');
             setTimeout(() => switchView('login'), 2000);
         } catch (err) {}
