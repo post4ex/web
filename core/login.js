@@ -208,7 +208,7 @@ async function handleForgot(e) {
     if (forgotState === 'send') {
         if (!id) return showMessage('Enter Username or Email', 'error');
         try {
-            await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
+            await callApi('/api/public/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
             document.getElementById('forgot-step-1').classList.add('hidden');
             document.getElementById('forgot-step-2').classList.remove('hidden');
             document.getElementById('forgot-btn').textContent = 'Verify OTP';
