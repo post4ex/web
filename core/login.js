@@ -3,31 +3,6 @@
 // ============================================================================
 
 let currentView = 'login', regState = 'init', forgotState = 'send', resetToken = '';
-let _turnstileToken = '', _turnstileResolve = null;
-
-function onTurnstileSuccess(token) {
-    _turnstileToken = token;
-    if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
-}
-
-function onTurnstileExpired() {
-    _turnstileToken = '';
-    if (typeof turnstile !== 'undefined') turnstile.reset();
-}
-
-function onTurnstileError() { onTurnstileExpired(); }
-
-async function getTurnstileToken() {
-    if (_turnstileToken) {
-        const t = _turnstileToken;
-        _turnstileToken = '';
-        if (typeof turnstile !== 'undefined') turnstile.reset();
-        return t;
-    }
-    return new Promise((resolve) => {
-        _turnstileResolve = resolve;
-    });
-}
 
 async function callApi(endpoint, payload = {}) {
     setLoading(true, 'Connecting...');
@@ -119,8 +94,7 @@ async function handleLogin(e) {
     if (pass.length < 4) return showMessage('Password is too short.', 'error');
 
     try {
-        const token = await getTurnstileToken();
-        const res = await callApi('/api/login', { username: user, password: pass, 'cf-turnstile-response': token });
+        const res = await callApi('/api/login', { username: user, password: pass });
         if (res.status === 'success' && res.sessionId) {
             localStorage.setItem('loginData', JSON.stringify({
                 sessionId: res.sessionId,
@@ -166,8 +140,7 @@ async function handleRegister(e) {
         if (data.PASS !== confirmPass)      return showMessage('Passwords do not match.', 'error');
 
         try {
-            const token = await getTurnstileToken();
-            await callApi('/api/initiateRegistration', { ...data, 'cf-turnstile-response': token });
+            await callApi('/api/initiateRegistration', { ...data });
             document.getElementById('reg-step-1').classList.add('hidden');
             document.getElementById('reg-step-2').classList.remove('hidden');
             document.getElementById('reg-btn').textContent = 'Confirm OTP';
@@ -198,8 +171,7 @@ async function handleForgot(e) {
     if (forgotState === 'send') {
         if (!id) return showMessage('Enter Username or Email', 'error');
         try {
-            const token = await getTurnstileToken();
-            await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim(), 'cf-turnstile-response': token });
+            await callApi('/api/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
             document.getElementById('forgot-step-1').classList.add('hidden');
             document.getElementById('forgot-step-2').classList.remove('hidden');
             document.getElementById('forgot-btn').textContent = 'Verify OTP';
