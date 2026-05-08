@@ -409,7 +409,7 @@
                     if (res.status === 429) { window.location.href = 'login.html'; return; }
                     const data = await res.json();
                     _captchaId = data.id;
-                    document.getElementById('captcha-img').src = data.image;
+                    document.getElementById('captcha-img').src = data.image + '?t=' + Date.now();
                     document.getElementById('captcha-answer').value = '';
                     document.getElementById('captcha-msg').classList.add('hidden');
                 } catch(e) { showMsg('captcha-msg', 'Failed to load. Try again.', 'error'); }
@@ -453,7 +453,7 @@
                     setLoadingText(null);
                     if (res.status === 403) {
                         const err = await res.json();
-                        if (err.id) { _captchaId = err.id; document.getElementById('captcha-img').src = err.image; }
+                        if (err.id) { _captchaId = err.id; document.getElementById('captcha-img').src = err.image + '?t=' + Date.now(); }
                         showMsg('captcha-msg', 'Wrong answer.', 'error');
                         openCaptchaModal();
                         return;
