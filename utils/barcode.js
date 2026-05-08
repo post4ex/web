@@ -58,21 +58,29 @@ async function _scanZXing(video, canvas, onResult, onError) {
             ZXing.BarcodeFormat.EAN_8,    ZXing.BarcodeFormat.ITF,
             ZXing.BarcodeFormat.PDF_417,  ZXing.BarcodeFormat.DATA_MATRIX,
         ]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
         reader.setHints(hints);
         const ctx = canvas.getContext('2d');
+        let last = 0;
 
-        const tick = () => {
+        const tick = (ts) => {
             if (!_stream) return;
+            if (ts - last < 150) { _rafId = requestAnimationFrame(tick); return; }
+            last = ts;
             if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
                 canvas.width  = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
                 try {
-                    const lum    = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-                    const bmp    = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
-                    const result = reader.decode(bmp);
-                    if (result) { stopBarcode(); onResult(result.getText()); return; }
-                } catch(_) {} // NotFoundException on every empty frame — expected
+                    const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+                    // try fast binarizer first, fall back to hybrid
+                    for (const Bin of [ZXing.GlobalHistogramBinarizer, ZXing.HybridBinarizer]) {
+                        try {
+                            const result = reader.decode(new ZXing.BinaryBitmap(new Bin(lum)));
+                            if (result) { stopBarcode(); onResult(result.getText()); return; }
+                        } catch(_) {}
+                    }
+                } catch(_) {}
             }
             _rafId = requestAnimationFrame(tick);
         };
@@ -86,7 +94,9 @@ async function _scanZXing(video, canvas, onResult, onError) {
 export async function scanBarcode(videoEl, onResult, onError = console.error) {
     stopBarcode();
     try {
-        _stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        _stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
         videoEl.srcObject = _stream;
         await videoEl.play();
     } catch(e) {
