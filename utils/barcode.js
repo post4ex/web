@@ -53,11 +53,12 @@ async function _scanZXing(video, onResult, onError) {
     try {
         const ZXing = await _loadZXing();
         _zxingReader = new ZXing.BrowserMultiFormatReader();
-        _zxingReader.decodeFromVideoElement(video, (result, err) => {
+        await _zxingReader.decodeFromVideoElement(video, (result, err) => {
             if (result) { stopBarcode(); onResult(result.getText()); }
+            // err here is just "not found yet" on each frame — not a fatal error
         });
     } catch(e) {
-        onError('Barcode scanner unavailable.');
+        onError('Camera access denied or scanner unavailable.');
     }
 }
 

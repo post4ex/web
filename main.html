@@ -416,8 +416,7 @@
                     if (res.status === 429) { window.location.href = 'login.html'; return; }
                     const data = await res.json();
                     _captchaId = data.id;
-                    const imgSrc = data.image.startsWith('http') ? data.image : `${CONSTANTS.OPERATIONS_URL}${data.image}`;
-                    document.getElementById('captcha-img').src = imgSrc + '?t=' + Date.now();
+                    document.getElementById('captcha-img').src = data.image;
                     document.getElementById('captcha-answer').value = '';
                     document.getElementById('captcha-msg').classList.add('hidden');
                 } catch(e) { showMsg('captcha-msg', 'Failed to load. Try again.', 'error'); }
@@ -463,8 +462,7 @@
                         const err = await res.json();
                         if (err.id) {
                             _captchaId = err.id;
-                            const imgSrc = err.image.startsWith('http') ? err.image : `${CONSTANTS.OPERATIONS_URL}${err.image}`;
-                            document.getElementById('captcha-img').src = imgSrc + '?t=' + Date.now();
+                            document.getElementById('captcha-img').src = err.image;
                         }
                         showMsg('captcha-msg', 'Wrong answer.', 'error');
                         openCaptchaModal();
