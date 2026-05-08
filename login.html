@@ -65,6 +65,17 @@
                         <button id="login-btn" type="submit" class="w-full py-2.5 bg-blue-900 text-white font-bold rounded-lg hover:bg-blue-800 transition-all shadow-md text-sm tracking-wide">
                             LOG IN
                         </button>
+
+                        <!-- INLINE CAPTCHA -->
+                        <div id="login-captcha" class="hidden space-y-2">
+                            <div class="flex items-center gap-2">
+                                <img id="login-captcha-img" src="" alt="captcha" class="rounded border border-gray-200 h-12 flex-1">
+                                <button type="button" id="login-captcha-refresh" class="text-gray-400 hover:text-blue-800 text-lg px-2">↻</button>
+                            </div>
+                            <input id="login-captcha-answer" type="text" placeholder="Enter captcha answer" autocomplete="off"
+                                class="w-full px-3 py-2 border-b-2 border-gray-300 focus:border-blue-800 focus:outline-none text-sm font-semibold tracking-widest text-center">
+                            <p id="login-captcha-msg" class="text-xs text-red-600 hidden text-center">Wrong answer, try again.</p>
+                        </div>
                     </form>
                     <div class="mt-6 text-center text-xs text-gray-600">
                         Don't have an account? <button onclick="switchView('register')" class="text-blue-600 font-bold hover:underline">Register Now</button>
@@ -124,6 +135,17 @@
                         <button type="submit" id="reg-btn" class="w-full py-2 bg-green-700 text-white font-bold rounded hover:bg-green-800 transition-all shadow text-sm mt-2">
                             Send OTP
                         </button>
+
+                        <!-- INLINE CAPTCHA (step 1 only) -->
+                        <div id="reg-captcha" class="hidden space-y-2">
+                            <div class="flex items-center gap-2">
+                                <img id="reg-captcha-img" src="" alt="captcha" class="rounded border border-gray-200 h-12 flex-1">
+                                <button type="button" id="reg-captcha-refresh" class="text-gray-400 hover:text-blue-800 text-lg px-2">↻</button>
+                            </div>
+                            <input id="reg-captcha-answer" type="text" placeholder="Enter captcha answer" autocomplete="off"
+                                class="w-full px-3 py-2 border-b-2 border-gray-300 focus:border-blue-800 focus:outline-none text-sm font-semibold tracking-widest text-center">
+                            <p id="reg-captcha-msg" class="text-xs text-red-600 hidden text-center">Wrong answer, try again.</p>
+                        </div>
                     </form>
                     <div class="mt-3 text-center">
                         <button onclick="switchView('login')" class="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
@@ -203,6 +225,17 @@
                         <button type="submit" id="forgot-btn" class="w-full py-2 bg-orange-600 text-white font-bold rounded hover:bg-orange-700 transition-all shadow text-sm mt-2">
                             Request OTP
                         </button>
+
+                        <!-- INLINE CAPTCHA (step 1 only) -->
+                        <div id="forgot-captcha" class="hidden space-y-2">
+                            <div class="flex items-center gap-2">
+                                <img id="forgot-captcha-img" src="" alt="captcha" class="rounded border border-gray-200 h-12 flex-1">
+                                <button type="button" id="forgot-captcha-refresh" class="text-gray-400 hover:text-blue-800 text-lg px-2">↻</button>
+                            </div>
+                            <input id="forgot-captcha-answer" type="text" placeholder="Enter captcha answer" autocomplete="off"
+                                class="w-full px-3 py-2 border-b-2 border-gray-300 focus:border-blue-800 focus:outline-none text-sm font-semibold tracking-widest text-center">
+                            <p id="forgot-captcha-msg" class="text-xs text-red-600 hidden text-center">Wrong answer, try again.</p>
+                        </div>
                     </form>
                     <div class="mt-4 text-center">
                         <button onclick="switchView('login')" class="text-xs text-gray-500 hover:text-gray-800">Back to Login</button>
@@ -238,21 +271,6 @@
 
     <!-- FOOTER INJECTION POINT -->
     <div id="footer-placeholder" class="mt-auto" style="min-height:48px"><div class="animate-pulse bg-gray-200 h-12 w-full"></div></div>
-
-    <!-- CAPTCHA MODAL -->
-    <div id="captcha-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 w-80 flex flex-col items-center gap-4">
-            <p class="text-sm font-bold text-gray-700">Verify you're human</p>
-            <img id="captcha-img" src="" alt="captcha" class="rounded border border-gray-200 w-full">
-            <input id="captcha-answer" type="text" placeholder="Enter answer" autocomplete="off"
-                class="w-full px-3 py-2 border-b-2 border-gray-300 focus:border-blue-800 focus:outline-none text-center text-lg font-bold tracking-widest">
-            <p id="captcha-msg" class="text-xs text-red-600 hidden">Wrong answer, try again.</p>
-            <div class="flex gap-3 w-full">
-                <button id="captcha-refresh" class="flex-1 py-2 text-xs text-gray-500 border border-gray-200 rounded hover:bg-gray-50">↻ Refresh</button>
-                <button id="captcha-submit" class="flex-1 py-2 bg-blue-900 text-white text-sm font-bold rounded hover:bg-blue-800">Submit</button>
-            </div>
-        </div>
-    </div>
 
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
