@@ -6,7 +6,7 @@
 // ============================================================================
 
 const BARCODE_FORMATS = ['code_128', 'code_39', 'qr_code', 'ean_13', 'ean_8', 'itf', 'pdf417', 'data_matrix'];
-const ZXING_CDN = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js';
+const ZXING_CDN = '/utils/zxing-browser.min.js';
 
 let _rafId = null;
 let _stream = null;
@@ -19,14 +19,14 @@ export function stopBarcode() {
 }
 
 async function _loadZXing() {
-    if (window.ZXingBrowser) return window.ZXingBrowser;
+    if (window.ZXing) return window.ZXing;
     await new Promise((res, rej) => {
         const s = document.createElement('script');
         s.src = ZXING_CDN;
         s.onload = res; s.onerror = rej;
         document.head.appendChild(s);
     });
-    return window.ZXingBrowser;
+    return window.ZXing;
 }
 
 async function _scanNative(video, canvas, onResult) {
