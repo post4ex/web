@@ -17,11 +17,12 @@ export function stopBarcode() {
 
 async function _loadZBar() {
     if (window._zbarScan) return window._zbarScan;
+    const zbarUrl = new URL('zbar.js', import.meta.url).href;
     await new Promise((res, rej) => {
         const s = document.createElement('script');
         s.type = 'module';
         s.textContent = `
-            import { scanImageData } from '${new URL('zbar.js', import.meta.url).href}';
+            import { scanImageData } from '${zbarUrl}';
             window._zbarScan = scanImageData;
             window.dispatchEvent(new Event('zbar-ready'));
         `;
