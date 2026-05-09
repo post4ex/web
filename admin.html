@@ -7,63 +7,134 @@
     <link href="style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <style>
+        /* ── Shared ── */
         .modal-overlay { position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center; }
         .modal-overlay.hidden { display:none; }
         .modal-content { background:#fff;border-radius:.5rem;padding:1.5rem;width:100%;max-width:32rem;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto; }
-        #userList li { padding:.75rem;border-radius:.5rem;cursor:pointer;transition:background-color .2s;border:1px solid #e5e7eb; }
-        #userList li:hover { background-color:#eef2ff; }
         .form-input { border-radius:.375rem;border:1px solid #d1d5db;padding:.5rem .75rem;font-size:.875rem;width:100%;transition:border-color .2s; }
         .form-input:focus { outline:none;border-color:#4f46e5;box-shadow:0 0 0 1px #4f46e5; }
-        .tab-btn { padding:.5rem 1rem;border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-indigo-600 cursor-pointer; }
-        .tab-btn.border-indigo-600 { color:#4f46e5; }
+
+        /* ── Tiles view ── */
+        #tilesView { display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:2rem 1rem; }
+        .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;width:100%;max-width:900px; }
+        .tile { background:#fff;border-radius:.75rem;padding:1.5rem 1rem;text-align:center;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .15s; }
+        .tile:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12); }
+        .tile-icon { font-size:2rem;margin-bottom:.5rem; }
+        .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
+        .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
+
+        /* ── Split view (Shipments-style) ── */
+        #splitView { display:none;flex:1;overflow:hidden; }
+        #splitView.active { display:flex; }
+
+        /* Left pane */
+        #adminListPane { width:100%;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden; }
+        @media(min-width:768px){ #adminListPane { width:33.333%; } }
+        @media(min-width:1024px){ #adminListPane { width:25%; } }
+
+        #adminList li { padding:.75rem;border-radius:.5rem;cursor:pointer;transition:background-color .2s;border:1px solid #e5e7eb;line-height:1.4; }
+        #adminList li.selected { background-color:#e0e7ff;border-color:#c7d2fe; }
+        #adminList li:hover { background-color:#eef2ff; }
+        #adminList li strong { color:#4338ca;display:block;font-size:.875rem;font-weight:600; }
+
+        /* Right pane */
+        #adminDetailPane { flex:1;overflow-y:auto;background:#f9fafb;padding:1.5rem 2rem; }
+        @media(max-width:767px){ #adminDetailPane { display:none; } }
+        #adminDetailPane.mobile-show { display:block; }
+
+        /* Detail card */
+        .detail-card { background:#fff;border-radius:.5rem;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.05); }
+        .detail-card-header { padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#f9fafb;border-radius:.5rem .5rem 0 0; }
+        .detail-card-body { padding:1rem; }
     </style>
 </head>
-<body class="bg-gray-100 flex flex-col">
+<body class="bg-gray-100 flex flex-col" style="height:100vh;overflow:hidden;">
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <div class="flex w-full" style="height:calc(100vh - 56px);">
+    <div class="flex flex-col flex-1 overflow-hidden">
 
-        <!-- Left Pane -->
-        <aside class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col" style="height:100%;overflow:hidden;">
-            <div class="p-4 border-b bg-white sticky top-0 z-10">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-lg font-bold text-gray-800">Admin</h2>
-                    <button id="addUserBtn" class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">+ Add User</button>
+        <!-- ── TILES VIEW (shown first) ───────────────────────────────────── -->
+        <div id="tilesView">
+            <div class="w-full max-w-900px mb-4 flex items-center gap-3" style="max-width:900px;">
+                <h1 class="text-2xl font-bold text-gray-800 flex-1">Admin Panel</h1>
+            </div>
+            <div class="tile-grid">
+                <div class="tile" data-tile="users" style="border-color:#e0e7ff;">
+                    <div class="tile-icon">👥</div>
+                    <div class="tile-count text-indigo-700" id="cnt-users">…</div>
+                    <div class="tile-label">Users</div>
                 </div>
-                <!-- Tabs -->
-                <div class="flex border-b">
-                    <button class="tab-btn border-indigo-600 text-indigo-600" data-tab="users">Users</button>
-                    <button class="tab-btn" data-tab="registrations">Registrations</button>
+                <div class="tile" data-tile="registrations" style="border-color:#fef3c7;">
+                    <div class="tile-icon">📋</div>
+                    <div class="tile-count text-amber-600" id="cnt-registrations">…</div>
+                    <div class="tile-label">Registrations</div>
+                </div>
+                <div class="tile" data-tile="branches" style="border-color:#d1fae5;">
+                    <div class="tile-icon">🏢</div>
+                    <div class="tile-count text-green-700" id="cnt-branches">…</div>
+                    <div class="tile-label">Branches</div>
+                </div>
+                <div class="tile" data-tile="staff" style="border-color:#dbeafe;">
+                    <div class="tile-icon">🧑‍💼</div>
+                    <div class="tile-count text-blue-700" id="cnt-staff">…</div>
+                    <div class="tile-label">Staff</div>
+                </div>
+                <div class="tile" data-tile="attendance" style="border-color:#dcfce7;"><div class="tile-icon">🕐</div><div class="tile-count text-green-700" id="cnt-attendance">…</div><div class="tile-label">Attendance</div></div>
+                <div class="tile" data-tile="pincodes" style="border-color:#f3f4f6;">
+                    <div class="tile-icon">📍</div>
+                    <div class="tile-count text-gray-500" id="cnt-pincodes">—</div>
+                    <div class="tile-label">Pincodes</div>
+                </div>
+                <div class="tile" data-tile="clients" style="border-color:#ede9fe;">
+                    <div class="tile-icon">🤝</div>
+                    <div class="tile-count text-purple-700" id="cnt-clients">…</div>
+                    <div class="tile-label">Clients</div>
+                </div>
+                <div class="tile" data-tile="b2b2c" style="border-color:#ffe4e6;">
+                    <div class="tile-icon">🛍️</div>
+                    <div class="tile-count text-rose-700" id="cnt-b2b2c">…</div>
+                    <div class="tile-label">B2B2C</div>
                 </div>
             </div>
+        </div>
 
-            <!-- Users panel -->
-            <div data-panel="users" class="flex flex-col flex-grow overflow-hidden">
-                <div class="p-3 border-b">
-                    <input id="searchUsers" type="text" placeholder="Search users..." class="form-input text-sm">
-                </div>
-                <div class="overflow-y-auto flex-grow min-h-0 p-3">
-                    <p id="user-status-msg" class="text-gray-500 text-sm text-center py-4">Loading...</p>
-                    <ul id="userList" class="space-y-2"></ul>
-                </div>
-            </div>
+        <!-- ── SPLIT VIEW (Shipments-style, shown after tile click) ──────── -->
+        <div id="splitView">
 
-            <!-- Registrations panel -->
-            <div data-panel="registrations" class="hidden flex-col flex-grow overflow-hidden">
-                <div class="overflow-y-auto flex-grow min-h-0 p-3 space-y-3">
-                    <p id="reg-status-msg" class="text-gray-500 text-sm text-center py-4"></p>
-                    <div id="regList"></div>
+            <!-- Left: list pane -->
+            <aside id="adminListPane">
+                <div class="p-4 border-b sticky top-0 bg-white z-10">
+                    <div class="flex items-center gap-2 mb-3">
+                        <button id="backToTilesBtn" class="text-gray-400 hover:text-gray-700 p-1 rounded" title="Back to tiles">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        </button>
+                        <h2 id="splitTitle" class="text-lg font-bold text-gray-800 flex-1"></h2>
+                        <button id="addUserBtn" class="hidden px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">+ Add</button>
+                    </div>
+                    <input id="listSearch" type="text" placeholder="Search…" class="form-input text-sm">
                 </div>
-            </div>
-        </aside>
+                <div class="overflow-y-auto flex-1 min-h-0 p-3">
+                    <p id="listMsg" class="text-gray-400 text-sm text-center py-8"></p>
+                    <ul id="adminList" class="space-y-2"></ul>
+                </div>
+            </aside>
 
-        <!-- Right Pane -->
-        <main class="hidden md:flex flex-col flex-grow bg-gray-50 overflow-y-auto p-6">
-            <div id="userEmptyView" class="flex-grow flex items-center justify-center">
-                <p class="text-gray-400 text-lg">Select a user to view details.</p>
-            </div>
-            <div id="userDetailView" class="hidden max-w-2xl w-full mx-auto"></div>
-        </main>
+            <!-- Right: detail pane -->
+            <main id="adminDetailPane">
+                <!-- Mobile back button -->
+                <div class="md:hidden mb-4">
+                    <button id="backToListBtn" class="text-sm bg-gray-200 text-gray-800 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        Back
+                    </button>
+                </div>
+                <div id="detailEmpty" class="h-full flex items-center justify-center">
+                    <p class="text-gray-400 text-lg">Select an item to view details.</p>
+                </div>
+                <div id="detailView" class="hidden space-y-4"></div>
+            </main>
+        </div>
+
     </div>
 
     <div id="footer-placeholder" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
@@ -71,18 +142,17 @@
     <!-- ── Sudo Modal ─────────────────────────────────────────────────────── -->
     <div id="sudoModal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-lg font-semibold text-gray-800 mb-1">Admin Access Required</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-1">Confirm Identity</h2>
             <p class="text-sm text-gray-500 mb-4">Enter your credentials to receive an OTP.</p>
             <form id="sudoForm" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Username</label>
-                    <input name="sudoUsername" required class="form-input" placeholder="your username">
+                <div><label class="block text-xs font-medium text-gray-600 mb-1">Username</label>
+                    <input name="sudoUsername" required class="form-input" placeholder="your username"></div>
+                <div><label class="block text-xs font-medium text-gray-600 mb-1">Password</label>
+                    <input name="sudoPassword" type="password" required class="form-input" placeholder="••••••••"></div>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" id="sudoCancelBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">Send OTP</button>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Password</label>
-                    <input name="sudoPassword" type="password" required class="form-input" placeholder="••••••••">
-                </div>
-                <button type="submit" class="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium">Send OTP</button>
             </form>
         </div>
     </div>
@@ -93,36 +163,8 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-1">Verify OTP</h2>
             <p id="sudoOtpHint" class="text-sm text-gray-500 mb-4"></p>
             <form id="sudoOtpForm" class="space-y-3">
-                <input name="sudoOtp" required class="form-input" placeholder="Enter OTP" maxlength="6">
+                <input name="sudoOtp" required class="form-input" placeholder="Enter OTP" maxlength="6" autocomplete="one-time-code">
                 <button type="submit" class="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium">Verify</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- ── Add User Modal ─────────────────────────────────────────────────── -->
-    <div id="addUserModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-800">Add User</h2>
-                <button data-close-modal="addUserModal" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-            </div>
-            <form id="addUserForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div><label class="block text-xs font-medium text-gray-600 mb-1">Username *</label><input name="USER" required class="form-input text-sm"></div>
-                <div><label class="block text-xs font-medium text-gray-600 mb-1">Name *</label><input name="NAME" required class="form-input text-sm"></div>
-                <div><label class="block text-xs font-medium text-gray-600 mb-1">Email</label><input name="EMAIL" type="email" class="form-input text-sm"></div>
-                <div><label class="block text-xs font-medium text-gray-600 mb-1">Mobile</label><input name="MOBILE" class="form-input text-sm"></div>
-                <div><label class="block text-xs font-medium text-gray-600 mb-1">Branch</label><input name="BRANCH" class="form-input text-sm"></div>
-                <div><label class="block text-xs font-medium text-gray-600 mb-1">Role *</label>
-                    <select name="ROLE" required class="form-input text-sm">
-                        <option>CLIENT</option><option>STAFF</option><option>MANAGER</option>
-                        <option>ACCOUNTANT</option><option>AUDITOR</option><option>ADMIN</option><option>MASTER</option>
-                    </select>
-                </div>
-                <div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-600 mb-1">Password</label><input name="PASS" type="password" class="form-input text-sm" placeholder="Leave blank to auto-generate"></div>
-                <div class="sm:col-span-2 flex justify-end gap-2">
-                    <button type="button" data-close-modal="addUserModal" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">Send OTP</button>
-                </div>
             </form>
         </div>
     </div>
@@ -133,7 +175,7 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-1">Confirm Add User</h2>
             <p id="addUserOtpHint" class="text-sm text-gray-500 mb-4"></p>
             <form id="addUserOtpForm" class="space-y-3">
-                <input name="addUserOtp" required class="form-input" placeholder="Enter OTP" maxlength="6">
+                <input name="addUserOtp" required class="form-input" placeholder="Enter OTP" maxlength="6" autocomplete="one-time-code">
                 <button type="submit" class="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium">Confirm</button>
             </form>
         </div>
@@ -144,9 +186,22 @@
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
     <script src="core/layout.js"></script>
+    <script src="indexeddb.js"></script>
+    <script src="core/formatIST.js"></script>
     <script src="core/admin-api.js"></script>
+    <script src="core/b2b2c-api.js"></script>
+    <script src="core/searchpinweb.js"></script>
+    <script type="module">
+        import { searchPin } from './utils/searchpin.js';
+        window.searchPin = searchPin;
+    </script>
     <script src="jawaS/admin-users.js"></script>
     <script src="jawaS/admin-registrations.js"></script>
+    <script src="jawaS/admin-branches.js"></script>
+    <script src="jawaS/b2b2c.js"></script>
+    <script src="jawaS/admin-b2b2c.js"></script>
+    <script src="jawaS/admin-staff.js"></script>
+    <script src="jawaS/admin-attendance.js"></script>
     <script src="jawaS/admin.js"></script>
 </body>
 </html>

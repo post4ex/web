@@ -136,17 +136,11 @@ const PAGE_CONFIG = {
     'LedgerEmployees.html':       'ACCOUNTANT',
     'LedgerJournalEntries.html':  'ACCOUNTANT',
 
-    'admin.html':        'ADMIN',
+    'admin.html':        'CLIENT',
 
-    'Masters.html':      'MASTER',
-    'PincodeMaster.html':'MASTER',
-    'Branches.html':     'MASTER',
     'Mode.html':         'MASTER',
     'Carrier.html':      'MASTER',
     'B2B.html':          'MASTER',
-    'B2B2C.html':        'CLIENT',
-    'Staff.html':        'MASTER',
-    'Stock.html':        'MASTER',
 };
 
 const DATA_SCHEMA = {

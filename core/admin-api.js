@@ -25,10 +25,14 @@ const AdminAPI = (() => {
     }
 
     async function verifyAdminAccess(username, otp) {
-        return _fetch('/api/verifyAdminAccess?username=' + encodeURIComponent(username), { otp });
+        return _fetch('/api/verifyAdminAccess', { username, otp });
     }
 
     // --- Users ---
+
+    async function listUsers() {
+        return _fetch('/api/adminListUsers', {}, 'GET');
+    }
 
     async function fetchAllUsers(sudoToken) {
         return _fetch('/api/fetchAllUsers?sudo_token=' + encodeURIComponent(sudoToken), {}, 'GET');
@@ -60,9 +64,14 @@ const AdminAPI = (() => {
         return _fetch('/api/declineRegistration', { record_id: recordId });
     }
 
+    async function approveRegistration(recordId, fields, sudoToken) {
+        return _fetch('/api/approveRegistration', { record_id: recordId, sudo_token: sudoToken, fields });
+    }
+
     return {
         initiateAdminAccess,
         verifyAdminAccess,
+        listUsers,
         fetchAllUsers,
         initiateAddUser,
         confirmAddUser,
@@ -70,6 +79,7 @@ const AdminAPI = (() => {
         deleteUser,
         fetchRegistrations,
         declineRegistration,
+        approveRegistration,
     };
 })();
 
