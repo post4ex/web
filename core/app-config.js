@@ -136,6 +136,8 @@ const PAGE_CONFIG = {
     'LedgerEmployees.html':       'ACCOUNTANT',
     'LedgerJournalEntries.html':  'ACCOUNTANT',
 
+    'admin.html':        'ADMIN',
+
     'Masters.html':      'MASTER',
     'PincodeMaster.html':'MASTER',
     'Branches.html':     'MASTER',
