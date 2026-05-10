@@ -157,13 +157,24 @@ const AdminAttendance = (() => {
 
             const raw = Object.fromEntries(new FormData(e.target));
 
-            if (!hasIn && raw.IN_TIME && (!raw.GEO_TAG_IN_TIME || raw.GEO_TAG_IN_TIME === 'Unavailable')) {
-                showNotification('❌ GPS location required. Use the "Now" button.', 'error');
-                return;
-            }
-            if (hasIn && raw.OUT_TIME && (!raw.GEO_TAG_OUT_TIME || raw.GEO_TAG_OUT_TIME === 'Unavailable')) {
-                showNotification('❌ GPS location required. Use the "Now" button.', 'error');
-                return;
+            if (!hasIn) {
+                if (!raw.IN_TIME) {
+                    showNotification('❌ Use the "Now" button to record In Time.', 'error');
+                    return;
+                }
+                if (!raw.GEO_TAG_IN_TIME || raw.GEO_TAG_IN_TIME === 'Unavailable') {
+                    showNotification('❌ GPS location required. Use the "Now" button.', 'error');
+                    return;
+                }
+            } else {
+                if (!raw.OUT_TIME) {
+                    showNotification('❌ Use the "Now" button to record Out Time.', 'error');
+                    return;
+                }
+                if (!raw.GEO_TAG_OUT_TIME || raw.GEO_TAG_OUT_TIME === 'Unavailable') {
+                    showNotification('❌ GPS location required. Use the "Now" button.', 'error');
+                    return;
+                }
             }
 
             const toTimeMs = (hhmm) => {
