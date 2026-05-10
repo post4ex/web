@@ -117,8 +117,6 @@ const AdminClients = (() => {
                         <p class="text-sm text-red-700 font-medium mb-3">Delete <strong id="clientsDeleteName"></strong>?<br>
                         <span class="text-xs text-gray-500">Client will be marked DELETED. Rates remain unchanged.</span></p>
                         <div class="flex gap-3 items-center flex-wrap">
-                            <button id="clientsSendOtpBtn" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Send OTP</button>
-                            <input id="clientsOtpInput" type="text" placeholder="Enter OTP" maxlength="6" class="form-input text-sm" style="width:8rem">
                             <button id="clientsConfirmDeleteBtn" class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1">
                                 Confirm Delete
                                 <div id="clientsDeleteSpinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -289,9 +287,12 @@ const AdminClients = (() => {
                                     <input name="WP_ALERTS" id="clientsWpAlerts" class="form-input" placeholder="91-9876543210, 91-9123456789">
                                 </div>
                                 <div class="md:col-span-4">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">WP Groups <span class="text-xs text-gray-400" id="clientsWpGroupStatus"></span></label>
-                                    <div id="clientsWpGroupList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border rounded-lg bg-gray-50 min-h-[2.5rem]">
-                                        <span class="text-xs text-gray-400 col-span-full">Loading groups…</span>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <label class="block text-sm font-medium text-gray-700">WP Groups</label>
+                                        <button type="button" id="clientsLoadGroupsBtn" class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 border">Load Groups</button>
+                                        <span class="text-xs text-gray-400" id="clientsWpGroupStatus"></span>
+                                    </div>
+                                    <div id="clientsWpGroupList" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border rounded-lg bg-gray-50">
                                     </div>
                                 </div>
                             </div>
@@ -357,32 +358,128 @@ const AdminClients = (() => {
         _bindDetailEvents();
     }
 
+    // ── OTP Modal ─────────────────────────────────────────────────────────────
+    // Resolves with write_token on success, rejects on cancel/failure
+    function _requestOtp(code, action) {
+        return new Promise((resolve, reject) => {
+            const existing = document.getElementById('b2bOtpModal');
+            if (existing) existing.remove();
+
+            const actionLabels = {
+                new_client:    'New Client',
+                update_client: 'Update Client',
+                save_rates:    'Save Rate List',
+                delete_client: 'Delete Client',
+            };
+
+            const modal = document.createElement('div');
+            modal.id = 'b2bOtpModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+                    <h3 class="text-base font-bold text-gray-800 mb-1">Confirm: ${actionLabels[action] || action}</h3>
+                    <p class="text-xs text-gray-500 mb-4">Client: <strong>${code}</strong> &mdash; An OTP has been sent to your email &amp; WhatsApp.</p>
+                    <div id="b2bOtpMsg" class="hidden mb-3 p-2 rounded text-xs text-center"></div>
+                    <input id="b2bOtpInput" type="text" maxlength="6" placeholder="Enter 6-digit OTP"
+                        class="form-input w-full text-center text-lg tracking-widest mb-4">
+                    <div class="flex gap-3">
+                        <button id="b2bOtpVerifyBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2">
+                            <span>Verify &amp; Proceed</span>
+                            <div id="b2bOtpSpinner" class="spinner hidden"></div>
+                        </button>
+                        <button id="b2bOtpCancelBtn" class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+                    </div>
+                    <button id="b2bOtpResendBtn" class="mt-3 w-full text-xs text-indigo-600 hover:underline">Resend OTP</button>
+                </div>`;
+            document.body.appendChild(modal);
+
+            const msgEl     = modal.querySelector('#b2bOtpMsg');
+            const inputEl   = modal.querySelector('#b2bOtpInput');
+            const verifyBtn = modal.querySelector('#b2bOtpVerifyBtn');
+            const spinner   = modal.querySelector('#b2bOtpSpinner');
+            const cancelBtn = modal.querySelector('#b2bOtpCancelBtn');
+            const resendBtn = modal.querySelector('#b2bOtpResendBtn');
+
+            const showMsg = (txt, type) => {
+                msgEl.textContent = txt;
+                msgEl.className = `mb-3 p-2 rounded text-xs text-center ${
+                    type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+                msgEl.classList.remove('hidden');
+            };
+
+            const sendOtp = async () => {
+                resendBtn.disabled = true; resendBtn.textContent = 'Sending…';
+                try {
+                    await b2bSendOtp(code, action);
+                    showMsg('OTP sent to your email & WhatsApp.', 'success');
+                } catch (e) {
+                    showMsg(e.message, 'error');
+                } finally {
+                    resendBtn.disabled = false; resendBtn.textContent = 'Resend OTP';
+                }
+            };
+
+            verifyBtn.addEventListener('click', async () => {
+                const otp = inputEl.value.trim();
+                if (otp.length !== 6) { showMsg('Enter the 6-digit OTP.', 'error'); return; }
+                verifyBtn.disabled = true; spinner.classList.remove('hidden');
+                try {
+                    const res = await b2bVerifyOtp(code, action, otp);
+                    modal.remove();
+                    resolve(res.write_token);
+                } catch (e) {
+                    showMsg(e.message, 'error');
+                    verifyBtn.disabled = false; spinner.classList.add('hidden');
+                }
+            });
+
+            cancelBtn.addEventListener('click', () => { modal.remove(); reject(new Error('cancelled')); });
+            resendBtn.addEventListener('click', sendOtp);
+            inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') verifyBtn.click(); });
+
+            // auto-send OTP on open
+            sendOtp();
+        });
+    }
+
     // ── WP Groups ─────────────────────────────────────────────────────────────
     let _wpGroups = null; // cached [{id, name}]
 
     async function _loadWpGroups(selectedIds = []) {
         const wrap   = document.getElementById('clientsWpGroupList');
         const status = document.getElementById('clientsWpGroupStatus');
+        const btn    = document.getElementById('clientsLoadGroupsBtn');
         if (!wrap) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
         try {
             if (!_wpGroups) {
                 const res = await callApi('/api/wpGroups', {}, 'GET');
                 _wpGroups = res.groups || [];
             }
-            if (!_wpGroups.length) {
-                wrap.innerHTML = '<span class="text-xs text-gray-400 col-span-full">No groups found</span>';
-                return;
-            }
-            wrap.innerHTML = _wpGroups.map(g => `
-                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" class="wp-group-cb h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                        value="${g.id}" ${selectedIds.includes(g.id) ? 'checked' : ''}>
-                    <span class="truncate" title="${g.name}">${g.name}</span>
-                </label>`).join('');
+            wrap.innerHTML = _wpGroups.length
+                ? _wpGroups.map(g => `
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" class="wp-group-cb h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                            value="${g.id}" ${selectedIds.includes(g.id) ? 'checked' : ''}>
+                        <span class="truncate" title="${g.name}">${g.name}</span>
+                    </label>`).join('')
+                : '<span class="text-xs text-gray-400 col-span-full">No groups found</span>';
+            wrap.classList.remove('hidden');
             if (status) status.textContent = `(${_wpGroups.length} groups)`;
+            if (btn) btn.classList.add('hidden');
         } catch {
-            wrap.innerHTML = '<span class="text-xs text-red-400 col-span-full">Failed to load groups</span>';
+            if (status) status.textContent = '(failed to load)';
+            if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
         }
+    }
+
+    function _resetWpGroupUI() {
+        const wrap = document.getElementById('clientsWpGroupList');
+        const btn  = document.getElementById('clientsLoadGroupsBtn');
+        const status = document.getElementById('clientsWpGroupStatus');
+        if (wrap)   { wrap.innerHTML = ''; wrap.classList.add('hidden'); }
+        if (btn)    { btn.disabled = false; btn.textContent = 'Load Groups'; btn.classList.remove('hidden'); }
+        if (status) status.textContent = '';
     }
 
     function _getSelectedWpGroups() {
@@ -537,7 +634,9 @@ const AdminClients = (() => {
                 return;
             }
             if (k === 'WP_GROUP') {
-                _loadWpGroups(Array.isArray(v) ? v : []);
+                _resetWpGroupUI();
+                const ids = Array.isArray(v) ? v : [];
+                if (ids.length) _loadWpGroups(ids);
                 return;
             }
             if (k === 'MOBILE_NUMBER') {
@@ -587,7 +686,7 @@ const AdminClients = (() => {
         const ratesTab = document.getElementById('clientsTabRates');
         ratesTab.disabled = true;
         _switchTab('details');
-        _loadWpGroups([]);
+        _resetWpGroupUI();
         AdminPage.showDetail(true);
         AdminPage.showDetailPane();
     }
@@ -667,10 +766,12 @@ const AdminClients = (() => {
 
         const btn = document.getElementById('clientsSubmitBtn');
         const spinner = document.getElementById('clientsSubmitSpinner');
-        btn.disabled = true; spinner.classList.remove('hidden');
 
         try {
-            await b2bWrite(data, _isUpdate ? _currentCode : null);
+            const action = _isUpdate ? 'update_client' : 'new_client';
+            const writeToken = await _requestOtp(data.CODE || _currentCode, action);
+            btn.disabled = true; spinner.classList.remove('hidden');
+            await b2bWrite(data, _isUpdate ? _currentCode : null, writeToken);
             if (!_isUpdate) {
                 _currentCode = data.CODE;
                 _isUpdate    = true;
@@ -939,12 +1040,13 @@ const AdminClients = (() => {
 
         const btn = document.getElementById('clientsSaveRatesBtn');
         const sp  = document.getElementById('clientsRatesSpinner');
-        btn.disabled = true; sp.classList.remove('hidden');
         try {
-            await b2bWriteRateList(_currentCode, rates);
+            const writeToken = await _requestOtp(_currentCode, 'save_rates');
+            btn.disabled = true; sp.classList.remove('hidden');
+            await b2bWriteRateList(_currentCode, rates, writeToken);
             _msg('Rates saved successfully.', 'success');
         } catch (err) {
-            _msg(err.message, 'error');
+            if (err.message !== 'cancelled') _msg(err.message, 'error');
         } finally {
             btn.disabled = false; sp.classList.add('hidden');
         }
@@ -955,38 +1057,23 @@ const AdminClients = (() => {
         if (!_currentCode) return;
         const c = _allCustomers[_currentCode];
         document.getElementById('clientsDeleteName').textContent = `${c?.B2B_NAME || ''} (${_currentCode})`;
-        document.getElementById('clientsOtpInput').value = '';
         document.getElementById('clientsDeleteConfirm').classList.remove('hidden');
     }
 
-    async function _sendOtp() {
-        const btn = document.getElementById('clientsSendOtpBtn');
-        btn.disabled = true; btn.textContent = 'Sending…';
-        try {
-            await b2bSendDeleteOtp(_currentCode);
-            _viewMsg('OTP sent to your email.', 'success');
-        } catch (err) {
-            _viewMsg(err.message, 'error');
-        } finally {
-            btn.disabled = false; btn.textContent = 'Send OTP';
-        }
-    }
-
     async function _confirmDelete() {
-        const otp = document.getElementById('clientsOtpInput').value.trim();
-        if (!otp) { _viewMsg('Please enter OTP.', 'error'); return; }
         const btn = document.getElementById('clientsConfirmDeleteBtn');
         const sp  = document.getElementById('clientsDeleteSpinner');
-        btn.disabled = true; sp.classList.remove('hidden');
         try {
-            await b2bDelete(_currentCode, otp);
+            const writeToken = await _requestOtp(_currentCode, 'delete_client');
+            btn.disabled = true; sp.classList.remove('hidden');
+            await b2bDelete(_currentCode, writeToken);
             document.getElementById('clientsDeleteConfirm').classList.add('hidden');
             document.getElementById('clientsViewContainer').classList.add('hidden');
             _currentCode = null; _isUpdate = false;
             AdminPage.showDetail(false);
             _msg('Client deleted.', 'success');
         } catch (err) {
-            _viewMsg(err.message, 'error');
+            if (err.message !== 'cancelled') _viewMsg(err.message, 'error');
         } finally {
             btn.disabled = false; sp.classList.add('hidden');
         }
@@ -1029,9 +1116,9 @@ const AdminClients = (() => {
         });
 
         document.getElementById('clientsSetDefaultBtn').addEventListener('click', _setDefaultRates);
+        document.getElementById('clientsLoadGroupsBtn').addEventListener('click', () => _loadWpGroups(_getSelectedWpGroups()));
         document.getElementById('clientsRateForm').addEventListener('submit', _handleRateSubmit);
 
-        document.getElementById('clientsSendOtpBtn').addEventListener('click', _sendOtp);
         document.getElementById('clientsConfirmDeleteBtn').addEventListener('click', _confirmDelete);
         document.getElementById('clientsCancelDeleteBtn').addEventListener('click', () => {
             document.getElementById('clientsDeleteConfirm').classList.add('hidden');

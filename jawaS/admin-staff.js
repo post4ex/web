@@ -127,6 +127,18 @@ const AdminStaff = (() => {
                     ${isEdit && canDelete ? `<button id="staffDeleteBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>` : ''}
                 </div>
                 <div class="detail-card-body">
+                    ${isEdit && canDelete ? `
+                    <div id="staffDeleteConfirm" class="hidden mb-4 border border-red-200 bg-red-50 rounded-lg p-4">
+                        <p class="text-sm text-red-700 font-medium mb-3">Delete <strong>${s?.STAFF_NAME || ''} (${s?.STAFF_CODE || ''})</strong>?<br>
+                        <span class="text-xs text-gray-500">This will permanently remove the staff record.</span></p>
+                        <div class="flex gap-3 items-center flex-wrap">
+                            <button id="staffConfirmDeleteBtn" class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1">
+                                Confirm Delete
+                                <div id="staffDeleteSpinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </button>
+                            <button id="staffCancelDeleteBtn" class="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
+                        </div>
+                    </div>` : ''}
                     <form id="staffDetailForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Staff Code *</label>
@@ -258,20 +270,20 @@ const AdminStaff = (() => {
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">City</label>
-                            <input name="CITY" id="sfCity" value="${s?.CITY || ''}" class="form-input text-sm readonly-input" readonly>
+                            <input name="CITY" id="sfCity" value="${s?.CITY || ''}" class="form-input text-sm">
                         </div>
                         <div class="sm:col-span-2 grid grid-cols-3 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">State</label>
-                                <input name="STATE" id="sfState" value="${s?.STATE || ''}" class="form-input text-sm readonly-input" readonly>
+                                <input name="STATE" id="sfState" value="${s?.STATE || ''}" class="form-input text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">CODE_STATE</label>
-                                <input name="CODE_STATE" value="${s?.CODE_STATE || ''}" class="form-input text-sm readonly-input" readonly maxlength="2">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Code State</label>
+                                <input name="CODE_STATE" value="${s?.CODE_STATE || ''}" class="form-input text-sm" maxlength="2">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">GST_CODE</label>
-                                <input name="GST_CODE" value="${s?.GST_CODE || ''}" class="form-input text-sm readonly-input" readonly maxlength="2">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">GST Code</label>
+                                <input name="GST_CODE" value="${s?.GST_CODE || ''}" class="form-input text-sm" maxlength="2">
                             </div>
                         </div>
                         ${canEdit ? `
@@ -283,6 +295,53 @@ const AdminStaff = (() => {
                     </form>
                 </div>
             </div>`;
+
+        // ── OTP helper ────────────────────────────────────────────────────
+        const _staffOtp = (staffCode, action) => new Promise((resolve, reject) => {
+            const existing = document.getElementById('staffOtpModal');
+            if (existing) existing.remove();
+            const labels = { new_staff: 'New Staff', update_staff: 'Update Staff', delete_staff: 'Delete Staff' };
+            const modal = document.createElement('div');
+            modal.id = 'staffOtpModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+                    <h3 class="text-base font-bold text-gray-800 mb-1">Confirm: ${labels[action] || action}</h3>
+                    <p class="text-xs text-gray-500 mb-4">Staff: <strong>${staffCode}</strong> &mdash; OTP sent to your email &amp; WhatsApp.</p>
+                    <div id="staffOtpMsg" class="hidden mb-3 p-2 rounded text-xs text-center"></div>
+                    <input id="staffOtpInput" type="text" maxlength="6" placeholder="Enter 6-digit OTP"
+                        class="form-input w-full text-center text-lg tracking-widest mb-4">
+                    <div class="flex gap-3">
+                        <button id="staffOtpVerifyBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2">
+                            <span>Verify &amp; Proceed</span><div id="staffOtpSpinner" class="spinner hidden"></div>
+                        </button>
+                        <button id="staffOtpCancelBtn" class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+                    </div>
+                    <button id="staffOtpResendBtn" class="mt-3 w-full text-xs text-indigo-600 hover:underline">Resend OTP</button>
+                </div>`;
+            document.body.appendChild(modal);
+            const msgEl = modal.querySelector('#staffOtpMsg');
+            const showMsg = (t, type) => { msgEl.textContent = t; msgEl.className = `mb-3 p-2 rounded text-xs text-center ${type==='error'?'bg-red-100 text-red-700':'bg-green-100 text-green-700'}`; msgEl.classList.remove('hidden'); };
+            const sendOtp = async () => {
+                const rb = modal.querySelector('#staffOtpResendBtn');
+                rb.disabled = true; rb.textContent = 'Sending…';
+                try { await callApi('/api/sendStaffOtp', { STAFF_CODE: staffCode, action }, 'POST'); showMsg('OTP sent to your email & WhatsApp.', 'success'); }
+                catch (e) { showMsg(e.message, 'error'); }
+                finally { rb.disabled = false; rb.textContent = 'Resend OTP'; }
+            };
+            modal.querySelector('#staffOtpVerifyBtn').addEventListener('click', async () => {
+                const otp = modal.querySelector('#staffOtpInput').value.trim();
+                if (otp.length !== 6) { showMsg('Enter the 6-digit OTP.', 'error'); return; }
+                const vb = modal.querySelector('#staffOtpVerifyBtn'); const sp = modal.querySelector('#staffOtpSpinner');
+                vb.disabled = true; sp.classList.remove('hidden');
+                try { const r = await callApi('/api/verifyStaffOtp', { STAFF_CODE: staffCode, action, otp }, 'POST'); modal.remove(); resolve(r.write_token); }
+                catch (e) { showMsg(e.message, 'error'); vb.disabled = false; sp.classList.add('hidden'); }
+            });
+            modal.querySelector('#staffOtpCancelBtn').addEventListener('click', () => { modal.remove(); reject(new Error('cancelled')); });
+            modal.querySelector('#staffOtpResendBtn').addEventListener('click', sendOtp);
+            modal.querySelector('#staffOtpInput').addEventListener('keydown', e => { if (e.key === 'Enter') modal.querySelector('#staffOtpVerifyBtn').click(); });
+            sendOtp();
+        });
 
         // auto-generate staff code on new
         if (!isEdit && canEdit) {
@@ -343,35 +402,35 @@ const AdminStaff = (() => {
         if (canEdit) {
             view.querySelector('#staffDetailForm').addEventListener('submit', async e => {
                 e.preventDefault();
-                
-                // Validate all fields before submit
+
                 let hasError = false;
                 view.querySelectorAll('[data-validate]').forEach(input => {
                     const type = input.dataset.validate;
-                    const val = input.value.trim();
-                    if (val && !_validate[type](val)) {
-                        _showFieldError(input, 'Invalid format');
-                        hasError = true;
-                    }
+                    const val  = input.value.trim();
+                    if (val && !_validate[type](val)) { _showFieldError(input, 'Invalid format'); hasError = true; }
                 });
-                if (hasError) {
-                    showNotification('❌ Please fix validation errors', 'error');
-                    return;
-                }
-                
-                const f = e.target;
+                if (hasError) { showNotification('\u274c Please fix validation errors', 'error'); return; }
+
+                const f    = e.target;
                 const data = Object.fromEntries(new FormData(f));
-                const cc  = (data.MOBILE_CC  || '91').trim();
-                const num = (data.MOBILE_NUM || '').trim();
+                const cc   = (data.MOBILE_CC  || '91').trim();
+                const num  = (data.MOBILE_NUM || '').trim();
                 data.MOBILE = num ? `${cc}-${num}` : '';
                 delete data.MOBILE_CC;
                 delete data.MOBILE_NUM;
-                const btn  = e.target.querySelector('button[type=submit]');
-                btn.disabled = true; btn.textContent = 'Saving…';
+
+                const staffCode = data.STAFF_CODE || (isEdit ? s.STAFF_CODE : '');
+                const action    = isEdit ? 'update_staff' : 'new_staff';
+                const btn       = e.target.querySelector('button[type=submit]');
+
                 try {
-                    const payload = { collection: 'STAFF', data };
-                    if (isEdit) payload.record_id = s.id;
-                    const res = await callApi('/api/write', payload);
+                    const writeToken = await _staffOtp(staffCode, action);
+                    btn.disabled = true; btn.textContent = 'Saving…';
+                    const res = await callApi('/api/writeStaff', {
+                        data,
+                        record_id:   isEdit ? s.id : null,
+                        write_token: writeToken,
+                    });
                     const rec = res.record;
                     _staff[rec.STAFF_CODE] = rec;
                     _selected = rec.STAFF_CODE;
@@ -379,29 +438,38 @@ const AdminStaff = (() => {
                     _renderDetail(rec);
                     const cnt = document.getElementById('cnt-staff');
                     if (cnt) cnt.textContent = Object.keys(_staff).length;
-                    showNotification(`✅ Staff ${isEdit ? 'updated' : 'created'}`, 'success');
+                    showNotification(`\u2705 Staff ${isEdit ? 'updated' : 'created'}`, 'success');
                 } catch (err) {
-                    showNotification('❌ ' + err.message, 'error');
+                    if (err.message !== 'cancelled') showNotification('\u274c ' + err.message, 'error');
                 } finally { btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Staff'; }
             });
         }
 
         // delete
         if (isEdit && canDelete) {
-            view.querySelector('#staffDeleteBtn')?.addEventListener('click', async () => {
-                if (!confirm(`Delete staff "${s.STAFF_CODE}"? This cannot be undone.`)) return;
+            view.querySelector('#staffDeleteBtn')?.addEventListener('click', () => {
+                document.getElementById('staffDeleteConfirm').classList.remove('hidden');
+            });
+            view.querySelector('#staffCancelDeleteBtn')?.addEventListener('click', () => {
+                document.getElementById('staffDeleteConfirm').classList.add('hidden');
+            });
+            view.querySelector('#staffConfirmDeleteBtn')?.addEventListener('click', async () => {
+                const btn = view.querySelector('#staffConfirmDeleteBtn');
+                const sp  = view.querySelector('#staffDeleteSpinner');
                 try {
-                    await callApi('/api/delete', { collection: 'STAFF', record_id: s.id });
+                    const writeToken = await _staffOtp(s.STAFF_CODE, 'delete_staff');
+                    btn.disabled = true; sp.classList.remove('hidden');
+                    await callApi('/api/deleteStaff', { record_id: s.id, STAFF_CODE: s.STAFF_CODE, write_token: writeToken });
                     delete _staff[s.STAFF_CODE];
                     _selected = null;
                     _renderList(_staff);
                     AdminPage.showDetail(false);
                     const cnt = document.getElementById('cnt-staff');
                     if (cnt) cnt.textContent = Object.keys(_staff).length;
-                    showNotification('✅ Staff deleted', 'success');
+                    showNotification('\u2705 Staff deleted', 'success');
                 } catch (err) {
-                    showNotification('❌ ' + err.message, 'error');
-                }
+                    if (err.message !== 'cancelled') showNotification('\u274c ' + err.message, 'error');
+                } finally { btn.disabled = false; sp.classList.add('hidden'); }
             });
         }
     }
@@ -411,14 +479,11 @@ const AdminStaff = (() => {
         try {
             const result = await window.searchPin(pin);
             if (result?.found) {
-                const c  = view.querySelector('#sfCity');
-                const st = view.querySelector('#sfState');
-                const cs = view.querySelector('[name="CODE_STATE"]');
-                const gc = view.querySelector('[name="GST_CODE"]');
-                if (c)  c.value  = result.CITY       || '';
-                if (st) st.value = result.STATE_NAME || result.STATE || '';
-                if (cs) cs.value = result.STATE_CODE || '';
-                if (gc) gc.value = result.GST_CODE   || '';
+                const f = (sel, val) => { const el = view.querySelector(sel); if (el) el.value = val || ''; };
+                f('#sfCity',              result.CITY);
+                f('#sfState',             result.STATE_NAME || result.STATE);
+                f('[name="CODE_STATE"]',  result.STATE_CODE);
+                f('[name="GST_CODE"]',    result.GST_CODE);
             }
         } catch (_) {}
     }

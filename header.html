@@ -157,12 +157,11 @@
             { label: 'Calculator', link: 'Calculator.html', id: 'calculator', reqRole: 'CLIENT' },
             { label: 'Ticket', link: 'ticket.html', id: 'ticket', reqRole: 'CLIENT' },
             { label: 'Task', link: 'task.html', id: 'task', reqRole: 'CLIENT' },
-            { label: 'Wallet', link: 'wallet.html', id: 'wallet', reqRole: 'CLIENT' }
         ],
         sidebar: [
             { 
                 label: 'Orders', 
-                id: 'orders', 
+                id: 'orders', link: 'orders.html', 
                 reqRole: 'CLIENT',
                 submenu: [
                     { label: 'Pickup Request', link: 'PickupRequest.html', reqRole: 'CLIENT' },
@@ -183,7 +182,6 @@
             { label: 'Ticket', link: 'ticket.html', reqRole: 'CLIENT' },
             { label: 'Search', link: 'search.html', reqRole: 'CLIENT' },
             { label: 'Task', link: 'task.html', reqRole: 'CLIENT' },
-            { label: 'Wallet', link: 'wallet.html', reqRole: 'CLIENT' },
             { 
                 label: 'Scans', 
                 id: 'scans', 
@@ -210,30 +208,8 @@
                     { label: 'CRM', link: 'ReportCRM.html', reqRole: 'CLIENT' }
                 ] 
             },
-            { label: 'Billing', link: 'Billing.html', reqRole: 'ACCOUNTANT' },
-            { 
-                label: 'Ledger', 
-                id: 'ledger', 
-                reqRole: 'ACCOUNTANT', 
-                submenu: [
-                    { label: 'Summary', link: 'LedgerSummary.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Accounts', link: 'LedgerAccounts.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Receipts', link: 'LedgerReceipts.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Payments', link: 'LedgerPayments.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Expense Claims', link: 'LedgerExpenseClaims.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Customers', link: 'LedgerCustomers.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Sales Invoices', link: 'LedgerSalesInvoices.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Credit Notes', link: 'LedgerCreditNotes.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Delivery Notes', link: 'LedgerDeliveryNotes.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Suppliers', link: 'LedgerSuppliers.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Purchase Invoices', link: 'LedgerPurchaseInvoices.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Debit Notes', link: 'LedgerDebitNotes.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Employees', link: 'LedgerEmployees.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Journal Entries', link: 'LedgerJournalEntries.html', reqRole: 'ACCOUNTANT' },
-                    { label: 'Ledger Reports', link: 'LedgerReports.html', reqRole: 'ACCOUNTANT' }
-                ] 
-            },
-            { label: 'Admin', link: 'admin.html', reqRole: 'ADMIN' }
+            { label: 'The Vault', link: 'vault.html', reqRole: 'CLIENT' },
+            { label: 'Masters', link: 'admin.html', reqRole: 'ADMIN' }
         ]
     };
 

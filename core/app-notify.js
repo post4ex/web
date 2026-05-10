@@ -48,7 +48,7 @@ function openNotificationModal(message, level, timestamp) {
     document.getElementById('notif-modal-title').textContent   = titleMap[level] || 'Notification';
     document.getElementById('notif-modal-content').textContent = message;
     document.getElementById('notif-modal-icon').textContent    = iconMap[level]  || 'ℹ️';
-    document.getElementById('notif-modal-time').textContent    = timestamp || fmtDate(new Date(), 'full');
+    document.getElementById('notif-modal-time').textContent    = timestamp || (typeof fmtDate === 'function' ? fmtDate(new Date(), 'full') : new Date().toLocaleString());
 
     modal.classList.remove('hidden');
     setTimeout(() => {
@@ -78,7 +78,7 @@ function renderNotificationItem(notif, showToast = false) {
     const id         = NOTIF_ID || notif.id || Date.now().toString();
     const message    = MESSAGE  || notif.message || '';
     const level      = LEVEL    || notif.type    || 'INFO';
-    const timestamp  = TIMESTAMP ? fmtDate(TIMESTAMP, 'full') : (notif.timestamp || '');
+    const timestamp  = TIMESTAMP ? (typeof fmtDate === 'function' ? fmtDate(TIMESTAMP, 'full') : new Date(TIMESTAMP).toLocaleString()) : (notif.timestamp || '');
     const isCritical = level === 'CRITICAL';
     const isRead     = IS_READ === true;
 

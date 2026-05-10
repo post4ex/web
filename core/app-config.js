@@ -91,10 +91,19 @@ const ROLE_LEVELS = {
 };
 window.ROLE_LEVELS = ROLE_LEVELS;
 
+const VAULT_PERMISSIONS = {
+    R: 'CLIENT',    // read / view
+    C: 'MANAGER',   // record / create
+    U: 'ACCOUNTANT',// edit
+    D: 'ADMIN',     // delete
+};
+window.VAULT_PERMISSIONS = VAULT_PERMISSIONS;
+
 const PAGE_CONFIG = {
     'dashboard.html':    'CLIENT',
     'tracking.html':     'CLIENT',
     'Calculator.html':   'CLIENT',
+    'orders.html':       'CLIENT',
     'PickupRequest.html':'CLIENT',
 
     'ticket.html':       'CLIENT',
@@ -120,21 +129,7 @@ const PAGE_CONFIG = {
     'ReportCRM.html':      'CLIENT',
 
     'Billing.html':               'ACCOUNTANT',
-    'LedgerSummary.html':         'ACCOUNTANT',
-    'LedgerReports.html':         'ACCOUNTANT',
-    'LedgerAccounts.html':        'ACCOUNTANT',
-    'LedgerReceipts.html':        'ACCOUNTANT',
-    'LedgerPayments.html':        'ACCOUNTANT',
-    'LedgerExpenseClaims.html':   'ACCOUNTANT',
-    'LedgerCustomers.html':       'ACCOUNTANT',
-    'LedgerSalesInvoices.html':   'ACCOUNTANT',
-    'LedgerCreditNotes.html':     'ACCOUNTANT',
-    'LedgerDeliveryNotes.html':   'ACCOUNTANT',
-    'LedgerSuppliers.html':       'ACCOUNTANT',
-    'LedgerPurchaseInvoices.html':'ACCOUNTANT',
-    'LedgerDebitNotes.html':      'ACCOUNTANT',
-    'LedgerEmployees.html':       'ACCOUNTANT',
-    'LedgerJournalEntries.html':  'ACCOUNTANT',
+    'vault.html':                 'CLIENT',
 
     'admin.html':        'CLIENT',
 
