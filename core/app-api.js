@@ -89,8 +89,13 @@ async function pullDeltaSince(since_ms) {
         const incomingData = result.data || {};
         console.log('[pullDeltaSince] response meta:', result.meta, '| collections:', Object.entries(incomingData).map(([k,v]) => `${k}:${Object.keys(v).length}`).join(' '));
         for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-            if (Object.keys(sheetData).length > 0)
+            if (Object.keys(sheetData).length > 0) {
+                if (!window.appDB.db.objectStoreNames.contains(sheetName)) {
+                    console.warn('[pullDeltaSince] unknown store, skipping:', sheetName);
+                    continue;
+                }
                 await window.appDB.mergeSheet(sheetName, sheetData);
+            }
         }
         window._lastDeltaSync = Date.now();
         _scheduleRefresh();
@@ -277,7 +282,7 @@ async function getAppData(sheetName = null) {
     try {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
-        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS'];
         const result  = {};
         const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
         sheets.forEach((s, i) => result[s] = results[i]);

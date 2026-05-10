@@ -21,6 +21,31 @@ const SIMPLIFIED_ZONES = [
 const PERCENT_FIELDS        = ['%_TOPAY_IF', '%_COD_IF', '%_FOV_IF', 'FUEL_CHARGES', 'DEV_CHARGES'];
 const TEXT_FIELDS_UPPERCASE = ['B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE', 'ID_GST_PAN_ADHAR'];
 
+// Pincode auto-fill
+const _pincodeInput = document.getElementById('b2b_pincode');
+if (_pincodeInput) {
+    let _pt;
+    _pincodeInput.addEventListener('input', () => {
+        clearTimeout(_pt);
+        const pin = _pincodeInput.value.trim();
+        if (pin.length === 6 && /^\d{6}$/.test(pin) && typeof window.searchPin === 'function') {
+            _pt = setTimeout(async () => {
+                const result = await window.searchPin(pin);
+                if (result?.found) {
+                    const city = document.getElementById('b2b_city');
+                    const state = document.getElementById('b2b_state');
+                    const cs = document.getElementById('b2b_code_state');
+                    const gc = document.getElementById('b2b_gst_code');
+                    if (city)  city.value  = result.CITY       || '';
+                    if (state) state.value = result.STATE_NAME || result.STATE || '';
+                    if (cs)    cs.value    = result.STATE_CODE || '';
+                    if (gc)    gc.value    = result.GST_CODE   || '';
+                }
+            }, 500);
+        }
+    });
+}
+
 // =============================================================================
 // STATE
 // =============================================================================
@@ -267,6 +292,8 @@ function showCustomerView(customer) {
                     <div class="col-span-3"><span class="font-semibold text-gray-600">Address:</span> ${customer.B2B_ADDRESS || '-'}</div>
                     <div><span class="font-semibold text-gray-600">City:</span> ${customer.B2B_CITY || '-'}</div>
                     <div><span class="font-semibold text-gray-600">State:</span> ${customer.B2B_STATE || '-'}</div>
+                    <div><span class="font-semibold text-gray-600">Code State:</span> ${customer.CODE_STATE || '-'}</div>
+                    <div><span class="font-semibold text-gray-600">GST Code:</span> ${customer.GST_CODE || '-'}</div>
                     <div><span class="font-semibold text-gray-600">Pincode:</span> ${customer.B2B_PINCODE || '-'}</div>
                 </div>
             </div>

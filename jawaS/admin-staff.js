@@ -6,14 +6,51 @@
 
 const AdminStaff = (() => {
 
+    // Validation helpers
+    const _validate = {
+        pan: (v) => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v),
+        aadhar: (v) => !v || /^[0-9]{12}$/.test(v),
+        pin: (v) => !v || /^[1-9][0-9]{5}$/.test(v),
+        age18: (dob) => {
+            if (!dob) return true;
+            const today = new Date();
+            const birth = new Date(dob);
+            const age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                return age - 1 >= 18;
+            }
+            return age >= 18;
+        }
+    };
+
+    function _showFieldError(input, msg) {
+        input.classList.add('border-red-500');
+        let err = input.nextElementSibling;
+        if (!err || !err.classList.contains('field-error')) {
+            err = document.createElement('p');
+            err.className = 'field-error text-xs text-red-600 mt-1';
+            input.parentNode.appendChild(err);
+        }
+        err.textContent = msg;
+    }
+
+    function _clearFieldError(input) {
+        input.classList.remove('border-red-500');
+        const err = input.nextElementSibling;
+        if (err && err.classList.contains('field-error')) err.remove();
+    }
+
     let _staff       = {};
     let _branches    = {};
     let _selected    = null;
     let _initialized = false;
 
-    const STAFF_STATUSES = ['Active', 'Resigned', 'On Leave'];
-    const STAFF_ROLES    = ['Delivery Executive', 'Manager', 'Admin', 'Operations'];
-    const STAFF_DEPTS    = ['Operations', 'Sales', 'Human Resources', 'Finance'];
+    const STAFF_STATUSES  = ['Active', 'Resigned', 'On Leave'];
+    const STAFF_ROLES     = ['Delivery Executive', 'Manager', 'Admin', 'Operations'];
+    const STAFF_DEPTS     = ['Operations', 'Sales', 'Human Resources', 'Finance'];
+    const STAFF_GENDERS   = ['Male', 'Female', 'Other'];
+    const STAFF_BLOOD     = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
     function _can(role) { return AdminPage.can(role); }
 
@@ -59,7 +96,7 @@ const AdminStaff = (() => {
         _selected = code;
         _renderList(_staff);
         _renderDetail(_staff[code]);
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        AdminPage.showDetailPane();
     }
 
     function openAddPane() {
@@ -67,7 +104,7 @@ const AdminStaff = (() => {
         _renderList(_staff);
         _renderDetail(null);
         AdminPage.showDetail(true);
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        AdminPage.showDetailPane();
     }
 
     function _renderDetail(s) {
@@ -107,38 +144,6 @@ const AdminStaff = (() => {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Aadhar Number</label>
-                            <input name="ADHAR_NUM" id="sfAdhar" value="${s?.ADHAR_NUM || ''}" maxlength="12" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Father's Name</label>
-                            <input name="FATHERS_NAME" value="${s?.FATHERS_NAME || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
-                            <input name="DATE_BIRTH" type="date" value="${s?.DATE_BIRTH ? s.DATE_BIRTH.split('T')[0] : ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Date of Joining</label>
-                            <input name="DATE_JOIN" type="date" value="${s?.DATE_JOIN ? s.DATE_JOIN.split('T')[0] : ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Date of Leaving</label>
-                            <input name="DATE_LEAVE" type="date" value="${s?.DATE_LEAVE ? s.DATE_LEAVE.split('T')[0] : ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">PAN Number</label>
-                            <input name="PAN_NUM" value="${s?.PAN_NUM || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">EPF UID</label>
-                            <input name="EPF_UID" value="${s?.EPF_UID || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">ESI UID</label>
-                            <input name="ESI_UID" value="${s?.ESI_UID || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
-                        </div>
-                        <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
                             <select name="STATUS" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
                                 ${STAFF_STATUSES.map(o => `<option ${s?.STATUS === o ? 'selected' : ''}>${o}</option>`).join('')}
@@ -158,21 +163,116 @@ const AdminStaff = (() => {
                                 ${STAFF_DEPTS.map(o => `<option ${s?.DEPARTMENT === o ? 'selected' : ''}>${o}</option>`).join('')}
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Gender</label>
+                            <select name="GENDER" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                                <option value="">Select Gender</option>
+                                ${STAFF_GENDERS.map(o => `<option ${s?.GENDER === o ? 'selected' : ''}>${o}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Blood Group</label>
+                            <select name="BLOOD_GROUP" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                                <option value="">Select Blood Group</option>
+                                ${STAFF_BLOOD.map(o => `<option ${s?.BLOOD_GROUP === o ? 'selected' : ''}>${o}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Mobile</label>
+                            <div class="flex gap-2">
+                                <input name="MOBILE_CC" value="${(s?.MOBILE||'').includes('-') ? s.MOBILE.split('-')[0] : '91'}" class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" ${!canEdit ? 'disabled' : ''}>
+                                <input name="MOBILE_NUM" value="${(s?.MOBILE||'').includes('-') ? s.MOBILE.split('-')[1] : (s?.MOBILE||'')}" class="form-input text-sm flex-1" placeholder="Number" ${!canEdit ? 'disabled' : ''}>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                            <input name="EMAIL" type="email" value="${s?.EMAIL || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Emergency Contact</label>
+                            <input name="EMERGENCY_CONTACT" value="${s?.EMERGENCY_CONTACT || ''}" class="form-input text-sm" placeholder="Name - Number" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Aadhar Number</label>
+                            <input name="ADHAR_NUM" id="sfAdhar" value="${s?.ADHAR_NUM || ''}" maxlength="12" class="form-input text-sm" data-validate="aadhar" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">PAN Number</label>
+                            <input name="PAN_NUM" value="${s?.PAN_NUM || ''}" maxlength="10" class="form-input text-sm" data-validate="pan" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Father's Name</label>
+                            <input name="FATHERS_NAME" value="${s?.FATHERS_NAME || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
+                            <input name="DATE_BIRTH" id="sfDob" type="date" value="${s?.DATE_BIRTH ? fmtDate(s.DATE_BIRTH, 'input') : ''}" class="form-input text-sm" data-validate="age18" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Date of Joining</label>
+                            <input name="DATE_JOIN" type="date" value="${s?.DATE_JOIN ? fmtDate(s.DATE_JOIN, 'input') : ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Date of Leaving</label>
+                            <input name="DATE_LEAVE" type="date" value="${s?.DATE_LEAVE ? fmtDate(s.DATE_LEAVE, 'input') : ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">EPF UID</label>
+                            <input name="EPF_UID" value="${s?.EPF_UID || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">ESI UID</label>
+                            <input name="ESI_UID" value="${s?.ESI_UID || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">UAN</label>
+                            <input name="UAN" value="${s?.UAN || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Bank Account</label>
+                            <input name="BANK_AC" value="${s?.BANK_AC || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Bank IFSC</label>
+                            <input name="BANK_IFSC" value="${s?.BANK_IFSC || ''}" maxlength="11" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                            <input name="BANK_NAME" value="${s?.BANK_NAME || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Driving License</label>
+                            <input name="DRIVING_LICENSE" value="${s?.DRIVING_LICENSE || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Vehicle Number</label>
+                            <input name="VEHICLE_NUM" value="${s?.VEHICLE_NUM || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                        </div>
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-medium text-gray-600 mb-1">Address</label>
                             <input name="ADDRESS" value="${s?.ADDRESS || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div class="relative">
                             <label class="block text-xs font-medium text-gray-600 mb-1">Pincode</label>
-                            <input name="PINCODE" id="sfPincode" value="${s?.PINCODE || ''}" maxlength="6" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <input name="PINCODE" id="sfPincode" value="${s?.PINCODE || ''}" maxlength="6" class="form-input text-sm" data-validate="pin" ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">City</label>
                             <input name="CITY" id="sfCity" value="${s?.CITY || ''}" class="form-input text-sm readonly-input" readonly>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">State</label>
-                            <input name="STATE" id="sfState" value="${s?.STATE || ''}" class="form-input text-sm readonly-input" readonly>
+                        <div class="sm:col-span-2 grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">State</label>
+                                <input name="STATE" id="sfState" value="${s?.STATE || ''}" class="form-input text-sm readonly-input" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">CODE_STATE</label>
+                                <input name="CODE_STATE" value="${s?.CODE_STATE || ''}" class="form-input text-sm readonly-input" readonly maxlength="2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">GST_CODE</label>
+                                <input name="GST_CODE" value="${s?.GST_CODE || ''}" class="form-input text-sm readonly-input" readonly maxlength="2">
+                            </div>
                         </div>
                         ${canEdit ? `
                         <div class="sm:col-span-2 flex justify-end pt-2 border-t">
@@ -203,10 +303,39 @@ const AdminStaff = (() => {
         // pincode auto-fill
         if (canEdit) {
             let _pt;
-            view.querySelector('#sfPincode')?.addEventListener('input', e => {
+            const pinInput = view.querySelector('#sfPincode');
+            pinInput?.addEventListener('input', e => {
                 clearTimeout(_pt);
-                if (e.target.value.length === 6)
-                    _pt = setTimeout(() => _fetchPincode(e.target.value, view), 400);
+                if (e.target.value.length === 6) {
+                    if (_validate.pin(e.target.value)) {
+                        _clearFieldError(pinInput);
+                        _pt = setTimeout(() => _fetchPincode(e.target.value, view), 400);
+                    } else {
+                        _showFieldError(pinInput, 'Invalid pincode format');
+                    }
+                }
+            });
+        }
+
+        // Real-time validation for all fields
+        if (canEdit) {
+            view.querySelectorAll('[data-validate]').forEach(input => {
+                input.addEventListener('blur', () => {
+                    const type = input.dataset.validate;
+                    const val = input.value.trim();
+                    if (val && !_validate[type](val)) {
+                        const labels = {
+                            pan: 'Invalid PAN format (e.g., ABCDE1234F)',
+                            aadhar: 'Invalid Aadhar (12 digits required)',
+                            pin: 'Invalid pincode format',
+                            age18: 'Staff must be at least 18 years old'
+                        };
+                        _showFieldError(input, labels[type] || 'Invalid format');
+                    } else {
+                        _clearFieldError(input);
+                    }
+                });
+                input.addEventListener('input', () => _clearFieldError(input));
             });
         }
 
@@ -214,7 +343,29 @@ const AdminStaff = (() => {
         if (canEdit) {
             view.querySelector('#staffDetailForm').addEventListener('submit', async e => {
                 e.preventDefault();
-                const data = Object.fromEntries(new FormData(e.target));
+                
+                // Validate all fields before submit
+                let hasError = false;
+                view.querySelectorAll('[data-validate]').forEach(input => {
+                    const type = input.dataset.validate;
+                    const val = input.value.trim();
+                    if (val && !_validate[type](val)) {
+                        _showFieldError(input, 'Invalid format');
+                        hasError = true;
+                    }
+                });
+                if (hasError) {
+                    showNotification('❌ Please fix validation errors', 'error');
+                    return;
+                }
+                
+                const f = e.target;
+                const data = Object.fromEntries(new FormData(f));
+                const cc  = (data.MOBILE_CC  || '91').trim();
+                const num = (data.MOBILE_NUM || '').trim();
+                data.MOBILE = num ? `${cc}-${num}` : '';
+                delete data.MOBILE_CC;
+                delete data.MOBILE_NUM;
                 const btn  = e.target.querySelector('button[type=submit]');
                 btn.disabled = true; btn.textContent = 'Saving…';
                 try {
@@ -256,15 +407,18 @@ const AdminStaff = (() => {
     }
 
     async function _fetchPincode(pin, view) {
+        if (typeof window.searchPin !== 'function') return;
         try {
-            const res  = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-            const data = await res.json();
-            if (data?.[0]?.Status === 'Success') {
-                const po = data[0].PostOffice[0];
+            const result = await window.searchPin(pin);
+            if (result?.found) {
                 const c  = view.querySelector('#sfCity');
                 const st = view.querySelector('#sfState');
-                if (c)  c.value  = po.District;
-                if (st) st.value = po.State;
+                const cs = view.querySelector('[name="CODE_STATE"]');
+                const gc = view.querySelector('[name="GST_CODE"]');
+                if (c)  c.value  = result.CITY       || '';
+                if (st) st.value = result.STATE_NAME || result.STATE || '';
+                if (cs) cs.value = result.STATE_CODE || '';
+                if (gc) gc.value = result.GST_CODE   || '';
             }
         } catch (_) {}
     }

@@ -22,10 +22,30 @@ const AdminPage = (() => {
         document.getElementById('sudoModal').classList.remove('hidden');
     }
 
+    // ── Mobile helpers (matches Shipments pattern) ───────────────────────────
+    const _isMobile = () => window.innerWidth < 768;
+
+    function _showListPane() {
+        document.getElementById('adminListPane').style.display = 'flex';
+        document.getElementById('adminDetailPane').style.display = 'none';
+    }
+
+    function _showDetailPane() {
+        if (_isMobile()) {
+            document.getElementById('adminListPane').style.display = 'none';
+            document.getElementById('adminDetailPane').style.display = 'block';
+        } else {
+            document.getElementById('adminListPane').style.display = 'flex';
+            document.getElementById('adminDetailPane').style.display = 'block';
+        }
+    }
+
     // ── View switching ────────────────────────────────────────────────────────
     function _showTiles() {
         document.getElementById('tilesView').style.display = 'flex';
         document.getElementById('splitView').classList.remove('active');
+        document.getElementById('adminDetailPane').style.display = 'none';
+        document.getElementById('adminListPane').style.display = 'flex';
         _activeTile = null;
     }
 
@@ -37,6 +57,13 @@ const AdminPage = (() => {
         document.getElementById('adminList').innerHTML = '';
         document.getElementById('listMsg').textContent = 'Loading…';
         document.getElementById('listSearch').value = '';
+        document.getElementById('deleteCarrierBtn').classList.add('hidden');
+        document.getElementById('adminListPane').style.display = 'flex';
+        if (_isMobile()) {
+            document.getElementById('adminDetailPane').style.display = 'none';
+        } else {
+            document.getElementById('adminDetailPane').style.display = 'block';
+        }
     }
 
     // ── Role helpers ──────────────────────────────────────────────────────────
@@ -53,6 +80,10 @@ const AdminPage = (() => {
         pincodes:      'STAFF',
         clients:       'CLIENT',
         b2b2c:         'CLIENT',
+        holidays:      'STAFF',
+        shifts:        'MANAGER',
+        modes:         'MASTER',
+        carriers:      'MASTER',
     };
 
     function _hideTilesByRole() {
@@ -66,6 +97,22 @@ const AdminPage = (() => {
     function _setCount(tile, val) {
         const el = document.getElementById(`cnt-${tile}`);
         if (el) el.textContent = val;
+    }
+
+    function _loadCountsFromData(data) {
+        _setCount('branches',   Object.keys(data?.BRANCHES  || {}).length);
+        _setCount('staff',      Object.keys(data?.STAFF     || {}).length);
+        _setCount('attendance', Object.keys(data?.ATTENDANCE|| {}).length);
+        _setCount('clients',    Object.keys(data?.B2B       || {}).length);
+        _setCount('b2b2c',      Object.keys(data?.B2B2C     || {}).length);
+        _setCount('holidays',   Object.keys(data?.HOLIDAYS  || {}).length);
+        _setCount('shifts',     Object.values(data?.ATTENDANCE || {}).filter(r => r.SHIFT).length);
+        _setCount('modes',      Object.keys(data?.MODES    || {}).length);
+        _setCount('carriers',   Object.keys(data?.CARRIERS || {}).length);
+        try {
+            if (typeof window.getPincodeCount === 'function')
+                _setCount('pincodes', window.getPincodeCount().toLocaleString('en-IN'));
+        } catch (_) { _setCount('pincodes', '—'); }
     }
 
     async function _loadCounts() {
@@ -85,18 +132,15 @@ const AdminPage = (() => {
         // IDB collections
         try {
             const data = await getAppData();
-            _setCount('branches', Object.keys(data?.BRANCHES || {}).length);
-            _setCount('staff',    Object.keys(data?.STAFF    || {}).length);
-            _setCount('attendance', Object.keys(data?.ATTENDANCE || {}).length);
-            _setCount('clients',  Object.keys(data?.B2B      || {}).length);
-            _setCount('b2b2c',    Object.keys(data?.B2B2C    || {}).length);
+            _loadCountsFromData(data);
         } catch (_) {}
     }
 
     // ── Tile click ────────────────────────────────────────────────────────────
     const TILE_LABELS = {
         users:'Users', registrations:'Registrations', branches:'Branches',
-        staff:'Staff', attendance:'Attendance', pincodes:'Pincodes', clients:'Clients (B2B)', b2b2c:'B2B2C'
+        staff:'Staff', attendance:'Attendance', pincodes:'Pincodes', clients:'Clients (B2B)', b2b2c:'B2B2C', holidays:'Holidays', shifts:'Shifts & Leaves',
+        modes:'Modes', carriers:'Carriers'
     };
 
     function _initTiles() {
@@ -105,7 +149,7 @@ const AdminPage = (() => {
         );
         document.getElementById('backToTilesBtn').addEventListener('click', _showTiles);
         document.getElementById('backToListBtn')?.addEventListener('click', () => {
-            document.getElementById('adminDetailPane').classList.remove('mobile-show');
+            if (_isMobile()) _showListPane();
         });
     }
 
@@ -114,7 +158,7 @@ const AdminPage = (() => {
         if (minRole && !_can(minRole)) return;
         _activeTile = name;
         _showSplit(TILE_LABELS[name] || name);
-        const showAdd = (name === 'users' && _can('ADMIN')) || (name === 'branches' && _can('ADMIN')) || (name === 'b2b2c' && _can('CLIENT')) || (name === 'staff' && _can('ADMIN'));
+        const showAdd = (name === 'users' && _can('ADMIN')) || (name === 'branches' && _can('ADMIN')) || (name === 'b2b2c' && _can('CLIENT')) || (name === 'staff' && _can('ADMIN')) || (name === 'holidays' && _can('ADMIN')) || (name === 'clients' && _can('MANAGER')) || (name === 'modes' && _can('MASTER')) || (name === 'carriers' && _can('MASTER'));
         document.getElementById('addUserBtn').classList.toggle('hidden', !showAdd);
 
         try {
@@ -133,16 +177,18 @@ const AdminPage = (() => {
                 await AdminAttendance.load();
             } else if (name === 'b2b2c') {
                 await AdminB2B2C.load();
+            } else if (name === 'holidays') {
+                await AdminHolidays.load();
+            } else if (name === 'shifts') {
+                await AdminShifts.load();
             } else if (name === 'pincodes') {
-                document.getElementById('listMsg').textContent = 'Pincode master not available here.';
-            } else {
-                const collMap = { branches:'BRANCHES', staff:'STAFF', clients:'B2B', b2b2c:'B2B2C' };
-                const coll = collMap[name];
-                const raw = await getAppData(coll);
-                const items = Object.values(raw || {});
-                if (!items.length) { document.getElementById('listMsg').textContent = 'No records.'; return; }
-                document.getElementById('listMsg').textContent = '';
-                _renderGenericList(items, coll);
+                await AdminPincodes.load();
+            } else if (name === 'clients') {
+                await AdminClients.load();
+            } else if (name === 'modes') {
+                await AdminModes.load();
+            } else if (name === 'carriers') {
+                await AdminCarriers.load();
             }
         } catch (e) {
             document.getElementById('listMsg').textContent = 'Failed to load.';
@@ -178,7 +224,7 @@ const AdminPage = (() => {
 
     function _renderGenericDetail(item) {
         _showDetail(true);
-        document.getElementById('adminDetailPane').classList.add('mobile-show');
+        _showDetailPane();
         const rows = Object.entries(item)
             .filter(([k]) => !['id','created','updated'].includes(k))
             .map(([k,v]) => `<tr>
@@ -198,7 +244,12 @@ const AdminPage = (() => {
             if (_activeTile === 'users') AdminUsers.search(e.target.value);
             else if (_activeTile === 'branches') AdminBranches.search(e.target.value);
             else if (_activeTile === 'staff') AdminStaff.search(e.target.value);
-            else if (_activeTile === 'attendance') AdminAttendance.search(e.target.value);
+            else if (_activeTile === 'pincodes') AdminPincodes.search(e.target.value);
+            else if (_activeTile === 'holidays') AdminHolidays.search(e.target.value);
+            else if (_activeTile === 'clients') AdminClients.search(e.target.value);
+            else if (_activeTile === 'modes') AdminModes.search(e.target.value);
+            else if (_activeTile === 'carriers') AdminCarriers.search(e.target.value);
+            else if (_activeTile === 'shifts') AdminShifts.search(e.target.value);
             else if (_activeTile === 'b2b2c') {
                 const mirror = document.getElementById('b2b2cSearchClient');
                 if (mirror) { mirror.value = e.target.value; mirror.dispatchEvent(new Event('input')); }
@@ -255,7 +306,7 @@ const AdminPage = (() => {
     function openAddUserModal(prefill = {}) {
         _addUserPrefill = prefill;
         AdminPage.showDetail(true);
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        _showDetailPane();
 
         const ROLES = ['CLIENT','STAFF','MANAGER','ACCOUNTANT','AUDITOR','ADMIN','MASTER'];
         const cc  = (prefill.MOBILE || '').includes('-') ? prefill.MOBILE.split('-')[0] : '91';
@@ -336,6 +387,10 @@ const AdminPage = (() => {
         document.getElementById('addUserBtn').addEventListener('click', () => {
             if (_activeTile === 'branches') { AdminBranches.openAddPane(); return; }
             if (_activeTile === 'staff') { AdminStaff.openAddPane(); return; }
+            if (_activeTile === 'holidays') { AdminHolidays.openAddPane(); return; }
+            if (_activeTile === 'clients') { AdminClients.openAddPane(); return; }
+            if (_activeTile === 'modes') { AdminModes.openAddPane(); return; }
+            if (_activeTile === 'carriers') { AdminCarriers.openAddPane(); return; }
             if (_activeTile === 'b2b2c') {
                 const newBtn = document.getElementById('b2b2cNewClientBtn');
                 if (newBtn) newBtn.click();
@@ -384,8 +439,12 @@ const AdminPage = (() => {
         _initAddUserFlow();
         _initCloseButtons();
         _initSearch();
-        // layout.js resolves OPERATIONS_URL asynchronously in its own DOMContentLoaded.
-        // Poll until it's no longer the placeholder, then load counts.
+
+        // IDB counts — fire immediately from data events (same pattern as other pages)
+        window.addEventListener('appDataLoaded',    e => _loadCountsFromData(e.detail.data));
+        window.addEventListener('appDataRefreshed', e => _loadCountsFromData(e.detail.data));
+
+        // API counts (users/registrations) — wait for OPERATIONS_URL
         const _tryLoad = () => {
             if (CONSTANTS.OPERATIONS_URL && CONSTANTS.OPERATIONS_URL !== '__API_URL__') {
                 _loadCounts();
@@ -396,7 +455,7 @@ const AdminPage = (() => {
         _tryLoad();
     });
 
-    return { openAddUserModal, getSudo, requireSudo, showDetail: _showDetail, can: _can };
+    return { openAddUserModal, getSudo, requireSudo, showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can };
 })();
 
 window.AdminPage = AdminPage;

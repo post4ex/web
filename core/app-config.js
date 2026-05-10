@@ -140,7 +140,6 @@ const PAGE_CONFIG = {
 
     'Mode.html':         'MASTER',
     'Carrier.html':      'MASTER',
-    'B2B.html':          'MASTER',
 };
 
 const DATA_SCHEMA = {

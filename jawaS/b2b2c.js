@@ -64,7 +64,7 @@ const B2B2CModule = (() => {
     }
 
     // ── Constants ─────────────────────────────────────────────────────────────
-    const DERIVED_FIELDS = ['CITY', 'STATE', 'ZONE', 'EXPRESS_TAT', 'AIRLINE_TAT', 'SURFACE_TAT', 'PREMIUM_TAT', 'ODA'];
+    const DERIVED_FIELDS = ['CITY', 'STATE', 'CODE_STATE', 'GST_CODE', 'ZONE', 'EXPRESS_TAT', 'AIRLINE_TAT', 'SURFACE_TAT', 'PREMIUM_TAT', 'ODA'];
     const LOCKED_FIELDS  = ['NAME', 'BRANCH', 'CODE', 'GST_ID_PAN_ADHAR', 'PINCODE', ...DERIVED_FIELDS];
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ const B2B2CModule = (() => {
 
         // show detail pane
         AdminPage.showDetail(true);
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        AdminPage.showDetailPane?.();
     }
 
     function _resetForm() {
@@ -227,17 +227,21 @@ const B2B2CModule = (() => {
         ui.pincodeStatus.innerHTML = '<span class="text-gray-400 text-xs">searching...</span>';
 
         // try local map first (fast, full data)
-        if (typeof searchPin === 'function') {
-            const local = searchPin(pincode);
+        if (typeof window.searchPin === 'function') {
+            const local = await window.searchPin(pincode);
             if (local.found) {
-                ui.cityInput.value       = local.CITY;
-                ui.stateInput.value      = local.STATE;
-                ui.zoneInput.value       = local.ZONE;
-                ui.odaInput.value        = local.ODA;
-                ui.expressTatInput.value = local.EXPRESS_TAT !== 'N' ? local.EXPRESS_TAT : '';
-                ui.airlineTatInput.value = local.AIRLINE_TAT !== 'N' ? local.AIRLINE_TAT : '';
-                ui.surfaceTatInput.value = local.SURFACE_TAT !== 'N' ? local.SURFACE_TAT : '';
-                ui.premiumTatInput.value = local.PREMIUM_TAT !== 'N' ? local.PREMIUM_TAT : '';
+                ui.cityInput.value       = local.CITY        || '';
+                ui.stateInput.value      = local.STATE_NAME  || local.STATE || '';
+                const csEl = ui.form.querySelector('[name="CODE_STATE"]');
+                const gcEl = ui.form.querySelector('[name="GST_CODE"]');
+                if (csEl) csEl.value = local.STATE_CODE || '';
+                if (gcEl) gcEl.value = local.GST_CODE   || '';
+                ui.zoneInput.value       = local.ZONE        || '';
+                ui.odaInput.value        = local.ODA         || '';
+                ui.expressTatInput.value = local.EXPRESS_TAT !== 'N' ? (local.EXPRESS_TAT || '') : '';
+                ui.airlineTatInput.value = local.AIRLINE_TAT !== 'N' ? (local.AIRLINE_TAT || '') : '';
+                ui.surfaceTatInput.value = local.SURFACE_TAT !== 'N' ? (local.SURFACE_TAT || '') : '';
+                ui.premiumTatInput.value = local.PREMIUM_TAT !== 'N' ? (local.PREMIUM_TAT || '') : '';
                 _lockDerived();
                 ui.pincodeStatus.innerHTML = '<span class="text-green-500">✔</span>';
                 return;
@@ -247,8 +251,12 @@ const B2B2CModule = (() => {
         // fallback to Post Office web API
         const web = await searchPinWeb(pincode);
         if (web.found) {
-            ui.cityInput.value  = web.CITY;
-            ui.stateInput.value = web.STATE;
+            ui.cityInput.value  = web.CITY  || '';
+            ui.stateInput.value = web.STATE || '';
+            const csEl = ui.form.querySelector('[name="CODE_STATE"]');
+            const gcEl = ui.form.querySelector('[name="GST_CODE"]');
+            if (csEl) csEl.value = '';
+            if (gcEl) gcEl.value = '';
             ui.zoneInput.value = ui.odaInput.value = ui.expressTatInput.value =
             ui.airlineTatInput.value = ui.surfaceTatInput.value = ui.premiumTatInput.value = '';
             _unlockLogistics();
@@ -377,7 +385,7 @@ const B2B2CModule = (() => {
         ui.newClientBtn.addEventListener('click', () => {
             _resetForm();
             AdminPage.showDetail(true);
-            document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+            AdminPage.showDetailPane?.();
         });
 
         ui.pincodeInput.addEventListener('input', async () => {

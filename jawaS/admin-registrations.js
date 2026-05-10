@@ -68,7 +68,7 @@ const AdminRegistrations = (() => {
         document.querySelectorAll('#adminList li').forEach(li =>
             li.classList.toggle('selected', li.dataset.id === id)
         );
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        AdminPage.showDetailPane();
         _renderDetail(reg);
     }
 

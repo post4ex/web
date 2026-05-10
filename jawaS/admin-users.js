@@ -84,7 +84,7 @@ const AdminUsers = (() => {
         document.querySelectorAll('#adminList li').forEach(li =>
             li.classList.toggle('selected', li.dataset.user === username)
         );
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        AdminPage.showDetailPane();
         _renderDetail(u);
     }
 

@@ -11,16 +11,10 @@ const AdminAttendance = (() => {
     let _selected   = null;
     let _initialized = false;
 
-    const ATT_STATUSES = ['Present', 'Absent', 'Half Day', 'Leave'];
+    const ATT_STATUSES    = ['Present', 'Absent', 'Half Day', 'Leave'];
+    const ATT_SHIFTS      = ['Morning', 'Evening', 'Night'];
+    const ATT_LEAVE_TYPES = ['Sick', 'Casual', 'Earned', 'Unpaid'];
 
-    // ── Distance calc ─────────────────────────────────────────────────────────
-    function _calcDistance(lat1, lon1, lat2, lon2) {
-        if ([lat1, lon1, lat2, lon2].some(isNaN)) return null;
-        const R = 6371, toRad = d => d * Math.PI / 180;
-        const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-        return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
-    }
 
     // ── List pane ─────────────────────────────────────────────────────────────
     function _injectListPane() {
@@ -64,7 +58,7 @@ const AdminAttendance = (() => {
         _selected = code;
         _renderList(_staff);
         _renderDetail(_staff[code]);
-        document.getElementById('adminDetailPane')?.classList.add('mobile-show');
+        AdminPage.showDetailPane();
     }
 
     function _renderDetail(s) {
@@ -86,6 +80,7 @@ const AdminAttendance = (() => {
             formContent = `<p class="text-sm text-green-700 font-medium">✅ Attendance complete for today.</p>`;
         } else if (hasIn) {
             // In done — show Out Time only
+            const canApprove = AdminPage.can('ADMIN');
             formContent = `
                 <div class="relative">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Out Time</label>
@@ -93,6 +88,18 @@ const AdminAttendance = (() => {
                     <input type="hidden" name="GEO_TAG_OUT_TIME" id="attGeoOut">
                     <input type="hidden" name="OUT_TIME_DIST"    id="attDistOut">
                     <button type="button" id="attNowOut" class="absolute right-1 bottom-1 text-xs bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300">Now</button>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Overtime Hrs</label>
+                    <input type="number" name="OVERTIME_HRS" min="0" step="0.5" value="${existing?.OVERTIME_HRS || ''}" class="form-input text-sm" ${!canApprove ? 'disabled' : ''} placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Late Mins</label>
+                    <input type="number" name="LATE_MINS" min="0" value="${existing?.LATE_MINS || ''}" class="form-input text-sm" ${!canApprove ? 'disabled' : ''} placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Approved By</label>
+                    <input type="text" name="APPROVED_BY" value="${existing?.APPROVED_BY || ''}" class="form-input text-sm" ${!canApprove ? 'disabled' : ''} placeholder="Manager code">
                 </div>`;
         } else {
             // Nothing yet — show In Time + Status only
@@ -101,6 +108,19 @@ const AdminAttendance = (() => {
                     <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
                     <select name="STATUS" class="form-input text-sm">
                         ${ATT_STATUSES.map(o => `<option>${o}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Shift</label>
+                    <select name="SHIFT" class="form-input text-sm">
+                        ${ATT_SHIFTS.map(o => `<option>${o}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Leave Type</label>
+                    <select name="LEAVE_TYPE" class="form-input text-sm">
+                        <option value="">N/A</option>
+                        ${ATT_LEAVE_TYPES.map(o => `<option>${o}</option>`).join('')}
                     </select>
                 </div>
                 <div class="relative">
@@ -189,6 +209,9 @@ const AdminAttendance = (() => {
                 OUT_TIME:      toTimeMs(raw.OUT_TIME),
                 GEO_TAG_OUT:   raw.GEO_TAG_OUT_TIME || '',
                 OUT_TIME_DIST: parseFloat(raw.OUT_TIME_DIST) || 0,
+                OVERTIME_HRS:  parseFloat(raw.OVERTIME_HRS) || 0,
+                LATE_MINS:     parseInt(raw.LATE_MINS) || 0,
+                APPROVED_BY:   raw.APPROVED_BY || '',
                 REMARKS:       raw.REMARKS || '',
                 STAFF_CODE:    s.STAFF_CODE,
                 STAFF_NAME:    s.STAFF_NAME,
@@ -200,6 +223,8 @@ const AdminAttendance = (() => {
                 GEO_TAG_IN:    raw.GEO_TAG_IN_TIME || '',
                 IN_TIME_DIST:  parseFloat(raw.IN_TIME_DIST) || 0,
                 STATUS:        raw.STATUS,
+                SHIFT:         raw.SHIFT || '',
+                LEAVE_TYPE:    raw.LEAVE_TYPE || '',
                 REMARKS:       raw.REMARKS || '',
                 ATTEN_DATE:    new Date(today).getTime(),
                 STAFF_CODE:    s.STAFF_CODE,
@@ -234,46 +259,77 @@ const AdminAttendance = (() => {
             .sort((a, b) => (b.ATTEN_DATE > a.ATTEN_DATE ? 1 : -1))
             .slice(0, 15);
         if (!recs.length) { el.innerHTML = '<p class="text-xs text-gray-400">No recent records.</p>'; return; }
-        el.innerHTML = `
+        // Desktop: table | Mobile: cards
+        const isMobile = window.innerWidth < 768;
+        if (isMobile) {
+            el.innerHTML = recs.map(r => `
+                <div class="border rounded-lg p-3 mb-2 bg-white text-xs space-y-1">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-gray-700">${r.ATTEN_DATE ? fmtDate(r.ATTEN_DATE, 'input') : ''}</span>
+                        <span class="px-2 py-0.5 rounded-full text-white text-xs font-medium" style="background:${r.STATUS==='Present'?'#16a34a':r.STATUS==='Absent'?'#dc2626':r.STATUS==='Half Day'?'#d97706':'#6b7280'}">${r.STATUS || ''}</span>
+                    </div>
+                    <div class="flex gap-4 text-gray-600">
+                        <span>🕐 In: <strong>${r.IN_TIME  ? fmtDate(r.IN_TIME,  'time') : '—'}</strong></span>
+                        <span>🕔 Out: <strong>${r.OUT_TIME ? fmtDate(r.OUT_TIME, 'time') : '—'}</strong></span>
+                    </div>
+                    <div class="flex gap-4 text-gray-500">
+                        ${r.SHIFT        ? `<span>Shift: ${r.SHIFT}</span>` : ''}
+                        ${r.LATE_MINS    ? `<span>Late: ${parseFloat(r.LATE_MINS)}m</span>` : ''}
+                        ${r.OVERTIME_HRS ? `<span>OT: ${parseFloat(r.OVERTIME_HRS)}h</span>` : ''}
+                    </div>
+                    ${r.APPROVED_BY ? `<div class="text-gray-400">Approved: ${r.APPROVED_BY}</div>` : ''}
+                    ${r.REMARKS     ? `<div class="text-gray-400 italic">${r.REMARKS}</div>` : ''}
+                </div>`).join('');
+        } else {
+            el.innerHTML = `
             <table class="w-full text-xs">
                 <thead><tr class="bg-gray-50 text-gray-500">
-                    <th class="p-1.5 text-left">Date</th><th class="p-1.5 text-left">Status</th>
-                    <th class="p-1.5 text-left">In</th><th class="p-1.5 text-left">Dist</th>
-                    <th class="p-1.5 text-left">Out</th><th class="p-1.5 text-left">Dist</th>
+                    <th class="p-1.5 text-left">Date</th>
+                    <th class="p-1.5 text-left">Status</th>
+                    <th class="p-1.5 text-left">Shift</th>
+                    <th class="p-1.5 text-left">In</th>
+                    <th class="p-1.5 text-left">Out</th>
+                    <th class="p-1.5 text-left">Late</th>
+                    <th class="p-1.5 text-left">OT</th>
+                    <th class="p-1.5 text-left">Approved</th>
                     <th class="p-1.5 text-left">Remarks</th>
                 </tr></thead>
                 <tbody>${recs.map(r => `
                     <tr class="border-b">
                         <td class="p-1.5">${r.ATTEN_DATE ? fmtDate(r.ATTEN_DATE, 'input') : ''}</td>
                         <td class="p-1.5">${r.STATUS || ''}</td>
+                        <td class="p-1.5">${r.SHIFT || ''}</td>
                         <td class="p-1.5">${r.IN_TIME  ? fmtDate(r.IN_TIME,  'time') : ''}</td>
-                        <td class="p-1.5">${r.IN_TIME_DIST  || ''}</td>
                         <td class="p-1.5">${r.OUT_TIME ? fmtDate(r.OUT_TIME, 'time') : ''}</td>
-                        <td class="p-1.5">${r.OUT_TIME_DIST || ''}</td>
+                        <td class="p-1.5">${r.LATE_MINS    ? parseFloat(r.LATE_MINS)    : ''}</td>
+                        <td class="p-1.5">${r.OVERTIME_HRS ? parseFloat(r.OVERTIME_HRS) : ''}</td>
+                        <td class="p-1.5">${r.APPROVED_BY   || ''}</td>
                         <td class="p-1.5">${r.REMARKS || ''}</td>
                     </tr>`).join('')}
                 </tbody>
             </table>`;
+        }
     }
 
     function _setNow(timeInput, geoInput, distInput, staffMember) {
-        if (timeInput.readOnly) { showNotification('Record In Time first.', 'info'); return; }
+        timeInput.removeAttribute('readonly');
         timeInput.value = new Date().toTimeString().slice(0, 5);
+        timeInput.setAttribute('readonly', true);
         timeInput.dispatchEvent(new Event('input'));
-        if (!navigator.geolocation) { geoInput.value = 'Not Supported'; return; }
-        navigator.geolocation.getCurrentPosition(pos => {
-            const coords = `${pos.coords.latitude.toFixed(5)},${pos.coords.longitude.toFixed(5)}`;
-            geoInput.value = coords;
-            const branch = _branches[staffMember?.BRANCH];
-            if (!branch?.BRANCH_GEO_TEG) return;
-            const [sLat, sLon] = coords.split(',').map(Number);
-            const [bLat, bLon] = branch.BRANCH_GEO_TEG.split(',').map(Number);
-            const dist = _calcDistance(sLat, sLon, bLat, bLon);
-            if (dist !== null) distInput.value = dist;
-        }, err => {
-            geoInput.value = 'Unavailable';
-            const msg = err.code === 1 ? 'Location permission denied — allow it in browser settings.' : 'Could not get location. Try again.';
-            showNotification('⚠️ ' + msg, 'warning');
+        geoGetPosition({
+            onStart:   () => {},
+            onSuccess: coords => {
+                geoInput.value = coords;
+                const branch = _branches[staffMember?.BRANCH];
+                if (!branch?.BRANCH_GEO_TEG) return;
+                const dist = geoCalcDistance(coords, branch.BRANCH_GEO_TEG);
+                if (dist !== null) distInput.value = dist;
+            },
+            onError: msg => {
+                geoInput.value = 'Unavailable';
+                showNotification('⚠️ ' + msg, 'warning');
+            },
+            decimals: 5,
         });
     }
 
