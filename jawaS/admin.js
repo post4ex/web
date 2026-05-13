@@ -58,6 +58,7 @@ const AdminPage = (() => {
         document.getElementById('listMsg').textContent = 'Loading…';
         document.getElementById('listSearch').value = '';
         document.getElementById('deleteCarrierBtn').classList.add('hidden');
+        document.getElementById('detailView').innerHTML = '';
         document.getElementById('adminListPane').style.display = 'flex';
         if (_isMobile()) {
             document.getElementById('adminDetailPane').style.display = 'none';

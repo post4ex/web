@@ -167,8 +167,8 @@ const AdminB2B2C = (() => {
     }
 
     function load() {
-        // form pane + event binding only once
-        if (!_initialized) {
+        // form pane + event binding only once — but re-inject if detailView was cleared by tile switch
+        if (!_initialized || !document.getElementById('b2b2cForm')) {
             _initialized = true;
             _injectFormPane();
             B2B2CModule.init();
