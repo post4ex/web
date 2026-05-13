@@ -2,7 +2,7 @@ import { PINCODE } from '../assets/Network/network-data.map.min.js';
 
 // State code mapping: 2-letter code -> { name, gstCode }
 const STATE_MAP = {
-    'JK': { name: 'JAMMU & KASHMIR', gstCode: '01' },
+    'JK': { name: 'JAMMU AND KASHMIR', gstCode: '01' },
     'HP': { name: 'HIMACHAL PRADESH', gstCode: '02' },
     'PB': { name: 'PUNJAB', gstCode: '03' },
     'CH': { name: 'CHANDIGARH', gstCode: '04' },
@@ -26,7 +26,7 @@ const STATE_MAP = {
     'CG': { name: 'CHHATTISGARH', gstCode: '22' },
     'MP': { name: 'MADHYA PRADESH', gstCode: '23' },
     'GJ': { name: 'GUJARAT', gstCode: '24' },
-    'DD': { name: 'DAMAN & DIU', gstCode: '25' },
+    'DD': { name: 'DAMAN AND DIU', gstCode: '25' },
     'DN': { name: 'DADRA AND NAGAR HAVELI', gstCode: '26' },
     'MH': { name: 'MAHARASHTRA', gstCode: '27' },
     'KA': { name: 'KARNATAKA', gstCode: '29' },
@@ -35,7 +35,7 @@ const STATE_MAP = {
     'KL': { name: 'KERALA', gstCode: '32' },
     'TN': { name: 'TAMIL NADU', gstCode: '33' },
     'PY': { name: 'PUDUCHERRY', gstCode: '34' },
-    'AN': { name: 'ANDAMAN & NICOBAR', gstCode: '35' },
+    'AN': { name: 'ANDAMAN AND NICOBAR ISLANDS', gstCode: '35' },
     'TS': { name: 'TELANGANA', gstCode: '36' },
     'AP': { name: 'ANDHRA PRADESH', gstCode: '37' },
     'LA': { name: 'LADAKH', gstCode: '38' }
@@ -100,8 +100,8 @@ export async function searchPin(pincode) {
         const data = await res.json();
         if (data?.[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
             const po = data[0].PostOffice[0];
-            // Match state name — normalize spaces, ampersands, case
-            const normalize = s => s.toUpperCase().replace(/\bAND\b/g, '&').replace(/\s+/g, ' ').trim();
+            // Match state name — normalize to plain uppercase, treating & and AND as equivalent
+            const normalize = s => s.toUpperCase().replace(/&/g, 'AND').replace(/\s+/g, ' ').trim();
             const apiState = normalize(po.State);
             let stateCode = '';
             let gstCode = '';

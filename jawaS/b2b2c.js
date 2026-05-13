@@ -206,6 +206,10 @@ const B2B2CModule = (() => {
         [ui.cityInput, ui.stateInput, ui.zoneInput,
          ui.expressTatInput, ui.airlineTatInput, ui.surfaceTatInput, ui.premiumTatInput, ui.odaInput
         ].forEach(f => { if (f) f.value = ''; });
+        const csEl = ui.form.querySelector('[name="CODE_STATE"]');
+        const gcEl = ui.form.querySelector('[name="GST_CODE"]');
+        if (csEl) csEl.value = '';
+        if (gcEl) gcEl.value = '';
     }
 
     function _lockDerived() {
@@ -226,41 +230,33 @@ const B2B2CModule = (() => {
     async function _lookupPincode(pincode) {
         ui.pincodeStatus.innerHTML = '<span class="text-gray-400 text-xs">searching...</span>';
 
-        // try local map first (fast, full data)
-        if (typeof window.searchPin === 'function') {
-            const local = await window.searchPin(pincode);
-            if (local.found) {
-                ui.cityInput.value       = local.CITY        || '';
-                ui.stateInput.value      = local.STATE_NAME  || local.STATE || '';
-                const csEl = ui.form.querySelector('[name="CODE_STATE"]');
-                const gcEl = ui.form.querySelector('[name="GST_CODE"]');
-                if (csEl) csEl.value = local.STATE_CODE || '';
-                if (gcEl) gcEl.value = local.GST_CODE   || '';
-                ui.zoneInput.value       = local.ZONE        || '';
-                ui.odaInput.value        = local.ODA         || '';
-                ui.expressTatInput.value = local.EXPRESS_TAT !== 'N' ? (local.EXPRESS_TAT || '') : '';
-                ui.airlineTatInput.value = local.AIRLINE_TAT !== 'N' ? (local.AIRLINE_TAT || '') : '';
-                ui.surfaceTatInput.value = local.SURFACE_TAT !== 'N' ? (local.SURFACE_TAT || '') : '';
-                ui.premiumTatInput.value = local.PREMIUM_TAT !== 'N' ? (local.PREMIUM_TAT || '') : '';
-                _lockDerived();
-                ui.pincodeStatus.innerHTML = '<span class="text-green-500">✔</span>';
-                return;
-            }
+        if (typeof window.searchPin !== 'function') {
+            ui.pincodeStatus.innerHTML = '<span class="text-red-500">✖ searchPin unavailable</span>';
+            return;
         }
 
-        // fallback to Post Office web API
-        const web = await searchPinWeb(pincode);
-        if (web.found) {
-            ui.cityInput.value  = web.CITY  || '';
-            ui.stateInput.value = web.STATE || '';
-            const csEl = ui.form.querySelector('[name="CODE_STATE"]');
-            const gcEl = ui.form.querySelector('[name="GST_CODE"]');
-            if (csEl) csEl.value = '';
-            if (gcEl) gcEl.value = '';
-            ui.zoneInput.value = ui.odaInput.value = ui.expressTatInput.value =
-            ui.airlineTatInput.value = ui.surfaceTatInput.value = ui.premiumTatInput.value = '';
-            _unlockLogistics();
-            ui.pincodeStatus.innerHTML = '<span class="text-yellow-500" title="Zone, ODA and TAT must be filled manually.">⚠ partial</span>';
+        const result = await window.searchPin(pincode);
+        const csEl = ui.form.querySelector('[name="CODE_STATE"]');
+        const gcEl = ui.form.querySelector('[name="GST_CODE"]');
+
+        if (result.found) {
+            ui.cityInput.value       = result.CITY       || '';
+            ui.stateInput.value      = result.STATE_NAME || result.STATE || '';
+            if (csEl) csEl.value     = result.STATE_CODE || '';
+            if (gcEl) gcEl.value     = result.GST_CODE   || '';
+            ui.zoneInput.value       = result.ZONE       || '';
+            ui.odaInput.value        = result.ODA        || '';
+            ui.expressTatInput.value = result.EXPRESS_TAT !== 'N' ? (result.EXPRESS_TAT || '') : '';
+            ui.airlineTatInput.value = result.AIRLINE_TAT !== 'N' ? (result.AIRLINE_TAT || '') : '';
+            ui.surfaceTatInput.value = result.SURFACE_TAT !== 'N' ? (result.SURFACE_TAT || '') : '';
+            ui.premiumTatInput.value = result.PREMIUM_TAT !== 'N' ? (result.PREMIUM_TAT || '') : '';
+            if (result.ZONE === null) {
+                _unlockLogistics();
+                ui.pincodeStatus.innerHTML = '<span class="text-yellow-500" title="Zone, ODA and TAT must be filled manually.">⚠ partial</span>';
+            } else {
+                _lockDerived();
+                ui.pincodeStatus.innerHTML = '<span class="text-green-500">✔</span>';
+            }
         } else {
             _clearPincodeFields();
             _lockDerived();

@@ -32,6 +32,8 @@ const AdminB2B2C = (() => {
                 <div class="detail-card-body">
                     <form id="b2b2cForm" class="space-y-4">
                         <input type="hidden" id="b2b2cRecordId">
+                        <input type="hidden" name="CODE_STATE" id="b2b2cCodeState">
+                        <input type="hidden" name="GST_CODE"   id="b2b2cGstCode">
 
                         <!-- Core -->
                         <div>
