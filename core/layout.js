@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Resolve API URL
     try {
-        const res = await fetch(window.location.origin + '/dev_url.json', { cache: 'no-store' });
+        const res = await fetch('dev_url.json', { cache: 'no-store' });
         if (res.ok) {
             const { url } = await res.json();
             if (url) CONSTANTS.OPERATIONS_URL = url;

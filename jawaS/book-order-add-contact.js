@@ -1,6 +1,6 @@
 // jawaS/book-order-add-contact.js
 // Inline Add Contact modal for BookOrder.html
-// Depends on: core/b2b2c-api.js, core/searchpinweb.js, utils/searchpin.js
+// Depends on: core/b2b2c-api.js, utils/searchpin.js
 // Communicates with book-order.js via window.bookOrderCtx
 
 import { searchPin } from '../utils/searchpin.js';
@@ -28,6 +28,8 @@ const fields = {
     code:       document.getElementById('ac_code'),
     city:       document.getElementById('ac_city'),
     state:      document.getElementById('ac_state'),
+    stateCode:  document.getElementById('ac_state_code'),
+    gstCode:    document.getElementById('ac_gst_code'),
     zone:       document.getElementById('ac_zone'),
     oda:        document.getElementById('ac_oda'),
     expressTat: document.getElementById('ac_express_tat'),
@@ -43,7 +45,7 @@ let addContactType = null; // 'sender' | 'receiver'
 // --- PINCODE HELPERS ---
 
 function clearDerivedFields() {
-    ['city', 'state', ...LOGISTICS_FIELDS].forEach(k => { fields[k].value = ''; });
+    ['city', 'state', 'stateCode', 'gstCode', ...LOGISTICS_FIELDS].forEach(k => { fields[k].value = ''; });
 }
 
 function lockLogisticsFields() {
@@ -65,35 +67,30 @@ function unlockLogisticsFields() {
 async function lookupPincode(pincode) {
     pinStatus.textContent = '…';
 
-    // 1 — try local map
-    const local = searchPin(pincode);
-    if (local.found) {
-        fields.city.value       = local.CITY;
-        fields.state.value      = local.STATE;
-        fields.zone.value       = local.ZONE;
-        fields.oda.value        = local.ODA;
-        fields.expressTat.value = local.EXPRESS_TAT !== 'N' ? local.EXPRESS_TAT : '';
-        fields.airlineTat.value = local.AIRLINE_TAT !== 'N' ? local.AIRLINE_TAT : '';
-        fields.surfaceTat.value = local.SURFACE_TAT !== 'N' ? local.SURFACE_TAT : '';
-        fields.premiumTat.value = local.PREMIUM_TAT !== 'N' ? local.PREMIUM_TAT : '';
-        lockLogisticsFields();
-        pinStatus.innerHTML = '<span class="text-green-500">✔</span>';
+    const result = await searchPin(pincode);
+    if (result.found) {
+        fields.city.value       = result.CITY;
+        fields.state.value      = result.STATE;
+        fields.stateCode.value  = result.STATE_CODE  || '';
+        fields.gstCode.value    = result.GST_CODE    || '';
+        fields.zone.value       = result.ZONE        || '';
+        fields.oda.value        = result.ODA         || '';
+        fields.expressTat.value = result.EXPRESS_TAT !== 'N' ? (result.EXPRESS_TAT || '') : '';
+        fields.airlineTat.value = result.AIRLINE_TAT !== 'N' ? (result.AIRLINE_TAT || '') : '';
+        fields.surfaceTat.value = result.SURFACE_TAT !== 'N' ? (result.SURFACE_TAT || '') : '';
+        fields.premiumTat.value = result.PREMIUM_TAT !== 'N' ? (result.PREMIUM_TAT || '') : '';
+        // if from API fallback, ZONE/TAT will be null — unlock for manual entry
+        if (result.ZONE === null) {
+            unlockLogisticsFields();
+            pinStatus.innerHTML = '<span class="text-yellow-500" title="City/State filled. Zone, ODA and TAT must be entered manually.">⚠</span>';
+        } else {
+            lockLogisticsFields();
+            pinStatus.innerHTML = '<span class="text-green-500">✔</span>';
+        }
         return;
     }
 
-    // 2 — fallback to Post Office web API
-    const web = await searchPinWeb(pincode);
-    if (web.found) {
-        fields.city.value  = web.CITY;
-        fields.state.value = web.STATE;
-        // logistics fields not available — clear and unlock for manual entry
-        LOGISTICS_FIELDS.forEach(k => { fields[k].value = ''; });
-        unlockLogisticsFields();
-        pinStatus.innerHTML = '<span class="text-yellow-500" title="City/State filled. Zone, ODA and TAT must be entered manually.">⚠</span>';
-        return;
-    }
-
-    // 3 — not found anywhere
+    // not found anywhere
     clearDerivedFields();
     lockLogisticsFields();
     pinStatus.innerHTML = '<span class="text-red-500">✖</span>';
@@ -197,6 +194,8 @@ saveBtn.addEventListener('click', async () => {
         CODE:             fields.code.value,
         CITY:             fields.city.value,
         STATE:            fields.state.value,
+        CODE_STATE:       fields.stateCode.value,
+        GST_CODE:         fields.gstCode.value,
         ZONE:             zone,
         ODA:              fields.oda.value.trim(),
         EXPRESS_TAT:      fields.expressTat.value,
