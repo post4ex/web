@@ -5,43 +5,6 @@
     </div>
 </footer>
 
-<!-- NEW: Floating Action Button (FAB) Structure -->
-<div id="fab-container" class="hidden">
-    <!-- Action buttons will be populated here by fab.js -->
-    <div id="fab-actions"></div>
-    <!-- Main FAB button -->
-    <button id="fab-main">
-        <div class="fab-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </div>
-    </button>
-</div>
-
-<!-- The Contact Pop-up Modal -->
-<div id="contactModal" class="modal-overlay hidden">
-    <div class="modal-content relative card">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Contact Details</h2>
-        <button id="closeContactModalButton" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        </button>
-        <div class="space-y-4 text-gray-700">
-            <div>
-                <h3 class="font-medium">Address:</h3>
-                <p class="text-gray-600">Shivlok Colony, Haripur, Dehradun - 248001</p>
-            </div>
-            <div>
-                <h3 class="font-medium">Email:</h3>
-                <p class="text-gray-600" id="contact-email">Post4Ex@gmail.com</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Load FAB scripts -->
-<script src="utils/fab-config.js"></script>
-<script src="utils/fab.js"></script>
 <script>
     window.addEventListener('footerLoaded', function() {
         if (window.CONSTANTS) {

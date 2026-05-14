@@ -14,17 +14,6 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* FAB Styling */
-        .fab-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; }
-        .fab-button {
-            width: 3.5rem; height: 3.5rem; border-radius: 50%;
-            background-color: #2563eb; color: white;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease; cursor: pointer; border: none; outline: none;
-        }
-        .fab-button:hover { background-color: #1d4ed8; transform: scale(1.1) rotate(180deg); }
-        .fab-button svg { width: 1.5rem; height: 1.5rem; fill: currentColor; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
@@ -88,13 +77,6 @@
         </div>
     </main>
 
-    <!-- FAB -->
-    <div class="fab-container">
-        <button id="fab-refresh" class="fab-button" title="Force Refresh Data">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-        </button>
-    </div>
-
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
     
     <script src="indexeddb.js"></script>
@@ -115,8 +97,6 @@
             const tableBody = document.getElementById('table-body');
             const emptyState = document.getElementById('empty-state');
             const badge = document.getElementById('record-count-badge');
-            const fabRefresh = document.getElementById('fab-refresh');
-
             let flattenedDataMap = new Map(); 
             let indexedDBData = new Map(); // Store IndexedDB data
 
@@ -428,14 +408,6 @@
                 debounceTimer = setTimeout(performSearch, 300);
             });
             
-            if (fabRefresh) {
-                fabRefresh.addEventListener('click', () => {
-                    const manualBtn = document.getElementById('manual-refresh-button');
-                    if (manualBtn) manualBtn.click();
-                    else window.location.reload();
-                });
-            }
-
             window.addEventListener('appDataLoaded', loadData);
             window.addEventListener('appDataRefreshed', loadData);
             
