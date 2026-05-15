@@ -78,6 +78,7 @@
         <div class="container mx-auto max-w-7xl space-y-4 sm:space-y-8">
             
             <!-- SPLIT LAYOUT CONTAINER -->
+            <div class="tray">
             <div id="main-split-layout" class="flex flex-col lg:flex-row gap-6 items-start">
                 
                 <!-- LEFT/TOP: Buttons -->
@@ -184,13 +185,8 @@
                         </div>
 
                         <!-- Button -->
-                        <button id="main-track-btn"
-                            style="width:100%;padding:0.95rem;background:#9C2007;border:none;border-radius:0.875rem;color:#ffffff;font-size:0.9rem;font-weight:800;letter-spacing:0.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;box-shadow:0 4px 20px rgba(156,32,7,0.5);transition:transform 0.15s,box-shadow 0.15s;"
-                            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 28px rgba(156,32,7,0.6)'"
-                            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 20px rgba(156,32,7,0.5)'"
-                            onmousedown="this.style.transform='scale(0.97)'"
-                            onmouseup="this.style.transform='translateY(-1px)'">
-                            <i class="fa-solid fa-magnifying-glass" style="color:#ffffff;"></i><span style="color:#ffffff;">Track Shipment</span>
+                        <button id="main-track-btn" class="btn w-full" style="border-radius:0.875rem;padding:0.95rem;font-size:0.9rem;font-weight:800;letter-spacing:0.04em;">
+                            <i class="fa-solid fa-magnifying-glass"></i><span>Track Shipment</span>
                         </button>
 
                         <!-- Loading -->
@@ -214,9 +210,12 @@
                     </div>
                 </div>
             </div>
+            </div>
 
-            <!-- RESULTS AREA (replaces services on track) -->
-            <div id="services-content-area"></div>
+            <!-- RESULTS AREA — separate tray, shown when content loads -->
+            <div id="services-tray" style="display:none;margin-top:1rem;" class="tray">
+                <div id="services-content-area"></div>
+            </div>
         </div>
     </main>
 
@@ -235,7 +234,7 @@
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-gray-400"></i>
                         <input type="text" id="complaintSearchInput" placeholder="Enter AWB / Reference No." class="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 transition-all text-sm font-semibold">
                     </div>
-                    <button id="complaintSearchButton" class="px-6 py-3 bg-blue-900 text-white font-bold rounded-lg hover:bg-blue-800 transition-colors shadow-sm text-sm">Find</button>
+                    <button id="complaintSearchButton" class="btn">Find</button>
                 </div>
                 <div id="complaintLoadingIndicator" class="hidden text-center py-4">
                     <i class="fa-solid fa-circle-notch fa-spin text-blue-900 text-2xl"></i>
@@ -270,7 +269,7 @@
                     <div id="emailSendingStatus" class="text-xs font-bold text-gray-500 hidden">
                         <i class="fa-solid fa-spinner fa-spin mr-1"></i> Sending...
                     </div>
-                    <button id="submitComplaintButton" class="px-8 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-md text-sm ml-auto">
+                    <button id="submitComplaintButton" class="btn-danger ml-auto">
                         Submit Complaint
                     </button>
                 </div>
@@ -297,7 +296,7 @@
         </div>
     </div>
 
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     <div id="contactModal" class="modal-overlay hidden">
         <div class="modal-content relative card">
@@ -329,7 +328,7 @@
                     class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-blue-500 text-sm font-semibold tracking-widest text-center transition">
                 <p id="captcha-msg" class="hidden text-xs text-red-500 text-center font-medium"></p>
             </div>
-            <button id="captcha-submit" class="w-full py-2.5 bg-blue-800 text-white font-bold rounded-lg hover:bg-blue-900 text-sm mt-3">
+            <button id="captcha-submit" class="btn w-full mt-3">
                 Submit
             </button>
         </div>
@@ -342,6 +341,11 @@
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
     <script src="core/layout.js"></script>
+    <script src="core/searchpinweb.js"></script>
+    <script type="module">
+        import { searchPin } from './utils/searchpin.js';
+        window.searchPin = searchPin;
+    </script>
     <script src="jawaS/tracking.js"></script>
     <script>
         // ============================================================================
@@ -396,34 +400,39 @@
                     </span>`;
                     btn.disabled = true;
                     btn.style.opacity = '0.85';
+                    btn.style.backgroundColor = '#9C2007';
+                    btn.style.color = '#ffffff';
                 } else {
-                    btn.innerHTML = `<i class="fa-solid fa-magnifying-glass" style="color:#ffffff;"></i><span style="color:#ffffff;">Track Shipment</span>`;
+                    btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i><span>Track Shipment</span>`;
                     btn.disabled = false;
                     btn.style.opacity = '1';
+                    btn.style.backgroundColor = '';
+                    btn.style.color = '';
                 }
                 // hide the separate loading div
                 document.getElementById('main-track-loading').classList.add('hidden');
             }
 
             function showResultMsg(text, type) {
-                const svc = document.getElementById('services-content-area');
+                const svc  = document.getElementById('services-content-area');
+                const tray = document.getElementById('services-tray');
                 if (!svc) return;
                 const color   = type === 'error' ? '#dc2626' : '#2563eb';
                 const bgColor = type === 'error' ? '#fef2f2' : '#eff6ff';
                 const icon    = type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info';
-                svc.classList.remove('hidden');
+                if (tray) tray.style.display = 'block';
                 svc.innerHTML = `
                     <div style="background:white;border-radius:1.25rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.08);text-align:center;">
                         <div style="width:3rem;height:3rem;background:${bgColor};border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;">
                             <i class="fa-solid ${icon}" style="color:${color};font-size:1.25rem;"></i>
                         </div>
                         <p style="font-size:0.95rem;font-weight:700;color:#1e293b;margin-bottom:0.25rem;">${text}</p>
-                        <button onclick="document.getElementById('services-content-area').innerHTML='';${window.innerWidth>=1024?'loadDynamicContent(\'services.html\',\'services-content-area\')':'typeof window.loadMobileServicesSlideshow===\'function\'&&window.loadMobileServicesSlideshow()'}"
+                        <button onclick="document.getElementById('services-content-area').innerHTML='';document.getElementById('services-tray').style.display='none';"
                             style="margin-top:1rem;padding:0.5rem 1.25rem;background:#9C2007;color:white;border:none;border-radius:0.625rem;font-size:0.8rem;font-weight:700;cursor:pointer;">
                             Try Again
                         </button>
                     </div>`;
-                svc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                tray.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             async function loadCaptcha() {
@@ -443,9 +452,10 @@
             }
 
             function showFullResult(data) {
-                const svc = document.getElementById('services-content-area');
+                const svc  = document.getElementById('services-content-area');
+                const tray = document.getElementById('services-tray');
                 if (!svc) return;
-                svc.classList.remove('hidden');
+                if (tray) tray.style.display = 'block';
                 svc.innerHTML = `
                     <div style="background:white;border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
@@ -460,10 +470,9 @@
                     renderTrackingResult(data, 'main-track-full-result');
                 document.getElementById('main-track-close').addEventListener('click', () => {
                     svc.innerHTML = '';
-                    if (window.innerWidth >= 1024) loadDynamicContent('services.html', 'services-content-area');
-                    else if (typeof window.loadMobileServicesSlideshow === 'function') window.loadMobileServicesSlideshow();
+                    if (tray) tray.style.display = 'none';
                 });
-                svc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                tray.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             async function doPublicTrack() {
@@ -578,7 +587,9 @@
         // ============================================================================
         window.loadMobileServicesSlideshow = function() {
             const area = document.getElementById('services-content-area');
+            const tray = document.getElementById('services-tray');
             if (!area) return;
+            if (tray) tray.style.display = 'block';
             const services = [
                 {
                     icon: 'fa-plane-departure', iconBg: 'bg-blue-100', iconColor: 'text-blue-700',
@@ -672,21 +683,14 @@
 
         window.loadService = function(url) {
             const servicesArea = document.getElementById('services-content-area');
-            const trackingArea = document.getElementById('tracking-content-area');
-
-            // Scenario 2: If a button is clicked, hide current tracking results
-            if (trackingArea) {
-                // Targeting both common ID conventions found in the project
-                const results = trackingArea.querySelector('#resultsContainer') || trackingArea.querySelector('#results-container');
-                if (results) results.classList.add('hidden');
-            }
-
+            const servicesTray = document.getElementById('services-tray');
             if(servicesArea) {
                 servicesArea.classList.remove('hidden');
+                if (servicesTray) servicesTray.style.display = 'block';
                 if (typeof window.loadDynamicContent === 'function') {
                     loadDynamicContent(url, 'services-content-area');
                 }
-                servicesArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                servicesTray.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         };
 

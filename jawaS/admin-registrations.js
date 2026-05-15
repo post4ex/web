@@ -119,14 +119,14 @@ const AdminRegistrations = (() => {
                         <h2 class="text-base font-bold text-gray-800">${reg.USER || '—'}</h2>
                         <p class="text-xs text-gray-500">${reg.NAME || ''}</p>
                     </div>
-                    ${canAct ? `<button id="declineRegBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Decline</button>` : ''}
+                    ${canAct ? `<button id="declineRegBtn" class="btn-danger btn-sm">Decline</button>` : ''}
                 </div>
                 <div class="detail-card-body">
                     <form id="approveRegForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         ${readonlyHtml}
                         ${fieldHtml}
                         ${canAct ? `<div class="sm:col-span-2 flex justify-end">
-                            <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700">✓ Approve</button>
+                            <button type="submit" class="btn btn-sm">✓ Approve</button>
                         </div>` : ''}
                     </form>
                 </div>

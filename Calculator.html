@@ -173,15 +173,15 @@
                         <!-- AWB and Action Buttons -->
                         <div class="flex items-center gap-2 border border-gray-400 p-2">
                             <input type="text" id="awb" name="awb" placeholder="AWB" class="w-full p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10 hidden">
-                            <button id="cancel_button" type="button" class="flex-grow bg-red-600 text-white py-2 px-4 text-sm font-medium hover:bg-red-700 rounded-md shadow-sm">
+                            <button id="cancel_button" type="button" class="btn-ghost flex-grow">
                                 Reset
                             </button>
-                            <button id="book_it_button" type="button" class="flex-grow bg-green-700 text-white py-2 px-4 text-sm font-medium hover:bg-green-800 rounded-md shadow-sm">Book It</button>
+                            <button id="book_it_button" type="button" class="btn flex-grow">Book It</button>
                         </div>
                         <div class="flex gap-2 border border-gray-400 p-2">
-                            <button id="clearMultiboxButton" class="flex-1 bg-yellow-500 text-white py-1 px-3 rounded-md text-xs font-medium hover:bg-yellow-600">Clear Multibox</button>
-                            <button id="clearProductsButton" class="flex-1 bg-red-500 text-white py-1 px-3 rounded-md text-xs font-medium hover:bg-red-600">Clear Product</button>
-                            <button id="clearAllButton" class="flex-1 bg-gray-500 text-white py-1 px-3 rounded-md text-xs font-medium hover:bg-gray-600">Clear All</button>
+                            <button id="clearMultiboxButton" class="btn btn-sm flex-1">Clear Multibox</button>
+                            <button id="clearProductsButton" class="btn-danger btn-sm flex-1">Clear Product</button>
+                            <button id="clearAllButton" class="btn-ghost btn-sm flex-1">Clear All</button>
                         </div>
                         <!-- Inline Message Display Area -->
                         <div id="bookingMessage" class="p-2 text-sm text-center rounded-md mt-2"></div>
@@ -399,13 +399,13 @@
         <div class="container mx-auto bg-white border border-gray-400 mt-4 mb-4 rounded-md shadow-lg">
             <div class="flex justify-between items-center p-3 border-b border-gray-200">
                 <h2 class="text-base font-bold text-gray-800">Calculation History</h2>
-                <button onclick="calcHistoryClearAll()" class="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Clear All</button>
+                <button onclick="calcHistoryClearAll()" class="btn-danger btn-sm">Clear All</button>
             </div>
             <ul id="calcHistoryList" class="p-4 space-y-2"><li class="text-center text-gray-500 text-sm">No history yet.</li></ul>
         </div>
     </main>
     
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     <!-- Add Contact Modal -->
     <div id="addContactModal" class="fixed inset-0 z-50 hidden">
@@ -445,8 +445,8 @@
                     <p id="addContactError" class="text-red-600 text-xs hidden"></p>
                 </form>
                 <div class="flex justify-end gap-3 mt-4">
-                    <button id="addContactCancelBtn" class="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-                    <button id="addContactSaveBtn" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 disabled:bg-indigo-400">
+                    <button id="addContactCancelBtn" class="btn-ghost btn-sm">Cancel</button>
+                    <button id="addContactSaveBtn" class="btn btn-sm flex items-center gap-2 disabled:opacity-45">
                         Save
                         <div id="addContactSpinner" class="hidden border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"></div>
                     </button>

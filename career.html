@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+can<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -26,7 +26,7 @@
 
         <!-- Admin Toggle (Hidden by default) -->
         <div class="mb-6 text-center">
-            <button id="adminToggle" onclick="toggleAdmin()" class="hidden px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            <button id="adminToggle" onclick="toggleAdmin()" class="hidden btn btn-sm">
                 <i class="fa-solid fa-user-shield mr-2"></i>Admin Panel
             </button>
         </div>
@@ -60,7 +60,7 @@
                             <option value="Internship">Internship</option>
                         </select>
                         <textarea id="jobDescription" placeholder="Job Description" rows="4" class="w-full p-3 border rounded-lg" required></textarea>
-                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                        <button type="submit" class="btn-ghost w-full">
                             <i class="fa-solid fa-plus mr-2"></i>Add Job
                         </button>
                     </form>
@@ -128,15 +128,15 @@
                     <input type="tel" id="applicantPhone" placeholder="Phone" class="w-full p-3 border rounded-lg" required>
                     <textarea id="applicantMessage" placeholder="Cover Letter (Optional)" rows="4" class="w-full p-3 border rounded-lg"></textarea>
                     <div class="flex gap-3">
-                        <button type="button" onclick="closeApplicationModal()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 transition-colors">Cancel</button>
-                        <button type="submit" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors">Submit Application</button>
+                        <button type="button" onclick="closeApplicationModal()" class="btn-danger flex-1">Cancel</button>
+                        <button type="submit" class="btn-ghost flex-1">Submit Application</button>
                     </div>
                 </form>
             </div>
         </div>
     </main>
 
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     
     <script src="indexeddb.js"></script>
@@ -216,13 +216,13 @@
                     <p class="text-gray-700 mb-4 line-clamp-3">${job.description}</p>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-500">Posted: ${fmtDate(job.posted)}</span>
-                        <button onclick="applyForJob(${job.id})" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <button onclick="applyForJob(${job.id})" class="btn-ghost">
                             <i class="fa-solid fa-paper-plane mr-2"></i>Apply
                         </button>
                     </div>
                     ${localStorage.getItem('isAdmin') === 'true' ? `
                         <div class="mt-3 pt-3 border-t flex gap-2">
-                            <button onclick="deleteJob(${job.id})" class="text-red-600 hover:text-red-800 text-sm">
+                            <button onclick="deleteJob(${job.id})" class="btn-danger btn-sm">
                                 <i class="fa-solid fa-trash mr-1"></i>Delete
                             </button>
                         </div>

@@ -13,7 +13,7 @@ async function loadComponent(componentUrl, placeholderId) {
         placeholder.innerHTML = isHeader
             ? '<div class="animate-pulse bg-gray-200 h-14 w-full rounded"></div>'
             : '<div class="animate-pulse bg-gray-200 h-10 w-full rounded"></div>';
-        placeholder.style.minHeight = isHeader ? '56px' : '36px';
+        placeholder.style.minHeight = isHeader ? '56px' : '26px';
 
         const safeComponent = _ALLOWED_COMPONENTS.find(c => c === componentUrl);
         if (!safeComponent) throw new Error(`Disallowed component: ${componentUrl}`);
@@ -100,15 +100,9 @@ const setActiveNavOnLoad = () => {
     setTimeout(() => {
         document.querySelectorAll('a[id^="nav-"], a[id^="dropdown-"]').forEach(link => {
             const linkPage = (link.id || '').split('-')[1];
-            link.classList.remove('bg-gray-600', 'font-bold');
-            if (!link.id.includes('search')) {
-                link.classList.add('text-white');
-                link.style.backgroundColor = '#9C2007';
-            }
+            link.classList.remove('bg-gray-600', 'font-bold', 'btn-active');
             if (linkPage === pageId) {
-                link.style.backgroundColor = '';
-                link.classList.remove('text-white');
-                link.classList.add('bg-gray-600', 'font-bold');
+                link.classList.add('btn-active');
             }
         });
     }, 150);
@@ -456,9 +450,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (window.location.pathname.includes('main.html') || window.location.pathname.endsWith('/main') || window.location.pathname.endsWith('/')) {
+        const tray = document.getElementById('services-tray');
         if (window.innerWidth >= 1024) {
+            if (tray) tray.style.display = 'block';
             loadDynamicContent('services.html', 'services-content-area');
         } else {
+            if (tray) tray.style.display = 'block';
             if (typeof window.loadMobileServicesSlideshow === 'function') window.loadMobileServicesSlideshow();
         }
     }

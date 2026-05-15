@@ -241,13 +241,13 @@ const AdminBranches = (() => {
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <h2 class="text-base font-bold text-gray-800">${isEdit ? b.BRANCH_CODE : 'New Branch'}</h2>
-                    ${isEdit ? `<button id="deleteBranchBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>` : ''}
+                    ${isEdit ? `<button id="deleteBranchBtn" class="btn-danger btn-sm">Delete</button>` : ''}
                 </div>
                 <div class="detail-card-body">
                     <form id="branchForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         ${fieldHtml}
                         <div class="sm:col-span-2 flex justify-end">
-                            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
+                            <button type="submit" class="btn btn-sm">
                                 ${isEdit ? 'Save Changes' : 'Create Branch'}
                             </button>
                         </div>

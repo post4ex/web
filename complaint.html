@@ -15,7 +15,8 @@
 
     <main class="w-full flex-grow p-4 sm:p-8">
         <div class="container">
-            <div class="card w-full">
+            <div class="tray w-full">
+                <div class="bg-white rounded-xl p-6 shadow-sm">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Raise a Complaint</h2>
 
                 <div class="space-y-4">
@@ -23,9 +24,7 @@
                     <p class="text-gray-600">First, find your consignment by entering the AWB or Reference Number.</p>
                     <div class="flex flex-col sm:flex-row items-center gap-4">
                         <input type="text" id="complaintSearchInput" placeholder="Enter AWB/Ref Number" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-700 w-full">
-                        <button id="complaintSearchButton" class="px-6 py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 transition-colors w-full sm:w-auto">
-                            Search
-                        </button>
+                        <button id="complaintSearchButton" class="btn w-full sm:w-auto">Search</button>
                     </div>
 
                     <div id="complaintLoadingIndicator" class="hidden text-center text-gray-500"><p>Fetching consignment details...</p></div>
@@ -60,9 +59,7 @@
                     </div>
 
                     <div class="flex items-center gap-4 pt-4">
-                        <button id="submitComplaintButton" class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors">
-                            Submit Complaint
-                        </button>
+                        <button id="submitComplaintButton" class="btn">Submit Complaint</button>
                         <div id="emailSendingStatus" class="hidden text-sm text-gray-500">Sending...</div>
                     </div>
                 </div>
@@ -70,11 +67,12 @@
                 <div id="complaintMessageBox" class="hidden p-4 mt-4 bg-red-100 border border-red-400 text-red-700 rounded-lg" role="alert">
                     <p id="complaintMessageText"></p>
                 </div>
+                </div>
             </div>
         </div>
     </main>
 
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     
     <script src="indexeddb.js"></script>

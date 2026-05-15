@@ -124,7 +124,7 @@ const AdminStaff = (() => {
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <h2 class="text-base font-bold text-gray-800">${isEdit ? s.STAFF_CODE : 'New Staff'}</h2>
-                    ${isEdit && canDelete ? `<button id="staffDeleteBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>` : ''}
+                    ${isEdit && canDelete ? `<button id="staffDeleteBtn" class="btn-danger btn-sm">Delete</button>` : ''}
                 </div>
                 <div class="detail-card-body">
                     ${isEdit && canDelete ? `
@@ -132,11 +132,11 @@ const AdminStaff = (() => {
                         <p class="text-sm text-red-700 font-medium mb-3">Delete <strong>${s?.STAFF_NAME || ''} (${s?.STAFF_CODE || ''})</strong>?<br>
                         <span class="text-xs text-gray-500">This will permanently remove the staff record.</span></p>
                         <div class="flex gap-3 items-center flex-wrap">
-                            <button id="staffConfirmDeleteBtn" class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1">
+                            <button id="staffConfirmDeleteBtn" class="btn-danger btn-sm flex items-center gap-1">
                                 Confirm Delete
                                 <div id="staffDeleteSpinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
-                            <button id="staffCancelDeleteBtn" class="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
+                            <button id="staffCancelDeleteBtn" class="btn-ghost btn-sm">Cancel</button>
                         </div>
                     </div>` : ''}
                     <form id="staffDetailForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -288,7 +288,7 @@ const AdminStaff = (() => {
                         </div>
                         ${canEdit ? `
                         <div class="sm:col-span-2 flex justify-end pt-2 border-t">
-                            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
+                            <button type="submit" class="btn btn-sm">
                                 ${isEdit ? 'Save Changes' : 'Create Staff'}
                             </button>
                         </div>` : ''}
@@ -312,10 +312,10 @@ const AdminStaff = (() => {
                     <input id="staffOtpInput" type="text" maxlength="6" placeholder="Enter 6-digit OTP"
                         class="form-input w-full text-center text-lg tracking-widest mb-4">
                     <div class="flex gap-3">
-                        <button id="staffOtpVerifyBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2">
+                        <button id="staffOtpVerifyBtn" class="btn flex-1 flex items-center justify-center gap-2">
                             <span>Verify &amp; Proceed</span><div id="staffOtpSpinner" class="spinner hidden"></div>
                         </button>
-                        <button id="staffOtpCancelBtn" class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+                        <button id="staffOtpCancelBtn" class="btn-ghost btn-sm">Cancel</button>
                     </div>
                     <button id="staffOtpResendBtn" class="mt-3 w-full text-xs text-indigo-600 hover:underline">Resend OTP</button>
                 </div>`;

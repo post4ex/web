@@ -146,7 +146,7 @@ const AdminHolidays = (() => {
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <h2 class="text-base font-bold text-gray-800">${isEdit ? h.HOLIDAY_NAME : 'New Holiday'}</h2>
-                    ${isEdit && canEdit ? `<button id="holidayDeleteBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>` : ''}
+                    ${isEdit && canEdit ? `<button id="holidayDeleteBtn" class="btn-danger btn-sm">Delete</button>` : ''}
                 </div>
                 <div class="detail-card-body">
                     <form id="holidayForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -193,7 +193,7 @@ const AdminHolidays = (() => {
 
                         ${canEdit ? `
                         <div class="sm:col-span-2 flex justify-end pt-2 border-t">
-                            <button type="submit" class="px-4 py-2 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700">
+                            <button type="submit" class="btn btn-sm">
                                 ${isEdit ? 'Save Changes' : 'Create Holiday'}
                             </button>
                         </div>` : ''}

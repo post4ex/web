@@ -27,7 +27,7 @@ const AdminB2B2C = (() => {
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <h2 class="text-base font-bold text-gray-800">B2B2C Client</h2>
-                    <button id="b2b2cDeleteBtn" class="hidden px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>
+                    <button id="b2b2cDeleteBtn" class="hidden btn-danger btn-sm">Delete</button>
                 </div>
                 <div class="detail-card-body">
                     <form id="b2b2cForm" class="space-y-4">
@@ -142,18 +142,18 @@ const AdminB2B2C = (() => {
                         <div id="b2b2cDeleteConfirm" class="hidden border border-red-200 bg-red-50 rounded-lg p-3">
                             <p class="text-sm text-red-700 font-medium mb-3">Delete <span id="b2b2cClientToDelete" class="font-bold"></span>? This cannot be undone.</p>
                             <div class="flex gap-3">
-                                <button id="b2b2cConfirmDeleteBtn" type="button" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 flex items-center">
+                                <button id="b2b2cConfirmDeleteBtn" type="button" class="btn-danger btn-sm flex items-center">
                                     Yes, Delete
                                     <div id="b2b2cDeleteSpinner" class="hidden ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                 </button>
-                                <button id="b2b2cCancelDeleteBtn" type="button" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm font-medium hover:bg-gray-300">Cancel</button>
+                                <button id="b2b2cCancelDeleteBtn" type="button" class="btn-ghost btn-sm">Cancel</button>
                             </div>
                         </div>
 
                         <!-- Actions -->
                         <div class="flex justify-between items-center pt-3 border-t">
-                            <button type="button" id="b2b2cNewClientBtn" class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">+ New</button>
-                            <button type="submit" id="b2b2cSubmitBtn" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 flex items-center gap-2">
+                            <button type="button" id="b2b2cNewClientBtn" class="btn-ghost btn-sm">+ New</button>
+                            <button type="submit" id="b2b2cSubmitBtn" class="btn btn-sm flex items-center gap-2">
                                 <span id="b2b2cBtnText">Submit New Client</span>
                                 <div id="b2b2cSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>

@@ -202,10 +202,10 @@
                                     </svg>
                                 </button>
                             </div>
-                            <button id="cancel_button" type="button" class="flex-grow bg-red-600 text-white py-2 px-4 text-sm font-medium hover:bg-red-700 rounded-md shadow-sm">
+                            <button id="cancel_button" type="button" class="btn-ghost flex-grow">
                                 Cancel
                             </button>
-                            <button id="book_button" type="button" class="flex-grow bg-gray-800 text-white py-2 px-4 text-sm font-medium hover:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                            <button id="book_button" type="button" class="btn flex-grow">
                                 Book
                             </button>
                         </div>
@@ -343,13 +343,13 @@
                             <div id="productTotalsText" class="text-sm font-semibold text-gray-700 space-y-1 hidden">
                                 <!-- Totals will be displayed here dynamically -->
                             </div>
-                            <button id="clearMultiboxButton" class="bg-yellow-500 text-white py-1 px-3 rounded-md text-xs font-medium hover:bg-yellow-600">
+                            <button id="clearMultiboxButton" class="btn btn-sm">
                                 Clear Multibox
                             </button>
-                            <button id="clearProductsButton" class="bg-red-500 text-white py-1 px-3 rounded-md text-xs font-medium hover:bg-red-600">
+                            <button id="clearProductsButton" class="btn-danger btn-sm">
                                 Clear Product
                             </button>
-                            <button id="clearAllButton" class="bg-gray-500 text-white py-1 px-3 rounded-md text-xs font-medium hover:bg-gray-600">
+                            <button id="clearAllButton" class="btn-ghost btn-sm">
                                 Clear All
                             </button>
                         </div>
@@ -471,7 +471,7 @@
         </div>
     </main>
     
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     <!-- Add Contact Modal -->
     <div id="addContactModal" class="fixed inset-0 z-50 hidden">
@@ -513,8 +513,8 @@
                     <p id="addContactError" class="text-red-600 text-xs hidden"></p>
                 </form>
                 <div class="flex justify-end gap-3 mt-4">
-                    <button id="addContactCancelBtn" class="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-                    <button id="addContactSaveBtn" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 disabled:bg-indigo-400">
+                    <button id="addContactCancelBtn" class="btn-ghost btn-sm">Cancel</button>
+                    <button id="addContactSaveBtn" class="btn btn-sm flex items-center gap-2 disabled:opacity-45">
                         Save
                         <div id="addContactSpinner" class="hidden border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"></div>
                     </button>
@@ -593,7 +593,7 @@
                     <input type="number" id="m_height" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
             </div>
-            <button type="button" onclick="mobileAddBox()" class="w-full py-3 bg-gray-800 text-white font-semibold rounded-lg text-sm active:bg-gray-600">Add Box</button>
+            <button type="button" onclick="mobileAddBox()" class="btn w-full py-3">Add Box</button>
         </div>
     </div>
 
@@ -636,7 +636,7 @@
                     </div>
                 </div>
             </div>
-            <button type="button" onclick="mobileAddProduct()" class="w-full py-3 bg-gray-800 text-white font-semibold rounded-lg text-sm active:bg-gray-600">Add Product</button>
+            <button type="button" onclick="mobileAddProduct()" class="btn w-full py-3">Add Product</button>
         </div>
     </div>
 

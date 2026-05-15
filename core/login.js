@@ -19,7 +19,7 @@ async function _loadCaptcha(prefix, endpoint) {
         document.getElementById(`${prefix}-captcha-img`).src = data.image;
         document.getElementById(`${prefix}-captcha-answer`).value = '';
         document.getElementById(`${prefix}-captcha-msg`).classList.add('hidden');
-        document.getElementById(`${prefix}-captcha`).classList.remove('hidden');
+        document.getElementById(`${prefix}-captcha`).classList.add('captcha-visible');
     } catch (_) {}
 }
 
@@ -109,7 +109,7 @@ function switchView(viewName) {
         document.getElementById('forgot-step-2').classList.add('hidden');
         document.getElementById('forgot-step-3').classList.add('hidden');
         document.getElementById('forgot-btn').textContent = 'Request OTP';
-        document.getElementById('forgot-btn').className   = 'w-full py-2 bg-orange-600 text-white font-bold rounded hover:bg-orange-700 transition-all shadow text-sm mt-2';
+        document.getElementById('forgot-btn').className   = 'btn-otp w-full mt-2';
     }
     if (viewName === 'register') {
         regState = 'init';
@@ -180,7 +180,7 @@ async function handleRegister(e) {
             const { res, json } = await callApi('/api/public/initiateRegistration', { ...data, ...captcha });
             if (res.status === 403 && json.id) { _setCaptchaError('reg', json); return; }
             document.getElementById('reg-step-1').classList.add('hidden');
-            document.getElementById('reg-captcha').classList.add('hidden');
+            document.getElementById('reg-captcha').classList.remove('captcha-visible');
             document.getElementById('reg-step-2').classList.remove('hidden');
             document.getElementById('reg-btn').textContent = 'Confirm OTP';
             regState = 'confirm';
@@ -215,7 +215,7 @@ async function handleForgot(e) {
             const { res, json } = await callApi('/api/public/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim(), ...captcha });
             if (res.status === 403 && json.id) { _setCaptchaError('forgot', json); return; }
             document.getElementById('forgot-step-1').classList.add('hidden');
-            document.getElementById('forgot-captcha').classList.add('hidden');
+            document.getElementById('forgot-captcha').classList.remove('captcha-visible');
             document.getElementById('forgot-step-2').classList.remove('hidden');
             document.getElementById('forgot-btn').textContent = 'Verify OTP';
             forgotState = 'verify';
@@ -232,7 +232,7 @@ async function handleForgot(e) {
             document.getElementById('forgot-step-2').classList.add('hidden');
             document.getElementById('forgot-step-3').classList.remove('hidden');
             document.getElementById('forgot-btn').textContent = 'Set New Password';
-            document.getElementById('forgot-btn').className   = 'w-full py-2 bg-green-600 text-white font-bold rounded shadow text-sm mt-2';
+            document.getElementById('forgot-btn').className   = 'btn-otp w-full mt-2';
             forgotState = 'reset';
         } catch (err) { setLoading(false); showMessage('Verification failed.', 'error'); }
 

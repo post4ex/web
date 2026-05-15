@@ -111,7 +111,7 @@ const AdminCarriers = (() => {
                     </div>
                     <div class="mt-8 text-center">
                         <button type="submit" id="carriersSubmitBtn"
-                            class="text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-medium rounded-lg text-sm px-8 py-3 text-center transition-all duration-300 ease-in-out w-full md:w-auto flex items-center justify-center mx-auto disabled:bg-indigo-400">
+                            class="btn px-8 py-3 flex items-center justify-center mx-auto disabled:opacity-45">
                             <span id="carriersSubmitText">Submit New Carrier</span>
                             <div id="carriersSpinner" class="spinner hidden ml-3" style="width:24px;height:24px;"></div>
                         </button>
@@ -126,8 +126,8 @@ const AdminCarriers = (() => {
                     <h2 class="text-xl font-bold text-gray-800 mb-4">Confirm Deletion</h2>
                     <p class="text-gray-600 mb-6">Are you sure you want to delete carrier <strong id="carriersDeleteName"></strong>? This action cannot be undone.</p>
                     <div class="flex justify-end space-x-4">
-                        <button id="carriersCancelDeleteBtn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
-                        <button id="carriersConfirmDeleteBtn" class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">Yes, Delete</button>
+                        <button id="carriersCancelDeleteBtn" class="btn-ghost px-4 py-2">Cancel</button>
+                        <button id="carriersConfirmDeleteBtn" class="btn-danger px-4 py-2">Yes, Delete</button>
                     </div>
                 </div>
             </div>`;

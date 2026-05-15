@@ -18,7 +18,19 @@
         }
         .auth-view { transition: opacity 0.3s ease-in-out; }
         .hidden-view { display: none; opacity: 0; }
-        
+
+        /* Captcha always takes space — visibility toggle prevents layout shift */
+        #login-captcha, #reg-captcha, #forgot-captcha {
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #login-captcha.captcha-visible,
+        #reg-captcha.captcha-visible,
+        #forgot-captcha.captcha-visible {
+            visibility: visible;
+            pointer-events: auto;
+        }
+
         /* Custom Scrollbar for Right Pane if content overflows */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -32,12 +44,12 @@
 
     <!-- MAIN CONTENT (Centered Compact Card) -->
     <main class="flex-grow flex items-center justify-center p-4">
-        
+        <div class="tray w-full max-w-4xl">
         <!-- COMPACT CONTAINER -->
-        <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid md:grid-cols-2 md:min-h-[500px]">
+        <div class="w-full bg-white rounded-2xl shadow-2xl overflow-hidden grid md:grid-cols-2 md:min-h-[500px]">
             
             <!-- LEFT SIDE: ACTIVE FORM CONTAINER -->
-            <div class="p-8 relative flex flex-col justify-center border-r border-gray-100">
+            <div class="p-8 relative flex flex-col justify-center border-r border-gray-100" style="min-height:520px;overflow:hidden;">
                 
                 <div class="flex justify-center mb-6">
                     <img src="assets/images/post4ex-logo.svg" alt="Post4Ex" class="h-10 w-auto">
@@ -63,7 +75,7 @@
                         </div>
 
                         <!-- INLINE CAPTCHA -->
-                        <div id="login-captcha" class="hidden">
+                        <div id="login-captcha">
                             <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
                                 <div class="flex items-center gap-3">
                                     <img id="login-captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white">
@@ -77,7 +89,7 @@
                             </div>
                         </div>
 
-                        <button id="login-btn" type="submit" class="w-full py-2.5 bg-blue-900 text-white font-bold rounded-lg hover:bg-blue-800 transition-all shadow-md text-sm tracking-wide">
+                        <button id="login-btn" type="submit" class="btn w-full py-2.5">
                             LOG IN
                         </button>
                     </form>
@@ -137,7 +149,7 @@
                         </div>
 
                         <!-- INLINE CAPTCHA (step 1 only) -->
-                        <div id="reg-captcha" class="hidden">
+                        <div id="reg-captcha">
                             <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
                                 <div class="flex items-center gap-3">
                                     <img id="reg-captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white">
@@ -149,12 +161,12 @@
                             </div>
                         </div>
 
-                        <button type="submit" id="reg-btn" class="w-full py-2 bg-green-700 text-white font-bold rounded hover:bg-green-800 transition-all shadow text-sm mt-2">
+                        <button type="submit" id="reg-btn" class="btn-otp w-full mt-2">
                             Send OTP
                         </button>
                     </form>
                     <div class="mt-3 text-center">
-                        <button onclick="switchView('login')" class="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
+                        <button onclick="switchView('login')" class="btn-ghost">← Cancel</button>
                     </div>
                 </div>
 
@@ -184,7 +196,7 @@
                             <label for="kyc-address" class="absolute text-gray-500 transition-all left-3 top-2 text-xs">Full Address</label>
                         </div>
 
-                        <button type="submit" id="kyc-btn" class="w-full py-2 bg-green-700 text-white font-bold rounded hover:bg-green-800 transition-all shadow text-sm mt-2">
+                        <button type="submit" id="kyc-btn" class="btn w-full mt-2">
                             Submit Registration
                         </button>
                     </form>
@@ -229,7 +241,7 @@
                         </div>
 
                         <!-- INLINE CAPTCHA (step 1 only) -->
-                        <div id="forgot-captcha" class="hidden">
+                        <div id="forgot-captcha">
                             <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
                                 <div class="flex items-center gap-3">
                                     <img id="forgot-captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white">
@@ -241,12 +253,12 @@
                             </div>
                         </div>
 
-                        <button type="submit" id="forgot-btn" class="w-full py-2 bg-orange-600 text-white font-bold rounded hover:bg-orange-700 transition-all shadow text-sm mt-2">
+                        <button type="submit" id="forgot-btn" class="btn-otp w-full mt-2">
                             Request OTP
                         </button>
                     </form>
                     <div class="mt-4 text-center">
-                        <button onclick="switchView('login')" class="text-xs text-gray-500 hover:text-gray-800">Back to Login</button>
+                        <button onclick="switchView('login')" class="btn-ghost">← Back to Login</button>
                     </div>
                 </div>
 
@@ -265,14 +277,15 @@
             </div>
 
             <!-- RIGHT SIDE: STATIC IMAGE (Hidden on mobile) -->
-            <div class="hidden md:block relative bg-blue-900 h-full">
+            <div class="hidden md:block relative h-full">
                 <img src="assets/images/office-bg.jpg" 
-                     class="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay" alt="Logistics">
+                     class="absolute inset-0 w-full h-full object-cover" alt="Logistics">
                 <div class="relative z-10 flex flex-col justify-center items-center h-full p-8 text-white text-center">
                      <h2 class="text-2xl font-bold mb-3 tracking-tight">Access Your Logistics World</h2>
                      <p class="text-sm opacity-80 leading-relaxed max-w-xs">Securely manage shipments, track orders, and collaborate with your team in real-time.</p>
                 </div>
             </div>
+        </div>
         </div>
 
     </main>

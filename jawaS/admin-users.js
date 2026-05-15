@@ -138,14 +138,14 @@ const AdminUsers = (() => {
                         <h2 class="text-base font-bold text-gray-800">${u.USER}</h2>
                         <p class="text-xs text-gray-500">${u.NAME || ''}</p>
                     </div>
-                    ${canDelete ? `<button id="deleteUserBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>` : ''}
+                    ${canDelete ? `<button id="deleteUserBtn" class="btn-danger btn-sm">Delete</button>` : ''}
                 </div>
                 <div class="detail-card-body">
                     <form id="editUserForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         ${readonlyHtml}
                         ${fieldHtml}
                         ${canEdit ? `<div class="sm:col-span-2 flex justify-end">
-                            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">Save Changes</button>
+                            <button type="submit" class="btn btn-sm">Save Changes</button>
                         </div>` : ''}
                     </form>
                 </div>

@@ -181,7 +181,7 @@
                     </div>
                 </div>
                 <div class="pt-4 border-t">
-                    <button onclick="toggleSavedDocs()" class="w-full text-left px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors">
+                    <button onclick="toggleSavedDocs()" class="btn-ghost w-full text-left px-3 py-2 text-sm">
                         <i class="fa-solid fa-folder w-5"></i>
                         <span>Saved Documents</span>
                     </button>
@@ -193,7 +193,7 @@
         <div id="mainContentContainer" class="flex-grow p-6 md:p-8 bg-gray-50 hidden md:block overflow-y-auto" style="height: 100vh;">
             <!-- Mobile Back Button -->
             <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6">
-                <button type="button" id="backToListBtn" class="text-sm bg-gray-200 text-gray-800 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 flex items-center">
+                <button type="button" id="backToListBtn" class="btn-danger btn-sm flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     Back to List
                 </button>
@@ -207,7 +207,7 @@
     </main>
 
     <!-- Footer Placeholder (Injected by layout.js) -->
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     <!-- Templates for Dynamic Tables -->
     <template id="doc-item-row-template">
@@ -220,7 +220,7 @@
             <td class="px-2 py-2"><input type="text" name="item_unit[]" class="w-full p-1 border border-gray-300 rounded text-xs" value="PCS"></td>
             <td class="px-2 py-2"><input type="number" name="item_rate[]" class="w-full p-1 border border-gray-300 rounded text-xs" step="any"></td>
             <td class="px-2 py-2"><input type="number" name="item_amount[]" class="w-full p-1 border border-gray-300 rounded text-xs" step="any" readonly></td>
-            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn text-red-500 hover:text-red-700"><i class="fa-solid fa-trash text-xs"></i></button></td>
+            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn btn-danger btn-sm"><i class="fa-solid fa-trash text-xs"></i></button></td>
         </tr>
     </template>
 
@@ -229,7 +229,7 @@
             <td class="px-2 py-2"><input type="text" name="nondg_marks[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
             <td class="px-2 py-2"><input type="text" name="nondg_desc[]" class="w-full p-1 border border-gray-300 rounded text-xs" required></td>
             <td class="px-2 py-2"><input type="text" name="nondg_qty[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
-            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn text-red-500 hover:text-red-700"><i class="fa-solid fa-trash text-xs"></i></button></td>
+            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn btn-danger btn-sm"><i class="fa-solid fa-trash text-xs"></i></button></td>
         </tr>
     </template>
 
@@ -238,7 +238,7 @@
             <td class="px-2 py-2"><input type="text" name="neg_marks[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
             <td class="px-2 py-2"><input type="text" name="neg_desc[]" class="w-full p-1 border border-gray-300 rounded text-xs" required></td>
             <td class="px-2 py-2"><input type="text" name="neg_country[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
-            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn text-red-500 hover:text-red-700"><i class="fa-solid fa-trash text-xs"></i></button></td>
+            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn btn-danger btn-sm"><i class="fa-solid fa-trash text-xs"></i></button></td>
         </tr>
     </template>
 
@@ -253,7 +253,7 @@
             <td class="px-2 py-2"><input type="date" name="mcd_material_date[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
             <td class="px-2 py-2"><input type="text" name="mcd_prod_country[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
             <td class="px-2 py-2"><input type="date" name="mcd_export_date[]" class="w-full p-1 border border-gray-300 rounded text-xs"></td>
-            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn text-red-500 hover:text-red-700"><i class="fa-solid fa-trash text-xs"></i></button></td>
+            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn btn-danger btn-sm"><i class="fa-solid fa-trash text-xs"></i></button></td>
         </tr>
     </template>
 
@@ -272,7 +272,7 @@
                 </div>
             </td>
             <td class="px-2 py-2"><input type="number" name="pkl_vol[]" class="w-full p-1 border border-gray-300 rounded text-xs" step="any" readonly></td>
-            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn text-red-500 hover:text-red-700"><i class="fa-solid fa-trash text-xs"></i></button></td>
+            <td class="px-2 py-2 text-center"><button type="button" class="remove-row-btn btn-danger btn-sm"><i class="fa-solid fa-trash text-xs"></i></button></td>
         </tr>
     </template>
 

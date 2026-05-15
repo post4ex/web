@@ -147,7 +147,7 @@ const AdminAttendance = (() => {
                             <input type="text" name="REMARKS" class="form-input text-sm" placeholder="Any notes…">
                         </div>
                         <div class="col-span-2 sm:col-span-4 flex justify-end">
-                            <button type="submit" id="attSubmitBtn" class="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-2">
+                            <button type="submit" id="attSubmitBtn" class="btn btn-sm flex items-center gap-2">
                                 <span id="attBtnText">${hasIn ? 'Submit Out Time' : 'Submit In Time'}</span>
                                 <div id="attSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>

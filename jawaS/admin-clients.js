@@ -103,10 +103,10 @@ const AdminClients = (() => {
                 <div class="detail-card-header flex justify-between items-center">
                     <h2 id="clientsViewTitle" class="text-base font-bold text-gray-800"></h2>
                     <div class="flex gap-2">
-                        <button id="clientsPrintBtn" class="hidden px-3 py-1.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700">Print</button>
-                        <button id="clientsEmailBtn" class="hidden px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">Email</button>
-                        <button id="clientsEditBtn" class="hidden px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Edit</button>
-                        <button id="clientsDeleteBtn" class="hidden px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                        <button id="clientsPrintBtn" class="hidden btn btn-sm">Print</button>
+                        <button id="clientsEmailBtn" class="hidden btn btn-sm">Email</button>
+                        <button id="clientsEditBtn" class="hidden btn btn-sm">Edit</button>
+                        <button id="clientsDeleteBtn" class="hidden btn-danger btn-sm">Delete</button>
                     </div>
                 </div>
                 <div class="detail-card-body">
@@ -117,11 +117,11 @@ const AdminClients = (() => {
                         <p class="text-sm text-red-700 font-medium mb-3">Delete <strong id="clientsDeleteName"></strong>?<br>
                         <span class="text-xs text-gray-500">Client will be marked DELETED. Rates remain unchanged.</span></p>
                         <div class="flex gap-3 items-center flex-wrap">
-                            <button id="clientsConfirmDeleteBtn" class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1">
+                            <button id="clientsConfirmDeleteBtn" class="btn-danger btn-sm flex items-center gap-1">
                                 Confirm Delete
                                 <div id="clientsDeleteSpinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
-                            <button id="clientsCancelDeleteBtn" class="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
+                            <button id="clientsCancelDeleteBtn" class="btn-ghost btn-sm">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -289,7 +289,7 @@ const AdminClients = (() => {
                                 <div class="md:col-span-4">
                                     <div class="flex items-center gap-3 mb-2">
                                         <label class="block text-sm font-medium text-gray-700">WP Groups</label>
-                                        <button type="button" id="clientsLoadGroupsBtn" class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 border">Load Groups</button>
+                                        <button type="button" id="clientsLoadGroupsBtn" class="btn-ghost btn-sm">Load Groups</button>
                                         <span class="text-xs text-gray-400" id="clientsWpGroupStatus"></span>
                                     </div>
                                     <div id="clientsWpGroupList" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border rounded-lg bg-gray-50">
@@ -297,11 +297,11 @@ const AdminClients = (() => {
                                 </div>
                             </div>
                             <div class="mt-6 flex justify-center items-center gap-4 flex-wrap border-t pt-6">
-                                <button type="submit" id="clientsSubmitBtn" class="text-white bg-indigo-600 hover:bg-indigo-700 font-medium rounded-lg text-sm px-8 py-3 flex items-center justify-center disabled:bg-indigo-400">
+                                <button type="submit" id="clientsSubmitBtn" class="btn px-8 py-3 flex items-center justify-center disabled:opacity-45">
                                     <span id="clientsSubmitText">Save Customer</span>
                                     <div id="clientsSubmitSpinner" class="spinner hidden ml-3"></div>
                                 </button>
-                                <button type="button" id="clientsCancelBtn" class="hidden text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm px-8 py-3 flex items-center justify-center disabled:bg-red-400">
+                                <button type="button" id="clientsCancelBtn" class="hidden btn-ghost px-8 py-3 flex items-center justify-center disabled:opacity-45">
                                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                                     <span>Cancel</span>
                                 </button>
@@ -313,7 +313,7 @@ const AdminClients = (() => {
                     <div id="clientsRatesTab" class="hidden">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-lg font-semibold text-indigo-600">Rate List for <span id="clientsRateCode" class="font-bold"></span></h2>
-                            <button type="button" id="clientsSetDefaultBtn" class="hidden text-sm bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Set Default Rates</button>
+                            <button type="button" id="clientsSetDefaultBtn" class="hidden btn btn-sm">Set Default Rates</button>
                         </div>
                         <div class="mb-4 p-4 bg-gray-50 border rounded-lg">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Select Additional Modes:</label>
@@ -344,7 +344,7 @@ const AdminClients = (() => {
                             </div>
                             <p class="text-sm text-gray-600 mt-4 text-center">Click "Save All Rates" to save all changes made to the rate list. This will overwrite any existing rates for this customer.</p>
                             <div class="mt-6 flex justify-center items-center gap-4 flex-wrap border-t pt-6">
-                                <button type="submit" id="clientsSaveRatesBtn" class="text-white bg-green-600 hover:bg-green-700 font-medium rounded-lg text-sm px-8 py-3 flex items-center justify-center disabled:bg-green-400">
+                                <button type="submit" id="clientsSaveRatesBtn" class="btn px-8 py-3 flex items-center justify-center disabled:opacity-45">
                                     <span id="clientsRatesText">Save All Rates</span>
                                     <div id="clientsRatesSpinner" class="spinner hidden ml-3"></div>
                                 </button>
@@ -383,11 +383,11 @@ const AdminClients = (() => {
                     <input id="b2bOtpInput" type="text" maxlength="6" placeholder="Enter 6-digit OTP"
                         class="form-input w-full text-center text-lg tracking-widest mb-4">
                     <div class="flex gap-3">
-                        <button id="b2bOtpVerifyBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2">
+                        <button id="b2bOtpVerifyBtn" class="btn flex-1 flex items-center justify-center gap-2">
                             <span>Verify &amp; Proceed</span>
                             <div id="b2bOtpSpinner" class="spinner hidden"></div>
                         </button>
-                        <button id="b2bOtpCancelBtn" class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+                        <button id="b2bOtpCancelBtn" class="btn-ghost btn-sm">Cancel</button>
                     </div>
                     <button id="b2bOtpResendBtn" class="mt-3 w-full text-xs text-indigo-600 hover:underline">Resend OTP</button>
                 </div>`;

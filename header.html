@@ -61,7 +61,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                 </a>
                 
-                <a id="login-button" href="login.html" class="px-4 py-2 rounded-lg text-white hover:bg-red-700 transition-colors" style="background-color: #9C2007;">Login</a>
+                <a id="login-button" href="login.html" class="btn">Login</a>
                 
                 <div id="profile-section" class="relative hidden">
                     <button id="profile-button" class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-300 transition">
@@ -72,13 +72,13 @@
                             <h3 class="text-md font-semibold text-gray-800">User Profile</h3>
                         </div>
                         <div id="profile-details-container" class="space-y-2"></div>
-                        <button id="profile-logout-button" class="w-full text-left mt-4 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">Logout</button>
+                        <button id="profile-logout-button" class="btn w-full text-left mt-4">Logout</button>
                     </div>
                 </div>
             </div>
 
             <!-- Mobile Login Button (shown before login, outside dropdown) -->
-            <a id="login-button-mobile" href="login.html" class="xl:hidden px-4 py-2 rounded-lg text-white text-sm font-semibold hover:bg-red-700 transition-colors" style="background-color: #9C2007;">Login</a>
+            <a id="login-button-mobile" href="login.html" class="xl:hidden btn">Login</a>
 
             <!-- Mobile Menu Button (only shown after login) -->
             <div class="xl:hidden hidden" id="mobile-menu-toggle">
@@ -101,7 +101,7 @@
             <div class="mt-2 pt-2 border-t">
                 <div id="profile-section-mobile" class="hidden">
                     <div id="mobile-profile-details-container" class="p-2 space-y-1 bg-gray-700 rounded-lg mb-2"></div>
-                    <button id="logout-button-mobile" class="w-full text-left px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">Logout</button>
+                    <button id="logout-button-mobile" class="btn w-full text-left">Logout</button>
                 </div>
             </div>
         </div>
@@ -237,8 +237,8 @@
             const desktopId = `nav-${item.id}-${type}`;
             const mobileId = `dropdown-${item.id}-${type}`;
 
-            desktopHTML += `<a id="${desktopId}" href="${item.link}" class="px-4 py-2 rounded-lg text-white hover:bg-red-700 transition-colors" style="background-color: #9C2007;">${item.label}</a>`;
-            mobileHTML += `<a id="${mobileId}" href="${item.link}" class="block mt-1 px-4 py-2 rounded-lg text-white hover:bg-red-700 transition-colors" style="background-color: #9C2007;">${item.label}</a>`;
+            desktopHTML += `<a id="${desktopId}" href="${item.link}" class="btn">${item.label}</a>`;
+            mobileHTML += `<a id="${mobileId}" href="${item.link}" class="block mt-1 btn">${item.label}</a>`;
         });
 
         desktopContainer.innerHTML = desktopHTML;

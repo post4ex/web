@@ -3,7 +3,7 @@
 // ============================================================================
 
 const STATE_BADGE = {
-    delivered:      { bg: 'bg-green-100',  text: 'text-green-700',  icon: 'fa-circle-check',         label: 'Delivered'        },
+    delivered:      { bg: 'bg-amber-100',  text: 'text-amber-800',  icon: 'fa-circle-check',         label: 'Delivered'        },
     outfordelivery: { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: 'fa-truck',                label: 'Out for Delivery' },
     intransit:      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-route',                label: 'In Transit'       },
     exception:      { bg: 'bg-red-100',    text: 'text-red-700',    icon: 'fa-triangle-exclamation', label: 'Exception'        },
@@ -16,7 +16,7 @@ function renderTrackingResult(data, containerId) {
     const st  = STATE_BADGE[s.state] || STATE_BADGE.pending;
 
     const stateStyle = {
-        delivered:      { bg: 'linear-gradient(135deg,#059669,#047857)', glow: 'rgba(5,150,105,0.3)'  },
+        delivered:      { bg: 'linear-gradient(135deg,#9C2007,#7a1805)', glow: 'rgba(156,32,7,0.3)'   },
         outfordelivery: { bg: 'linear-gradient(135deg,#2563eb,#1d4ed8)', glow: 'rgba(37,99,235,0.3)'  },
         intransit:      { bg: 'linear-gradient(135deg,#d97706,#b45309)', glow: 'rgba(217,119,6,0.3)'  },
         exception:      { bg: 'linear-gradient(135deg,#dc2626,#b91c1c)', glow: 'rgba(220,38,38,0.3)'  },
@@ -25,11 +25,11 @@ function renderTrackingResult(data, containerId) {
     const ss = stateStyle[s.state] || stateStyle.pending;
 
     const infoItems = [
-        { label: 'AWB No.',     value: s.awb || s.carrier_awb,                    icon: 'fa-hashtag'         },
-        { label: 'Reference',   value: s.ref,                                      icon: 'fa-fingerprint'     },
         { label: 'Origin',      value: s.carrier_origin || s.origin,               icon: 'fa-circle-dot'      },
         { label: 'Destination', value: s.carrier_destination || s.destination,     icon: 'fa-location-dot'    },
         { label: 'Booked On',   value: s.booked_date,                              icon: 'fa-calendar-days'   },
+        { label: 'AWB No.',     value: s.awb || s.carrier_awb,                    icon: 'fa-hashtag'         },
+        { label: 'Reference',   value: s.ref,                                      icon: 'fa-fingerprint'     },
         { label: 'Weight',      value: s.weight ? `${s.weight} kg · ${s.pieces||1} pcs` : null, icon: 'fa-weight-hanging' },
     ].filter(i => i.value);
 
@@ -72,11 +72,26 @@ function renderTrackingResult(data, containerId) {
 
     const html = `
         <div style="font-family:'Inter',sans-serif;">
-            <!-- Status Hero -->
-            <div style="background:${ss.bg};border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:0 8px 32px ${ss.glow},0 2px 8px rgba(0,0,0,0.1);position:relative;overflow:hidden;">
-                <div style="position:relative;display:flex;align-items:center;justify-content:space-between;">
+            <!-- Two-column layout: left=info, right=status -->
+            <div style="display:flex;gap:1rem;margin-bottom:1rem;align-items:stretch;flex-wrap:wrap;">
+
+                <!-- Left: Origin / Destination / Booked On + extras -->
+                ${infoItems.length ? `
+                <div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0.625rem;">
+                    ${infoItems.map(item => `
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.75rem 0.875rem;">
+                        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;">
+                            <i class="fa-solid ${item.icon}" style="color:#94a3b8;font-size:0.65rem;"></i>
+                            <p style="font-size:0.62rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">${item.label}</p>
+                        </div>
+                        <p style="font-size:0.8rem;font-weight:700;color:#1e293b;line-height:1.3;">${item.value}</p>
+                    </div>`).join('')}
+                </div>` : ''}
+
+                <!-- Right: Status Hero -->
+                <div style="flex:1;min-width:160px;background:${ss.bg};border-radius:1rem;padding:1.25rem 1.5rem;box-shadow:0 8px 32px ${ss.glow},0 2px 8px rgba(0,0,0,0.1);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:0.75rem;">
                     <div style="display:flex;align-items:center;gap:0.875rem;">
-                        <div style="width:2.75rem;height:2.75rem;background:rgba(255,255,255,0.18);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+                        <div style="width:2.75rem;height:2.75rem;background:rgba(255,255,255,0.18);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);flex-shrink:0;">
                             <i class="fa-solid ${st.icon}" style="color:white;font-size:1.1rem;"></i>
                         </div>
                         <div>
@@ -84,23 +99,10 @@ function renderTrackingResult(data, containerId) {
                             <p style="color:white;font-size:1.1rem;font-weight:800;letter-spacing:-0.01em;">${st.label}</p>
                         </div>
                     </div>
-                    ${s.carrier_name||s.carrier ? `<span style="background:rgba(255,255,255,0.18);color:white;font-size:0.7rem;font-weight:700;padding:0.3rem 0.75rem;border-radius:2rem;backdrop-filter:blur(4px);letter-spacing:0.03em;">${s.carrier_name||s.carrier}</span>` : ''}
+                    ${s.carrier_name||s.carrier ? `<span style="background:rgba(255,255,255,0.18);color:white;font-size:0.7rem;font-weight:700;padding:0.3rem 0.75rem;border-radius:2rem;backdrop-filter:blur(4px);letter-spacing:0.03em;align-self:flex-start;">${s.carrier_name||s.carrier}</span>` : ''}
+                    ${s.status_raw ? `<p style="background:rgba(0,0,0,0.15);color:rgba(255,255,255,0.85);font-size:0.72rem;font-weight:500;padding:0.5rem 0.875rem;border-radius:0.5rem;">${s.status_raw}</p>` : ''}
                 </div>
-                ${s.status_raw ? `<p style="margin-top:0.75rem;background:rgba(0,0,0,0.15);color:rgba(255,255,255,0.85);font-size:0.72rem;font-weight:500;padding:0.5rem 0.875rem;border-radius:0.5rem;position:relative;">${s.status_raw}</p>` : ''}
             </div>
-
-            <!-- Info Grid -->
-            ${infoItems.length ? `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:1rem;">
-                ${infoItems.map(item => `
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.75rem 0.875rem;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow=''">
-                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;">
-                        <i class="fa-solid ${item.icon}" style="color:#94a3b8;font-size:0.65rem;"></i>
-                        <p style="font-size:0.62rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">${item.label}</p>
-                    </div>
-                    <p style="font-size:0.8rem;font-weight:700;color:#1e293b;line-height:1.3;">${item.value}</p>
-                </div>`).join('')}
-            </div>` : ''}
 
             <!-- Movement History -->
             <div style="background:white;border:1px solid #e2e8f0;border-radius:1rem;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);">

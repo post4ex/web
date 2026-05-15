@@ -81,12 +81,12 @@ const AdminModes = (() => {
                     </div>
                     <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
                         <button type="submit" id="modesSubmitBtn"
-                            class="text-white bg-indigo-600 hover:bg-indigo-700 font-medium rounded-lg text-sm px-8 py-3 flex items-center justify-center disabled:bg-indigo-400">
+                            class="btn px-8 py-3 flex items-center justify-center disabled:opacity-45">
                             <span id="modesSubmitText">Submit New Mode</span>
                             <div id="modesSpinner" class="hidden ml-3 w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                         </button>
                         <button type="button" id="modesDeleteBtn"
-                            class="hidden text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm px-8 py-3 flex items-center justify-center disabled:bg-red-400">
+                            class="hidden btn-danger px-8 py-3 flex items-center justify-center disabled:opacity-45">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             <span>Delete</span>
                         </button>
@@ -101,8 +101,8 @@ const AdminModes = (() => {
                     <h2 class="text-xl font-semibold text-gray-800 mb-4">Confirm Deletion</h2>
                     <p class="text-gray-600 mb-6">Are you sure you want to delete mode <strong id="modesDeleteName"></strong>? This action cannot be undone.</p>
                     <div class="flex justify-center gap-4">
-                        <button id="modesCancelDeleteBtn" class="px-6 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300">Cancel</button>
-                        <button id="modesConfirmDeleteBtn" class="px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center disabled:bg-red-400">
+                        <button id="modesCancelDeleteBtn" class="btn-ghost px-6 py-2">Cancel</button>
+                        <button id="modesConfirmDeleteBtn" class="btn-danger px-6 py-2 flex items-center disabled:opacity-45">
                             <span>Confirm Delete</span>
                             <div id="modesDeleteSpinner" class="hidden ml-3 w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                         </button>

@@ -346,7 +346,7 @@ const AdminPage = (() => {
                         <div><label class="block text-xs font-medium text-gray-600 mb-1">Col Filter</label><input name="COL_FILTER" value="${prefill.COL_FILTER||''}" class="form-input text-sm"></div>
                         <div><label class="block text-xs font-medium text-gray-600 mb-1">Filter Value</label><input name="FILTER_VALUE" value="${prefill.FILTER_VALUE||''}" class="form-input text-sm"></div>
                         <div class="sm:col-span-2 flex justify-end">
-                            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">Send OTP</button>
+                            <button type="submit" class="btn-otp btn-sm">Send OTP</button>
                         </div>
                     </form>
                 </div>

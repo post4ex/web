@@ -699,12 +699,12 @@
                     </div>
                     <div class="separator"></div>
                     <div class="button-group">
-                        <button id="camera-btn" class="v1-btn">Camera</button>
-                        <button id="upload-btn" class="v1-btn">Upload</button>
-                        <button id="rotate-btn" class="v1-btn">Rotate</button>
-                        <button id="lock-btn" class="v1-btn">Lock</button>
-                        <button id="cancel-btn" class="v1-btn">Cancel</button>
-                        <button id="cancel-all-btn" class="v1-btn">Cancel All</button>
+                        <button id="camera-btn" class="btn">Camera</button>
+                        <button id="upload-btn" class="btn">Upload</button>
+                        <button id="rotate-btn" class="btn-danger">Rotate</button>
+                        <button id="lock-btn" class="btn-danger">Lock</button>
+                        <button id="cancel-btn" class="btn-danger">Cancel</button>
+                        <button id="cancel-all-btn" class="btn-danger">Cancel All</button>
                         <input type="file" id="file-input" accept="image/*,application/pdf" multiple style="display: none;">
                     </div>
                 </div>
@@ -721,18 +721,18 @@
                             <img id="cropper-image" src="">
                         </div>
                         <div class="button-group" style="margin-top: 10px; display:flex; gap: 8px; justify-content: center;">
-                            <button id="crop-rotate-btn" class="v1-btn">Rotate</button>
-                            <button id="enhance-btn" class="v1-btn">Enhance</button>
-                            <button id="crop-confirm-btn" class="v1-btn" style="background-color: #d4edda;">Crop</button>
-                            <button id="crop-cancel-btn" class="v1-btn" style="background-color: #f8d7da;">Cancel</button>
+                            <button id="crop-rotate-btn" class="btn-danger">Rotate</button>
+                            <button id="enhance-btn" class="btn-danger">Enhance</button>
+                            <button id="crop-confirm-btn" class="btn">Crop</button>
+                            <button id="crop-cancel-btn" class="btn-danger">Cancel</button>
                         </div>
                         <div id="enhancement-controls" style="display:none; margin-top:10px; padding-top:10px; border-top: 1px solid #ccc;">
                             <div class="button-group" style="display:flex; gap: 8px; justify-content: center;">
-                                 <button id="auto-enhance-btn" class="v1-btn">Auto</button>
-                                <button id="greyscale-btn" class="v1-btn">Greyscale</button>
-                                <button id="bw-btn" class="v1-btn">B&W Doc</button>
-                                <button id="sharpen-btn" class="v1-btn">Sharpen</button>
-                                <button id="reset-enhance-btn" class="v1-btn" style="background-color: #f8d7da;">Reset</button>
+                                 <button id="auto-enhance-btn" class="btn-danger">Auto</button>
+                                <button id="greyscale-btn" class="btn-danger">Greyscale</button>
+                                <button id="bw-btn" class="btn-danger">B&W Doc</button>
+                                <button id="sharpen-btn" class="btn-danger">Sharpen</button>
+                                <button id="reset-enhance-btn" class="btn-danger">Reset</button>
                             </div>
                             <div class="enhancement-sliders">
                                 <div class="slider-control">
@@ -792,9 +792,9 @@
 
                     <!-- Table Actions (from V1) -->
                     <div id="table-actions">
-                        <button id="delete-last-btn" class="v1-btn" style="background-color: #f8d7da;">Delete Last</button>
-                        <button id="clear-all-btn" class="v1-btn" style="background-color: #f8d7da;">Clear All</button>
-                        <button id="submit-btn" class="v1-btn" style="background-color: #d4edda; font-weight: bold;">Submit</button>
+                        <button id="delete-last-btn" class="btn-danger">Delete Last</button>
+                        <button id="clear-all-btn" class="btn-danger">Clear All</button>
+                        <button id="submit-btn" class="btn">Submit</button>
                     </div>
 
                     <!-- === *** NEW: Existing Uploads Section *** === -->
@@ -843,13 +843,13 @@
                         <li class="status-message">Loading orders...</li>
                     </ul>
                 </div>
-                <button id="loadMoreBtn" style="display: none;">Load More (Older)</button>
+                <button id="loadMoreBtn" class="btn-danger">Load More (Older)</button>
             </div>
         </div>
     </main>
 
     <!-- *** NEW: Footer Placeholder *** -->
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     <!-- Third-party libraries (from V1) -->
     <script src="assets/js/pdf.min.js"></script>

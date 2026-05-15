@@ -127,8 +127,8 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                         </button>
                         <h2 id="splitTitle" class="text-lg font-bold text-gray-800 flex-1"></h2>
-                        <button id="addUserBtn" class="hidden px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">+ Add</button>
-                        <button id="deleteCarrierBtn" class="hidden px-3 py-1 text-xs bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">Delete</button>
+                        <button id="addUserBtn" class="hidden btn btn-sm">+ Add</button>
+                        <button id="deleteCarrierBtn" class="hidden btn-danger btn-sm">Delete</button>
                     </div>
                     <input id="listSearch" type="text" placeholder="Search…" class="form-input text-sm">
                 </div>
@@ -142,7 +142,7 @@
             <main id="adminDetailPane" style="display:none;flex:1;height:100vh;overflow-y:auto;background:#f9fafb;padding:1.5rem 2rem;">
                 <!-- Mobile back button -->
                 <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
-                    <button id="backToListBtn" class="text-sm bg-gray-200 text-gray-800 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 flex items-center gap-2">
+                    <button id="backToListBtn" class="btn-danger btn-sm flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                         Back
                     </button>
@@ -156,7 +156,7 @@
 
     </div>
 
-    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     <!-- ── Sudo Modal ─────────────────────────────────────────────────────── -->
     <div id="sudoModal" class="modal-overlay hidden">
@@ -169,8 +169,8 @@
                 <div><label class="block text-xs font-medium text-gray-600 mb-1">Password</label>
                     <input name="sudoPassword" type="password" required class="form-input" placeholder="••••••••"></div>
                 <div class="flex gap-2 justify-end">
-                    <button type="button" id="sudoCancelBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">Send OTP</button>
+                    <button type="button" id="sudoCancelBtn" class="btn-ghost btn-sm">Cancel</button>
+                    <button type="submit" class="btn-otp btn-sm">Send OTP</button>
                 </div>
             </form>
         </div>
@@ -183,7 +183,7 @@
             <p id="sudoOtpHint" class="text-sm text-gray-500 mb-4"></p>
             <form id="sudoOtpForm" class="space-y-3">
                 <input name="sudoOtp" required class="form-input" placeholder="Enter OTP" maxlength="6" autocomplete="one-time-code">
-                <button type="submit" class="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium">Verify</button>
+                <button type="submit" class="btn w-full">Verify</button>
             </form>
         </div>
     </div>
@@ -195,7 +195,7 @@
             <p id="addUserOtpHint" class="text-sm text-gray-500 mb-4"></p>
             <form id="addUserOtpForm" class="space-y-3">
                 <input name="addUserOtp" required class="form-input" placeholder="Enter OTP" maxlength="6" autocomplete="one-time-code">
-                <button type="submit" class="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium">Confirm</button>
+                <button type="submit" class="btn w-full">Confirm</button>
             </form>
         </div>
     </div>
