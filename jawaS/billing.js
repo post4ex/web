@@ -377,6 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.filterToggleBtn.addEventListener('click', () => ui.filterModal.classList.remove('hidden'));
         ui.applyFiltersBtn.addEventListener('click', () => { isUnbilledMode = false; ui.unbilledToggleBtn.classList.remove('filter-active'); applyFilters(); ui.filterModal.classList.add('hidden'); });
         ui.resetFiltersBtn.addEventListener('click', () => { ui.filterStartDate.value=''; ui.filterEndDate.value=''; ui.filterBranch.value=''; ui.filterCode.value=''; ui.filterCarrier.value=''; applyFilters(); });
+        document.getElementById('close-filter-modal').addEventListener('click', () => ui.filterModal.classList.add('hidden'));
         ui.filterModal.addEventListener('click', e => { if (e.target === ui.filterModal) ui.filterModal.classList.add('hidden'); });
     }
 
@@ -433,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 secondary = `Branch: ${inv.BRANCH||'N/A'}`;
             }
             const li = document.createElement('li');
-            li.innerHTML = `<strong>${primary}</strong><span class="client-info">${secondary}</span><div class="details-info"><span>Date: ${dt}</span><span class="status-badge bg-indigo-100 text-indigo-700">₹${total}</span></div>`;
+            li.innerHTML = `<strong>${primary}</strong><span class="sv-item-sub">${secondary}</span><div class="sv-item-meta"><span>Date: ${dt}</span><span class="sv-status-badge bg-indigo-100 text-indigo-700">₹${total}</span></div>`;
             li.dataset.ref = key;
             li.addEventListener('click', () => handleInvoiceSelection(key, li));
             if (String(key) === String(currentSelectedRef)) li.classList.add('selected');

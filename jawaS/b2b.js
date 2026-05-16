@@ -224,8 +224,8 @@ function renderCustomerList(customers) {
     entries.forEach(cust => {
         if (!cust.CODE) return;
         const li = document.createElement('li');
-        li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
-        li.innerHTML = `<strong class="text-indigo-700 block text-sm">${cust.B2B_NAME || 'Unnamed'}</strong><span class="text-xs text-gray-600">${cust.CODE}</span>`;
+        li.className = '';
+        li.innerHTML = `<strong>${cust.B2B_NAME || 'Unnamed'}</strong><span class="sv-item-sub">${cust.CODE}</span>`;
         li.dataset.code = cust.CODE;
         li.addEventListener('click', () => populateFormForEdit(cust.CODE));
         ui.customerList.appendChild(li);

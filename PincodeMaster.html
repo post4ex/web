@@ -18,31 +18,25 @@
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <!-- Main container is now a column on mobile, a row on desktop -->
-    <div class="flex flex-col md:flex-row w-full" style="height:100vh;">
-        <!-- Left Sidebar for Pincode List -->
-        <aside id="pincodeListContainer" class="w-full md:w-1/4 bg-white border-r flex flex-col" style="height:100vh;overflow:hidden;">
-            <!-- Sidebar Header (Search) - set to not shrink -->
-            <div class="p-4 border-b bg-white z-10 flex-shrink-0">
+    <div class="split-view">
+        <aside id="pincodeListContainer">
+            <div class="sv-pane-header">
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-bold text-gray-800">Pincodes</h2>
                     <button id="newPincodeBtn" class="btn-ghost btn-sm">New</button>
                 </div>
-                <input type="text" id="searchPincode" placeholder="Search by Pincode or Destination..." class="mt-2 w-full p-2 border rounded-lg text-sm">
+                <input type="text" id="searchPincode" placeholder="Search by Pincode or Destination..." class="mt-2 form-input text-sm">
             </div>
-            <!-- Scrollable container for the list -->
-            <div class="overflow-y-auto flex-grow">
-                <ul id="pincodeList" class="p-4 space-y-2">
-                    <li id="pincodeLoader" class="text-center text-gray-500 flex items-center justify-center">
-                        <div class="spinner mr-2"></div>
-                        Loading pincodes...
+            <div class="sv-pane-body">
+                <ul id="pincodeList">
+                    <li id="pincodeLoader" class="text-center text-gray-500 p-4 flex items-center justify-center">
+                        <div class="spinner mr-2"></div>Loading pincodes...
                     </li>
                 </ul>
             </div>
         </aside>
 
-        <!-- Main Content Area for the Form - Hidden on mobile by default -->
-        <main id="pincodeFormContainer" class="w-full md:w-3/4 overflow-y-auto hidden md:flex flex-col" style="height:100vh;">
+        <main id="pincodeFormContainer" class="hidden md:block">
             <!-- Mobile-only back button -->
             <div class="p-4 border-b md:hidden bg-white">
                  <button type="button" id="backToListBtn" class="btn-danger btn-sm flex items-center">
@@ -190,8 +184,8 @@
             }
             pincodes.forEach(p => {
                 const li = document.createElement('li');
-                li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border';
-                li.textContent = `${p.Pincode} - ${p.DestinationName || ''}`;
+                li.className = '';
+                li.innerHTML = `<strong>${p.Pincode}</strong><span class="sv-item-sub">${p.DestinationName || ''}</span>`;
                 li.dataset.pincode = p.Pincode;
                 li.addEventListener('click', () => populateFormForEdit(p.Pincode));
                 ui.pincodeList.appendChild(li);

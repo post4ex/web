@@ -18,9 +18,9 @@
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <div class="flex flex-col md:flex-row w-full" style="height:100vh;">
-        <aside id="carrierListContainer" class="w-full md:w-1/4 bg-white border-r flex flex-col" style="height:100vh;overflow:hidden;">
-            <div class="p-4 border-b sticky top-0 bg-white z-10">
+    <div class="split-view">
+        <aside id="carrierListContainer">
+            <div class="sv-pane-header">
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-bold text-gray-800">Carriers</h2>
                     <div>
@@ -28,16 +28,16 @@
                         <button id="deleteCarrierBtn" class="hidden btn-danger btn-sm ml-2">Delete</button>
                     </div>
                 </div>
-                <input type="text" id="searchCarrier" placeholder="Search carriers..." class="mt-2 w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <input type="text" id="searchCarrier" placeholder="Search carriers..." class="mt-2 form-input text-sm">
             </div>
-            <div class="overflow-y-auto flex-grow">
-                <ul id="carrierList" class="p-4 space-y-2">
-                    <li id="carrierLoader" class="text-center text-gray-500">Loading carriers...</li>
+            <div class="sv-pane-body">
+                <ul id="carrierList">
+                    <li id="carrierLoader" class="text-center text-gray-500 p-4">Loading carriers...</li>
                 </ul>
             </div>
         </aside>
 
-        <main id="carrierFormContainer" class="w-full md:w-3/4 p-8 overflow-y-auto hidden md:block" style="height:100vh;">
+        <main id="carrierFormContainer" class="p-8 hidden md:block">
              <div class="p-4 border-b md:hidden bg-white -mt-8 -mx-8 mb-8">
                  <button type="button" id="backToListBtn" class="btn btn-sm flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -193,8 +193,8 @@
             }
             carriers.forEach(carrier => {
                 const li = document.createElement('li');
-                li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
-                li.innerHTML = `<strong class="text-indigo-700">${carrier.COMPANY_CODE}</strong> - ${carrier.COMPANY_NAME || 'Unnamed'}`;
+                li.className = '';
+                li.innerHTML = `<strong>${carrier.COMPANY_CODE}</strong><span class="sv-item-sub">${carrier.COMPANY_NAME || 'Unnamed'}</span>`;
                 li.dataset.companyCode = carrier.COMPANY_CODE;
                 li.addEventListener('click', () => populateFormForEdit(carrier.COMPANY_CODE));
                 ui.carrierList.appendChild(li);

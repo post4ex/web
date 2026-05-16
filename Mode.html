@@ -17,25 +17,23 @@
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <div class="flex flex-col md:flex-row w-full" style="height:100vh;">
-        <!-- Left Sidebar for Mode List -->
-        <aside id="modeListContainer" class="w-full md:w-1/4 bg-white border-r flex flex-col" style="height:100vh;overflow:hidden;">
-            <div class="p-4 border-b sticky top-0 bg-white z-10">
+    <div class="split-view">
+        <aside id="modeListContainer">
+            <div class="sv-pane-header">
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-bold text-gray-800">Modes</h2>
                     <button id="newModeBtn" class="btn-ghost btn-sm">New</button>
                 </div>
-                <input type="text" id="searchMode" placeholder="Search modes..." class="mt-2 w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <input type="text" id="searchMode" placeholder="Search modes..." class="mt-2 form-input text-sm">
             </div>
-            <div class="overflow-y-auto flex-grow">
-                <ul id="modeList" class="p-4 space-y-2">
-                    <li id="modeLoader" class="text-center text-gray-500">Loading modes...</li>
+            <div class="sv-pane-body">
+                <ul id="modeList">
+                    <li id="modeLoader" class="text-center text-gray-500 p-4">Loading modes...</li>
                 </ul>
             </div>
         </aside>
 
-        <!-- Main Content Area for the Form -->
-        <main id="modeFormContainer" class="w-full md:w-3/4 p-8 overflow-y-auto hidden md:block" style="height:100vh;">
+        <main id="modeFormContainer" class="p-8 hidden md:block">
              <div class="p-4 border-b md:hidden bg-white -mt-8 -mx-8 mb-8">
                  <button type="button" id="backToListBtn" class="btn-danger btn-sm flex items-center">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -202,8 +200,8 @@
             }
             modes.forEach(mode => {
                 const li = document.createElement('li');
-                li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
-                li.textContent = `${mode.MODE} - ${mode.SHORT || ''}`;
+                li.className = '';
+                li.innerHTML = `<strong>${mode.MODE}</strong><span class="sv-item-sub">${mode.SHORT || ''}</span>`;
                 li.dataset.mode = mode.MODE;
                 li.addEventListener('click', () => populateFormForEdit(mode.MODE));
                 ui.modeList.appendChild(li);
