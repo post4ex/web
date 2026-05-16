@@ -48,8 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
 
         const byDate = (a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0);
-        const incomplete = processed.filter(s => !s.CARRIER || !s.AWB_NUMBER).sort(byDate);
-        const complete   = processed.filter(s =>  s.CARRIER && s.AWB_NUMBER).sort(byDate);
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const recent     = processed.filter(s => (parseDate(s.ORDER_DATE)?.getTime() || 0) >= cutoff);
+        const incomplete = recent.filter(s => !s.CARRIER || !s.AWB_NUMBER).sort(byDate);
+        const complete   = recent.filter(s =>  s.CARRIER && s.AWB_NUMBER).sort(byDate);
         allShipments     = [...incomplete, ...complete];
 
         renderList(allShipments);
@@ -69,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const li  = document.createElement('li');
             const incomplete = !order.CARRIER || !order.AWB_NUMBER;
             if (incomplete) li.classList.add('incomplete');
-            li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="client-info">${order.CONSIGNOR || 'Unknown'} → ${order.CONSIGNEE || 'Unknown'}</span><div class="details-info"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span>${order.CARRIER || 'No Carrier'}</span></div>`;
+            li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${order.CONSIGNOR || 'Unknown'} → ${order.CONSIGNEE || 'Unknown'}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span>${order.CARRIER || 'No Carrier'}</span></div>`;
             li.dataset.ref = ref;
             li.addEventListener('click', () => selectShipment(order, li));
             listEl.appendChild(li);

@@ -146,6 +146,7 @@ function setupFilterListeners() {
     ui.searchShipments.addEventListener('input', applyFilters);
     ui.filterToggleBtn.addEventListener('click', () => ui.filterModal.classList.remove('hidden'));
     ui.applyFiltersBtn.addEventListener('click', () => { applyFilters(); ui.filterModal.classList.add('hidden'); });
+    document.getElementById('close-filter-modal').addEventListener('click', () => ui.filterModal.classList.add('hidden'));
     ui.resetFiltersBtn.addEventListener('click', () => {
         ui.filterStartDate.value = ''; ui.filterEndDate.value = '';
         ui.filterBranch.value = ''; ui.filterCode.value = ''; ui.filterCarrier.value = '';
@@ -230,7 +231,7 @@ function renderShipmentList(orders) {
         const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
         const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
         const li   = document.createElement('li');
-        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="client-info">${cnor} &rarr; ${cnee}</span><div class="details-info"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
+        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
         li.dataset.ref = ref;
         li.addEventListener('click', () => handleShipmentSelection(ref, li));
         if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');

@@ -4036,7 +4036,7 @@ video {
 .btn-otp:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 .btn-otp.hidden { display: none; }
 
-.btn-sm, .btn-danger.btn-sm {
+.btn-sm, .btn-danger.btn-sm, .btn-ghost.btn-sm {
   padding: 0.25rem 0.625rem;
   font-size: 0.75rem;
 }
@@ -4199,4 +4199,177 @@ video {
 
 #rateTableContainer thead th:nth-child(2) { 
     left: 80px; 
+}
+
+
+/* ==========================================================================
+   Split View
+   --------------------------------------------------------------------------
+   A two-pane layout: fixed-width left list pane + flex-grow right detail pane.
+   Both panes are 100vh and scroll independently. The page scrolls naturally
+   around them (header above, footer below).
+
+   Usage:
+     <div class="split-view">
+       <aside>
+         <div class="sv-pane-header">...</div>   ← sticky top bar
+         <div class="sv-pane-body">              ← scrollable list
+           <ul><li>...</li></ul>
+         </div>
+       </aside>
+       <main>...</main>
+     </div>
+
+   List item anatomy (inside sv-pane-body ul):
+     <li>
+       <strong>Primary title</strong>
+       <span class="sv-item-sub">Subtitle</span>
+       <div class="sv-item-meta">
+         <span>Meta left</span>
+         <span class="sv-status-badge">Badge</span>
+       </div>
+     </li>
+
+   Mobile swap (JS):
+     The only JS needed is toggling Tailwind's 'hidden' class on the two panes.
+     No layout-specific JS required — this is standard list+detail pattern behavior.
+     Show detail → listPane.classList.add('hidden')
+                   detailPane.classList.remove('hidden')
+     Back button → listPane.classList.remove('hidden')
+                   detailPane.classList.add('hidden')
+   ========================================================================== */
+
+.split-view {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+}
+
+/* Left pane */
+.split-view > :first-child {
+    width: 25%;
+    min-width: 220px;
+    max-width: 340px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+}
+
+/* Left pane — sticky header */
+.split-view > :first-child .sv-pane-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fff;
+    flex-shrink: 0;
+}
+
+/* Left pane — scrollable body */
+.split-view > :first-child .sv-pane-body {
+    overflow-y: auto;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* Right pane */
+.split-view > :last-child {
+    flex: 1;
+    height: 100vh;
+    overflow-y: auto;
+    background: #f9fafb;
+}
+
+/* --- List items in left pane --- */
+.sv-pane-body ul {
+    list-style: none;
+    padding: 1rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sv-pane-body li {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: background-color 0.2s;
+}
+
+.sv-pane-body li:hover       { background-color: #eef2ff; }
+.sv-pane-body li.selected    { background-color: #e0e7ff; border-color: #c7d2fe; font-weight: 500; }
+
+.sv-pane-body li strong {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4338ca;
+}
+
+.sv-pane-body .sv-item-sub {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.sv-pane-body .sv-item-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #4b5563;
+    margin-top: 4px;
+}
+
+.sv-status-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+}
+
+/* --- Modal (filter window) --- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.hidden { display: none; }
+
+.modal-content {
+    background: #fff;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 36rem;
+    margin: 1rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* --- Mobile --- */
+@media (max-width: 767px) {
+    .split-view {
+        position: relative;
+        height: 100vh;
+    }
+
+    .split-view > :first-child,
+    .split-view > :last-child {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+    }
 }

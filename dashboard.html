@@ -109,21 +109,21 @@
     <div id="complaintModal" class="modal-overlay hidden">
          <div class="modal-content relative max-w-2xl">
             <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <i class="fa-solid fa-circle-exclamation text-red-600"></i> Raise a Complaint
+                <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Raise a Complaint
             </h2>
             <button id="closeComplaintModalButton" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors p-2">
-                <i class="fa-solid fa-xmark text-xl"></i>
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div class="space-y-5">
                 <div class="flex gap-3">
                     <div class="relative flex-1">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-gray-400"></i>
+                        <svg class="w-4 h-4 absolute left-3 top-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/></svg>
                         <input type="text" id="complaintSearchInput" placeholder="Enter AWB / Reference No." class="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 transition-all text-sm font-semibold">
                     </div>
                     <button id="complaintSearchButton" class="btn px-6 py-3">Find</button>
                 </div>
                 <div id="complaintLoadingIndicator" class="hidden text-center py-4">
-                    <i class="fa-solid fa-circle-notch fa-spin text-blue-900 text-2xl"></i>
+                    <svg class="w-8 h-8 animate-spin text-blue-900 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                     <p class="text-xs text-gray-500 mt-2 font-semibold">Locating Consignment...</p>
                 </div>
                 <div id="complaintResultsContainer" class="hidden p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800"></div>
@@ -153,7 +153,7 @@
                 </div>
                 <div class="flex items-center justify-between pt-2">
                     <div id="emailSendingStatus" class="text-xs font-bold text-gray-500 hidden">
-                        <i class="fa-solid fa-spinner fa-spin mr-1"></i> Sending...
+                        <svg class="w-4 h-4 animate-spin inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Sending...
                     </div>
                     <button id="submitComplaintButton" class="btn px-8 py-3 ml-auto">
                         Submit Complaint
@@ -282,7 +282,7 @@
                         type: 'bar',
                         data: {
                             labels: cityLabels,
-                            datasets: [{ label: 'Bookings', data: cityData, backgroundColor: '#1D4ED8', borderRadius: 4 }]
+                            datasets: [{ label: 'Bookings', data: cityData, backgroundColor: '#9C2007', borderRadius: 4 }]
                         },
                         options: { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
                     });
