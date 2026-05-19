@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.appendChild(_overlay);
 
     const _removeOverlay = () => document.getElementById('sync-overlay')?.remove();
-    window.addEventListener('appDataLoaded', _removeOverlay, { once: true });
+    window.addEventListener('appDataRefreshed', _removeOverlay, { once: true });
     // fallback — remove after 10s regardless
     setTimeout(_removeOverlay, 10000);
 
