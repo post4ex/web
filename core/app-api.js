@@ -3,17 +3,7 @@
 // ============================================================================
 
 async function fetchClientIP() {
-    if (sessionStorage.getItem(CONSTANTS.KEYS.IP)) return;
-    try {
-        const controller = new AbortController();
-        const timeoutId  = setTimeout(() => controller.abort(), 2000);
-        const res        = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
-        clearTimeout(timeoutId);
-        const json = await res.json();
-        sessionStorage.setItem(CONSTANTS.KEYS.IP, json.ip);
-    } catch (e) {
-        sessionStorage.setItem(CONSTANTS.KEYS.IP, '0.0.0.0');
-    }
+    // IP detection removed — was calling external api.ipify.org but value was never used
 }
 
 const MUTATING_ENDPOINTS = [
@@ -88,6 +78,7 @@ async function pullDeltaSince(since_ms) {
         if (result.status !== 'success') return;
         const incomingData = result.data || {};
         console.log('[pullDeltaSince] response meta:', result.meta, '| collections:', Object.entries(incomingData).map(([k,v]) => `${k}:${Object.keys(v).length}`).join(' '));
+        let hasNewData = false;
         for (const [sheetName, sheetData] of Object.entries(incomingData)) {
             if (Object.keys(sheetData).length > 0) {
                 if (!window.appDB.db.objectStoreNames.contains(sheetName)) {
@@ -95,11 +86,25 @@ async function pullDeltaSince(since_ms) {
                     continue;
                 }
                 await window.appDB.mergeSheet(sheetName, sheetData);
+                hasNewData = true;
             }
         }
         window._lastDeltaSync = Date.now();
-        _scheduleRefresh();
+        if (hasNewData) _scheduleRefresh();
     } catch (e) { console.warn('[pullDeltaSince] error:', e.message); }
+}
+
+function _showRetryBanner(msg) {
+    document.getElementById('sync-retry-banner')?.remove();
+    const banner = document.createElement('div');
+    banner.id = 'sync-retry-banner';
+    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;font-size:13px;font-family:sans-serif;';
+    banner.innerHTML = `<span>❌ ${msg}</span><button style="padding:4px 12px;background:#fff;color:#7f1d1d;border:none;border-radius:4px;font-weight:600;cursor:pointer;">Retry</button>`;
+    banner.querySelector('button').addEventListener('click', () => {
+        banner.remove();
+        verifyAndFetchAppData();
+    });
+    document.body.appendChild(banner);
 }
 
 async function verifyAndFetchAppData(clearAll = false) {
@@ -131,13 +136,17 @@ async function verifyAndFetchAppData(clearAll = false) {
             let successCount = 0;
 
             window._syncInProgress = true;
+            let hasNewData = false;
             try {
                 for (const [sheetName, sheetData] of Object.entries(incomingData)) {
                     try {
                         if (clearAll || noTimeFilter.has(sheetName)) {
                             await window.appDB.clearSheet(sheetName);
                         }
-                        if (Object.keys(sheetData).length > 0) await window.appDB.putSheet(sheetName, sheetData);
+                        if (Object.keys(sheetData).length > 0) {
+                            await window.appDB.putSheet(sheetName, sheetData);
+                            hasNewData = true;
+                        }
                         successCount++;
                     } catch (error) {
                         syncErrors.push(`${sheetName}: ${error.message}`);
@@ -149,14 +158,13 @@ async function verifyAndFetchAppData(clearAll = false) {
                 window._sseBuffer = [];
             }
 
-            // store sync window start for reference
             if (result.meta?.sync_from_ms && window.appDB)
                 await window.appDB.setMetadata('syncFromMs', result.meta.sync_from_ms).catch(() => {});
             await window.appDB.setMetadata('lastSyncTime', Date.now()).catch(() => {});
 
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
-            _scheduleRefresh();  // appDataRefreshed fires after appDataLoaded
+            if (hasNewData) _scheduleRefresh();
 
             // fetch notifications into IndexedDB
             try {
@@ -180,12 +188,12 @@ async function verifyAndFetchAppData(clearAll = false) {
         }
     } catch (error) {
         console.error('[Data Engine] Sync Error:', error);
-        let errorMsg = '❌ Sync Failed: ';
+        let errorMsg = 'Sync Failed: ';
         if (error.message.includes('Invalid Server Response')) errorMsg += 'Server configuration issue';
         else if (error.message.includes('Session expired'))    errorMsg += 'Session expired - Please login again';
         else if (error.message.includes('Failed to fetch'))    errorMsg += 'Network connection failed';
         else errorMsg += error.message || 'Unknown error';
-        showNotification(errorMsg, 'error');
+        _showRetryBanner(errorMsg);
     }
 }
 

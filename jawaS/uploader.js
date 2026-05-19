@@ -1218,6 +1218,7 @@ image: finalImageSrc
     hiddenCell.style.display = 'none';
 
     updateStatus(`Added ${pickData.type} for ${pickData.ref} to table.`);
+    if (window.markDirty) window.markDirty();
 }
 
 // --- *** END BUNDLING LOGIC *** ---
@@ -1296,6 +1297,7 @@ renderDynamicInputs();
      clearAllBtn.addEventListener('click', () => {
 if (tableBody.rows.length > 0) {
     tableBody.innerHTML = '';
+    if (window.markClean) window.markClean();
     updateStatus("All entries cleared.");
     // Re-render pickup table to show all tasks again
     if (selectedOrder) {
@@ -1360,6 +1362,7 @@ if (failedRows.length > 0) {
     updateStatus(`Failed rows: ${failedRows.join(', ')}. Fix and retry.`, true);
 } else {
     updateStatus(`All ${successCount} row(s) submitted successfully.`);
+    if (window.markClean) window.markClean();
     setTimeout(() => { clearAllBtn.click(); updateStatus('Table cleared.'); }, 2000);
 }
      });

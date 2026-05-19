@@ -42,11 +42,21 @@ function initHeartbeat() {
 
     ['mousemove', 'keydown', 'click', 'scroll'].forEach(e => window.addEventListener(e, resetTimer));
 
+    let _expiryWarned = false;
     setInterval(() => {
         const now = Date.now();
         if (now - lastActivity > CONSTANTS.IDLE_TIMEOUT) {
             handleLogout();
             return;
+        }
+        // Warn 5 min before session token expires
+        const expiry = getSessionExpiry();
+        if (expiry && !_expiryWarned && (expiry - now) < 5 * 60 * 1000 && (expiry - now) > 0) {
+            _expiryWarned = true;
+            showNotification('⚠️ Session expiring in 5 minutes. Save your work.', 'warning', 10000);
+        }
+        if (expiry && expiry < now) {
+            handleLogout();
         }
     }, CONSTANTS.PING_INTERVAL);
 }

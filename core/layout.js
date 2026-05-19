@@ -84,31 +84,34 @@ async function loadDynamicContent(url, targetElementId) {
 }
 
 const setActiveNavOnLoad = () => {
-    const path = window.location.pathname;
-    let pageId = 'home';
-    if      (path.includes('dashboard.html'))  pageId = 'home';
-    else if (path.includes('Pincode.html'))    pageId = 'pincode';
-    else if (path.includes('complaint.html'))  pageId = 'complaint';
-    else if (path.includes('BookOrder.html'))  pageId = 'bookorder';
-    else if (path.includes('tracking.html'))   pageId = 'tracking';
-    else if (path.includes('Calculator.html')) pageId = 'calculator';
-    else if (path.includes('ticket.html'))     pageId = 'ticket';
-    else if (path.includes('task.html'))       pageId = 'task';
-    else if (path.includes('wallet.html'))     pageId = 'wallet';
-    else if (path.includes('search.html'))     pageId = 'search';
+    const currentPath = window.location.pathname.split('/').pop();
+    // derive pageId from filename without extension, lowercase
+    const pageId = currentPath.replace(/\.html$/i, '').toLowerCase() || 'home';
 
     setTimeout(() => {
         document.querySelectorAll('a[id^="nav-"], a[id^="dropdown-"]').forEach(link => {
             const linkPage = (link.id || '').split('-')[1];
             link.classList.remove('bg-gray-600', 'font-bold', 'btn-active');
-            if (linkPage === pageId) {
-                link.classList.add('btn-active');
-            }
+            if (linkPage === pageId) link.classList.add('btn-active');
+        });
+        document.querySelectorAll('#container-sidebar-nav a').forEach(link => {
+            const href = (link.getAttribute('href') || '').split('/').pop();
+            link.classList.toggle('btn-active', href === currentPath);
         });
     }, 150);
 };
 
 function initializeUI() {
+    // Global dirty state — pages call markDirty() on edit, markClean() on save
+    window._pageDirty = false;
+    window.markDirty  = () => { window._pageDirty = true; };
+    window.markClean  = () => { window._pageDirty = false; };
+    document.addEventListener('input',  () => window.markDirty(), true);
+    document.addEventListener('change', () => window.markDirty(), true);
+    document.addEventListener('submit', () => window.markClean(), true);
+    window.addEventListener('beforeunload', (e) => {
+        if (window._pageDirty) { e.preventDefault(); e.returnValue = ''; }
+    });
 
 
     const sb = document.getElementById('sidebar');
@@ -384,23 +387,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     createNotificationModal();
     fetchClientIP();
 
-    // Loading overlay — shown until appDataLoaded fires
-    const _overlay = document.createElement('div');
-    _overlay.id = 'sync-overlay';
-    _overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;';
-    _overlay.innerHTML = `
-        <svg style="width:40px;height:40px;animation:spin 1s linear infinite;color:#9C2007" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path style="opacity:.75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-        </svg>
-        <span style="font-size:14px;color:#6b7280;font-family:sans-serif;">Loading data…</span>
-        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
-    document.body.appendChild(_overlay);
+    // Loading overlay — only for logged-in users (data pages)
+    if (isLoggedIn()) {
+        const _overlay = document.createElement('div');
+        _overlay.id = 'sync-overlay';
+        _overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;';
+        _overlay.innerHTML = `
+            <svg style="width:40px;height:40px;animation:spin 1s linear infinite;color:#9C2007" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path style="opacity:.75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span style="font-size:14px;color:#6b7280;font-family:sans-serif;">Loading data…</span>
+            <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+        document.body.appendChild(_overlay);
 
-    const _removeOverlay = () => document.getElementById('sync-overlay')?.remove();
-    window.addEventListener('appDataRefreshed', _removeOverlay, { once: true });
-    // fallback — remove after 10s regardless
-    setTimeout(_removeOverlay, 10000);
+        const _removeOverlay = () => document.getElementById('sync-overlay')?.remove();
+        window.addEventListener('appDataRefreshed', _removeOverlay, { once: true });
+        setTimeout(_removeOverlay, 10000);
+    }
+
+    // Offline indicator
+    const _offlineBanner = document.createElement('div');
+    _offlineBanner.id = 'offline-banner';
+    _offlineBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;text-align:center;padding:6px;font-size:13px;font-family:sans-serif;display:none;';
+    _offlineBanner.textContent = '⚠️ No internet connection';
+    document.body.appendChild(_offlineBanner);
+    window.addEventListener('offline', () => { _offlineBanner.style.display = 'block'; });
+    window.addEventListener('online',  () => { _offlineBanner.style.display = 'none'; });
 
     await loadComponent('header.html', 'header-placeholder');
     await loadComponent('footer.html', 'footer-placeholder');

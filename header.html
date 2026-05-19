@@ -93,24 +93,14 @@
 <!-- NAVIGATION CONFIGURATION & RENDERING -->
 <script>
     // ============================================================================
-    // 1. ROLE HIERARCHY (Local Definition)
+    // 1. ROLE HIERARCHY — use global ROLE_LEVELS from app-config.js
     // ============================================================================
-    const NAV_ROLE_LEVELS = {
-        'MASTER':     100, 
-        'ADMIN':      90,  
-        'AUDITOR':    70,  
-        'ACCOUNTANT': 60,  
-        'MANAGER':    50,  
-        'STAFF':      10,  
-        'CLIENT':     1,   
-        'GUEST':      0    
-    };
 
     function getUserLevel() {
         try {
             const d = JSON.parse(localStorage.getItem('loginData') || '{}');
             const role = (d.userData || {}).ROLE || 'GUEST';
-            return NAV_ROLE_LEVELS[role] || 0;
+            return (window.ROLE_LEVELS || {})[role] || 0;
         } catch { return 0; }
     }
 
@@ -180,7 +170,7 @@
     function hasPermission(itemRole) {
         if (!itemRole) return true;
         const userLevel = getUserLevel();
-        const reqLevel = NAV_ROLE_LEVELS[itemRole] || 0;
+        const reqLevel = (window.ROLE_LEVELS || {})[itemRole] || 0;
         return userLevel >= reqLevel;
     }
 
