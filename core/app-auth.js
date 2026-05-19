@@ -73,15 +73,15 @@ function checkLoginStatus() {
     const hide = (ids) => ids.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
     if (loggedIn) {
-        hide(['login-button', 'login-button-mobile', 'main-nav-public']);
-        show(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'mobile-menu-toggle', 'notification-container-global', 'mobile-tools-section']);
+        hide(['login-button', 'main-nav-public']);
+        show(['main-nav-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section']);
 
         const excludedFields = [
             'token', 'expires', 'userdata', 'pass', 'password', 'reset_token',
             'status', 'message', 'success', 'filter_value', 'col_filter', 'logintime'
         ];
 
-        const populateDetails = (container, isMobile = false) => {
+        const populateDetails = (container) => {
             if (!container) return;
             container.innerHTML = '';
             // profile panel shows userData fields only — sessionId intentionally excluded
@@ -99,18 +99,15 @@ function checkLoginStatus() {
                 const displayKey = key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
                 const detailEl = document.createElement('div');
-                detailEl.innerHTML = isMobile
-                    ? `<p class="text-xs text-white"><strong class="font-semibold text-gray-300">${displayKey}:</strong> <span>${value}</span></p>`
-                    : `<p class="text-sm"><strong class="font-semibold text-gray-600">${displayKey}:</strong> <span class="text-gray-800">${value}</span></p>`;
+                detailEl.innerHTML = `<p class="text-xs text-white"><strong class="font-semibold text-gray-300">${displayKey}:</strong> <span>${value}</span></p>`;
                 container.appendChild(detailEl);
             });
         };
 
-        populateDetails(document.getElementById('profile-details-container'),        false);
-        populateDetails(document.getElementById('mobile-profile-details-container'), true);
+        populateDetails(document.getElementById('profile-details-container'));
     } else {
-        show(['login-button', 'login-button-mobile', 'main-nav-public']);
-        hide(['profile-section', 'profile-section-mobile', 'main-nav-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section', 'mobile-menu-toggle']);
+        show(['login-button', 'main-nav-public']);
+        hide(['main-nav-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section']);
     }
 
     setTimeout(() => {

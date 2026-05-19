@@ -109,16 +109,7 @@ const setActiveNavOnLoad = () => {
 };
 
 function initializeUI() {
-    ['menuButton', 'profile-button'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) {
-            const menu = document.getElementById(id === 'menuButton' ? 'dropdownMenu' : 'profile-dropdown');
-            btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
-            document.addEventListener('click', (e) => {
-                if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.add('hidden');
-            });
-        }
-    });
+
 
     const sb = document.getElementById('sidebar');
     const tg = document.getElementById('sidebar-toggle');
@@ -392,6 +383,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     createNotificationModal();
     fetchClientIP();
+
+    // Loading overlay — shown until appDataLoaded fires
+    const _overlay = document.createElement('div');
+    _overlay.id = 'sync-overlay';
+    _overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;';
+    _overlay.innerHTML = `
+        <svg style="width:40px;height:40px;animation:spin 1s linear infinite;color:#9C2007" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path style="opacity:.75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        <span style="font-size:14px;color:#6b7280;font-family:sans-serif;">Loading data…</span>
+        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    document.body.appendChild(_overlay);
+
+    const _removeOverlay = () => document.getElementById('sync-overlay')?.remove();
+    window.addEventListener('appDataLoaded', _removeOverlay, { once: true });
+    // fallback — remove after 10s regardless
+    setTimeout(_removeOverlay, 10000);
 
     await loadComponent('header.html', 'header-placeholder');
     await loadComponent('footer.html', 'footer-placeholder');

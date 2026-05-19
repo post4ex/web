@@ -162,7 +162,7 @@ function renderNotificationItem(notif, showToast = false) {
 
     item.appendChild(contentArea);
     item.appendChild(btnWrap);
-    listGlobal.prepend(item);
+    listGlobal.appendChild(item);
 }
 
 function _updateBadge() {
