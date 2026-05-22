@@ -5,6 +5,7 @@
 // --- GLOBAL STATE ---
 let allOrders       = [];
 let currentSelectedRef = null;
+let activeTileFilter   = 'all'; // current tile selection
 let b2b2cDataMap    = new Map(); // UID → B2B2C record
 let productDataMap  = new Map(); // REFERENCE → [products]
 let multiboxDataMap = new Map(); // REFERENCE → [boxes]
@@ -37,6 +38,48 @@ function _uploadActionBtns(url, uploadUid) {
         btns.push(`<button onclick="deleteUploadRecord('${uploadUid}', this)" title="Delete" class="p-1.5 text-red-400 rounded hover:bg-red-50"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`);
     }
     return btns.join('');
+}
+
+// --- TILES ---
+const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD' };
+
+function updateTileCounts(orders) {
+    const counts = { all: orders.length, topay:0, cod:0 };
+    orders.forEach(o => {
+        if (o.TOPAY === 'Yes') counts.topay++;
+        if (o.COD && parseFloat(o.COD) > 0) counts.cod++;
+    });
+    Object.keys(counts).forEach(k => {
+        const el = document.getElementById(`cnt-${k}`);
+        if (el) el.textContent = counts[k];
+    });
+}
+
+function showTilesView() {
+    document.getElementById('tilesView').style.display = 'flex';
+    document.getElementById('splitViewWrapper').style.display = 'none';
+}
+
+function showSplitView(label) {
+    document.getElementById('tilesView').style.display = 'none';
+    document.getElementById('splitViewWrapper').style.display = 'flex';
+    const titleEl = document.getElementById('splitTitle');
+    if (titleEl) titleEl.textContent = label || 'Shipments';
+}
+
+function handleTileClick(tile) {
+    if (tile === 'track') { openTrackTile(); return; }
+    activeTileFilter = tile;
+    document.getElementById('trackDetailView')?.classList.add('hidden');
+    showSplitView(_tileLabels[tile] || 'Shipments');
+    applyFilters();
+}
+
+function _tileFilterMatch(order) {
+    if (activeTileFilter === 'all')   return true;
+    if (activeTileFilter === 'topay') return order.TOPAY === 'Yes';
+    if (activeTileFilter === 'cod')   return order.COD && parseFloat(order.COD) > 0;
+    return true;
 }
 
 // --- DATA INITIALIZATION ---
@@ -87,6 +130,8 @@ function initializePageWithData(appData) {
 
         populateFilters(allOrders);
         setupFilterListeners();
+        updateTileCounts(allOrders);
+        showTilesView();
         applyFilters();
         ui.statusMessage.textContent = '';
     } catch (err) {
@@ -191,7 +236,8 @@ function applyFilters() {
             String(order.AWB_NUMBER || '').toLowerCase().includes(searchTerm) ||
             (order.CONSIGNOR || '').toLowerCase().includes(searchTerm) ||
             (order.CONSIGNEE || '').toLowerCase().includes(searchTerm);
-        return sdMatch && edMatch && bMatch && cMatch && carMatch && sMatch;
+        const tileMatch = _tileFilterMatch(order);
+        return sdMatch && edMatch && bMatch && cMatch && carMatch && sMatch && tileMatch;
     });
 
     renderShipmentList(filteredOrders);
@@ -249,6 +295,7 @@ function showDetailView() {
     }
     ui.emptyView.classList.add('hidden');
     ui.detailView.classList.remove('hidden');
+    document.getElementById('trackDetailView')?.classList.add('hidden');
 }
 
 // --- SELECTION HANDLER ---
@@ -791,6 +838,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.shipmentListPane.classList.remove('hidden');
             ui.shipmentDetailPane.classList.add('hidden');
         }
+    });
+
+    document.getElementById('backToTilesBtn').addEventListener('click', showTilesView);
+
+    document.querySelectorAll('.tile[data-tile]').forEach(tile => {
+        tile.addEventListener('click', () => handleTileClick(tile.dataset.tile));
     });
 
     loadFromIndexedDB();

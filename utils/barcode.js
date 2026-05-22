@@ -122,3 +122,47 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
         _scanZXing(videoEl, canvas, onResult, onError);
     }
 }
+
+// readBarcodeFromImage — decode a barcode from an image File or data URL
+// Returns the decoded string or throws on failure
+export async function readBarcodeFromImage(source) {
+    const img = await new Promise((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = reject;
+        el.src = source instanceof File ? URL.createObjectURL(source) : source;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+
+    // Try native BarcodeDetector first
+    if ('BarcodeDetector' in window) {
+        const results = await new BarcodeDetector({ formats: BARCODE_FORMATS }).detect(canvas);
+        if (results.length) return results[0].rawValue;
+    }
+
+    // Fall back to ZXing
+    const ZXing = await _loadZXing();
+    const reader = new ZXing.MultiFormatReader();
+    const hints  = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.QR_CODE,  ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,    ZXing.BarcodeFormat.ITF,
+        ZXing.BarcodeFormat.PDF_417,  ZXing.BarcodeFormat.DATA_MATRIX,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    reader.setHints(hints);
+
+    const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+    for (const Bin of [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer]) {
+        try {
+            const result = reader.decode(new ZXing.BinaryBitmap(new Bin(lum)));
+            if (result) return result.getText();
+        } catch(_) {}
+    }
+    throw new Error('No barcode found in image');
+}

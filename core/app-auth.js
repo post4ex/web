@@ -109,7 +109,7 @@ function checkLoginStatus() {
                 const displayKey = key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
                 const detailEl = document.createElement('div');
-                detailEl.innerHTML = `<p class="text-xs text-white"><strong class="font-semibold text-gray-300">${displayKey}:</strong> <span>${value}</span></p>`;
+                detailEl.innerHTML = `<p class="text-xs text-gray-700"><strong class="font-semibold text-gray-900">${displayKey}:</strong> <span>${value}</span></p>`;
                 container.appendChild(detailEl);
             });
         };

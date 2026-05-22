@@ -402,8 +402,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.appendChild(_overlay);
 
         const _removeOverlay = () => document.getElementById('sync-overlay')?.remove();
-        window.addEventListener('appDataRefreshed', _removeOverlay, { once: true });
-        setTimeout(_removeOverlay, 10000);
+        window.addEventListener('syncComplete', _removeOverlay, { once: true });
+        setTimeout(_removeOverlay, 30000);
     }
 
     // Offline indicator
@@ -459,11 +459,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+            // overlay can go now — user already has data
+            window.dispatchEvent(new CustomEvent('syncComplete'));
             if (window._idbLastStamp !== null && window._idbLastStamp !== undefined)
                 pullDeltaSince(window._idbLastStamp).catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
             // full sync in background — merges on top, user already sees data
-            verifyAndFetchAppData().catch(() => {});
+            verifyAndFetchAppData();
         } else {
             console.log('[Layout] Sync already active — skipping');
         }

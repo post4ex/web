@@ -38,6 +38,15 @@
         #uploadsTable th, #uploadsTable td,
         #trackingHistoryTable th, #trackingHistoryTable td { padding: 0.5rem; font-size: 0.8rem; }
 
+        /* Tiles view */
+        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;flex:1;padding:2rem 1rem;overflow-y:auto; }
+        .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1rem;width:100%;max-width:900px; }
+        .tile { background:#fff;border-radius:.75rem;padding:1.5rem 1rem;text-align:center;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .15s; }
+        .tile:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12); }
+        .tile-icon { font-size:2rem;margin-bottom:.5rem; }
+        .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
+        .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
+
         /* Document Center action buttons */
         .doc-action-btn {
             display: inline-flex; align-items: center; justify-content: center;
@@ -56,13 +65,47 @@
     <!-- Header placeholder -->
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
+    <!-- Tiles View -->
+    <div id="tilesView" style="display:none;">
+        <div class="w-full mb-4 flex items-center gap-3" style="max-width:900px;">
+            <h1 class="text-2xl font-bold text-gray-800 flex-1">Shipments</h1>
+        </div>
+        <div class="tile-grid">
+            <div class="tile" data-tile="all" style="border-color:#e5e7eb;">
+                <div class="tile-icon">📦</div>
+                <div class="tile-count text-gray-700" id="cnt-all">…</div>
+                <div class="tile-label">Total</div>
+            </div>
+            <div class="tile" data-tile="topay" style="border-color:#fef3c7;">
+                <div class="tile-icon">💰</div>
+                <div class="tile-count text-amber-600" id="cnt-topay">…</div>
+                <div class="tile-label">To Pay</div>
+            </div>
+            <div class="tile" data-tile="cod" style="border-color:#ede9fe;">
+                <div class="tile-icon">💵</div>
+                <div class="tile-count text-purple-700" id="cnt-cod">…</div>
+                <div class="tile-label">COD</div>
+            </div>
+            <div class="tile" data-tile="track" style="border-color:#d1fae5;">
+                <div class="tile-icon">📡</div>
+                <div class="tile-count text-green-700" id="cnt-track">—</div>
+                <div class="tile-label">Track</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Split View -->
-    <div class="split-view">
+    <div id="splitViewWrapper" class="split-view" style="display:none;">
 
         <!-- Left Pane: Shipment List -->
         <aside id="shipmentListPane">
             <div class="sv-pane-header">
-                <h2 class="text-xl font-bold text-gray-800 mb-3">Shipments</h2>
+                <div class="flex items-center gap-2 mb-3">
+                    <button id="backToTilesBtn" class="text-gray-400 hover:text-gray-700 p-1 rounded" title="Back to tiles">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    </button>
+                    <h2 id="splitTitle" class="text-xl font-bold text-gray-800 flex-1">Shipments</h2>
+                </div>
                 <div class="flex gap-2">
                     <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Client..." class="form-input w-full text-sm">
                     <button id="filterToggleBtn" class="p-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
@@ -102,11 +145,22 @@
                 <div id="trackingHistoryContainer" class="detail-card"></div>
             </div>
 
+            <!-- Track tile detail view -->
+            <div id="trackDetailView" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div id="t-shipmentDetailsContainer" class="detail-card"></div>
+                    <div id="t-consignorDetailsContainer" class="detail-card"></div>
+                </div>
+                <div id="t-consigneeDetailsContainer" class="detail-card"></div>
+                <div id="t-trackingStatusContainer" class="detail-card"></div>
+                <div id="t-trackingHistoryContainer" class="detail-card"></div>
+            </div>
+
             <div id="emptyView" class="h-full flex items-center justify-center">
                 <p class="text-gray-500 text-lg">Select a shipment from the list to view details.</p>
             </div>
         </main>
-    </div>
+    </div><!-- /splitViewWrapper -->
 
     <!-- POD Image Popup -->
     <div id="podImagePopup" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70" onclick="document.getElementById('podImagePopup').classList.add('hidden')">
@@ -167,5 +221,6 @@
     <script src="core/layout.js"></script>
     <script src="jawaS/shipments.js"></script>
     <script src="utils/docgen.js"></script>
+    <script src="jawaS/track-tile.js"></script>
 </body>
 </html>

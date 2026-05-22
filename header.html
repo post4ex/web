@@ -60,7 +60,13 @@
                 <a id="nav-search-private" href="search.html" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                 </a>
-                
+
+                <button id="desktop-logout-button" title="Logout" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </button>
+
                 <a id="login-button" href="login.html" class="btn">Login</a>
             </div>
 
@@ -71,18 +77,12 @@
 <!-- Sidebar (Content Generated via Script) -->
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-48 bg-white/10 backdrop-blur-sm text-white transform -translate-x-full transition-transform duration-300 ease-in-out z-50 overflow-y-auto flex flex-col">
     <div class="p-4 flex flex-col flex-1">
+        <!-- Profile Tray -->
+        <div class="tray mb-4">
+            <div id="profile-details-container" class="space-y-1"></div>
+        </div>
         <a href="dashboard.html" class="btn w-full mb-4">Dashboard</a>
         <nav id="container-sidebar-nav" class="space-y-2 flex-1"></nav>
-        <!-- Profile (expandable) -->
-        <div class="mt-4">
-            <button onclick="toggleSubmenu('sidebar-profile-submenu')" class="btn w-full mb-1 justify-between">
-                <span>Profile</span>
-                <svg class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-            <div id="sidebar-profile-submenu" class="hidden pl-2 mb-1">
-                <div id="profile-details-container" class="space-y-1 text-xs text-white py-1"></div>
-            </div>
-        </div>
         <!-- Logout -->
         <button id="profile-logout-button" class="btn w-full mt-1">Logout</button>
     </div>
@@ -260,7 +260,16 @@
 
                 document.getElementById('container-desktop-private')?.classList.remove('hidden');
                 document.getElementById('container-desktop-private')?.classList.add('flex');
-                document.getElementById('container-desktop-public')?.classList.add('hidden'); 
+                document.getElementById('container-desktop-public')?.classList.add('hidden');
+
+                const desktopLogout = document.getElementById('desktop-logout-button');
+                if (desktopLogout) {
+                    desktopLogout.style.display = window.innerWidth >= 1280 ? 'flex' : 'none';
+                    window.addEventListener('resize', () => {
+                        desktopLogout.style.display = window.innerWidth >= 1280 ? 'flex' : 'none';
+                    });
+                    desktopLogout.addEventListener('click', () => typeof handleLogout === 'function' && handleLogout());
+                }
             }
         };
         checkMobileTools();

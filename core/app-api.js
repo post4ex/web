@@ -70,7 +70,15 @@ async function pullDeltaSince(since_ms) {
         console.log('[pullDeltaSince] skipped — since_ms:', since_ms, 'loggedIn:', isLoggedIn());
         return;
     }
-    // since_ms=0 — pass as-is, backend handles fallback to sync_start_ms
+    if (window._syncInProgress) {
+        console.log('[pullDeltaSince] skipped — full sync in progress');
+        return;
+    }
+    // since_ms=0 means no local data yet — let verifyAndFetchAppData handle it
+    if (since_ms === 0) {
+        console.log('[pullDeltaSince] skipped — since_ms=0, full sync will cover this');
+        return;
+    }
     const effective = since_ms;
     console.log('[pullDeltaSince] calling with since_ms:', effective);
     try {
@@ -180,11 +188,13 @@ async function verifyAndFetchAppData(clearAll = false) {
             if (syncErrors.length > 0) {
                 showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
             } else {
-                showNotification(`✅ Synced`, 'success', 1500);
+                showNotification(`✅ Synced`, 'success', 3000);
             }
+            window.dispatchEvent(new CustomEvent('syncComplete'));
 
         } else {
             showNotification(`❌ Server Error: ${result.message || 'Unknown error'}`, 'error');
+            window.dispatchEvent(new CustomEvent('syncComplete'));
         }
     } catch (error) {
         console.error('[Data Engine] Sync Error:', error);
@@ -194,6 +204,7 @@ async function verifyAndFetchAppData(clearAll = false) {
         else if (error.message.includes('Failed to fetch'))    errorMsg += 'Network connection failed';
         else errorMsg += error.message || 'Unknown error';
         _showRetryBanner(errorMsg);
+        window.dispatchEvent(new CustomEvent('syncComplete'));
     }
 }
 
