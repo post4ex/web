@@ -459,8 +459,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
-            // overlay can go now — user already has data
-            window.dispatchEvent(new CustomEvent('syncComplete'));
             if (window._idbLastStamp !== null && window._idbLastStamp !== undefined)
                 pullDeltaSince(window._idbLastStamp).catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
