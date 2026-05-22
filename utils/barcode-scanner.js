@@ -58,16 +58,23 @@ const _INLINE_SCANNER = `
 
 function _filePickerMode(host, icon, label) {
     host.innerHTML = `
-        <label class="btn" style="cursor:pointer;gap:0.4rem;display:inline-flex;align-items:center;">
-            ${icon}${label ? `<span>${label}</span>` : ''}
-            <input type="file" accept="image/*" style="display:none;">
-        </label>
+        <button type="button" style="cursor:pointer;display:inline-flex;align-items:center;background:none;border:none;padding:0;">
+            ${icon}${label ? `<span style="margin-left:0.25rem;">${label}</span>` : ''}
+        </button>
+        <input type="file" accept="image/*" style="display:none;">
         <span class="rb-status" style="display:none;font-size:0.75rem;color:#6b7280;margin-left:0.5rem;"></span>`;
 
+    const btn    = host.querySelector('button');
     const input  = host.querySelector('input');
     const status = host.querySelector('.rb-status');
 
-    host.querySelector('label').addEventListener('click', () => input.click());
+    let _picking = false;
+    btn.addEventListener('click', () => {
+        if (_picking) return;
+        _picking = true;
+        input.click();
+        setTimeout(() => { _picking = false; }, 1000);
+    });
     input.addEventListener('change', async () => {
         const file = input.files[0];
         if (!file) return;
@@ -87,6 +94,8 @@ function _filePickerMode(host, icon, label) {
 // ── <scan-barcode> ────────────────────────────────────────────────────────────
 class ScanBarcode extends HTMLElement {
     connectedCallback() {
+        if (this._init) return;
+        this._init = true;
         const iconOnly = this.hasAttribute('icon-only');
         const label    = iconOnly ? '' : (this.getAttribute('label') || 'Scan Barcode');
 
@@ -122,6 +131,8 @@ customElements.define('scan-barcode', ScanBarcode);
 // ── <read-barcode> ────────────────────────────────────────────────────────────
 class ReadBarcode extends HTMLElement {
     connectedCallback() {
+        if (this._init) return;
+        this._init = true;
         const iconOnly = this.hasAttribute('icon-only');
         const label    = iconOnly ? '' : (this.getAttribute('label') || 'Read from Image');
         _filePickerMode(this, _IMG_ICON, label);

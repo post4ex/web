@@ -61,6 +61,7 @@
         #svc-track { display: flex; transition: transform 0.4s ease; will-change: transform; }
         #svc-track > div { flex: 0 0 100%; }
     </style>
+    <script type="module" src="utils/barcode-scanner.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
@@ -163,26 +164,9 @@
                                 onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
                                 onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
                             <style>#main-track-input::placeholder{color:#94a3b8;}</style>
-                            <!-- Camera scan button — mobile only -->
-                            <button id="barcode-scan-btn" title="Scan barcode"
-                                style="display:none;position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:0.25rem;color:rgba(0,0,0,0.45);">
-                                <i class="fa-solid fa-camera" style="font-size:1rem;"></i>
-                            </button>
+                            <scan-barcode id="main-scanner" icon-only style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);line-height:0;"></scan-barcode>
                         </div>
-
-                        <!-- Inline barcode scanner -->
-                        <div id="barcode-scanner-wrap" style="display:none;position:relative;margin-bottom:0.875rem;border-radius:0.875rem;overflow:hidden;background:#000;">
-                            <video id="barcode-video" muted playsinline style="width:100%;max-height:220px;object-fit:cover;display:block;"></video>
-                            <!-- scan region indicator -->
-                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;height:60%;border:2px solid rgba(255,255,255,0.7);border-radius:4px;pointer-events:none;">
-                                <div style="position:absolute;top:0;left:0;width:16px;height:16px;border-top:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:2px 0 0 0;"></div>
-                                <div style="position:absolute;top:0;right:0;width:16px;height:16px;border-top:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 2px 0 0;"></div>
-                                <div style="position:absolute;bottom:0;left:0;width:16px;height:16px;border-bottom:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:0 0 0 2px;"></div>
-                                <div style="position:absolute;bottom:0;right:0;width:16px;height:16px;border-bottom:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 0 2px 0;"></div>
-                            </div>
-                            <button id="barcode-cancel" style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.55);border:none;border-radius:0.5rem;color:#fff;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">✕ Cancel</button>
-                            <div style="position:absolute;bottom:0.5rem;left:0;right:0;text-align:center;color:rgba(255,255,255,0.7);font-size:0.7rem;">Align barcode within the box</div>
-                        </div>
+                        <!-- inline scanner video renders here (moved by JS on mobile) -->
 
                         <!-- Button -->
                         <button id="main-track-btn" class="btn w-full" style="border-radius:0.875rem;padding:0.95rem;font-size:0.9rem;font-weight:800;letter-spacing:0.04em;">
@@ -549,36 +533,18 @@
                 document.getElementById('captcha-answer').addEventListener('keypress', e => { if (e.key === 'Enter') doPublicTrack(); });
                 document.getElementById('captcha-refresh').addEventListener('click', loadCaptcha);
 
-                // ── Barcode scan (mobile only) ──
-                const scanBtn    = document.getElementById('barcode-scan-btn');
-                const scanWrap   = document.getElementById('barcode-scanner-wrap');
-                const scanVideo  = document.getElementById('barcode-video');
-                const scanCancel = document.getElementById('barcode-cancel');
-                const trackInput = document.getElementById('main-track-input');
-
-                if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-                    scanBtn.style.display = 'block';
-                }
-
-                async function openScanner() {
-                    const { scanBarcode, stopBarcode } = await import('./utils/barcode.js');
-                    scanWrap.style.display = 'block';
-                    scanBarcode(
-                        scanVideo,
-                        val => {
-                            scanWrap.style.display = 'none';
-                            trackInput.value = val;
-                            startTrack();
-                        },
-                        err => {
-                            scanWrap.style.display = 'none';
-                            showMsg('main-track-msg', err, 'error');
-                        }
-                    );
-                    scanCancel.onclick = () => { stopBarcode(); scanWrap.style.display = 'none'; };
-                }
-
-                scanBtn.addEventListener('click', openScanner);
+                // ── Barcode scanner component ──
+                const scanner = document.getElementById('main-scanner');
+                // on mobile: move the inline scan-wrap outside the input wrapper so it isn't clipped
+                const scanWrap = scanner.querySelector('.scan-wrap');
+                if (scanWrap) scanner.parentElement.after(scanWrap);
+                scanner.addEventListener('scanned', e => {
+                    document.getElementById('main-track-input').value = e.detail.value;
+                    startTrack();
+                });
+                scanner.addEventListener('scan-error', e => {
+                    showMsg('main-track-msg', e.detail.message, 'error');
+                });
             });
         })();
 
