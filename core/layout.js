@@ -1,10 +1,31 @@
 // ============================================================================
 // LAYOUT.JS — Dispatcher / Orchestrator
 // ============================================================================
-(function () {
-    const s = document.createElement('script');
-    s.src = 'core/app-refresh.js';
-    document.head.appendChild(s);
+
+// Add overlay class immediately — before DOMContentLoaded, before first paint
+// CSS in style.css renders body::before/::after as the spinner overlay
+document.documentElement.classList.add('needs-sync');
+
+// AppRefresh — global helper to preserve UI state across appDataRefreshed
+// Usage: AppRefresh.register({ save: () => snap, restore: (snap) => ... })
+window.AppRefresh = (() => {
+    let _handler = null;
+    window.addEventListener('appDataRefreshed', () => {
+        if (!_handler) return;
+        const snap = _handler.save();
+        if (snap === undefined || snap === null) return;
+        // hide active view to prevent flash during re-render
+        const active = document.querySelector('[data-refresh-view]');
+        if (active) active.style.visibility = 'hidden';
+        requestAnimationFrame(() => {
+            _handler?.restore(snap);
+            if (active) active.style.visibility = '';
+        });
+    }, true);
+    return {
+        register:   (h) => { _handler = h; },
+        unregister: ()  => { _handler = null; },
+    };
 })();
 
 const _ALLOWED_COMPONENTS = ['header.html', 'footer.html'];
@@ -392,23 +413,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     createNotificationModal();
     fetchClientIP();
 
-    // Loading overlay — only for logged-in users (data pages)
+    // Loading overlay — CSS-driven (html.needs-sync), removed on syncComplete
     if (isLoggedIn()) {
-        const _overlay = document.createElement('div');
-        _overlay.id = 'sync-overlay';
-        _overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;';
-        _overlay.innerHTML = `
-            <svg style="width:40px;height:40px;animation:spin 1s linear infinite;color:#9C2007" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path style="opacity:.75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-            </svg>
-            <span style="font-size:14px;color:#6b7280;font-family:sans-serif;">Loading data…</span>
-            <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
-        document.body.appendChild(_overlay);
-
-        const _removeOverlay = () => document.getElementById('sync-overlay')?.remove();
+        const _removeOverlay = () => document.documentElement.classList.remove('needs-sync');
         window.addEventListener('syncComplete', _removeOverlay, { once: true });
         setTimeout(_removeOverlay, 30000);
+    } else {
+        document.documentElement.classList.remove('needs-sync');
     }
 
     // Offline indicator

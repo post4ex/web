@@ -131,7 +131,8 @@ function initializePageWithData(appData) {
         populateFilters(allOrders);
         setupFilterListeners();
         updateTileCounts(allOrders);
-        if (!currentSelectedRef) showTilesView();
+        const inSplitView = document.getElementById('splitViewWrapper')?.style.display === 'flex';
+        if (!inSplitView) showTilesView();
         applyFilters();
         ui.statusMessage.textContent = '';
     } catch (err) {
@@ -241,7 +242,7 @@ function applyFilters() {
     });
 
     renderShipmentList(filteredOrders);
-    ui.statusMessage.textContent = statusText.replace('{count}', filteredOrders.length);
+    ui.statusMessage.textContent = '';
 
     if (isMobileView()) {
         ui.shipmentListPane.classList.remove('hidden');
