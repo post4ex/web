@@ -101,7 +101,7 @@ class ScanBarcode extends HTMLElement {
 
         if (_isMobile()) {
             this.innerHTML = `
-                <button class="scan-trigger btn" type="button" style="gap:0.4rem;">
+                <button class="scan-trigger" type="button" style="background:none;border:none;padding:0.25rem;cursor:pointer;color:rgba(0,0,0,0.45);display:inline-flex;align-items:center;">
                     ${_SCAN_ICON}${label ? `<span>${label}</span>` : ''}
                 </button>
                 ${_INLINE_SCANNER}`;

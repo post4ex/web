@@ -160,6 +160,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('appDataLoaded',    e => initializeAppLogic(e.detail.data));
     window.addEventListener('appDataRefreshed', e => initializeAppLogic(e.detail.data));
 
+    AppRefresh.register({
+        save:    () => referenceInput.value || null,
+        restore: (ref) => {
+            if (!ref) return;
+            const li = listEl.querySelector(`li[data-ref="${ref}"]`);
+            if (li) { li.classList.add('selected'); activeEl = li; }
+        }
+    });
+
     const waitForDB = async () => {
         if (window.appDB && window.appDB.db) return;
         await new Promise(resolve => {

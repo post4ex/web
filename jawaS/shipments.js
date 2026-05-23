@@ -131,7 +131,7 @@ function initializePageWithData(appData) {
         populateFilters(allOrders);
         setupFilterListeners();
         updateTileCounts(allOrders);
-        showTilesView();
+        if (!currentSelectedRef) showTilesView();
         applyFilters();
         ui.statusMessage.textContent = '';
     } catch (err) {
@@ -844,6 +844,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.tile[data-tile]').forEach(tile => {
         tile.addEventListener('click', () => handleTileClick(tile.dataset.tile));
+    });
+
+    AppRefresh.register({
+        save:    () => ({ ref: currentSelectedRef, tile: activeTileFilter }),
+        restore: ({ ref, tile }) => {
+            activeTileFilter = tile;
+            if (ref) {
+                handleShipmentSelection(ref, ui.shipmentList.querySelector(`li[data-ref="${ref}"]`));
+            } else if (tile !== 'all') {
+                showSplitView(_tileLabels[tile] || 'Shipments');
+                applyFilters();
+            }
+        }
     });
 
     loadFromIndexedDB();

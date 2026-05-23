@@ -58,6 +58,7 @@
             background-color: #f3f4f6;
         }
     </style>
+    <script type="module" src="utils/barcode-scanner.js"></script>
 </head>
 <body class="bg-gray-100 flex flex-col min-h-screen">
 
@@ -177,7 +178,10 @@
                                     <option value="ADH">ADH</option>
                                 </select>
                             </div>
-                            <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500" pattern="\d{12}" maxlength="12" title="EWay bill must be a 12-digit numeric number.">
+                            <div style="position:relative;">
+                                <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 pr-6" pattern="\d{12}" maxlength="12" title="EWay bill must be a 12-digit numeric number.">
+                                <scan-barcode id="eway-scanner" icon-only style="position:absolute;right:0.25rem;top:50%;transform:translateY(-50%);"></scan-barcode>
+                            </div>
                             <div class="flex">
                                 <input type="number" id="amount" name="amount" placeholder="Amt" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0">
                             </div>
@@ -193,7 +197,8 @@
                         <!-- AWB and Action Buttons -->
                         <div class="flex items-center gap-2 border border-gray-400 p-2">
                             <div class="relative flex-grow">
-                                <input type="text" id="awb" name="awb" placeholder="AWB" class="w-full p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10">
+                                <input type="text" id="awb" name="awb" placeholder="AWB" class="w-full p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-16">
+                                <scan-barcode id="awb-scanner" icon-only style="position:absolute;right:2rem;top:50%;transform:translateY(-50%);"></scan-barcode>
                                 <button type="button" id="getAwbButton" class="absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 hover:text-gray-700" title="Get AWB">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5"></path>
@@ -343,6 +348,26 @@
                             <div id="productTotalsText" class="text-sm font-semibold text-gray-700 space-y-1 hidden">
                                 <!-- Totals will be displayed here dynamically -->
                             </div>
+                        </div>
+                        <!-- Document Uploads Table -->
+                        <div class="overflow-x-auto mt-2" style="max-height:220px;overflow-y:auto;border:1px solid #ccc;border-radius:4px;">
+                            <table class="min-w-full border-collapse" style="font-size:12px;">
+                                <thead>
+                                    <tr style="background:#f0f0f0;position:sticky;top:0;z-index:1;">
+                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">STATUS</th>
+                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">REFERENCE / AWB</th>
+                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">CUSTOMER / KYC INFO</th>
+                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">DOCUMENT INFO</th>
+                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">ACTION</th>
+                                        <th style="display:none;">BRANCH / CODE</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="doc-upload-table-body">
+                                    <!-- Rows staged by mini-uploader -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="productTotals" class="flex justify-end items-center mt-2 space-x-2">
                             <button id="clearMultiboxButton" class="btn btn-sm">
                                 Clear Multibox
                             </button>
@@ -356,6 +381,9 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Mini Document Uploader -->
+            <div id="mini-uploader-section"></div>
 
             <!-- Combined Summary and Charges Row -->
             <div class="flex flex-col md:flex-row border-b border-gray-400">
@@ -553,6 +581,7 @@
     <script src="core/formatIST.js"></script>
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
+    <script src="core/upload-api.js"></script>
     <script src="core/app-auth.js"></script>
     <script src="core/b2b2c-api.js"></script>
     <script src="core/searchpinweb.js"></script>
@@ -563,9 +592,26 @@
     <script src="jawaS/book-order.js"></script>
     <script src="utils/awb-detect.js"></script>
     <script src="utils/docgen.js"></script>
+    <script src="jawaS/mini-uploader.js"></script>
     <script type="module">
         import { openAddContactModal } from './jawaS/book-order-add-contact.js';
         window.openAddContactModal = openAddContactModal;
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('awb-scanner')?.addEventListener('scanned', e => {
+                document.getElementById('awb').value = e.detail.value;
+                document.getElementById('awb').dispatchEvent(new Event('input'));
+            });
+            document.getElementById('eway-scanner')?.addEventListener('scanned', e => {
+                document.getElementById('eway_bill').value = e.detail.value;
+                document.getElementById('eway_bill').dispatchEvent(new Event('input'));
+            });
+            document.getElementById('m-eway-scanner')?.addEventListener('scanned', e => {
+                document.getElementById('m_eway_bill').value = e.detail.value;
+                document.getElementById('m_eway_bill').dispatchEvent(new Event('input'));
+            });
+        });
     </script>
     <!-- Mobile Add Box Popup -->
     <div id="mobileBoxPopup" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50">
@@ -628,7 +674,10 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs text-gray-500">EWay Bill</label>
-                        <input type="text" id="m_eway_bill" placeholder="12-digit" maxlength="12" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div style="position:relative;">
+                            <input type="text" id="m_eway_bill" placeholder="12-digit" maxlength="12" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 pr-8">
+                            <scan-barcode id="m-eway-scanner" icon-only style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);"></scan-barcode>
+                        </div>
                     </div>
                     <div>
                         <label class="text-xs text-gray-500">Amount (&#8377;)</label>

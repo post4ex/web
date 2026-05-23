@@ -1,6 +1,11 @@
 // ============================================================================
 // LAYOUT.JS — Dispatcher / Orchestrator
 // ============================================================================
+(function () {
+    const s = document.createElement('script');
+    s.src = 'core/app-refresh.js';
+    document.head.appendChild(s);
+})();
 
 const _ALLOWED_COMPONENTS = ['header.html', 'footer.html'];
 
@@ -459,6 +464,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('syncComplete'));  // drop overlay immediately — user already has data
             if (window._idbLastStamp !== null && window._idbLastStamp !== undefined)
                 pullDeltaSince(window._idbLastStamp).catch(() => {});
             else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
