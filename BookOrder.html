@@ -129,7 +129,7 @@
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-0 border border-gray-400 p-2">
                             <div class="flex items-center">
                                 <input id="payment_global" type="checkbox" name="payment_type" value="global" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                <label for="payment_global" class="ml-2 text-sm text-gray-700">Global</label>
+                                <label for="payment_global" class="ml-2 text-sm text-gray-700">Dox</label>
                             </div>
                             <div class="flex items-center">
                                 <input id="payment_topay" type="checkbox" name="payment_type" value="topay" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
@@ -349,24 +349,7 @@
                                 <!-- Totals will be displayed here dynamically -->
                             </div>
                         </div>
-                        <!-- Document Uploads Table -->
-                        <div class="overflow-x-auto mt-2" style="max-height:220px;overflow-y:auto;border:1px solid #ccc;border-radius:4px;">
-                            <table class="min-w-full border-collapse" style="font-size:12px;">
-                                <thead>
-                                    <tr style="background:#f0f0f0;position:sticky;top:0;z-index:1;">
-                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">STATUS</th>
-                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">REFERENCE / AWB</th>
-                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">CUSTOMER / KYC INFO</th>
-                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">DOCUMENT INFO</th>
-                                        <th style="padding:8px;border:1px solid #ccc;text-align:left;white-space:nowrap;">ACTION</th>
-                                        <th style="display:none;">BRANCH / CODE</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="doc-upload-table-body">
-                                    <!-- Rows staged by mini-uploader -->
-                                </tbody>
-                            </table>
-                        </div>
+
                         <div id="productTotals" class="flex justify-end items-center mt-2 space-x-2">
                             <button id="clearMultiboxButton" class="btn btn-sm">
                                 Clear Multibox
@@ -599,6 +582,34 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const doxCb   = document.getElementById('payment_global');
+            const topayCb = document.getElementById('payment_topay');
+            const codCb   = document.getElementById('payment_cod');
+            const fovCb   = document.getElementById('payment_fov');
+            const modeSelect = document.getElementById('transport_type');
+
+            function setExpressMode() {
+                // Find the option whose text contains 'express' (case-insensitive)
+                const opt = Array.from(modeSelect.options).find(o => o.text.toLowerCase().includes('express'));
+                if (opt) {
+                    modeSelect.value = opt.value;
+                    modeSelect.dispatchEvent(new Event('change'));
+                }
+            }
+
+            doxCb.addEventListener('change', () => {
+                if (doxCb.checked) {
+                    topayCb.checked = false;
+                    codCb.checked   = false;
+                    fovCb.checked   = false;
+                    setExpressMode();
+                }
+            });
+
+            [topayCb, codCb, fovCb].forEach(cb => cb.addEventListener('change', () => {
+                if (cb.checked) doxCb.checked = false;
+            }));
+
             document.getElementById('awb-scanner')?.addEventListener('scanned', e => {
                 document.getElementById('awb').value = e.detail.value;
                 document.getElementById('awb').dispatchEvent(new Event('input'));
