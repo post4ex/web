@@ -182,33 +182,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetForNextBooking() {
+        const savChecked = document.getElementById('payment_sav')?.checked;
+        const doxChecked = document.getElementById('payment_global')?.checked;
         consignmentBoxes = [];
         consignmentProducts = [];
-        ['receiver_name', 'awb', 'actual_weight', 'length', 'breadth', 'height', 'product_name', 'doc_no', 'eway_bill', 'amount'].forEach(id => document.getElementById(id).value = '');
+        ['awb', 'actual_weight', 'length', 'breadth', 'height', 'product_name', 'doc_no', 'eway_bill', 'amount'].forEach(id => document.getElementById(id).value = '');
         ['payment_global', 'payment_pcs', 'payment_topay', 'payment_cod', 'payment_fov'].forEach(id => document.getElementById(id).checked = false);
-        selectedContacts.receiver = null;
-        receiverDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Enter receiver details manually.</span>`;
+        if (savChecked && doxChecked) {
+            document.getElementById('payment_global').checked = true;
+            document.getElementById('dox_weight').value = '0.1';
+            document.getElementById('m_dox_weight').value = '0.1';
+        }
+        if (!savChecked) {
+            document.getElementById('receiver_name').value = '';
+            selectedContacts.receiver = null;
+            receiverDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Enter receiver details manually.</span>`;
+            carrierSelect.value = '';
+        }
         transportTypeSelect.value = '';
-        carrierSelect.value = '';
+        userMadeInitialModeChoice = false;
+        wasModeUnlocked = false;
         renderMultiboxTable();
         renderProductTable();
         setBookingFieldsLocked(false);
         toggleWeightProductEntry(true);
         updateDisplayTables();
         fetchShipmentList();
-        // Reset dox UI
-        document.getElementById('desktopBoxRow') && (document.getElementById('desktopBoxRow').style.display = '');
-        document.getElementById('doxEnvelopeRow') && (document.getElementById('doxEnvelopeRow').style.display = 'none');
-        document.getElementById('desktopProductRow') && (document.getElementById('desktopProductRow').style.display = '');
-        document.getElementById('ewayStatusMessage')?.classList.remove('hidden');
-        document.getElementById('mobileAddBoxBtn')?.classList.remove('hidden');
-        document.getElementById('mobileAddProdBtn')?.classList.remove('hidden');
-        document.getElementById('mobileNormalBoxFields')?.classList.remove('hidden');
-        document.getElementById('mobileDoxFields')?.classList.add('hidden');
+        // Reset dox UI (skip if SAV+Dox preserved)
+        if (!(savChecked && doxChecked)) {
+            document.getElementById('desktopBoxRow') && (document.getElementById('desktopBoxRow').style.display = '');
+            document.getElementById('doxEnvelopeRow') && (document.getElementById('doxEnvelopeRow').style.display = 'none');
+            document.getElementById('desktopProductRow') && (document.getElementById('desktopProductRow').style.display = '');
+            document.getElementById('ewayStatusMessage')?.classList.remove('hidden');
+            document.getElementById('mobileAddBoxBtn')?.classList.remove('hidden');
+            document.getElementById('mobileAddProdBtn')?.classList.remove('hidden');
+            document.getElementById('mobileNormalBoxFields')?.classList.remove('hidden');
+            document.getElementById('mobileDoxFields')?.classList.add('hidden');
+        }
         // Reset pcs UI
         const pcsEl = document.getElementById('pcs_count'); if (pcsEl) { pcsEl.style.display = 'none'; pcsEl.value = ''; }
         const mPcsWrap = document.getElementById('m_pcs_wrap'); if (mPcsWrap) mPcsWrap.style.display = 'none';
         const mPcsEl = document.getElementById('m_pcs_count'); if (mPcsEl) mPcsEl.value = '';
+        const mPcsCb = document.getElementById('m_payment_pcs'); if (mPcsCb) mPcsCb.checked = false;
     }
 
     function resetFullForm() {
@@ -242,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pcsEl2 = document.getElementById('pcs_count'); if (pcsEl2) { pcsEl2.style.display = 'none'; pcsEl2.value = ''; }
         const mPcsWrap2 = document.getElementById('m_pcs_wrap'); if (mPcsWrap2) mPcsWrap2.style.display = 'none';
         const mPcsEl2 = document.getElementById('m_pcs_count'); if (mPcsEl2) mPcsEl2.value = '';
+        const mPcsCb2 = document.getElementById('m_payment_pcs'); if (mPcsCb2) mPcsCb2.checked = false;
         document.getElementById('mobileDoxFields')?.classList.add('hidden');
     }
 
@@ -910,6 +926,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // In edit mode — unlock all fields so user can edit freely
         setBookingFieldsLocked(false);
         toggleWeightProductEntry(false);
+        // Enable dox mode if any product is DOX
+        const isDoxOrder = consignmentProducts.some(p => p.type === 'DOX');
+        if (isDoxOrder) {
+            document.getElementById('payment_global').checked = true;
+            document.getElementById('payment_global').dispatchEvent(new Event('change'));
+        }
         updateDisplayTables();
     }
 

@@ -146,6 +146,10 @@
                                 <input id="payment_fov" type="checkbox" name="payment_type" value="fov" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
                                 <span class="text-sm text-gray-700">FOV</span>
                             </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer" title="Preserve customer/consignor/consignee/carrier for next booking">
+                                <input id="payment_sav" type="checkbox" name="payment_type" value="sav" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">SAV</span>
+                            </label>
                         </div>
 
                         <!-- Origin & Destination Pincode (Hidden) -->
@@ -625,7 +629,7 @@
                     topayCb.checked = false;
                     codCb.checked   = false;
                     fovCb.checked   = false;
-                    setExpressMode();
+                    if (!document.getElementById('editOrderBanner')) setExpressMode();
                     enableDoxMode();
                 } else {
                     disableDoxMode();
@@ -639,6 +643,16 @@
                 if (!show) document.getElementById('pcs_count').value = '';
                 document.getElementById('m_pcs_wrap').style.display = show ? '' : 'none';
                 if (!show) document.getElementById('m_pcs_count').value = '';
+                const mPcs = document.getElementById('m_payment_pcs');
+                if (mPcs) mPcs.checked = show;
+            });
+
+            // sync mobile pcs checkbox → desktop
+            document.addEventListener('change', e => {
+                if (e.target.id === 'm_payment_pcs') {
+                    document.getElementById('payment_pcs').checked = e.target.checked;
+                    document.getElementById('payment_pcs').dispatchEvent(new Event('change'));
+                }
             });
             [topayCb, codCb, fovCb].forEach(cb => cb.addEventListener('change', () => {
                 if (cb.checked) doxCb.checked = false;
@@ -737,30 +751,37 @@
         <div class="bg-white w-full rounded-t-2xl p-5 space-y-3">
             <div class="flex justify-between items-center">
                 <h3 class="font-semibold text-gray-800">Add Box</h3>
-                <button onclick="document.getElementById('mobileBoxPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-xl">&times;</button>
+                <label class="flex items-center gap-1 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" id="m_payment_pcs" class="h-4 w-4 text-blue-600 border-gray-300"> Pcs
+                </label>
+                <button onclick="document.getElementById('mobileBoxPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-3xl leading-none">&times;</button>
             </div>
             <div id="mobileBoxError" class="text-xs text-red-500 hidden"></div>
             <!-- Normal box fields -->
-            <div id="mobileNormalBoxFields" class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs text-gray-500">Weight (kg)</label>
-                    <input type="number" id="m_actual_weight" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+            <div id="mobileNormalBoxFields" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-500">Weight (kg)</label>
+                        <input type="number" id="m_actual_weight" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div id="m_pcs_wrap" style="display:none">
+                        <label class="text-xs text-gray-500">Pcs</label>
+                        <input type="number" id="m_pcs_count" placeholder="1" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                 </div>
-                <div id="m_pcs_wrap" style="display:none">
-                    <label class="text-xs text-gray-500">Pcs</label>
-                    <input type="number" id="m_pcs_count" placeholder="1" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-500">Length (cm)</label>
-                    <input type="number" id="m_length" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-500">Breadth (cm)</label>
-                    <input type="number" id="m_breadth" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-500">Height (cm)</label>
-                    <input type="number" id="m_height" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-500">L (cm)</label>
+                        <input type="number" id="m_length" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">B (cm)</label>
+                        <input type="number" id="m_breadth" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">H (cm)</label>
+                        <input type="number" id="m_height" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                 </div>
             </div>
             <!-- Dox fields (shown only in dox mode) -->
@@ -790,7 +811,7 @@
         <div class="bg-white w-full rounded-t-2xl p-5 space-y-3">
             <div class="flex justify-between items-center">
                 <h3 class="font-semibold text-gray-800">Add Product</h3>
-                <button onclick="document.getElementById('mobileProdPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-xl">&times;</button>
+                <button onclick="document.getElementById('mobileProdPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-3xl leading-none">&times;</button>
             </div>
             <div id="mobileProdError" class="text-xs text-red-500 hidden"></div>
             <div class="space-y-3">
