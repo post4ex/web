@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isBookingLocked = false;
     let currentCalcUid = null;
+    let lastBookedRef  = null;
     let wasModeUnlocked = false;
 
     // --- ROLE ---
@@ -78,6 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!eventDetail || !eventDetail.data) return;
         appData = eventDetail.data;
         updateAllDropdowns();
+        // Hide last booked card if its order was deleted via SSE
+        if (lastBookedRef && !Object.values(appData.ORDERS || {}).some(o => String(o.REFERENCE) === String(lastBookedRef))) {
+            const lbs = document.getElementById('lastBookedSection');
+            if (lbs) { lbs.classList.add('hidden'); document.getElementById('lastBookedCard').innerHTML = ''; }
+            lastBookedRef = null;
+        }
     }
 
     function updateAllDropdowns() {
@@ -996,6 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>`;
         section.classList.remove('hidden');
+        lastBookedRef = ref;
     }
 
     async function waitForRefInOrders(ref, timeoutMs = 15000) {
@@ -1297,15 +1305,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (editOrderRef) {
             bookButton.textContent = 'Updating...';
             try {
-                const payload = buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, editOrderRef);
+                const savedEditRef = editOrderRef;
                 await submitEditOrder(payload);
-                bookingMessage.textContent = `Order ${editOrderRef} updated successfully!`;
-                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
+                bookingMessage.textContent = `Updated! Ref: ${savedEditRef} — waiting for server confirmation...`;
+                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-blue-700 bg-blue-50';
                 editOrderRef = null;
                 document.getElementById('editOrderBanner')?.remove();
                 bookButton.style.backgroundColor = '';
                 bookButton.textContent = 'Book';
                 resetForNextBooking();
+                const confirmed = await waitForRefInOrders(savedEditRef);
+                if (confirmed) {
+                    bookingMessage.textContent = `Order ${savedEditRef} updated successfully!`;
+                    bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
+                    renderLastBooked(savedEditRef);
+                } else {
+                    bookingMessage.textContent = `Updated (Ref: ${savedEditRef}) — server confirmation pending.`;
+                    bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-yellow-700 bg-yellow-50';
+                }
             } catch (error) {
                 bookingMessage.textContent = `Update failed: ${error.message}`;
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-red-100';
