@@ -157,8 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleWeightProductEntry(locked) {
         const fields = [
             actualWeightInput, lengthInput, breadthInput, heightInput,
-            productNameInput, docNoInput, ewayBillInput, productTypeSelect, amountInput
-        ];
+            productNameInput, docNoInput, ewayBillInput, productTypeSelect, amountInput,
+            document.getElementById('pcs_count')
+        ].filter(Boolean);
         fields.forEach(field => {
             field.disabled = locked;
             field.classList.toggle('bg-gray-200', locked);
@@ -184,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         consignmentBoxes = [];
         consignmentProducts = [];
         ['receiver_name', 'awb', 'actual_weight', 'length', 'breadth', 'height', 'product_name', 'doc_no', 'eway_bill', 'amount'].forEach(id => document.getElementById(id).value = '');
-        ['payment_global', 'payment_topay', 'payment_cod', 'payment_fov'].forEach(id => document.getElementById(id).checked = false);
+        ['payment_global', 'payment_pcs', 'payment_topay', 'payment_cod', 'payment_fov'].forEach(id => document.getElementById(id).checked = false);
         selectedContacts.receiver = null;
         receiverDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Enter receiver details manually.</span>`;
         transportTypeSelect.value = '';
@@ -204,6 +205,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('mobileAddProdBtn')?.classList.remove('hidden');
         document.getElementById('mobileNormalBoxFields')?.classList.remove('hidden');
         document.getElementById('mobileDoxFields')?.classList.add('hidden');
+        // Reset pcs UI
+        const pcsEl = document.getElementById('pcs_count'); if (pcsEl) { pcsEl.style.display = 'none'; pcsEl.value = ''; }
+        const mPcsWrap = document.getElementById('m_pcs_wrap'); if (mPcsWrap) mPcsWrap.style.display = 'none';
+        const mPcsEl = document.getElementById('m_pcs_count'); if (mPcsEl) mPcsEl.value = '';
     }
 
     function resetFullForm() {
@@ -233,6 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('mobileAddBoxBtn')?.classList.remove('hidden');
         document.getElementById('mobileAddProdBtn')?.classList.remove('hidden');
         document.getElementById('mobileNormalBoxFields')?.classList.remove('hidden');
+        // Reset pcs UI
+        const pcsEl2 = document.getElementById('pcs_count'); if (pcsEl2) { pcsEl2.style.display = 'none'; pcsEl2.value = ''; }
+        const mPcsWrap2 = document.getElementById('m_pcs_wrap'); if (mPcsWrap2) mPcsWrap2.style.display = 'none';
+        const mPcsEl2 = document.getElementById('m_pcs_count'); if (mPcsEl2) mPcsEl2.value = '';
         document.getElementById('mobileDoxFields')?.classList.add('hidden');
     }
 
@@ -427,6 +436,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const length = parseFloat(lengthInput.value);
         const breadth = parseFloat(breadthInput.value);
         const height = parseFloat(heightInput.value);
+        const pcsInput = document.getElementById('pcs_count');
+        const pcs = (pcsInput && pcsInput.style.display !== 'none' && parseInt(pcsInput.value) > 0) ? parseInt(pcsInput.value) : 1;
         const selectedModeOption = transportTypeSelect.options[transportTypeSelect.selectedIndex];
         const volIngr = parseFloat(selectedModeOption.dataset.volIngr);
         multiboxErrorMessage.textContent = '';
@@ -434,8 +445,9 @@ document.addEventListener('DOMContentLoaded', () => {
             multiboxErrorMessage.textContent = 'Please fill all Wgt, L, B, and H fields to add a box.';
             return;
         }
+        const newBoxes = Array.from({ length: pcs }, () => ({ actualWeight, length, breadth, height }));
         consignmentBoxes = recalculateAllBoxWeights(
-            [...consignmentBoxes, { actualWeight, length, breadth, height }],
+            [...consignmentBoxes, ...newBoxes],
             volIngr
         );
         consignmentBoxes.forEach((box, index) => box.boxNum = index + 1);
@@ -452,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lengthInput.value = '';
         breadthInput.value = '';
         heightInput.value = '';
+        if (pcsInput) pcsInput.value = '';
     }
 
     function renderProductTable() {
@@ -1291,6 +1304,9 @@ window.mobileAddBox = function() {
     document.getElementById('length').value        = document.getElementById('m_length').value;
     document.getElementById('breadth').value       = document.getElementById('m_breadth').value;
     document.getElementById('height').value        = document.getElementById('m_height').value;
+    const mPcs = document.getElementById('m_pcs_count');
+    const dPcs = document.getElementById('pcs_count');
+    if (mPcs && dPcs) dPcs.value = mPcs.value;
     if (typeof window._addMultiboxEntry === 'function') window._addMultiboxEntry();
     const err = document.getElementById('multiboxErrorMessage').textContent;
     if (err) {
@@ -1300,6 +1316,7 @@ window.mobileAddBox = function() {
         return;
     }
     ['m_actual_weight','m_length','m_breadth','m_height'].forEach(id => document.getElementById(id).value = '');
+    if (document.getElementById('m_pcs_count')) document.getElementById('m_pcs_count').value = '';
     document.getElementById('mobileBoxError').classList.add('hidden');
     // popup stays open for next entry
 };
