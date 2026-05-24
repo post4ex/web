@@ -64,6 +64,11 @@
         @media(min-width:1024px) { .bo-li-grid { grid-template-columns:repeat(4,1fr); } }
         .bo-action-row { display:flex; gap:2px; }
         .bo-print-row  { display:flex; gap:2px; flex-wrap:wrap; margin-top:2px; }
+        @media(max-width:639px) {
+            .bo-li-main { flex-direction:column; }
+            .bo-li-btns { flex-direction:row; flex-wrap:wrap; align-items:center; border-top:1px solid #f3f4f6; padding-top:6px; margin-top:2px; }
+            .bo-print-row { margin-top:0; }
+        }
     </style>
     <script type="module" src="utils/barcode-scanner.js"></script>
 </head>

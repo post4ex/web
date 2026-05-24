@@ -24,26 +24,18 @@
         .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
 
         /* ── Split view ── */
-        #splitView { display:none;width:100%;height:100vh; }
-        #splitView.active { display:flex;flex-direction:row; }
-
-        /* Left pane — full width on mobile, fixed fraction on desktop */
-        #adminListPane { width:100%;height:100vh;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0; }
-        @media(min-width:768px){ #adminListPane { width:33.333%; } }
-        @media(min-width:1024px){ #adminListPane { width:25%; } }
-
-        #adminList li { padding:.75rem;border-radius:.5rem;cursor:pointer;transition:background-color .2s;border:1px solid #e5e7eb;line-height:1.4; }
-        #adminList li.selected { background-color:#e0e7ff;border-color:#c7d2fe; }
-        #adminList li:hover { background-color:#eef2ff; }
-        #adminList li strong { color:#4338ca;display:block;font-size:.875rem;font-weight:600; }
-
-        /* Right pane — JS toggles hidden class on mobile */
-        #adminDetailPane { flex:1;height:100%;overflow-y:auto;background:#f9fafb;padding:1.5rem 2rem; }
+        #splitView { display:none;width:100%; }
+        #splitView.active { display:flex; }
 
         /* Detail card */
         .detail-card { background:#fff;border-radius:.5rem;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.05); }
         .detail-card-header { padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#f9fafb;border-radius:.5rem .5rem 0 0; }
         .detail-card-body { padding:1rem; }
+    .svc-table{width:100%;border-collapse:collapse;font-size:11px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .svc-table th{background:#f9fafb;padding:6px 8px;text-align:left;font-weight:600;color:#6b7280;text-transform:uppercase;font-size:10px;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+    .svc-table td{padding:5px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .svc-table tr:hover td{background:#f9fafb}
+    .svc-filter-input{border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:12px;min-width:100px}
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col">
@@ -66,6 +58,11 @@
                     <div class="tile-icon">📋</div>
                     <div class="tile-count text-amber-600" id="cnt-registrations">…</div>
                     <div class="tile-label">Registrations</div>
+                </div>
+                <div class="tile" data-tile="services" style="border-color:#fce7f3;">
+                    <div class="tile-icon">⚙️</div>
+                    <div class="tile-count text-pink-700" id="cnt-services">…</div>
+                    <div class="tile-label">Services</div>
                 </div>
                 <div class="tile" data-tile="branches" style="border-color:#d1fae5;">
                     <div class="tile-icon">🏢</div>
@@ -117,11 +114,11 @@
         </div>
 
         <!-- ── SPLIT VIEW ── -->
-        <div id="splitView">
+        <div id="splitView" class="split-view">
 
             <!-- Left: list pane -->
             <aside id="adminListPane">
-                <div class="p-4 border-b sticky top-0 bg-white z-10">
+                <div class="sv-pane-header">
                     <div class="flex items-center gap-2 mb-3">
                         <button id="backToTilesBtn" class="text-gray-400 hover:text-gray-700 p-1 rounded" title="Back to tiles">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -132,15 +129,14 @@
                     </div>
                     <input id="listSearch" type="text" placeholder="Search…" class="form-input text-sm">
                 </div>
-                <div class="overflow-y-auto flex-1 min-h-0 p-3">
+                <div class="sv-pane-body">
                     <p id="listMsg" class="text-gray-400 text-sm text-center py-8"></p>
-                    <ul id="adminList" class="space-y-2"></ul>
+                    <ul id="adminList"></ul>
                 </div>
             </aside>
 
-            <!-- Right: detail pane — starts hidden on mobile, JS removes 'hidden' on selection -->
-            <main id="adminDetailPane" style="display:none;flex:1;height:100vh;overflow-y:auto;background:#f9fafb;padding:1.5rem 2rem;">
-                <!-- Mobile back button -->
+            <!-- Right: detail pane -->
+            <main id="adminDetailPane" class="p-6 hidden">
                 <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
                     <button id="backToListBtn" class="btn-danger btn-sm flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -231,6 +227,8 @@
     <script src="jawaS/admin-shifts.js"></script>
     <script src="jawaS/admin-modes.js"></script>
     <script src="jawaS/admin-carriers.js"></script>
+    <script src="core/services-api.js"></script>
+    <script src="jawaS/admin-services.js"></script>
     <script src="jawaS/admin.js"></script>
 </body>
 </html>

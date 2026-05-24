@@ -26,17 +26,17 @@ const AdminPage = (() => {
     const _isMobile = () => window.innerWidth < 768;
 
     function _showListPane() {
-        document.getElementById('adminListPane').style.display = 'flex';
-        document.getElementById('adminDetailPane').style.display = 'none';
+        document.getElementById('adminListPane').classList.remove('hidden');
+        document.getElementById('adminDetailPane').classList.add('hidden');
     }
 
     function _showDetailPane() {
         if (_isMobile()) {
-            document.getElementById('adminListPane').style.display = 'none';
-            document.getElementById('adminDetailPane').style.display = 'block';
+            document.getElementById('adminListPane').classList.add('hidden');
+            document.getElementById('adminDetailPane').classList.remove('hidden');
         } else {
-            document.getElementById('adminListPane').style.display = 'flex';
-            document.getElementById('adminDetailPane').style.display = 'block';
+            document.getElementById('adminListPane').classList.remove('hidden');
+            document.getElementById('adminDetailPane').classList.remove('hidden');
         }
     }
 
@@ -44,8 +44,8 @@ const AdminPage = (() => {
     function _showTiles() {
         document.getElementById('tilesView').style.display = 'flex';
         document.getElementById('splitView').classList.remove('active');
-        document.getElementById('adminDetailPane').style.display = 'none';
-        document.getElementById('adminListPane').style.display = 'flex';
+        document.getElementById('adminDetailPane').classList.add('hidden');
+        document.getElementById('adminListPane').classList.remove('hidden');
         _activeTile = null;
     }
 
@@ -59,11 +59,11 @@ const AdminPage = (() => {
         document.getElementById('listSearch').value = '';
         document.getElementById('deleteCarrierBtn').classList.add('hidden');
         document.getElementById('detailView').innerHTML = '';
-        document.getElementById('adminListPane').style.display = 'flex';
+        document.getElementById('adminListPane').classList.remove('hidden');
         if (_isMobile()) {
-            document.getElementById('adminDetailPane').style.display = 'none';
+            document.getElementById('adminDetailPane').classList.add('hidden');
         } else {
-            document.getElementById('adminDetailPane').style.display = 'block';
+            document.getElementById('adminDetailPane').classList.remove('hidden');
         }
     }
 
@@ -75,6 +75,7 @@ const AdminPage = (() => {
     const TILE_MIN_ROLE = {
         users:         'ADMIN',
         registrations: 'ADMIN',
+        services:      'ADMIN',
         branches:      'CLIENT',
         staff:         'ADMIN',
         attendance:    'STAFF',
@@ -139,7 +140,7 @@ const AdminPage = (() => {
 
     // ── Tile click ────────────────────────────────────────────────────────────
     const TILE_LABELS = {
-        users:'Users', registrations:'Registrations', branches:'Branches',
+        users:'Users', registrations:'Registrations', services:'Services', branches:'Branches',
         staff:'Staff', attendance:'Attendance', pincodes:'Pincodes', clients:'Clients (B2B)', b2b2c:'B2B2C', holidays:'Holidays', shifts:'Shifts & Leaves',
         modes:'Modes', carriers:'Carriers'
     };
@@ -170,6 +171,8 @@ const AdminPage = (() => {
                 AdminUsers.renderList(_allUsers);
             } else if (name === 'registrations') {
                 await AdminRegistrations.load();
+            } else if (name === 'services') {
+                await AdminServices.load();
             } else if (name === 'branches') {
                 await AdminBranches.load();
             } else if (name === 'staff') {
@@ -243,6 +246,7 @@ const AdminPage = (() => {
     function _initSearch() {
         document.getElementById('listSearch').addEventListener('input', e => {
             if (_activeTile === 'users') AdminUsers.search(e.target.value);
+            else if (_activeTile === 'services') AdminServices.search(e.target.value);
             else if (_activeTile === 'branches') AdminBranches.search(e.target.value);
             else if (_activeTile === 'staff') AdminStaff.search(e.target.value);
             else if (_activeTile === 'pincodes') AdminPincodes.search(e.target.value);
