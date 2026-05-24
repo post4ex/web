@@ -57,13 +57,14 @@ const ServicesAPI = (() => {
     const waStatus   = ()  => _get('/api/services/wa/status');
     const waLogout   = ()  => _post('/api/services/wa/logout');
     const waQR       = ()  => _get('/api/services/wa/qr');
+    const waQueue    = ()  => _get('/api/services/wa/queue');
 
     return {
         pingAll, ping, getLogs,
         getLogsApp, getLogsNotif, getLogsTrack, getLogsWA, getLogsMail,
         getShipments, getMovements,
         getHFLogs, getRenderLogs, renderRestart,
-        waStatus, waLogout, waQR,
+        waStatus, waLogout, waQR, waQueue,
     };
 })();
 

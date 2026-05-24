@@ -141,7 +141,8 @@ const AdminServices = (() => {
                 <div class="detail-card-body space-y-3">
                     <p class="text-xs text-gray-500">${svc.desc}</p>
                     ${st.checked_at ? `<p class="text-xs text-gray-400">Last checked: ${new Date(st.checked_at * 1000).toLocaleTimeString()}</p>` : ''}
-                    ${serviceId === 'whatsapp' ? `<p class="text-xs font-medium">WA connection: <span id="svc-wa-state" class="text-gray-400">—</span></p>` : ''}
+                    ${serviceId === 'whatsapp' ? `<p class="text-xs font-medium">WA connection: <span id="svc-wa-state" class="text-gray-400">—</span></p>
+                    <p class="text-xs font-medium">Pending queue: <span id="svc-wa-queue" class="text-gray-400">—</span></p>` : ''}
                     ${tabs.length ? `
                     <div class="border-b border-gray-200 flex gap-1 flex-wrap" id="svc-tab-bar">${tabBar}</div>
                     <div id="svc-tab-content" class="pt-2"></div>` : '<p class="text-xs text-gray-400 italic">No log panels for this service.</p>'}
@@ -206,6 +207,13 @@ const AdminServices = (() => {
             ServicesAPI.waStatus().then(r => {
                 _setWAState(r.detail?.status || r.detail?.state || 'unknown');
             }).catch(() => {});
+            ServicesAPI.waQueue().then(r => {
+                const el = document.getElementById('svc-wa-queue');
+                if (!el) return;
+                const n = r.pending || 0;
+                el.textContent = n === 0 ? '0 (clear)' : `${n} message${n > 1 ? 's' : ''} pending`;
+                el.className = n > 0 ? 'text-orange-500 font-semibold' : 'text-green-600';
+            }).catch(() => {});
         }
 
         if (tabs.length) {
@@ -261,7 +269,7 @@ const AdminServices = (() => {
         if (!rows.length) return `<p class="text-xs text-gray-400 italic">${emptyMsg}</p>`;
         const ths = cols.map(c => `<th>${c.label}</th>`).join('');
         const trs = rows.map(r =>
-            `<tr>${cols.map(c => `<td title="${String(r[c.key] ?? '')}">${_cell(c, r)}</td>`).join('')}</tr>`
+            `<tr>${cols.map(c => `<td data-label="${c.label}" title="${String(r[c.key] ?? '')}">${_cell(c, r)}</td>`).join('')}</tr>`
         ).join('');
         return `<div class="overflow-x-auto"><table class="svc-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
     }
@@ -465,19 +473,21 @@ const AdminServices = (() => {
         const info = runtime.stage
             ? `<p class="text-xs text-gray-500 mb-2">Stage: <strong>${runtime.stage}</strong> · Hardware: ${hw} · Replicas: ${runtime.replicas?.current ?? '—'}</p>`
             : '';
-        const log = lines.length
-            ? `<pre class="text-xs bg-gray-900 text-green-300 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap">${lines.map(l => `[${(l.ts||'').replace('T',' ').replace('Z','')}] ${_esc(l.msg||l)}`).join('\n')}</pre>`
-            : '<p class="text-xs text-gray-400 italic">No log lines.</p>';
-        el.innerHTML = info + log;
+        const cols = [
+            { key: 'ts',  label: 'Time',    trunc: true },
+            { key: 'msg', label: 'Message', trunc: true },
+        ];
+        el.innerHTML = info + _table(cols, [...lines].reverse());
     }
 
     // ── Render Logs ───────────────────────────────────────────────────────────
     async function _renderRenderLogs(el) {
         const res  = await ServicesAPI.getRenderLogs(100);
-        const rows = res.data || [];
-        if (!rows.length) { el.innerHTML = '<p class="text-xs text-gray-400 italic">No log lines.</p>'; return; }
-        const lines = rows.map(r => `[${r.ts || ''}] ${_esc(r.msg || '')}`).join('\n');
-        el.innerHTML = `<pre class="text-xs bg-gray-900 text-green-300 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap">${lines}</pre>`;
+        const cols = [
+            { key: 'ts',  label: 'Time',    trunc: true },
+            { key: 'msg', label: 'Message', trunc: true },
+        ];
+        el.innerHTML = _table(cols, res.data || []);
     }
 
     // ── WA connection state ───────────────────────────────────────────────────

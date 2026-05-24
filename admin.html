@@ -36,6 +36,12 @@
     .svc-table td{padding:5px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .svc-table tr:hover td{background:#f9fafb}
     .svc-filter-input{border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:12px;min-width:100px}
+    @media(max-width:640px){
+        .svc-table thead{display:none}
+        .svc-table tr{display:block;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:8px;padding:6px 8px;background:#fff}
+        .svc-table td{display:flex;justify-content:space-between;padding:3px 0;border:none;max-width:100%;white-space:normal;font-size:11px}
+        .svc-table td::before{content:attr(data-label);font-weight:600;color:#6b7280;text-transform:uppercase;font-size:10px;flex-shrink:0;margin-right:8px}
+    }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col">
