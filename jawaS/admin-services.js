@@ -192,8 +192,13 @@ const AdminServices = (() => {
             statusBtn.disabled = true; statusBtn.textContent = '…';
             try {
                 const r = await ServicesAPI.waStatus();
-                const waState = r.detail?.status || r.detail?.state || r.detail?.connection || 'unknown';
-                _setWAState(waState);
+                _setWAState(r.wa_state || 'unknown');
+                const qEl = document.getElementById('svc-wa-queue');
+                if (qEl) {
+                    const n = r.pending ?? 0;
+                    qEl.textContent = n === 0 ? '0 (clear)' : `${n} message${n > 1 ? 's' : ''} pending`;
+                    qEl.className = n > 0 ? 'text-orange-500 font-semibold' : 'text-green-600';
+                }
             } catch (e) {
                 showNotification('Status failed: ' + e.message, 'error');
             } finally { statusBtn.disabled = false; statusBtn.textContent = 'Status'; }
@@ -253,8 +258,8 @@ const AdminServices = (() => {
         } catch (e) {
             el.innerHTML = `<p class="text-xs text-red-500">Failed: ${e.message}</p>`;
         }
-        // re-populate WA meta after any tab re-render
-        if (_activeService === 'whatsapp') _fetchWAMeta();
+        // re-populate WA meta after tab re-render only if detail is still showing
+        if (_activeService === 'whatsapp' && document.getElementById('svc-wa-state')) _fetchWAMeta();
     }
 
     // ── Generic table renderer ───────────────────────────────────────────────
@@ -494,15 +499,14 @@ const AdminServices = (() => {
     // ── WA connection state ───────────────────────────────────────────────────
     function _fetchWAMeta() {
         ServicesAPI.waStatus().then(r => {
-            _setWAState(r.wa_state || r.detail?.status || 'unknown');
+            _setWAState(r.wa_state || 'unknown');
+            const qEl = document.getElementById('svc-wa-queue');
+            if (qEl) {
+                const n = r.pending ?? 0;
+                qEl.textContent = n === 0 ? '0 (clear)' : `${n} message${n > 1 ? 's' : ''} pending`;
+                qEl.className = n > 0 ? 'text-orange-500 font-semibold' : 'text-green-600';
+            }
         }).catch(() => _setWAState('offline'));
-        ServicesAPI.waQueue().then(r => {
-            const el = document.getElementById('svc-wa-queue');
-            if (!el) return;
-            const n = r.pending || 0;
-            el.textContent = n === 0 ? '0 (clear)' : `${n} message${n > 1 ? 's' : ''} pending`;
-            el.className = n > 0 ? 'text-orange-500 font-semibold' : 'text-green-600';
-        }).catch(() => {});
     }
 
     function _setWAState(state) {
