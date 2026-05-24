@@ -6,7 +6,6 @@
     <title>BookOrder</title>
     <link href="style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -157,7 +156,8 @@
 
                         <!-- Consignment Details Grid — hidden on mobile, use popup -->
                         <div id="multiboxErrorMessage" class="text-xs text-red-500 px-2 pt-2"></div>
-                        <div class="hidden md:grid grid-cols-4 border border-gray-400">
+                        <!-- Normal box row (hidden in dox mode) -->
+                        <div id="desktopBoxRow" class="hidden md:grid grid-cols-4 border border-gray-400">
                             <input type="number" id="actual_weight" name="actual_weight" placeholder="Wgt (kg)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                             <input type="number" id="length" name="length" placeholder="L (cm)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                             <input type="number" id="breadth" name="breadth" placeholder="B (cm)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
@@ -165,9 +165,22 @@
                                 <input type="number" id="height" name="height" placeholder="H (cm)" class="w-full p-1 focus:ring-blue-500 focus:border-blue-500">
                             </div>
                         </div>
+                        <!-- Dox envelope row (shown only in dox mode) -->
+                        <div id="doxEnvelopeRow" class="hidden border border-gray-400" style="grid-template-columns:repeat(4,minmax(0,1fr));display:none">
+                            <input type="number" id="dox_weight" placeholder="Wgt (kg)" max="2" step="0.1" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <label class="flex items-center justify-center gap-1 p-1 border-r border-gray-300 cursor-pointer">
+                                <input type="checkbox" id="dox_dl" class="h-4 w-4"> <span class="text-sm font-medium">DL</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-1 p-1 border-r border-gray-300 cursor-pointer">
+                                <input type="checkbox" id="dox_a4" class="h-4 w-4"> <span class="text-sm font-medium">A4</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-1 p-1 cursor-pointer">
+                                <input type="checkbox" id="dox_bg" class="h-4 w-4"> <span class="text-sm font-medium">BG</span>
+                            </label>
+                        </div>
 
                         <!-- Product Details Grid — hidden on mobile, use popup -->
-                        <div class="hidden md:grid grid-cols-4 border border-gray-400">
+                        <div id="desktopProductRow" class="hidden md:grid grid-cols-4 border border-gray-400">
                             <input type="text" id="product_name" name="product_name" placeholder="Prod" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
                             <div class="flex border-r border-gray-300">
                                 <input type="text" id="doc_no" name="doc_no" placeholder="DocNo" class="w-0 flex-1 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 min-w-0">
@@ -176,6 +189,7 @@
                                     <option value="CLN">CLN</option>
                                     <option value="DEC">DEC</option>
                                     <option value="ADH">ADH</option>
+                                    <option value="DOX">DOX</option>
                                 </select>
                             </div>
                             <div style="position:relative;">
@@ -190,8 +204,8 @@
 
                         <!-- Mobile Add Buttons — hidden on desktop -->
                         <div class="md:hidden grid grid-cols-2 border border-gray-400">
-                            <button type="button" onclick="document.getElementById('mobileBoxPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500 border-r border-gray-500">+ Add Box</button>
-                            <button type="button" onclick="document.getElementById('mobileProdPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500">+ Add Product</button>
+                            <button type="button" id="mobileAddBoxBtn" onclick="document.getElementById('mobileBoxPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500 border-r border-gray-500">+ Add Box</button>
+                            <button type="button" id="mobileAddProdBtn" onclick="document.getElementById('mobileProdPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500">+ Add Product</button>
                         </div>
 
                         <!-- AWB and Action Buttons -->
@@ -350,7 +364,7 @@
                             </div>
                         </div>
 
-                        <div id="productTotals" class="flex justify-end items-center mt-2 space-x-2">
+                        <div class="flex justify-end items-center mt-2 space-x-2">
                             <button id="clearMultiboxButton" class="btn btn-sm">
                                 Clear Multibox
                             </button>
@@ -603,12 +617,89 @@
                     codCb.checked   = false;
                     fovCb.checked   = false;
                     setExpressMode();
+                    enableDoxMode();
+                } else {
+                    disableDoxMode();
                 }
             });
 
             [topayCb, codCb, fovCb].forEach(cb => cb.addEventListener('change', () => {
                 if (cb.checked) doxCb.checked = false;
             }));
+
+            // --- DOX MODE ---
+            const DOX_SIZES = {
+                DL: { l: 22, b: 11 },
+                A4: { l: 32, b: 25 },
+                BG: { l: 40, b: 30 }
+            };
+
+            function doxCalcH(wgt) {
+                if (wgt <= 0.1) return 0.5;
+                if (wgt <= 0.5) return 1;
+                if (wgt <= 1.0) return 2;
+                return 3;
+            }
+
+            function enableDoxMode() {
+                document.getElementById('desktopBoxRow').style.display = 'none';
+                document.getElementById('doxEnvelopeRow').style.display = 'grid';
+                document.getElementById('dox_weight').value = '0.1';
+                document.getElementById('desktopProductRow').style.display = 'none';
+                document.getElementById('ewayStatusMessage').classList.add('hidden');
+                document.getElementById('mobileAddBoxBtn').classList.add('hidden');
+                document.getElementById('mobileAddProdBtn').classList.add('hidden');
+                document.getElementById('mobileNormalBoxFields').classList.add('hidden');
+                document.getElementById('mobileDoxFields').classList.remove('hidden');
+                document.getElementById('m_dox_weight').value = '0.1';
+            }
+
+            function disableDoxMode() {
+                document.getElementById('desktopBoxRow').style.display = '';
+                document.getElementById('doxEnvelopeRow').style.display = 'none';
+                document.getElementById('desktopProductRow').style.display = '';
+                document.getElementById('ewayStatusMessage').classList.remove('hidden');
+                document.getElementById('mobileAddBoxBtn').classList.remove('hidden');
+                document.getElementById('mobileAddProdBtn').classList.remove('hidden');
+                document.getElementById('mobileNormalBoxFields').classList.remove('hidden');
+                document.getElementById('mobileDoxFields').classList.add('hidden');
+            }
+
+            function renderDoxEntry(type) {
+                if (typeof window._areMainDetailsComplete === 'function' && !window._areMainDetailsComplete()) {
+                    document.getElementById('multiboxErrorMessage').textContent = 'Please select Customer, Consignor, Consignee, Mode and Carrier first.';
+                    document.getElementById('dox_' + type.toLowerCase()).checked = false;
+                    return;
+                }
+                const wgt = parseFloat(document.getElementById('dox_weight').value);
+                if (!wgt || wgt <= 0) {
+                    document.getElementById('multiboxErrorMessage').textContent = 'Enter weight before selecting envelope type.';
+                    document.getElementById('dox_' + type.toLowerCase()).checked = false;
+                    return;
+                }
+                if (wgt > 2) {
+                    document.getElementById('multiboxErrorMessage').textContent = 'Dox weight cannot exceed 2 kg.';
+                    document.getElementById('dox_' + type.toLowerCase()).checked = false;
+                    return;
+                }
+                document.getElementById('multiboxErrorMessage').textContent = '';
+                const size = DOX_SIZES[type];
+                const h = doxCalcH(wgt);
+                if (typeof window._doxRenderEntry === 'function') {
+                    window._doxRenderEntry(wgt, size.l, size.b, h, type);
+                }
+                // Clear dox inputs
+                document.getElementById('dox_weight').value = '';
+                ['dox_dl','dox_a4','dox_bg'].forEach(id => document.getElementById(id).checked = false);
+            }
+
+            ['dl','a4','bg'].forEach(type => {
+                document.getElementById('dox_' + type).addEventListener('change', function() {
+                    if (!this.checked) return;
+                    ['dl','a4','bg'].forEach(t => { if (t !== type) document.getElementById('dox_' + t).checked = false; });
+                    renderDoxEntry(type.toUpperCase());
+                });
+            });
 
             document.getElementById('awb-scanner')?.addEventListener('scanned', e => {
                 document.getElementById('awb').value = e.detail.value;
@@ -632,7 +723,8 @@
                 <button onclick="document.getElementById('mobileBoxPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-xl">&times;</button>
             </div>
             <div id="mobileBoxError" class="text-xs text-red-500 hidden"></div>
-            <div class="grid grid-cols-2 gap-3">
+            <!-- Normal box fields -->
+            <div id="mobileNormalBoxFields" class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs text-gray-500">Weight (kg)</label>
                     <input type="number" id="m_actual_weight" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
@@ -648,6 +740,24 @@
                 <div>
                     <label class="text-xs text-gray-500">Height (cm)</label>
                     <input type="number" id="m_height" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <!-- Dox fields (shown only in dox mode) -->
+            <div id="mobileDoxFields" class="hidden space-y-3">
+                <div>
+                    <label class="text-xs text-gray-500">Weight (kg, max 2)</label>
+                    <input type="number" id="m_dox_weight" placeholder="0.0" max="2" step="0.1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer">
+                        <input type="checkbox" id="m_dox_dl" class="h-4 w-4"> <span class="text-sm font-semibold">DL</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer">
+                        <input type="checkbox" id="m_dox_a4" class="h-4 w-4"> <span class="text-sm font-semibold">A4</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer">
+                        <input type="checkbox" id="m_dox_bg" class="h-4 w-4"> <span class="text-sm font-semibold">BG</span>
+                    </label>
                 </div>
             </div>
             <button type="button" onclick="mobileAddBox()" class="btn w-full py-3">Add Box</button>

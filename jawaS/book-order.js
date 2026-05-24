@@ -216,6 +216,15 @@ document.addEventListener('DOMContentLoaded', () => {
         currentCalcUid = null;
         updateAndDisplayCharges();
         toggleWeightProductEntry(true);
+        // Reset dox UI
+        document.getElementById('desktopBoxRow') && (document.getElementById('desktopBoxRow').style.display = '');
+        document.getElementById('doxEnvelopeRow') && (document.getElementById('doxEnvelopeRow').style.display = 'none');
+        document.getElementById('desktopProductRow') && (document.getElementById('desktopProductRow').style.display = '');
+        document.getElementById('ewayStatusMessage')?.classList.remove('hidden');
+        document.getElementById('mobileAddBoxBtn')?.classList.remove('hidden');
+        document.getElementById('mobileAddProdBtn')?.classList.remove('hidden');
+        document.getElementById('mobileNormalBoxFields')?.classList.remove('hidden');
+        document.getElementById('mobileDoxFields')?.classList.add('hidden');
     }
 
     function updateTimestamp() {
@@ -1238,10 +1247,37 @@ document.addEventListener('DOMContentLoaded', () => {
     window._addMultiboxEntry      = addMultiboxEntry;
     window._addProductEntry       = addProductEntry;
     window._areMainDetailsComplete = areMainDetailsComplete;
+    window._doxRenderEntry = function(wgt, l, b, h, type) {
+        const selectedModeOption = transportTypeSelect.options[transportTypeSelect.selectedIndex];
+        const volIngr = parseFloat(selectedModeOption?.dataset.volIngr) || 5000;
+        consignmentBoxes = recalculateAllBoxWeights([{ actualWeight: wgt, length: l, breadth: b, height: h }], volIngr);
+        consignmentBoxes[0].boxNum = 1;
+        consignmentProducts = [{ name: 'Documents/Papers', docNo: type, ewayBill: '', type: 'DOX', amount: 100 }];
+        if (!isBookingLocked) setBookingFieldsLocked(true);
+        renderMultiboxTable();
+        renderProductTable();
+    };
 });
 
 // Mobile popup bridge functions — called from inline onclick in HTML
 window.mobileAddBox = function() {
+    const isDox = document.getElementById('payment_global')?.checked;
+    if (isDox) {
+        const DOX_SIZES = { DL: { l:22, b:11 }, A4: { l:32, b:25 }, BG: { l:40, b:30 } };
+        const wgt = parseFloat(document.getElementById('m_dox_weight').value);
+        const type = ['DL','A4','BG'].find(t => document.getElementById('m_dox_' + t.toLowerCase())?.checked);
+        const errEl = document.getElementById('mobileBoxError');
+        if (!wgt || wgt <= 0 || !type) { errEl.textContent = 'Enter weight and select envelope type.'; errEl.classList.remove('hidden'); return; }
+        if (wgt > 2) { errEl.textContent = 'Dox weight cannot exceed 2 kg.'; errEl.classList.remove('hidden'); return; }
+        errEl.classList.add('hidden');
+        const h = wgt <= 0.1 ? 0.5 : wgt <= 0.5 ? 1 : wgt <= 1.0 ? 2 : 3;
+        const size = DOX_SIZES[type];
+        if (typeof window._doxRenderEntry === 'function') window._doxRenderEntry(wgt, size.l, size.b, h, type);
+        document.getElementById('m_dox_weight').value = '';
+        ['m_dox_dl','m_dox_a4','m_dox_bg'].forEach(id => document.getElementById(id).checked = false);
+        document.getElementById('mobileBoxPopup').classList.add('hidden');
+        return;
+    }
     document.getElementById('actual_weight').value = document.getElementById('m_actual_weight').value;
     document.getElementById('length').value        = document.getElementById('m_length').value;
     document.getElementById('breadth').value       = document.getElementById('m_breadth').value;
