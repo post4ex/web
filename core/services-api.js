@@ -30,6 +30,20 @@ const ServicesAPI = (() => {
         return json;
     }
 
+    async function _delete(path, params = {}) {
+        const token = getSessionId();
+        const qs = new URLSearchParams(params).toString();
+        const url = `${CONSTANTS.OPERATIONS_URL}${path}${qs ? '?' + qs : ''}`;
+        const res = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store',
+        });
+        const json = await res.json();
+        if (json.status === 'error') throw new Error(json.detail || json.message);
+        return json;
+    }
+
     // Status
     const pingAll      = ()             => _get('/api/services/status');
     const ping         = (name)         => _get(`/api/services/ping/${name}`);
@@ -59,12 +73,27 @@ const ServicesAPI = (() => {
     const waQR       = ()  => _get('/api/services/wa/qr');
     const waQueue    = ()  => _get('/api/services/wa/queue');
 
+    // HF Datasets
+    const datasetFiles  = (name)        => _get(`/api/services/dataset/${name}/files`);
+    const datasetDelete = (name, path)  => _delete(`/api/services/dataset/${name}/files`, { path });
+
+    // R2 Bucket
+    const bucketFiles  = (prefix = '')  => _get('/api/services/bucket/files', prefix ? { prefix } : {});
+    const bucketDelete = (key)          => _delete('/api/services/bucket/files', { key });
+
+    // HF Bucket (post4ex/Objects-bucket)
+    const hfBucketFiles  = (prefix = '') => _get('/api/services/hfbucket/files', prefix ? { prefix } : {});
+    const hfBucketDelete = (key)         => _delete('/api/services/hfbucket/files', { key });
+
     return {
         pingAll, ping, getLogs,
         getLogsApp, getLogsNotif, getLogsTrack, getLogsWA, getLogsMail,
         getShipments, getMovements,
         getHFLogs, getRenderLogs, renderRestart,
         waStatus, waLogout, waQR, waQueue,
+        datasetFiles, datasetDelete,
+        bucketFiles, bucketDelete,
+        hfBucketFiles, hfBucketDelete,
     };
 })();
 

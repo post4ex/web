@@ -15,6 +15,12 @@ const AdminServices = (() => {
         { id: 'brevo',      name: 'Brevo',       icon: '📨',  desc: 'Email / SMS' },
         { id: 'render',     name: 'Render',      icon: '☁️',  desc: 'WA service host' },
         { id: 'turso',      name: 'Turso',       icon: '🗃️',  desc: 'Turso DB (tracking/WA/mail logs)' },
+        { id: 'ds-objects',  name: 'HF Objects',  icon: '🗂️',  desc: 'HF dataset: media files (POD/KYC/receipts)' },
+        { id: 'ds-track-db', name: 'HF Track DB', icon: '💾',  desc: 'HF dataset: tracking SQLite DB' },
+        { id: 'ds-pb',       name: 'HF PocketBase',icon: '💽', desc: 'HF dataset: PocketBase data' },
+        { id: 'ds-todo',     name: 'HF Todo',     icon: '📋',  desc: 'HF dataset: todo/docs' },
+        { id: 'r2',          name: 'R2 Bucket',   icon: '🪣',  desc: 'Cloudflare R2: post4ex-objects' },
+        { id: 'hfbucket',    name: 'HF Bucket',   icon: '🗑️',  desc: 'HF S3 bucket: post4ex/Objects-bucket' },
     ];
 
     // Log tab definitions per service
@@ -28,6 +34,12 @@ const AdminServices = (() => {
         brevo:      ['mail_logs'],
         render:     ['render_logs'],
         turso:      ['turso_tracking', 'turso_wa', 'turso_mail'],
+        'ds-objects':  ['ds_files'],
+        'ds-track-db': ['ds_files'],
+        'ds-pb':       ['ds_files'],
+        'ds-todo':     ['ds_files'],
+        r2:            ['bucket_files'],
+        hfbucket:      ['hfbucket_files'],
     };
 
     const TAB_LABELS = {
@@ -43,6 +55,9 @@ const AdminServices = (() => {
         turso_tracking: 'Tracking',
         turso_wa:       'WhatsApp',
         turso_mail:     'Mail',
+        ds_files:       'Files',
+        bucket_files:   'Files',
+        hfbucket_files: 'Files',
     };
 
     let _statuses = {};       // { serviceId: { status, latency_ms, checked_at } }
@@ -618,6 +633,139 @@ const AdminServices = (() => {
         } catch (e) {
             if (body) body.innerHTML = `<p class="text-xs text-red-500">${e.message}</p>`;
         }
+    }
+
+    // ── HF Dataset file browser ───────────────────────────────────────────────
+    async function _renderDatasetFiles(el) {
+        const dsMap = {
+            'ds-objects':  'objects',
+            'ds-track-db': 'track-db',
+            'ds-pb':       'pocketbase',
+            'ds-todo':     'todo',
+        };
+        const name = dsMap[_activeService];
+        if (!name) { el.innerHTML = '<p class="text-xs text-gray-400 italic">Unknown dataset.</p>'; return; }
+        el.innerHTML = '<p class="text-xs text-gray-400">Loading…</p>';
+        const res = await ServicesAPI.datasetFiles(name);
+        const files = (res.data || []).filter(f => f.type === 'file');
+        const total = res.total_bytes || 0;
+        const fmt = b => b > 1e6 ? (b/1e6).toFixed(1)+'MB' : b > 1e3 ? (b/1e3).toFixed(1)+'KB' : b+'B';
+        el.innerHTML = `<p class="text-xs text-gray-500 mb-2">${files.length} files · ${fmt(total)} · <a href="https://huggingface.co/datasets/${_esc(res.repo || '')}" target="_blank" class="text-indigo-500 underline">${_esc(res.repo || '')}</a></p>`;
+        if (!files.length) { el.insertAdjacentHTML('beforeend', '<p class="text-xs text-gray-400 italic">No files.</p>'); return; }
+        const table = document.createElement('div');
+        table.className = 'overflow-x-auto';
+        table.innerHTML = `<table class="svc-table"><thead><tr><th>Path</th><th>Size</th><th></th></tr></thead><tbody>` +
+            files.map(f => `<tr>
+                <td class="font-mono text-xs" title="${_esc(f.path)}">${_esc(f.path)}</td>
+                <td class="text-xs text-gray-500">${fmt(f.size)}</td>
+                <td><button class="text-red-500 text-xs hover:underline ds-del-btn" data-path="${_esc(f.path)}">Delete</button></td>
+            </tr>`).join('') +
+            `</tbody></table>`;
+        el.appendChild(table);
+        table.querySelectorAll('.ds-del-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Delete ' + btn.dataset.path + '?')) return;
+                btn.disabled = true; btn.textContent = '…';
+                try {
+                    await ServicesAPI.datasetDelete(name, btn.dataset.path);
+                    btn.closest('tr').remove();
+                    showNotification('Deleted: ' + btn.dataset.path, 'success');
+                } catch (e) {
+                    showNotification('Delete failed: ' + e.message, 'error');
+                    btn.disabled = false; btn.textContent = 'Delete';
+                }
+            });
+        });
+    }
+
+    // ── R2 Bucket file browser ────────────────────────────────────────────────
+    async function _renderBucketFiles(el, prefix = '') {
+        el.innerHTML = '<p class="text-xs text-gray-400">Loading…</p>';
+        const res = await ServicesAPI.bucketFiles(prefix);
+        const files = res.data || [];
+        const total = res.total_bytes || 0;
+        const fmt = b => b > 1e6 ? (b/1e6).toFixed(1)+'MB' : b > 1e3 ? (b/1e3).toFixed(1)+'KB' : b+'B';
+        const bar = document.createElement('div');
+        bar.className = 'flex gap-2 mb-2 items-center';
+        bar.innerHTML = `<input id="r2-prefix" placeholder="Prefix filter" value="${_esc(prefix)}" class="svc-filter-input flex-1">
+            <button class="btn btn-sm text-xs" id="r2-filter-btn">Filter</button>
+            <span class="text-xs text-gray-500">${files.length} objects · ${fmt(total)}</span>`;
+        el.innerHTML = '';
+        el.appendChild(bar);
+        document.getElementById('r2-filter-btn').addEventListener('click', () => {
+            _renderBucketFiles(el, document.getElementById('r2-prefix').value.trim());
+        });
+        if (!files.length) { el.insertAdjacentHTML('beforeend', '<p class="text-xs text-gray-400 italic">No objects.</p>'); return; }
+        const table = document.createElement('div');
+        table.className = 'overflow-x-auto';
+        table.innerHTML = `<table class="svc-table"><thead><tr><th>Key</th><th>Size</th><th>Modified</th><th></th></tr></thead><tbody>` +
+            files.map(f => `<tr>
+                <td class="font-mono text-xs" title="${_esc(f.key)}">${_esc(f.key)}</td>
+                <td class="text-xs text-gray-500">${fmt(f.size)}</td>
+                <td class="text-xs text-gray-400">${f.last_modified ? f.last_modified.slice(0,16).replace('T',' ') : '—'}</td>
+                <td><button class="text-red-500 text-xs hover:underline r2-del-btn" data-key="${_esc(f.key)}">Delete</button></td>
+            </tr>`).join('') +
+            `</tbody></table>`;
+        el.appendChild(table);
+        table.querySelectorAll('.r2-del-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Delete ' + btn.dataset.key + '?')) return;
+                btn.disabled = true; btn.textContent = '…';
+                try {
+                    await ServicesAPI.bucketDelete(btn.dataset.key);
+                    btn.closest('tr').remove();
+                    showNotification('Deleted: ' + btn.dataset.key, 'success');
+                } catch (e) {
+                    showNotification('Delete failed: ' + e.message, 'error');
+                    btn.disabled = false; btn.textContent = 'Delete';
+                }
+            });
+        });
+    }
+
+    // ── HF Bucket file browser ───────────────────────────────────────────────
+    async function _renderHFBucketFiles(el, prefix = '') {
+        el.innerHTML = '<p class="text-xs text-gray-400">Loading…</p>';
+        const res = await ServicesAPI.hfBucketFiles(prefix);
+        const files = res.data || [];
+        const total = res.total_bytes || 0;
+        const fmt = b => b > 1e6 ? (b/1e6).toFixed(1)+'MB' : b > 1e3 ? (b/1e3).toFixed(1)+'KB' : b+'B';
+        const bar = document.createElement('div');
+        bar.className = 'flex gap-2 mb-2 items-center';
+        bar.innerHTML = `<input id="hfb-prefix" placeholder="Prefix filter" value="${_esc(prefix)}" class="svc-filter-input flex-1">
+            <button class="btn btn-sm text-xs" id="hfb-filter-btn">Filter</button>
+            <span class="text-xs text-gray-500">${files.length} objects · ${fmt(total)}</span>`;
+        el.innerHTML = '';
+        el.appendChild(bar);
+        document.getElementById('hfb-filter-btn').addEventListener('click', () => {
+            _renderHFBucketFiles(el, document.getElementById('hfb-prefix').value.trim());
+        });
+        if (!files.length) { el.insertAdjacentHTML('beforeend', '<p class="text-xs text-gray-400 italic">No objects.</p>'); return; }
+        const table = document.createElement('div');
+        table.className = 'overflow-x-auto';
+        table.innerHTML = `<table class="svc-table"><thead><tr><th>Key</th><th>Size</th><th>Modified</th><th></th></tr></thead><tbody>` +
+            files.map(f => `<tr>
+                <td class="font-mono text-xs" title="${_esc(f.key)}">${_esc(f.key)}</td>
+                <td class="text-xs text-gray-500">${fmt(f.size)}</td>
+                <td class="text-xs text-gray-400">${f.last_modified ? f.last_modified.slice(0,16).replace('T',' ') : '—'}</td>
+                <td><button class="text-red-500 text-xs hover:underline hfb-del-btn" data-key="${_esc(f.key)}">Delete</button></td>
+            </tr>`).join('') +
+            `</tbody></table>`;
+        el.appendChild(table);
+        table.querySelectorAll('.hfb-del-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Delete ' + btn.dataset.key + '?')) return;
+                btn.disabled = true; btn.textContent = '…';
+                try {
+                    await ServicesAPI.hfBucketDelete(btn.dataset.key);
+                    btn.closest('tr').remove();
+                    showNotification('Deleted: ' + btn.dataset.key, 'success');
+                } catch (e) {
+                    showNotification('Delete failed: ' + e.message, 'error');
+                    btn.disabled = false; btn.textContent = 'Delete';
+                }
+            });
+        });
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
