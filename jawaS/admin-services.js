@@ -192,7 +192,7 @@ const AdminServices = (() => {
             statusBtn.disabled = true; statusBtn.textContent = '…';
             try {
                 const r = await ServicesAPI.waStatus();
-                const waState = r.detail?.status || r.detail?.state || 'unknown';
+                const waState = r.detail?.status || r.detail?.state || r.detail?.connection || 'unknown';
                 _setWAState(waState);
             } catch (e) {
                 showNotification('Status failed: ' + e.message, 'error');
@@ -205,8 +205,8 @@ const AdminServices = (() => {
         // auto-fetch WA connection state on open
         if (serviceId === 'whatsapp') {
             ServicesAPI.waStatus().then(r => {
-                _setWAState(r.detail?.status || r.detail?.state || 'unknown');
-            }).catch(() => {});
+                _setWAState(r.wa_state || r.detail?.status || 'unknown');
+            }).catch(() => _setWAState('offline'));
             ServicesAPI.waQueue().then(r => {
                 const el = document.getElementById('svc-wa-queue');
                 if (!el) return;
@@ -268,10 +268,16 @@ const AdminServices = (() => {
     function _table(cols, rows, emptyMsg = 'No records.') {
         if (!rows.length) return `<p class="text-xs text-gray-400 italic">${emptyMsg}</p>`;
         const ths = cols.map(c => `<th>${c.label}</th>`).join('');
-        const trs = rows.map(r =>
-            `<tr>${cols.map(c => `<td data-label="${c.label}" title="${String(r[c.key] ?? '')}">${_cell(c, r)}</td>`).join('')}</tr>`
+        const trs = rows.map((r, i) =>
+            `<tr class="svc-row-click" data-idx="${i}" style="cursor:pointer">${cols.map(c => `<td data-label="${c.label}"${c.wrap ? ' class="wrap"' : ''} title="${String(r[c.key] ?? '')}">${_cell(c, r)}</td>`).join('')}</tr>`
         ).join('');
-        return `<div class="overflow-x-auto"><table class="svc-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+        const html = `<div class="overflow-x-auto"><table class="svc-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+        const wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        wrap.querySelectorAll('.svc-row-click').forEach(tr => {
+            tr.addEventListener('click', () => _showRowDetail(rows[+tr.dataset.idx]));
+        });
+        return wrap;
     }
 
     function _cell(col, row) {
@@ -340,7 +346,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── Notifications ─────────────────────────────────────────────────────────
@@ -358,7 +364,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── Tracking Turso Logs ───────────────────────────────────────────────────
@@ -377,7 +383,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── Tracking Shipments ────────────────────────────────────────────────────
@@ -399,7 +405,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── Tracking Movements ────────────────────────────────────────────────────
@@ -420,7 +426,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── WA Logs ───────────────────────────────────────────────────────────────
@@ -439,7 +445,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── Mail Logs ─────────────────────────────────────────────────────────────
@@ -458,7 +464,7 @@ const AdminServices = (() => {
         ];
         el.innerHTML = '';
         el.appendChild(bar);
-        el.insertAdjacentHTML('beforeend', _table(cols, res.data || []));
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── HF Container Logs ─────────────────────────────────────────────────────
@@ -475,9 +481,10 @@ const AdminServices = (() => {
             : '';
         const cols = [
             { key: 'ts',  label: 'Time',    trunc: true },
-            { key: 'msg', label: 'Message', trunc: true },
+            { key: 'msg', label: 'Message', wrap: true },
         ];
-        el.innerHTML = info + _table(cols, [...lines].reverse());
+        el.innerHTML = info;
+        el.appendChild(_table(cols, [...lines].reverse()));
     }
 
     // ── Render Logs ───────────────────────────────────────────────────────────
@@ -485,9 +492,10 @@ const AdminServices = (() => {
         const res  = await ServicesAPI.getRenderLogs(100);
         const cols = [
             { key: 'ts',  label: 'Time',    trunc: true },
-            { key: 'msg', label: 'Message', trunc: true },
+            { key: 'msg', label: 'Message', wrap: true },
         ];
-        el.innerHTML = _table(cols, res.data || []);
+        el.innerHTML = '';
+        el.appendChild(_table(cols, res.data || []));
     }
 
     // ── WA connection state ───────────────────────────────────────────────────
@@ -497,6 +505,39 @@ const AdminServices = (() => {
         const map = { connected: 'text-green-600', qr: 'text-yellow-500', disconnected: 'text-red-500' };
         el.className = map[state] || 'text-gray-400';
         el.textContent = state;
+    }
+
+    // ── Row detail modal ──────────────────────────────────────────────────────
+    function _showRowDetail(row) {
+        let modal = document.getElementById('svc-row-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'svc-row-modal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:36rem">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold text-gray-700 text-sm">Row Detail</h3>
+                        <button id="svc-row-modal-close" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+                    </div>
+                    <div id="svc-row-modal-body"></div>
+                </div>`;
+            document.body.appendChild(modal);
+            document.getElementById('svc-row-modal-close').onclick = () => modal.classList.add('hidden');
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+        }
+        const body = document.getElementById('svc-row-modal-body');
+        body.innerHTML = Object.entries(row).map(([k, v]) => {
+            const val = typeof v === 'object' && v !== null ? JSON.stringify(v, null, 2) : String(v ?? '—');
+            const isLong = val.length > 60 || val.includes('\n');
+            return `<div class="mb-2">
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-0.5">${_esc(k)}</div>
+                ${isLong
+                    ? `<pre class="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-48 whitespace-pre-wrap break-all">${_esc(val)}</pre>`
+                    : `<div class="text-xs text-gray-800 break-all">${_esc(val)}</div>`}
+            </div>`;
+        }).join('');
+        modal.classList.remove('hidden');
     }
 
     // ── QR Modal ──────────────────────────────────────────────────────────────
