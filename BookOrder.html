@@ -56,6 +56,14 @@
         .autocomplete-results li:hover {
             background-color: #f3f4f6;
         }
+        .bo-li-wrap { display:flex; flex-direction:column; gap:6px; }
+        .bo-li-main { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+        .bo-li-btns { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+        .bo-li-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px 8px; font-size:0.7rem; margin-top:4px; color:#374151; }
+        @media(min-width:640px)  { .bo-li-grid { grid-template-columns:repeat(3,1fr); } }
+        @media(min-width:1024px) { .bo-li-grid { grid-template-columns:repeat(4,1fr); } }
+        .bo-action-row { display:flex; gap:2px; }
+        .bo-print-row  { display:flex; gap:2px; flex-wrap:wrap; margin-top:2px; }
     </style>
     <script type="module" src="utils/barcode-scanner.js"></script>
 </head>
@@ -386,6 +394,10 @@
                                 Clear All
                             </button>
                         </div>
+                        <!-- Last Booked Order -->
+                        <div id="lastBookedSection" class="hidden mt-3 border-t border-gray-200 pt-3">
+                            <div id="lastBookedCard"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -486,25 +498,7 @@
 
         </div>
 
-        <!-- Last 10 Shipments -->
-        <style>
-            .bo-li-wrap { display:flex; flex-direction:column; gap:6px; }
-            .bo-li-main { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
-            .bo-li-btns { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
-            .bo-li-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px 8px; font-size:0.7rem; margin-top:4px; color:#374151; }
-            @media(min-width:640px)  { .bo-li-grid { grid-template-columns:repeat(3,1fr); } }
-            @media(min-width:1024px) { .bo-li-grid { grid-template-columns:repeat(4,1fr); } }
-            @media(max-width:767px) {
-                .bo-li-wrap { flex-direction:column; }
-                .bo-li-main { flex-direction:column; gap:4px; }
-                .bo-li-btns { flex-direction:row; flex-wrap:wrap; border-top:1px solid #f3f4f6; padding-top:4px; }
-                .bo-action-row { display:flex; gap:2px; }
-            }
-        </style>
-        <div id="shipmentListContainer" class="container mx-auto bg-white border border-gray-400 mt-4 mb-4 rounded-md shadow-lg">
-            <h2 class="text-base font-bold text-gray-800 p-3 border-b border-gray-200">Last 10 Shipments</h2>
-            <ul id="shipmentList" class="p-4 space-y-2"></ul>
-        </div>
+
     </main>
     
     <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>

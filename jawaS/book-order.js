@@ -37,8 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const transportTypeSelect = document.getElementById('transport_type');
     const carrierSelect = document.getElementById('carrier_select');
     const bookingMessage = document.getElementById('bookingMessage');
-    const shipmentList = document.getElementById('shipmentList');
-    const shipmentListContainer = document.getElementById('shipmentListContainer');
 
     let isBookingLocked = false;
     let currentCalcUid = null;
@@ -70,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
             customerNameSelect.selectedIndex = 1;
             handleCustomerSelectionChange();
         }
-        fetchShipmentList();
         // Edit mode detection
         const editRef = sessionStorage.getItem('editOrderRef');
         if (editRef) prefillEditOrder(editRef);
@@ -81,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!eventDetail || !eventDetail.data) return;
         appData = eventDetail.data;
         updateAllDropdowns();
-        fetchShipmentList();
     }
 
     function updateAllDropdowns() {
@@ -207,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setBookingFieldsLocked(false);
         toggleWeightProductEntry(true);
         updateDisplayTables();
-        fetchShipmentList();
         // Reset dox UI (skip if SAV+Dox preserved)
         if (!(savChecked && doxChecked)) {
             document.getElementById('desktopBoxRow') && (document.getElementById('desktopBoxRow').style.display = '');
@@ -469,6 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
         consignmentBoxes.forEach((box, index) => box.boxNum = index + 1);
         if (!isBookingLocked) {
             setBookingFieldsLocked(true);
+            // Clear last booked card when new booking starts
+            const lbs = document.getElementById('lastBookedSection');
+            if (lbs) { lbs.classList.add('hidden'); document.getElementById('lastBookedCard').innerHTML = ''; }
         } else if (wasModeUnlocked) {
             transportTypeSelect.disabled = true;
             transportTypeSelect.classList.add('bg-gray-200', 'cursor-not-allowed');
@@ -646,6 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderShipmentList(shipments) {
         const listEl = document.getElementById('shipmentList');
+        if (!listEl) return;
         listEl.innerHTML = '';
         if (!shipments.length) {
             listEl.innerHTML = '<li class="text-center text-gray-500 p-4">No recent shipments found.</li>';
@@ -943,8 +942,69 @@ document.addEventListener('DOMContentLoaded', () => {
             renderShipmentList(sorted.slice(0, 10));
         } catch (error) {
             console.error('Error reading ORDERS data:', error);
-            document.getElementById('shipmentList').innerHTML = '<li class="p-4 text-center text-red-500">Failed to load shipments.</li>';
         }
+    }
+
+    function renderLastBooked(ref) {
+        const section = document.getElementById('lastBookedSection');
+        const card    = document.getElementById('lastBookedCard');
+        if (!section || !card) return;
+        const order = Object.values(appData.ORDERS || {}).find(o => String(o.REFERENCE) === String(ref));
+        if (!order) return;
+        const cnor = lookupContactName(order.CONSIGNOR);
+        const cnee = lookupContactName(order.CONSIGNEE);
+        card.innerHTML = `
+            <div style="padding:0.75rem;border-radius:0.5rem;border:1px solid #e5e7eb;line-height:1.6;">
+                <div class="bo-li-wrap">
+                    <div class="bo-li-main">
+                        <div style="flex:1;min-width:0;">
+                            <strong style="color:#4338ca;display:block;font-size:0.875rem;font-weight:600;">${order.AWB_NUMBER || 'No AWB'}</strong>
+                            <span style="font-size:0.75rem;color:#6b7280;">${cnor} &rarr; ${cnee}</span>
+                            <div class="bo-li-grid" style="margin-top:4px;">
+                                <span><span style="color:#9ca3af;">Ref</span> <b>${ref}</b></span>
+                                <span><span style="color:#9ca3af;">Date</span> <b>${fmtDate(order.ORDER_DATE)}</b></span>
+                                <span><span style="color:#9ca3af;">Dest</span> <b>${order.DEST_CITY || 'N/A'} ${order.DEST_PINCODE || ''}</b></span>
+                                <span><span style="color:#9ca3af;">Carrier</span> <b>${order.CARRIER || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">Mode</span> <b>${lookupModeName(order.MODE) || order.MODE || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">TAT</span> <b>${order.TAT || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">Zone</span> <b>${order.ZONE || 'N/A'}</b></span>
+                                <span><span style="color:#9ca3af;">Wt</span> <b>${order.WEIGHT || 0} kg</b></span>
+                                <span><span style="color:#9ca3af;">ChgWt</span> <b>${order.CHG_WT ? parseFloat(order.CHG_WT).toFixed(2) : '0.00'} kg</b></span>
+                                <span><span style="color:#9ca3af;">Pcs</span> <b>${order.PIECS || 0}</b></span>
+                                <span><span style="color:#9ca3af;">Value</span> <b>&#8377;${order.VALUE ? parseFloat(order.VALUE).toFixed(2) : '0.00'}</b></span>
+                                ${(order.COD && parseFloat(order.COD) > 0) ? `<span><span style="color:#9ca3af;">COD</span> <b>${order.COD}</b></span>` : ''}
+                                ${(order.TOPAY && order.TOPAY !== 'No') ? `<span><span style="color:#9ca3af;">ToPay</span> <b>${order.TOPAY}</b></span>` : ''}
+                                ${(order.FOV && parseFloat(order.FOV) > 0) ? `<span><span style="color:#9ca3af;">FOV</span> <b>${order.FOV}</b></span>` : ''}
+                            </div>
+                        </div>
+                        <div class="bo-li-btns">
+                            <div class="bo-action-row">
+                                ${!isClient ? `<button onclick="boEditOrder('${ref}')" title="Edit" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
+                                ${canDelete ? `<button onclick="boDeleteOrder('${ref}')" title="Delete" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#ef4444;border-radius:4px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
+                                <button onclick="boPrintAll('${ref}')" title="Print All" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
+                                <button onclick="boShowInfo('${ref}')" title="Info" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#4338ca;border-radius:4px;" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+                            </div>
+                            <div class="bo-print-row">
+                                <button onclick="boPrint('receipt','${ref}')"  style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">RCP</button>
+                                <button onclick="boPrint('label','${ref}')"    style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">LBL</button>
+                                <button onclick="boPrint('pod','${ref}')"      style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">POD</button>
+                                <button onclick="boPrint('office','${ref}')"   style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">OFC</button>
+                                <button onclick="boPrint('docs','${ref}')"     style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">DOC+BOX</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        section.classList.remove('hidden');
+    }
+
+    async function waitForRefInOrders(ref, timeoutMs = 15000) {
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            if (appData.ORDERS && Object.values(appData.ORDERS).some(o => String(o.REFERENCE) === String(ref))) return true;
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return false;
     }
 
     // --- MAIN INITIALIZATION & EVENT LISTENERS ---
@@ -1258,9 +1318,18 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const payload = buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput);
                 const result = await submitBookOrder(payload);
-                bookingMessage.textContent = `Booked successfully! Reference: ${result.reference}`;
-                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
+                bookingMessage.textContent = `Booked! Ref: ${result.reference} — waiting for server confirmation...`;
+                bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-blue-700 bg-blue-50';
                 resetForNextBooking();
+                const confirmed = await waitForRefInOrders(result.reference);
+                if (confirmed) {
+                    bookingMessage.textContent = `Booked successfully! Reference: ${result.reference}`;
+                    bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-green-700 bg-green-100';
+                    renderLastBooked(result.reference);
+                } else {
+                    bookingMessage.textContent = `Booked (Ref: ${result.reference}) — server confirmation pending.`;
+                    bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-yellow-700 bg-yellow-50';
+                }
             } catch (error) {
                 bookingMessage.textContent = `Booking failed: ${error.message}`;
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-red-700 bg-red-100';
