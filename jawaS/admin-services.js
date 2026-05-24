@@ -204,16 +204,7 @@ const AdminServices = (() => {
 
         // auto-fetch WA connection state on open
         if (serviceId === 'whatsapp') {
-            ServicesAPI.waStatus().then(r => {
-                _setWAState(r.wa_state || r.detail?.status || 'unknown');
-            }).catch(() => _setWAState('offline'));
-            ServicesAPI.waQueue().then(r => {
-                const el = document.getElementById('svc-wa-queue');
-                if (!el) return;
-                const n = r.pending || 0;
-                el.textContent = n === 0 ? '0 (clear)' : `${n} message${n > 1 ? 's' : ''} pending`;
-                el.className = n > 0 ? 'text-orange-500 font-semibold' : 'text-green-600';
-            }).catch(() => {});
+            _fetchWAMeta();
         }
 
         if (tabs.length) {
@@ -262,6 +253,8 @@ const AdminServices = (() => {
         } catch (e) {
             el.innerHTML = `<p class="text-xs text-red-500">Failed: ${e.message}</p>`;
         }
+        // re-populate WA meta after any tab re-render
+        if (_activeService === 'whatsapp') _fetchWAMeta();
     }
 
     // ── Generic table renderer ───────────────────────────────────────────────
@@ -499,6 +492,19 @@ const AdminServices = (() => {
     }
 
     // ── WA connection state ───────────────────────────────────────────────────
+    function _fetchWAMeta() {
+        ServicesAPI.waStatus().then(r => {
+            _setWAState(r.wa_state || r.detail?.status || 'unknown');
+        }).catch(() => _setWAState('offline'));
+        ServicesAPI.waQueue().then(r => {
+            const el = document.getElementById('svc-wa-queue');
+            if (!el) return;
+            const n = r.pending || 0;
+            el.textContent = n === 0 ? '0 (clear)' : `${n} message${n > 1 ? 's' : ''} pending`;
+            el.className = n > 0 ? 'text-orange-500 font-semibold' : 'text-green-600';
+        }).catch(() => {});
+    }
+
     function _setWAState(state) {
         const el = document.getElementById('svc-wa-state');
         if (!el) return;
