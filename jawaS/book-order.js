@@ -195,6 +195,15 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleWeightProductEntry(true);
         updateDisplayTables();
         fetchShipmentList();
+        // Reset dox UI
+        document.getElementById('desktopBoxRow') && (document.getElementById('desktopBoxRow').style.display = '');
+        document.getElementById('doxEnvelopeRow') && (document.getElementById('doxEnvelopeRow').style.display = 'none');
+        document.getElementById('desktopProductRow') && (document.getElementById('desktopProductRow').style.display = '');
+        document.getElementById('ewayStatusMessage')?.classList.remove('hidden');
+        document.getElementById('mobileAddBoxBtn')?.classList.remove('hidden');
+        document.getElementById('mobileAddProdBtn')?.classList.remove('hidden');
+        document.getElementById('mobileNormalBoxFields')?.classList.remove('hidden');
+        document.getElementById('mobileDoxFields')?.classList.add('hidden');
     }
 
     function resetFullForm() {
