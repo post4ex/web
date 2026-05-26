@@ -74,29 +74,71 @@ async function pullDeltaSince(since_ms) {
         console.log('[pullDeltaSince] skipped — full sync in progress');
         return;
     }
-    // since_ms=0 means no local data yet — let verifyAndFetchAppData handle it
     if (since_ms === 0) {
         console.log('[pullDeltaSince] skipped — since_ms=0, full sync will cover this');
         return;
     }
-    const effective = since_ms;
-    console.log('[pullDeltaSince] calling with since_ms:', effective);
+    console.log('[pullDeltaSince] since_ms:', since_ms);
     try {
-        const result = await callApi('/api/verifyAndFetchAppData', { since_ms: effective });
+        const result = await callApi(`/api/fetchEvents?since_ms=${since_ms}`, {}, 'GET');
         if (result.status !== 'success') return;
-        const incomingData = result.data || {};
-        console.log('[pullDeltaSince] response meta:', result.meta, '| collections:', Object.entries(incomingData).map(([k,v]) => `${k}:${Object.keys(v).length}`).join(' '));
-        let hasNewData = false;
-        for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-            if (Object.keys(sheetData).length > 0) {
-                if (!window.appDB.db.objectStoreNames.contains(sheetName)) {
-                    console.warn('[pullDeltaSince] unknown store, skipping:', sheetName);
-                    continue;
-                }
-                await window.appDB.mergeSheet(sheetName, sheetData);
-                hasNewData = true;
+        const events = result.data || [];
+        console.log('[pullDeltaSince] fetchEvents returned', events.length, 'events');
+        if (!events.length) { window._lastDeltaSync = Date.now(); return; }
+
+        // Store events in IDB
+        const evMap = {};
+        events.forEach(e => { evMap[e.id] = e; });
+        await window.appDB.mergeSheet('EVENTS', evMap);
+
+        // Split into upserts and deletes
+        const upserts = {}, deletes = {};
+        for (const ev of events) {
+            const { COLLECTION: col, ACTION: action, PB_ID: pb_id } = ev;
+            if (!col || !pb_id) continue;
+            if (action === 'create' || action === 'update') {
+                (upserts[col] = upserts[col] || []).push(pb_id);
+            } else if (action === 'delete') {
+                (deletes[col] = deletes[col] || []).push(pb_id);
             }
         }
+        console.log('[pullDeltaSince] upserts:', Object.keys(upserts), 'deletes:', Object.keys(deletes));
+
+        let hasNewData = false;
+
+        // Upserts — all collections in parallel
+        if (Object.keys(upserts).length) {
+            const entries = Object.entries(upserts);
+            const results = await Promise.all(
+                entries.map(([col, ids]) => callApi('/api/getRecords', { collection: col, ids }, 'POST').catch(e => { console.warn('[pullDeltaSince] getRecords failed for', col, e.message); return null; }))
+            );
+            for (let i = 0; i < entries.length; i++) {
+                const [col] = entries[i];
+                const res = results[i];
+                if (!res || !res.data) continue;
+                const n = Object.keys(res.data).length;
+                console.log('[pullDeltaSince] getRecords', col, ':', n, 'records merged');
+                if (n > 0) {
+                    await window.appDB.mergeSheet(col, res.data);
+                    hasNewData = true;
+                }
+            }
+        }
+
+        // Deletes — zero HTTP, pure IDB
+        for (const [col, pb_ids] of Object.entries(deletes)) {
+            const keyPath = window.appDB.sheetKeys[col] || 'id';
+            for (const pb_id of pb_ids) {
+                const rec = await window.appDB.getByPbId(col, pb_id);
+                if (rec) {
+                    const key = rec[keyPath];
+                    console.log('[pullDeltaSince] deletes:', col, 'pb_id=', pb_id, 'key=', key);
+                    await window.appDB.deleteRecord(col, key);
+                    hasNewData = true;
+                }
+            }
+        }
+
         window._lastDeltaSync = Date.now();
         if (hasNewData) _scheduleRefresh();
     } catch (e) { console.warn('[pullDeltaSince] error:', e.message); }

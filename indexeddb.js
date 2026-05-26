@@ -17,7 +17,7 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 6; // Increment version to recreate schema
+    this.version = 7; // Increment version to recreate schema
     this.db = null;
     
     // Define unique key for each sheet (must match PocketBase field names)
@@ -36,7 +36,8 @@ class AppDatabase {
       'UPLOADS':    'UPLOAD_UID',
       'CALC_HISTORY': 'CALC_UID',
       'NOTIFICATIONS': 'NOTIF_ID',
-      'HOLIDAYS':   'HOLIDAY_ID'
+      'HOLIDAYS':   'HOLIDAY_ID',
+      'EVENTS':     'id',
     };
   }
 
@@ -59,7 +60,7 @@ class AppDatabase {
         const sheets = [
           'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
           'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
-          'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS'
+          'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS'
         ];
         
         // Create object stores with correct key paths
@@ -67,6 +68,8 @@ class AppDatabase {
           const keyPath = this.sheetKeys[sheetName] || 'id';
           const store = db.createObjectStore(sheetName, { keyPath });
           store.createIndex('TIME_STAMP', 'TIME_STAMP', { unique: false });
+          // id index for O(1) getByPbId lookup
+          if (keyPath !== 'id') store.createIndex('id', 'id', { unique: false });
         });
         
         // Create metadata store
@@ -218,7 +221,7 @@ class AppDatabase {
     const sheets = [
       'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
       'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
-      'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', '_metadata'
+      'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', '_metadata'
     ];
     
     for (const sheetName of sheets) {
@@ -274,6 +277,49 @@ class AppDatabase {
       } catch (_) { resolve(); }
     })));
     return max;
+  }
+
+  async getLastEventStamp() {
+    if (!this.db) return 0;
+    return new Promise(resolve => {
+      try {
+        const tx    = this.db.transaction(['EVENTS'], 'readonly');
+        const index = tx.objectStore('EVENTS').index('TIME_STAMP');
+        const req   = index.openCursor(null, 'prev');
+        req.onsuccess = () => {
+          const ts = req.result ? Number(req.result.value.TIME_STAMP) : 0;
+          console.log('[idb] getLastEventStamp:', ts);
+          resolve(ts);
+        };
+        req.onerror = () => resolve(0);
+      } catch (_) { resolve(0); }
+    });
+  }
+
+  async getByPbId(sheetName, pbId) {
+    if (!this.db) return null;
+    const keyPath = this.sheetKeys[sheetName] || 'id';
+    // If keyPath is 'id', just do a direct get
+    if (keyPath === 'id') {
+      return new Promise(resolve => {
+        try {
+          const tx  = this.db.transaction([sheetName], 'readonly');
+          const req = tx.objectStore(sheetName).get(pbId);
+          req.onsuccess = () => { console.log('[idb] getByPbId:', sheetName, pbId, 'found:', !!req.result); resolve(req.result || null); };
+          req.onerror  = () => resolve(null);
+        } catch (_) { resolve(null); }
+      });
+    }
+    // Use 'id' secondary index
+    return new Promise(resolve => {
+      try {
+        const tx    = this.db.transaction([sheetName], 'readonly');
+        const index = tx.objectStore(sheetName).index('id');
+        const req   = index.get(pbId);
+        req.onsuccess = () => { console.log('[idb] getByPbId:', sheetName, pbId, 'found:', !!req.result); resolve(req.result || null); };
+        req.onerror  = () => resolve(null);
+      } catch (_) { resolve(null); }
+    });
   }
 }
 

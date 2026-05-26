@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('[Layout] hasData:', hasData, '| sheets:', timeFilteredSheets.map(s => `${s}:${Object.keys(existing?.[s]||{}).length}`).join(' '));
 
         const timeFiltered = ['ORDERS','MULTIBOX','PRODUCTS','UPLOADS','ATTENDANCE','STAFF'];
-        window._idbLastStamp = window.appDB ? await window.appDB.getLastStamp(timeFiltered).catch(() => 0) : 0;
+        window._idbLastStamp = window.appDB ? await window.appDB.getLastEventStamp().catch(() => 0) : 0;
         console.log('[Layout] _idbLastStamp:', window._idbLastStamp);
 
         if (!hasData && !_isSyncActive()) {

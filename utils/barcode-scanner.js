@@ -45,7 +45,7 @@ const _IMG_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16
 
 const _INLINE_SCANNER = `
 <div class="scan-wrap" style="display:none;position:relative;border-radius:0.75rem;overflow:hidden;background:#000;margin-top:0.5rem;">
-    <video muted playsinline style="width:100%;max-height:220px;object-fit:cover;display:block;"></video>
+    <video muted playsinline style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;"></video>
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;height:60%;border:2px solid rgba(255,255,255,0.6);border-radius:4px;pointer-events:none;">
         <div style="position:absolute;top:0;left:0;width:14px;height:14px;border-top:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:2px 0 0 0;"></div>
         <div style="position:absolute;top:0;right:0;width:14px;height:14px;border-top:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 2px 0 0;"></div>
