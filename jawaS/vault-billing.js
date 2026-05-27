@@ -237,13 +237,17 @@ const VaultBilling = (() => {
             <td class="px-3 py-2">${s.MODE||'N/A'} / ${s.PIECS||0}</td>
             <td class="px-3 py-2">${s.DEST_CITY||'N/A'} (${s.DEST_PINCODE||''})</td>
             <td class="px-3 py-2 text-right">${(+s.CHG_WT||0).toFixed(2)}</td>
-            <td class="px-3 py-2 text-right">${(+s.FRIGHT||0).toFixed(2)}</td></tr>`).join('');
+            <td class="px-3 py-2 text-right">${(+s.FRIGHT||0).toFixed(2)}</td>
+            <td class="px-3 py-2"><button onclick="sessionStorage.setItem('editOrderRef','${s.REFERENCE}');window.open('BookOrder.html','_blank')" class="p-1 text-gray-500 rounded hover:bg-gray-100" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></td></tr>`).join('');
 
         const mobileCards = shipments.map((s,i) => `
             <div class="border border-gray-200 rounded-lg p-3 text-xs space-y-1">
                 <div class="flex justify-between font-semibold text-gray-700">
                     <span>${i+1}. ${s.AWB_NUMBER||'N/A'}</span>
-                    <span class="text-indigo-700">&#8377;${(+s.FRIGHT||0).toFixed(2)}</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="sessionStorage.setItem('editOrderRef','${s.REFERENCE}');window.open('BookOrder.html','_blank')" class="p-1 text-gray-500 rounded hover:bg-gray-100" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                        <span class="text-indigo-700">&#8377;${(+s.FRIGHT||0).toFixed(2)}</span>
+                    </div>
                 </div>
                 <div class="text-gray-500">${_fmt(s.ORDER_DATE)} &middot; ${s.CARRIER||'N/A'} &middot; ${s.MODE||'N/A'} &middot; ${s.PIECS||0} pcs</div>
                 <div class="text-gray-600">${s.ORIGIN_CITY||'N/A'} &rarr; ${s.DEST_CITY||'N/A'} (${s.DEST_PINCODE||''})</div>
@@ -268,6 +272,7 @@ const VaultBilling = (() => {
                         <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Destination</th>
                         <th class="px-3 py-2 text-right font-medium text-gray-500 uppercase">Chg Wt</th>
                         <th class="px-3 py-2 text-right font-medium text-gray-500 uppercase">Freight ₹</th>
+                        <th class="px-3 py-2"></th>
                     </tr></thead>
                     <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
                 </table>
