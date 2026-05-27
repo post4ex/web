@@ -99,7 +99,7 @@ const VaultPage = (() => {
     // ── View switching ────────────────────────────────────────────────────────
     function _showTiles() {
         document.getElementById('tilesView').style.display = 'flex';
-        document.getElementById('splitView').classList.remove('active');
+        document.getElementById('splitView').style.display = 'none';
         document.getElementById('vaultDetailPane').style.display = 'none';
         document.getElementById('vaultListPane').style.display = 'flex';
         _activeTile = null;
@@ -107,7 +107,7 @@ const VaultPage = (() => {
 
     function _showSplit(title) {
         document.getElementById('tilesView').style.display = 'none';
-        document.getElementById('splitView').classList.add('active');
+        document.getElementById('splitView').style.display = 'flex';
         document.getElementById('splitTitle').textContent = title;
         _showDetail(false);
         document.getElementById('vaultList').innerHTML = '';
