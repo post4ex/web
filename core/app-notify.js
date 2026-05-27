@@ -282,6 +282,13 @@ window.previewFile = async function (filePath, title = '') {
 
         body.innerHTML = '';
         if (isPdf) {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                // Mobile browsers block blob URLs in iframes — open in new tab
+                window.open(blobUrl, '_blank');
+                modal.style.display = 'none';
+                return;
+            }
             const iframe = document.createElement('iframe');
             iframe.id    = 'file-preview-iframe';
             iframe.src   = blobUrl;
