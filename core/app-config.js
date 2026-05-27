@@ -113,6 +113,7 @@ const PAGE_CONFIG = {
 
     'Shipments.html':    'CLIENT',
     'BookOrder.html':    'CLIENT',
+    'EditOrder.html':    'CLIENT',
     'AssignCarrier.html':'STAFF',
     'OutMenifest.html':  'CLIENT',
     'InMenifest.html':   'CLIENT',

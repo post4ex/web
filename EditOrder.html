@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookOrder</title>
+    <link href="style.css" rel="stylesheet">
+    <link href="assets/css/inter-font.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Comfortaa', sans-serif;
+            color: #1f2937;
+        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        .detail-card { background:#fff; border-radius:0.5rem; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+        .detail-card-header { padding:0.75rem 1rem; border-bottom:1px solid #e5e7eb; background:#f9fafb; border-radius:0.5rem 0.5rem 0 0; }
+        .detail-card-body { padding:1rem; }
+        .doc-action-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:4px; border:none; cursor:pointer; background:transparent; color:#6b7280; flex:1; }
+        .doc-action-btn:hover { background:#f3f4f6; color:#111827; }
+        .doc-action-btn--wa { color:#16a34a; } .doc-action-btn--wa:hover { background:#f0fdf4; }
+        .doc-action-btn--tg { color:#2563eb; } .doc-action-btn--tg:hover { background:#eff6ff; }
+        .form-input { border-radius:0.375rem; border:1px solid #d1d5db; padding:0.5rem 0.75rem; font-size:0.875rem; width:100%; }
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-results {
+            position: absolute;
+            z-index: 10;
+            width: 100%;
+            background-color: white;
+            border: 1px solid #d1d5db;
+            border-top: none;
+            max-height: 200px;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border-radius: 0 0 0.5rem 0.5rem;
+        }
+        .autocomplete-results li {
+            padding: 0.5rem;
+            cursor: pointer;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .autocomplete-results li:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-results li:hover {
+            background-color: #f3f4f6;
+        }
+        .bo-li-wrap { display:flex; flex-direction:column; gap:6px; }
+        .bo-li-main { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+        .bo-li-btns { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+        .bo-li-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px 8px; font-size:0.7rem; margin-top:4px; color:#374151; }
+        @media(min-width:640px)  { .bo-li-grid { grid-template-columns:repeat(3,1fr); } }
+        @media(min-width:1024px) { .bo-li-grid { grid-template-columns:repeat(4,1fr); } }
+        .bo-action-row { display:flex; gap:2px; }
+        .bo-print-row  { display:flex; gap:2px; flex-wrap:wrap; margin-top:2px; }
+        @media(max-width:639px) {
+            .bo-li-main { flex-direction:column; }
+            .bo-li-btns { flex-direction:row; flex-wrap:wrap; align-items:center; border-top:1px solid #f3f4f6; padding-top:6px; margin-top:2px; }
+            .bo-print-row { margin-top:0; }
+        }
+    </style>
+    <script type="module" src="utils/barcode-scanner.js"></script>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+
+    <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
+
+    <main class="flex-grow p-1">
+        <div class="container mx-auto bg-white flex flex-col border border-gray-400">
+
+            <!-- Top Row -->
+            <div class="flex flex-col md:flex-row border-b border-gray-400">
+                <!-- Top Left: Booking Form -->
+                <div class="w-full md:w-1/2 border-r border-gray-400">
+                    <form id="bookingForm" class="">
+                        <!-- Hidden timestamp input to preserve JS logic -->
+                        <input type="text" id="timestamp" name="timestamp" readonly class="hidden">
+
+                        <!-- Order Date & Customer Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-0 border border-gray-400 p-2">
+                            <div class="p-2 border-r border-gray-400">
+                                <input type="date" id="order_date" name="order_date" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="p-2">
+                                <select id="customer_name" name="customer_name" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                   <option value="">Loading Customers...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Sender & Receiver Flexbox -->
+                        <div class="flex flex-col md:flex-row gap-0 border border-gray-400">
+                            <!-- Sender Details -->
+                            <div class="w-full md:w-1/2 p-2 autocomplete-container">
+                                <input type="text" id="sender_name" name="sender_name" placeholder="Consignor Name or Mobile" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md" autocomplete="off">
+                                <ul id="sender_autocomplete_results" class="autocomplete-results hidden"></ul>
+                                <div id="senderDetailsDisplay" class="p-2 bg-white mt-2 min-h-[60px]">
+                                    <span class="italic text-gray-500">Select a customer to autofill sender.</span>
+                                </div>
+                            </div>
+                            <!-- Receiver Details -->
+                            <div class="w-full md:w-1/2 border-t md:border-t-0 md:border-l border-gray-400 p-2 autocomplete-container">
+                                <input type="text" id="receiver_name" name="receiver_name" placeholder="Consignee Name or Mobile" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md" autocomplete="off">
+                                 <ul id="receiver_autocomplete_results" class="autocomplete-results hidden"></ul>
+                                <div id="receiverDetailsDisplay" class="p-2 bg-white mt-2 min-h-[60px]">
+                                    <span class="italic text-gray-500">Enter receiver details manually.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mode & Carrier Grid -->
+                        <div class="border border-gray-400">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-0 p-2">
+                                <div class="p-2 border-r border-gray-400">
+                                    <select id="transport_type" name="transport_type" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Loading Modes...</option>
+                                    </select>
+                                </div>
+                                <div class="p-2">
+                                     <select id="carrier_select" name="carrier_select" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Loading Carriers...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="modeChangeMessage" class="text-xs text-blue-600 px-4 pb-2"></div>
+                        </div>
+
+
+                        <!-- Payment Type Grid -->
+                        <div class="flex border border-gray-400 p-2">
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_global" type="checkbox" name="payment_type" value="global" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Dox</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_pcs" type="checkbox" name="payment_type" value="pcs" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Pcs</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_topay" type="checkbox" name="payment_type" value="topay" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Topay</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_cod" type="checkbox" name="payment_type" value="cod" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">COD</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_fov" type="checkbox" name="payment_type" value="fov" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">FOV</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer" title="Preserve customer/consignor/consignee/carrier for next booking">
+                                <input id="payment_sav" type="checkbox" name="payment_type" value="sav" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">SAV</span>
+                            </label>
+                        </div>
+
+                        <!-- Origin & Destination Pincode (Hidden) -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-0 border border-gray-400 hidden">
+                            <div class="p-2 border-r border-gray-400">
+                                <input type="tel" id="origin_pincode" name="origin_pincode" pattern="[0-9]{6}" maxlength="6" placeholder="Origin Pincode" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md">
+                            </div>
+                            <div class="p-2">
+                                <input type="tel" id="dest_pincode" name="dest_pincode" pattern="[0-9]{6}" maxlength="6" placeholder="Destination Pincode" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md">
+                            </div>
+                        </div>
+
+                        <!-- Consignment Details Grid — hidden on mobile, use popup -->
+                        <div id="multiboxErrorMessage" class="text-xs text-red-500 px-2 pt-2"></div>
+                        <!-- Normal box row (hidden in dox mode) -->
+                        <div id="desktopBoxRow" class="hidden md:grid grid-cols-4 border border-gray-400">
+                            <div class="flex border-r border-gray-300">
+                                <input type="number" id="actual_weight" name="actual_weight" placeholder="Wgt (kg)" class="w-0 flex-1 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                                <input type="number" id="pcs_count" placeholder="Pcs" min="1" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0" style="display:none">
+                            </div>
+                            <input type="number" id="length" name="length" placeholder="L (cm)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="number" id="breadth" name="breadth" placeholder="B (cm)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="flex border-r border-gray-300">
+                                <input type="number" id="height" name="height" placeholder="H (cm)" class="w-full p-1 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <!-- Dox envelope row (shown only in dox mode) -->
+                        <div id="doxEnvelopeRow" class="hidden border border-gray-400" style="grid-template-columns:repeat(4,minmax(0,1fr));display:none">
+                            <input type="number" id="dox_weight" placeholder="Wgt (kg)" max="2" step="0.1" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <label class="flex items-center justify-center gap-1 p-1 border-r border-gray-300 cursor-pointer">
+                                <input type="checkbox" id="dox_dl" class="h-4 w-4"> <span class="text-sm font-medium">DL</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-1 p-1 border-r border-gray-300 cursor-pointer">
+                                <input type="checkbox" id="dox_a4" class="h-4 w-4"> <span class="text-sm font-medium">A4</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-1 p-1 cursor-pointer">
+                                <input type="checkbox" id="dox_bg" class="h-4 w-4"> <span class="text-sm font-medium">BG</span>
+                            </label>
+                        </div>
+
+                        <!-- Product Details Grid — hidden on mobile, use popup -->
+                        <div id="desktopProductRow" class="hidden md:grid grid-cols-4 border border-gray-400">
+                            <input type="text" id="product_name" name="product_name" placeholder="Prod" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="flex border-r border-gray-300">
+                                <input type="text" id="doc_no" name="doc_no" placeholder="DocNo" class="w-0 flex-1 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                                <select id="product_type" name="product_type" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                                    <option value="INV">INV</option>
+                                    <option value="CLN">CLN</option>
+                                    <option value="DEC">DEC</option>
+                                    <option value="ADH">ADH</option>
+                                    <option value="DOX">DOX</option>
+                                </select>
+                            </div>
+                            <div style="position:relative;">
+                                <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 pr-6" pattern="\d{12}" maxlength="12" title="EWay bill must be a 12-digit numeric number.">
+                                <scan-barcode id="eway-scanner" icon-only style="position:absolute;right:0.25rem;top:50%;transform:translateY(-50%);"></scan-barcode>
+                            </div>
+                            <div class="flex">
+                                <input type="number" id="amount" name="amount" placeholder="Amt" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                            </div>
+                        </div>
+                        <div id="ewayStatusMessage" class="text-xs text-red-500 mt-1 px-2"></div>
+
+                        <!-- Mobile Add Buttons — hidden on desktop -->
+                        <div class="md:hidden grid grid-cols-2 border border-gray-400">
+                            <button type="button" id="mobileAddBoxBtn" onclick="document.getElementById('mobileBoxPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500 border-r border-gray-500">+ Add Box</button>
+                            <button type="button" id="mobileAddProdBtn" onclick="document.getElementById('mobileProdPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500">+ Add Product</button>
+                        </div>
+
+                        <!-- AWB and Action Buttons -->
+                        <div class="flex items-center gap-2 border border-gray-400 p-2">
+                            <div class="relative flex-grow">
+                                <input type="text" id="awb" name="awb" placeholder="AWB" class="w-full p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-16">
+                                <scan-barcode id="awb-scanner" icon-only style="position:absolute;right:2rem;top:50%;transform:translateY(-50%);"></scan-barcode>
+                                <button type="button" id="getAwbButton" class="absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 hover:text-gray-700" title="Get AWB">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9a9 9 0 0115.12-4.38M20 20v-5h-5"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 15a9 9 0 01-15.12 4.38"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <button id="cancel_button" type="button" class="btn-ghost flex-grow">
+                                Cancel
+                            </button>
+                            <button id="book_button" type="button" class="btn flex-grow">
+                                Book
+                            </button>
+                        </div>
+                        <!-- Inline Message Display Area -->
+                        <div id="bookingMessage" class="p-2 text-sm text-center rounded-md mt-2"></div>
+                    </form>
+
+                    <!-- Order Details Table -->
+                    <div id="orderTableSection" class="p-4 bg-white border-t border-gray-400 hidden">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-800">Order Details</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <tbody class="divide-y divide-gray-300">
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50 w-1/4">REFERENCE</td>
+                                        <td id="display_reference" class="px-2 py-1 w-1/4">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50 w-1/4">BRANCH</td>
+                                        <td id="display_branch" class="px-2 py-1 w-1/4">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">CODE</td>
+                                        <td id="display_code" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">USER_NAME</td>
+                                        <td id="display_user_name" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">TIME_STAMP</td>
+                                        <td id="display_timestamp" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">ORDER_DATE</td>
+                                        <td id="display_order_date" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">CARRIER</td>
+                                        <td id="display_carrier" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">AWB_NUMBER</td>
+                                        <td id="display_awb_number" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">TRANSIT_DATE</td>
+                                        <td id="display_transit_date" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">CONSIGNOR</td>
+                                        <td id="display_consignor" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">ORIGIN_CITY</td>
+                                        <td id="display_origin_city" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">ORIGIN_PINCODE</td>
+                                        <td id="display_origin_pincode" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">CONSIGNEE</td>
+                                        <td id="display_consignee" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">DEST_CITY</td>
+                                        <td id="display_dest_city" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">DEST_PINCODE</td>
+                                        <td id="display_dest_pincode" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">TAT</td>
+                                        <td id="display_tat" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">ZONE</td>
+                                        <td id="display_zone" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">MODE</td>
+                                        <td id="display_mode" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">GLOBAL</td>
+                                        <td id="display_global" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">COD</td>
+                                        <td id="display_cod" class="px-2 py-1">---</td>
+                                    </tr>
+                                    <tr class="divide-x divide-gray-300">
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">TOPAY</td>
+                                        <td id="display_topay" class="px-2 py-1">---</td>
+                                        <td class="px-2 py-1 font-medium text-gray-600 bg-gray-50">FOV</td>
+                                        <td id="display_fov" class="px-2 py-1">---</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Right: Multibox & Product -->
+                <div class="w-full md:w-1/2">
+                    <!-- Multibox Section -->
+                    <div id="multiboxSection" class="p-4 bg-white">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse border border-gray-400">
+                                <thead>
+                                    <tr class="bg-gray-200 text-gray-700 text-sm">
+                                        <th class="p-2 border border-gray-400 text-left">BoxNum</th>
+                                        <th class="p-2 border border-gray-400 text-left">Wgt</th>
+                                        <th class="p-2 border border-gray-400 text-left">L</th>
+                                        <th class="p-2 border border-gray-400 text-left">B</th>
+                                        <th class="p-2 border border-gray-400 text-left">H</th>
+                                        <th class="p-2 border border-gray-400 text-left">Vol.Wt</th>
+                                        <th class="p-2 border border-gray-400 text-left">Chg.Wt</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiboxTableBody">
+                                    <!-- Multibox rows will be added here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="multiboxTotals" class="flex justify-between items-center mt-4">
+                            <div id="multiboxTotalsText" class="text-sm font-semibold text-gray-700 space-y-1 hidden">
+                                <!-- Totals will be displayed here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Section -->
+                    <div id="productSection" class="p-4 bg-white border-t border-gray-400">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse border border-gray-400">
+                                <thead>
+                                    <tr class="bg-gray-200 text-gray-700 text-sm">
+                                        <th class="p-2 border border-gray-400 text-left">SrNo</th>
+                                        <th class="p-2 border border-gray-400 text-left">Product</th>
+                                        <th class="p-2 border border-gray-400 text-left">DocNo</th>
+                                        <th class="p-2 border border-gray-400 text-left">EWay</th>
+                                        <th class="p-2 border border-gray-400 text-left">Type</th>
+                                        <th class="p-2 border border-gray-400 text-left">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productTableBody">
+                                    <!-- Product rows will be added here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="productTotals" class="flex justify-end items-center mt-4 space-x-2">
+                            <div id="productTotalsText" class="text-sm font-semibold text-gray-700 space-y-1 hidden">
+                                <!-- Totals will be displayed here dynamically -->
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end items-center mt-2 space-x-2">
+                            <button id="clearMultiboxButton" class="btn btn-sm">
+                                Clear Multibox
+                            </button>
+                            <button id="clearProductsButton" class="btn-danger btn-sm">
+                                Clear Product
+                            </button>
+                            <button id="clearAllButton" class="btn-ghost btn-sm">
+                                Clear All
+                            </button>
+                        </div>
+                        <!-- Last Booked Order -->
+                        <div id="lastBookedSection" class="hidden mt-3 border-t border-gray-200 pt-3">
+                            <div id="lastBookedCard"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini Document Uploader -->
+            <div id="mini-uploader-section"></div>
+
+            <!-- Combined Summary and Charges Row -->
+            <div class="flex flex-col md:flex-row border-b border-gray-400">
+                <!-- Left: Summary -->
+                <div class="w-full md:w-1/2 border-r border-gray-400">
+                    <div id="summarySection" class="p-4 bg-white">
+                        <div class="grid grid-cols-4 gap-4 text-center">
+                            <div>
+                                <p class="text-sm text-gray-500">WEIGHT</p>
+                                <p id="display_weight" class="text-lg font-bold text-gray-800">---</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">CHG_WT</p>
+                                <p id="display_chg_wt" class="text-lg font-bold text-gray-800">---</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">PIECES</p>
+                                <p id="display_pieces" class="text-lg font-bold text-gray-800">---</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">VALUE</p>
+                                <p id="display_value" class="text-lg font-bold text-gray-800">---</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Helper Table Section -->
+                    <div id="helperTableSection" class="p-4 bg-white border-t border-gray-400">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse border border-gray-400 text-sm">
+                                <thead>
+                                    <tr class="bg-gray-100 text-gray-600">
+                                        <th class="p-2 border border-gray-400 text-left">WEIGHT_CEILING</th>
+                                        <th class="p-2 border border-gray-400 text-left">WEIGHT_ZONE</th>
+                                        <th class="p-2 border border-gray-400 text-left">RATE_UID</th>
+                                        <th class="p-2 border border-gray-400 text-left">RATE</th>
+                                        <th class="p-2 border border-gray-400 text-left">ADD_RATE</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="helperTableBody">
+                                    <tr>
+                                        <td class="p-2 border border-gray-400" id="display_weight_ceiling">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_weight_zone">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_rate_uid">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_rate" contenteditable="true" class="outline-none focus:bg-yellow-50">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_add_rate" contenteditable="true" class="outline-none focus:bg-yellow-50">---</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right: Charges -->
+                <div class="w-full md:w-1/2">
+                     <div id="chargesSection" class="p-4 bg-white">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-800 hidden">Charges & Taxes</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm border-collapse">
+                                <tbody>
+                                    <tr>
+                                        <td class="align-top w-1/2 pr-1">
+                                            <table class="w-full border-collapse border border-gray-300 text-xs">
+                                                <tbody class="divide-y divide-gray-200">
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600 w-1/2">FRIGHT</td><td id="display_fright" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">FUEL CHG</td><td id="display_fuel_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">COD CHG</td><td id="display_cod_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">TOPAY CHG</td><td id="display_topay_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">FOV CHG</td><td id="display_fov_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">EWAY CHG</td><td id="display_eway_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">AWB CHG</td><td id="display_awb_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">PACK CHG</td><td id="display_pack_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                        <td class="align-top w-1/2 pl-1">
+                                            <table class="w-full border-collapse border border-gray-300 text-xs">
+                                                <tbody class="divide-y divide-gray-200">
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600 w-1/2">DEV CHG</td><td id="display_dev_chg" contenteditable="true" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">OTHER CHARGES</td><td id="display_other_chg" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">TAXABLE</td><td id="display_taxable" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">SGST</td><td id="display_sgst" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">CGST</td><td id="display_cgst" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">IGST</td><td id="display_igst" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-gray-50 font-medium text-gray-600">GST</td><td id="display_gst_total" class="px-2 py-1 text-right">0.00</td></tr>
+                                                    <tr><td class="px-2 py-1 bg-blue-100 font-bold text-blue-800">TOTAL</td><td id="display_total" class="px-2 py-1 text-right font-bold text-blue-800">0.00</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+    </main>
+    
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
+
+    <!-- Add Contact Modal -->
+    <div id="addContactModal" class="fixed inset-0 z-50 hidden">
+        <div id="addContactOverlay" class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="relative z-10 flex items-center justify-center min-h-full p-4">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+                <h3 id="addContactTitle" class="text-lg font-semibold text-gray-800 mb-4">Add Contact</h3>
+                <form id="addContactModalForm" class="space-y-3" onsubmit="return false">
+                    <!-- Always hidden -->
+                    <input type="hidden" id="ac_branch">
+                    <input type="hidden" id="ac_code">
+                    <input type="hidden" id="ac_state_code">
+                    <input type="hidden" id="ac_gst_code">
+                    <!-- Visible fields -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" id="ac_name" placeholder="Name *" class="col-span-2 w-full p-2 border border-gray-300 rounded-md text-sm" required>
+                        <input type="tel" id="ac_mobile" placeholder="Mobile *" class="w-full p-2 border border-gray-300 rounded-md text-sm" required>
+                        <div class="relative">
+                            <input type="text" id="ac_pincode" placeholder="Pincode *" maxlength="6" class="w-full p-2 border border-gray-300 rounded-md text-sm" required>
+                            <span id="ac_pincode_status" class="absolute inset-y-0 right-2 flex items-center text-xs pointer-events-none"></span>
+                        </div>
+                        <input type="text" id="ac_address" placeholder="Address *" class="col-span-2 w-full p-2 border border-gray-300 rounded-md text-sm" required>
+                        <input type="email" id="ac_email" placeholder="Email" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                        <input type="text" id="ac_gst" placeholder="GST / PAN / Aadhaar" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                        <input type="text" id="ac_carrier" placeholder="Carrier" list="addContactCarrierList" class="col-span-2 w-full p-2 border border-gray-300 rounded-md text-sm" autocomplete="off">
+                        <datalist id="addContactCarrierList"></datalist>
+                    </div>
+                    <!-- Pincode-derived fields (auto-filled or manual on web fallback) -->
+                    <div id="ac_derived_section" class="grid grid-cols-2 gap-3">
+                        <input type="text" id="ac_city"  placeholder="City"  class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_state" placeholder="State" class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_zone"  placeholder="Zone *" class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_oda"   placeholder="ODA"   class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_express_tat" placeholder="Express TAT" class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_airline_tat" placeholder="Airline TAT" class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_surface_tat" placeholder="Surface TAT" class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                        <input type="text" id="ac_premium_tat" placeholder="Premium TAT" class="w-full p-2 border border-gray-300 rounded-md text-sm bg-gray-50" readonly>
+                    </div>
+                    <p id="addContactError" class="text-red-600 text-xs hidden"></p>
+                </form>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button id="addContactCancelBtn" class="btn-ghost btn-sm">Cancel</button>
+                    <button id="addContactSaveBtn" class="btn btn-sm flex items-center gap-2 disabled:opacity-45">
+                        Save
+                        <div id="addContactSpinner" class="hidden border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Shipment Info Modal -->
+    <div id="boInfoModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl my-6">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="font-bold text-gray-800">Shipment Info</h3>
+                <button id="boInfoModalClose" class="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div id="documentCenterContainer"  class="detail-card"></div>
+                    <div id="shipmentDetailsContainer" class="detail-card"></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div id="boInfoConsignor" class="detail-card"></div>
+                    <div id="boInfoConsignee" class="detail-card"></div>
+                </div>
+                <div id="productBoxDetailsContainer" class="detail-card"></div>
+                <div id="trackingStatusContainer"    class="detail-card"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="indexeddb.js"></script>
+    <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
+    <script src="core/app-notify.js"></script>
+    <script src="core/app-api.js"></script>
+    <script src="core/upload-api.js"></script>
+    <script src="core/app-auth.js"></script>
+    <script src="core/b2b2c-api.js"></script>
+    <script src="core/searchpinweb.js"></script>
+    <script src="core/layout.js"></script>
+    <script src="utils/calculations.js"></script>
+    <script src="utils/invoice-utils.js"></script>
+    <script src="core/book-order.js"></script>
+    <script src="jawaS/shipments.js"></script>
+    <script src="jawaS/edit-order.js"></script>
+    <script src="utils/awb-detect.js"></script>
+    <script src="utils/docgen.js"></script>
+    <script src="jawaS/mini-uploader.js"></script>
+    <script type="module">
+        import { openAddContactModal } from './jawaS/book-order-add-contact.js';
+        window.openAddContactModal = openAddContactModal;
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            ['display_rate', 'display_add_rate'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    if (typeof updateAndDisplayCharges === 'function') updateAndDisplayCharges();
+                });
+            });
+            document.getElementById('display_fright').addEventListener('input', () => {
+                const val = parseFloat(document.getElementById('display_fright').textContent) || 0;
+                if (typeof window.updateChargesFromFright === 'function') window.updateChargesFromFright(val);
+            });
+
+            const otherChargeIds = ['display_fuel_chg','display_cod_chg','display_topay_chg','display_fov_chg','display_eway_chg','display_awb_chg','display_pack_chg','display_dev_chg'];
+            function recalcFromOtherCharges() {
+                if (!window.recalcTotalsFromCharges) return;
+                const fright = parseFloat(document.getElementById('display_fright').textContent) || 0;
+                const other  = otherChargeIds.reduce((s,id) => s + (parseFloat(document.getElementById(id).textContent) || 0), 0);
+                window.recalcTotalsFromCharges(fright, other);
+            }
+            otherChargeIds.forEach(id => document.getElementById(id).addEventListener('input', recalcFromOtherCharges));
+            const doxCb   = document.getElementById('payment_global');
+            const pcsCb   = document.getElementById('payment_pcs');
+            const topayCb = document.getElementById('payment_topay');
+            const codCb   = document.getElementById('payment_cod');
+            const fovCb   = document.getElementById('payment_fov');
+            const modeSelect = document.getElementById('transport_type');
+
+            function setExpressMode() {
+                // Find the option whose text contains 'express' (case-insensitive)
+                const opt = Array.from(modeSelect.options).find(o => o.text.toLowerCase().includes('express'));
+                if (opt) {
+                    modeSelect.value = opt.value;
+                    modeSelect.dispatchEvent(new Event('change'));
+                }
+            }
+
+            doxCb.addEventListener('change', () => {
+                if (doxCb.checked) {
+                    pcsCb.checked   = false;
+                    topayCb.checked = false;
+                    codCb.checked   = false;
+                    fovCb.checked   = false;
+                    if (!document.getElementById('editOrderBanner')) setExpressMode();
+                    enableDoxMode();
+                } else {
+                    disableDoxMode();
+                }
+            });
+
+            pcsCb.addEventListener('change', () => {
+                if (pcsCb.checked) doxCb.checked = false;
+                const show = pcsCb.checked;
+                document.getElementById('pcs_count').style.display = show ? '' : 'none';
+                if (!show) document.getElementById('pcs_count').value = '';
+                document.getElementById('m_pcs_wrap').style.display = show ? '' : 'none';
+                if (!show) document.getElementById('m_pcs_count').value = '';
+                const mPcs = document.getElementById('m_payment_pcs');
+                if (mPcs) mPcs.checked = show;
+            });
+
+            // sync mobile pcs checkbox → desktop
+            document.addEventListener('change', e => {
+                if (e.target.id === 'm_payment_pcs') {
+                    document.getElementById('payment_pcs').checked = e.target.checked;
+                    document.getElementById('payment_pcs').dispatchEvent(new Event('change'));
+                }
+            });
+            [topayCb, codCb, fovCb].forEach(cb => cb.addEventListener('change', () => {
+                if (cb.checked) doxCb.checked = false;
+            }));
+
+            // --- DOX MODE ---
+            const DOX_SIZES = {
+                DL: { l: 22, b: 11 },
+                A4: { l: 32, b: 25 },
+                BG: { l: 40, b: 30 }
+            };
+
+            function doxCalcH(wgt) {
+                if (wgt <= 0.1) return 0.5;
+                if (wgt <= 0.5) return 1;
+                if (wgt <= 1.0) return 2;
+                return 3;
+            }
+
+            function enableDoxMode() {
+                document.getElementById('desktopBoxRow').style.display = 'none';
+                document.getElementById('doxEnvelopeRow').style.display = 'grid';
+                document.getElementById('dox_weight').value = '0.1';
+                document.getElementById('desktopProductRow').style.display = 'none';
+                document.getElementById('ewayStatusMessage').classList.add('hidden');
+                document.getElementById('mobileAddBoxBtn').classList.add('hidden');
+                document.getElementById('mobileAddProdBtn').classList.add('hidden');
+                document.getElementById('mobileNormalBoxFields').classList.add('hidden');
+                document.getElementById('mobileDoxFields').classList.remove('hidden');
+                document.getElementById('m_dox_weight').value = '0.1';
+            }
+
+            function disableDoxMode() {
+                document.getElementById('desktopBoxRow').style.display = '';
+                document.getElementById('doxEnvelopeRow').style.display = 'none';
+                document.getElementById('desktopProductRow').style.display = '';
+                document.getElementById('ewayStatusMessage').classList.remove('hidden');
+                document.getElementById('mobileAddBoxBtn').classList.remove('hidden');
+                document.getElementById('mobileAddProdBtn').classList.remove('hidden');
+                document.getElementById('mobileNormalBoxFields').classList.remove('hidden');
+                document.getElementById('mobileDoxFields').classList.add('hidden');
+            }
+
+            function renderDoxEntry(type) {
+                if (typeof window._areMainDetailsComplete === 'function' && !window._areMainDetailsComplete()) {
+                    document.getElementById('multiboxErrorMessage').textContent = 'Please select Customer, Consignor, Consignee, Mode and Carrier first.';
+                    document.getElementById('dox_' + type.toLowerCase()).checked = false;
+                    return;
+                }
+                const wgt = parseFloat(document.getElementById('dox_weight').value);
+                if (!wgt || wgt <= 0) {
+                    document.getElementById('multiboxErrorMessage').textContent = 'Enter weight before selecting envelope type.';
+                    document.getElementById('dox_' + type.toLowerCase()).checked = false;
+                    return;
+                }
+                if (wgt > 2) {
+                    document.getElementById('multiboxErrorMessage').textContent = 'Dox weight cannot exceed 2 kg.';
+                    document.getElementById('dox_' + type.toLowerCase()).checked = false;
+                    return;
+                }
+                document.getElementById('multiboxErrorMessage').textContent = '';
+                const size = DOX_SIZES[type];
+                const h = doxCalcH(wgt);
+                if (typeof window._doxRenderEntry === 'function') {
+                    window._doxRenderEntry(wgt, size.l, size.b, h, type);
+                }
+                // Clear dox inputs
+                document.getElementById('dox_weight').value = '';
+                ['dox_dl','dox_a4','dox_bg'].forEach(id => document.getElementById(id).checked = false);
+            }
+
+            ['dl','a4','bg'].forEach(type => {
+                document.getElementById('dox_' + type).addEventListener('change', function() {
+                    if (!this.checked) return;
+                    ['dl','a4','bg'].forEach(t => { if (t !== type) document.getElementById('dox_' + t).checked = false; });
+                    renderDoxEntry(type.toUpperCase());
+                });
+            });
+
+            document.getElementById('awb-scanner')?.addEventListener('scanned', e => {
+                document.getElementById('awb').value = e.detail.value;
+                document.getElementById('awb').dispatchEvent(new Event('input'));
+            });
+            document.getElementById('eway-scanner')?.addEventListener('scanned', e => {
+                document.getElementById('eway_bill').value = e.detail.value;
+                document.getElementById('eway_bill').dispatchEvent(new Event('input'));
+            });
+            document.getElementById('m-eway-scanner')?.addEventListener('scanned', e => {
+                document.getElementById('m_eway_bill').value = e.detail.value;
+                document.getElementById('m_eway_bill').dispatchEvent(new Event('input'));
+            });
+        });
+    </script>
+    <!-- Mobile Add Box Popup -->
+    <div id="mobileBoxPopup" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50">
+        <div class="bg-white w-full rounded-t-2xl p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-semibold text-gray-800">Add Box</h3>
+                <label class="flex items-center gap-1 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" id="m_payment_pcs" class="h-4 w-4 text-blue-600 border-gray-300"> Pcs
+                </label>
+                <button onclick="document.getElementById('mobileBoxPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="mobileBoxError" class="text-xs text-red-500 hidden"></div>
+            <!-- Normal box fields -->
+            <div id="mobileNormalBoxFields" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-500">Weight (kg)</label>
+                        <input type="number" id="m_actual_weight" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div id="m_pcs_wrap" style="display:none">
+                        <label class="text-xs text-gray-500">Pcs</label>
+                        <input type="number" id="m_pcs_count" placeholder="1" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-500">L (cm)</label>
+                        <input type="number" id="m_length" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">B (cm)</label>
+                        <input type="number" id="m_breadth" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">H (cm)</label>
+                        <input type="number" id="m_height" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+            <!-- Dox fields (shown only in dox mode) -->
+            <div id="mobileDoxFields" class="hidden space-y-3">
+                <div>
+                    <label class="text-xs text-gray-500">Weight (kg, max 2)</label>
+                    <input type="number" id="m_dox_weight" placeholder="0.0" max="2" step="0.1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer">
+                        <input type="checkbox" id="m_dox_dl" class="h-4 w-4"> <span class="text-sm font-semibold">DL</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer">
+                        <input type="checkbox" id="m_dox_a4" class="h-4 w-4"> <span class="text-sm font-semibold">A4</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer">
+                        <input type="checkbox" id="m_dox_bg" class="h-4 w-4"> <span class="text-sm font-semibold">BG</span>
+                    </label>
+                </div>
+            </div>
+            <button type="button" onclick="mobileAddBox()" class="btn w-full py-3">Add Box</button>
+        </div>
+    </div>
+
+    <!-- Mobile Add Product Popup -->
+    <div id="mobileProdPopup" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50">
+        <div class="bg-white w-full rounded-t-2xl p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-semibold text-gray-800">Add Product</h3>
+                <button onclick="document.getElementById('mobileProdPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="mobileProdError" class="text-xs text-red-500 hidden"></div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-500">Product Name</label>
+                    <input type="text" id="m_product_name" placeholder="Product" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-500">Doc No</label>
+                        <input type="text" id="m_doc_no" placeholder="DocNo" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Type</label>
+                        <select id="m_product_type" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="INV">INV</option>
+                            <option value="CLN">CLN</option>
+                            <option value="DEC">DEC</option>
+                            <option value="ADH">ADH</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-gray-500">EWay Bill</label>
+                        <div style="position:relative;">
+                            <input type="text" id="m_eway_bill" placeholder="12-digit" maxlength="12" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 pr-8">
+                            <scan-barcode id="m-eway-scanner" icon-only style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);"></scan-barcode>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Amount (&#8377;)</label>
+                        <input type="number" id="m_amount" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="mobileAddProduct()" class="btn w-full py-3">Add Product</button>
+        </div>
+    </div>
+
+</body>
+</html>

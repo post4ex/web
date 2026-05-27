@@ -411,7 +411,7 @@ function renderShipmentDetails(order) {
 
     document.getElementById('editOrderBtn').addEventListener('click', () => {
         sessionStorage.setItem('editOrderRef', order.REFERENCE);
-        window.open('BookOrder.html', '_blank');
+        window.open('EditOrder.html', '_blank');
     });
     document.getElementById('copyOrderBtn').addEventListener('click', () => {
         navigator.clipboard.writeText(_buildOrderText())
