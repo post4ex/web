@@ -402,16 +402,18 @@ const VaultBilling = (() => {
 
         // Inject detail content into vaultDetailView
         const dv = document.getElementById('vaultDetailView');
-        if (dv && !document.getElementById('vbDetailView')) {
-            dv.innerHTML = `
-                <div id="vbEmptyView" class="h-full flex items-center justify-center">
-                    <p class="text-gray-500 text-lg">Select an invoice from the list to view included shipments.</p>
-                </div>
-                <div id="vbDetailView" class="hidden space-y-6">
-                    <div id="vbInvoiceCard"   class="detail-card"></div>
-                    <div id="vbShipmentsCard" class="detail-card"></div>
-                    <div id="vbSummaryCard"   class="detail-card"></div>
-                </div>`;
+        if (dv) {
+            if (!document.getElementById('vbDetailView')) {
+                dv.innerHTML = `
+                    <div id="vbEmptyView" class="h-full flex items-center justify-center">
+                        <p class="text-gray-500 text-lg">Select an invoice from the list to view included shipments.</p>
+                    </div>
+                    <div id="vbDetailView" class="hidden space-y-6">
+                        <div id="vbInvoiceCard"   class="detail-card"></div>
+                        <div id="vbShipmentsCard" class="detail-card"></div>
+                        <div id="vbSummaryCard"   class="detail-card"></div>
+                    </div>`;
+            }
             VaultPage.showDetail(true);
         }
 
@@ -488,6 +490,9 @@ const VaultBilling = (() => {
                 if (res.status === 'success') {
                     modal.remove();
                     _showInvoiceBanner(res.inv_number, invDate, res.updated);
+                    // Force refresh so billing list reflects the new INV_NUMBER
+                    const fresh = await getAppData().catch(() => null);
+                    if (fresh) _initData(fresh);
                 } else {
                     errEl.textContent = res.detail || 'Failed to close invoice.'; errEl.classList.remove('hidden');
                 }
@@ -520,6 +525,9 @@ const VaultBilling = (() => {
     async function load() {
         _isUnbilled = false; _currentKey = null;
         _injectUI();
+        document.getElementById('vbUnbilledBtn')?.classList.remove('filter-active');
+        document.getElementById('vbDetailView')?.classList.add('hidden');
+        document.getElementById('vbEmptyView')?.classList.remove('hidden');
         document.getElementById('vaultSearch').oninput = _applyFilters;
 
         const data = await getAppData().catch(() => null);

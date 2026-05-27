@@ -12,7 +12,7 @@
         .form-input:focus { outline:none;border-color:#4f46e5;box-shadow:0 0 0 1px #4f46e5; }
 
         /* ── Tiles view ── */
-        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;height:100%;padding:2rem 1rem;overflow-y:auto; }
+        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;padding:2rem 1rem; }
         .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;width:100%;max-width:1100px; }
         .tile-section { width:100%;max-width:1100px;margin:1.5rem 0 .5rem; }
         .tile-section h2 { font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding-bottom:.4rem;border-bottom:1px solid #e5e7eb; }
@@ -23,11 +23,28 @@
         .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
 
         /* ── Split view ── */
-        #splitView { display:none;width:100%;height:100%; }
+        #splitView { display:none;width:100%; }
         #splitView.active { display:flex;flex-direction:row; }
 
-        #vaultListPane { width:100%;height:100%;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0; }
-        @media(min-width:768px){ #vaultListPane { width:33.333%; } }
+        #vaultListPane {
+            width:100%;
+            background:#fff;
+            border-right:1px solid #e5e7eb;
+            display:flex;
+            flex-direction:column;
+            overflow:hidden;
+            flex-shrink:0;
+            z-index: 20;
+        }
+        @media(min-width:768px){
+            #vaultListPane {
+                width:33.333%;
+                height:100vh;
+                position:sticky;
+                top:0;
+                padding-top:56px; /* Offset for sticky global header */
+            }
+        }
         @media(min-width:1024px){ #vaultListPane { width:25%; } }
 
         #vaultList li { padding:.75rem;border-radius:.5rem;cursor:pointer;transition:background-color .2s;border:1px solid #e5e7eb;line-height:1.4; }
@@ -39,16 +56,16 @@
         #vaultList .status-badge { font-size:.7rem;font-weight:600;padding:2px 6px;border-radius:.25rem;text-transform:uppercase; }
         .filter-active { background-color:#fca5a5 !important;color:#b91c1c !important; }
 
-        #vaultDetailPane { flex:1;height:100%;overflow-y:auto;background:#f9fafb;padding:1.5rem 2rem; }
+        #vaultDetailPane { flex:1;background:#f9fafb;padding:1.5rem 2rem; min-height: 100vh; }
         .detail-card { background:#fff;border-radius:.5rem;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.05); }
         .detail-card-header { padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#f9fafb;border-radius:.5rem .5rem 0 0; }
         .detail-card-body { padding:1rem; }
     </style>
 </head>
-<body class="bg-gray-100 flex flex-col" style="height:100vh;overflow:hidden;">
+<body class="bg-gray-100 min-h-screen flex flex-col">
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <div class="flex flex-col" style="height:calc(100vh - 56px);overflow:hidden;">
+    <main class="flex-1 flex flex-col">
 
         <!-- ── TILES VIEW ── -->
         <div id="tilesView">
@@ -138,7 +155,7 @@
         </div>
 
         <!-- ── SPLIT VIEW ── -->
-        <div id="splitView" style="height:100%;">
+        <div id="splitView">
             <aside id="vaultListPane">
                 <div class="p-4 border-b sticky top-0 bg-white z-10">
                     <div class="flex items-center gap-2 mb-3">
@@ -155,7 +172,7 @@
                     <ul id="vaultList" class="space-y-2"></ul>
                 </div>
             </aside>
-            <main id="vaultDetailPane" style="display:none;flex:1;height:100%;overflow-y:auto;background:#f9fafb;padding:1.5rem 2rem;">
+            <main id="vaultDetailPane" style="display:none;flex:1;background:#f9fafb;padding:1.5rem 2rem;">
                 <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
                     <button id="backToListBtn" class="btn-danger btn-sm flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
