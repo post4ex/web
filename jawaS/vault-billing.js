@@ -257,10 +257,16 @@ const VaultBilling = (() => {
         document.getElementById('vbShipmentsCard').innerHTML = `
             <div class="detail-card-header flex justify-between items-center">
                 <h3 class="font-semibold text-gray-700">Shipments (${shipments.length})</h3>
-                <button id="vbPrintBtn" class="px-3 py-1 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    Print Invoice
-                </button>
+                <div class="flex items-center gap-2">
+                    ${inv.KEY_TYPE !== 'INV' ? `<button id="vbCloseInvBtn" class="px-3 py-1 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Close Invoice
+                    </button>` : ''}
+                    <button id="vbPrintBtn" class="px-3 py-1 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print Invoice
+                    </button>
+                </div>
             </div>
             <div class="detail-card-body overflow-x-auto hidden md:block">
                 <table class="min-w-full text-xs divide-y divide-gray-200">
@@ -280,6 +286,7 @@ const VaultBilling = (() => {
             <div class="detail-card-body md:hidden space-y-2">${mobileCards}</div>`;
 
         document.getElementById('vbPrintBtn').onclick = () => _print(inv, shipments, b2b, branch);
+        document.getElementById('vbCloseInvBtn')?.addEventListener('click', () => _showCloseInvModal(inv));
 
         // Card 3 — Summary
         let fright=0, other=0, gst=0, total=0;
@@ -433,6 +440,80 @@ const VaultBilling = (() => {
             document.getElementById('vbApplyBtn').onclick  = () => { _isUnbilled = false; document.getElementById('vbUnbilledBtn')?.classList.remove('filter-active'); _applyFilters(); modal.classList.add('hidden'); };
             document.getElementById('vbResetBtn').onclick  = () => { ['vbFilterStart','vbFilterEnd','vbFilterBranch','vbFilterCode','vbFilterCarrier'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); _applyFilters(); };
         }
+    }
+
+    // ── Close Invoice Modal ────────────────────────────────────────────────────
+    function _showCloseInvModal(inv) {
+        let modal = document.getElementById('vbCloseInvModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'vbCloseInvModal';
+            modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+                    <h3 class="text-base font-semibold text-gray-800">Close Invoice</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number <span class="text-gray-400">(leave blank to auto-assign)</span></label>
+                            <input id="vbCloseInvNum" type="text" class="form-input w-full" placeholder="Auto">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date</label>
+                            <input id="vbCloseInvDate" type="date" class="form-input w-full">
+                        </div>
+                        <p id="vbCloseInvErr" class="text-xs text-red-600 hidden"></p>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        <button id="vbCloseInvConfirm" class="flex-1 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm</button>
+                        <button id="vbCloseInvCancel" class="flex-1 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            document.getElementById('vbCloseInvCancel').onclick = () => modal.remove();
+        }
+        document.getElementById('vbCloseInvDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('vbCloseInvNum').value = '';
+        document.getElementById('vbCloseInvErr').classList.add('hidden');
+
+        document.getElementById('vbCloseInvConfirm').onclick = async () => {
+            const invNum  = document.getElementById('vbCloseInvNum').value.trim() || null;
+            const invDate = document.getElementById('vbCloseInvDate').value;
+            const errEl   = document.getElementById('vbCloseInvErr');
+            if (!invDate) { errEl.textContent = 'Invoice date is required.'; errEl.classList.remove('hidden'); return; }
+
+            const btn = document.getElementById('vbCloseInvConfirm');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                const res = await callApi('/api/closeInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: invDate });
+                if (res.status === 'success') {
+                    modal.remove();
+                    _showInvoiceBanner(res.inv_number, invDate, res.updated);
+                } else {
+                    errEl.textContent = res.detail || 'Failed to close invoice.'; errEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                errEl.textContent = e.message || 'Error closing invoice.'; errEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Confirm';
+            }
+        };
+    }
+
+    function _showInvoiceBanner(invNum, invDate, count) {
+        document.getElementById('vbInvBanner')?.remove();
+        const banner = document.createElement('div');
+        banner.id = 'vbInvBanner';
+        banner.className = 'flex items-center justify-between gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 mb-4';
+        banner.innerHTML = `
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Invoice <strong>${invNum}</strong> closed on <strong>${invDate}</strong> — ${count} order${count !== 1 ? 's' : ''} updated.</span>
+            </div>
+            <button onclick="document.getElementById('vbInvBanner').remove()" class="text-green-600 hover:text-green-800 flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>`;
+        const detail = document.getElementById('vaultDetailView');
+        detail?.prepend(banner);
     }
 
     // ── Public load() ─────────────────────────────────────────────────────────

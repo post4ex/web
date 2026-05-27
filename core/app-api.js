@@ -15,7 +15,7 @@ const MUTATING_ENDPOINTS = [
     '/api/writeBranch', '/api/deleteBranch',
     '/api/writeCarrier', '/api/deleteCarrier',
     '/api/writeMode', '/api/deleteMode',
-    '/api/uploadOrders', '/api/editUpload', '/api/deleteOrder',
+    '/api/uploadOrders', '/api/editUpload', '/api/deleteOrder', '/api/closeInvoice',
 ];
 
 async function callApi(endpoint, payload = {}, method = 'POST') {
