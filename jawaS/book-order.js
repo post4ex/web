@@ -1306,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bookButton.textContent = 'Updating...';
             try {
                 const savedEditRef = editOrderRef;
-                const payload = buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, editOrderRef);
+                const payload = buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, editOrderRef, selectedCustomerDetails.BILL_CYCLE);
                 await submitEditOrder(payload);
                 bookingMessage.textContent = `Updated! Ref: ${savedEditRef} — waiting for server confirmation...`;
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-blue-700 bg-blue-50';
@@ -1334,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             bookButton.textContent = 'Booking...';
             try {
-                const payload = buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput);
+                const payload = buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, selectedCustomerDetails.BILL_CYCLE);
                 const result = await submitBookOrder(payload);
                 bookingMessage.textContent = `Booked! Ref: ${result.reference} — waiting for server confirmation...`;
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-blue-700 bg-blue-50';

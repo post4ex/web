@@ -323,7 +323,7 @@ function detectProductCode(order) {
     const mode   = (order.MODE    || '').trim().toUpperCase();
     const weight = parseFloat(order.WEIGHT || 0);
     const isCOD  = order.COD   === 'Y' || parseFloat(order.COD)   > 0;
-    const isTopay= order.TOPAY === 'Y' || parseFloat(order.TOPAY_CHG) > 0;
+    const isTopay= order.TOPAY === 'Y' || order.TOPAY === 'Yes' || parseFloat(order.TOPAY_CHG) > 0;
     const isVAS  = isCOD || isTopay;
 
     // Normalise carrier name

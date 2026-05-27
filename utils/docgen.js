@@ -135,7 +135,7 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
 
     let paymentMode = 'PREPAID', orderValue = 'N/A';
     const isCOD   = order.COD   === 'Y' || parseFloat(order.COD)   > 0;
-    const isTopay  = order.TOPAY === 'Y' || parseFloat(order.TOPAY_CHG) > 0;
+    const isTopay  = order.TOPAY === 'Y' || order.TOPAY === 'Yes' || parseFloat(order.TOPAY_CHG) > 0;
     const codVal   = isCOD   ? parseFloat(order.VALUE || 0).toFixed(2) : null;
     const topayVal = isTopay ? parseFloat(order.TOTAL || 0).toFixed(2) : null;
     let paymentDisplay = '';
@@ -266,7 +266,7 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType, branch) {
     const cneeMobile  = _esc(cnee?.MOBILE || 'N/A');
 
     const hasCOD   = order.COD   === 'Y' || parseFloat(order.COD)   > 0;
-    const hasTopay = order.TOPAY === 'Y' || parseFloat(order.TOPAY_CHG) > 0;
+    const hasTopay = order.TOPAY === 'Y' || order.TOPAY === 'Yes' || parseFloat(order.TOPAY_CHG) > 0;
     let paymentMode = 'PREPAID', totalAmt = 0;
     if (hasCOD && hasTopay)   paymentMode = 'TOPAY+COD';
     else if (hasCOD)          paymentMode = 'COD';
