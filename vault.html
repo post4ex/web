@@ -7,12 +7,12 @@
     <link href="style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <style>
-        /* ── Shared ── */
+        /* ── Vault Specific Styles ── */
         .form-input { border-radius:.375rem;border:1px solid #d1d5db;padding:.5rem .75rem;font-size:.875rem;width:100%;transition:border-color .2s; }
         .form-input:focus { outline:none;border-color:#4f46e5;box-shadow:0 0 0 1px #4f46e5; }
 
-        /* ── Tiles view ── */
-        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;padding:2rem 1rem; }
+        /* Tiles view remains independent */
+        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;flex:1;padding:2rem 1rem;overflow-y:auto; }
         .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;width:100%;max-width:1100px; }
         .tile-section { width:100%;max-width:1100px;margin:1.5rem 0 .5rem; }
         .tile-section h2 { font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding-bottom:.4rem;border-bottom:1px solid #e5e7eb; }
@@ -22,50 +22,30 @@
         .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
         .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
 
-        /* ── Split view ── */
-        #splitView { display:none;width:100%; }
-        #splitView.active { display:flex;flex-direction:row; }
-
-        #vaultListPane {
-            width:100%;
-            background:#fff;
-            border-right:1px solid #e5e7eb;
-            display:flex;
-            flex-direction:column;
-            overflow:hidden;
-            flex-shrink:0;
-            z-index: 20;
-        }
+        /* Split view overrides to ensure sidebar is sticky and full-height */
         @media(min-width:768px){
-            #vaultListPane {
-                width:33.333%;
-                height:100vh;
-                position:sticky;
-                top:0;
-                padding-top:56px; /* Offset for sticky global header */
+            .split-view > :first-child {
+                position: sticky;
+                top: 0;
+                height: 100vh;
+                padding-top: 56px; /* Offset for global sticky header */
             }
         }
-        @media(min-width:1024px){ #vaultListPane { width:25%; } }
 
-        #vaultList li { padding:.75rem;border-radius:.5rem;cursor:pointer;transition:background-color .2s;border:1px solid #e5e7eb;line-height:1.4; }
-        #vaultList li.selected { background-color:#e0e7ff;font-weight:500;border-color:#c7d2fe; }
-        #vaultList li:hover { background-color:#eef2ff; }
-        #vaultList li strong { color:#4338ca;display:block;font-size:.875rem;font-weight:600; }
-        #vaultList .client-info { font-size:.75rem;color:#6b7280; }
-        #vaultList .details-info { font-size:.75rem;color:#4b5563;margin-top:4px;display:flex;justify-content:space-between; }
-        #vaultList .status-badge { font-size:.7rem;font-weight:600;padding:2px 6px;border-radius:.25rem;text-transform:uppercase; }
-        .filter-active { background-color:#fca5a5 !important;color:#b91c1c !important; }
-
-        #vaultDetailPane { flex:1;background:#f9fafb;padding:1.5rem 2rem; min-height: 100vh; }
+        /* Detail card (used inside main) */
         .detail-card { background:#fff;border-radius:.5rem;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.05); }
-        .detail-card-header { padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#f9fafb;border-radius:.5rem .5rem 0 0; }
+        .detail-card-header { padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#f9fafb;border-top-left-radius:.5rem;border-top-right-radius:.5rem; }
         .detail-card-body { padding:1rem; }
+
+        .filter-active { background-color:#fca5a5 !important; color:#b91c1c !important; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Header placeholder -->
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <main class="flex-1 flex flex-col">
+    <!-- Main Content Area -->
+    <main class="flex-grow flex flex-col">
 
         <!-- ── TILES VIEW ── -->
         <div id="tilesView">
@@ -74,7 +54,6 @@
                 <span class="text-xs text-gray-400">Accounting &amp; Finance</span>
             </div>
 
-            <!-- Sales -->
             <div class="tile-section"><h2>Sales</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="billing"          style="border-color:#fef3c7;"><div class="tile-icon">🧮</div><div class="tile-label">Billing</div></div>
@@ -87,7 +66,6 @@
                 <div class="tile" data-tile="product-items"    style="border-color:#fef9c3;"><div class="tile-icon">🏷️</div><div class="tile-label">Product Items</div></div>
             </div>
 
-            <!-- Purchases -->
             <div class="tile-section"><h2>Purchases</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="purchase-bills"   style="border-color:#ffedd5;"><div class="tile-icon">🛒</div><div class="tile-label">Purchase Bills</div></div>
@@ -95,14 +73,12 @@
                 <div class="tile" data-tile="suppliers"        style="border-color:#fef9c3;"><div class="tile-icon">🏭</div><div class="tile-label">Suppliers</div></div>
             </div>
 
-            <!-- Inventory -->
             <div class="tile-section"><h2>Inventory</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="inventory"        style="border-color:#d1fae5;"><div class="tile-icon">📦</div><div class="tile-label">Inventory</div></div>
                 <div class="tile" data-tile="stock-transfers"  style="border-color:#e0f2fe;"><div class="tile-icon">🔀</div><div class="tile-label">Stock Transfers</div></div>
             </div>
 
-            <!-- Payments -->
             <div class="tile-section"><h2>Payments</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="receipts"         style="border-color:#d1fae5;"><div class="tile-icon">💰</div><div class="tile-label">Receipts</div></div>
@@ -112,7 +88,6 @@
                 <div class="tile" data-tile="wallet"           style="border-color:#d1fae5;"><div class="tile-icon">👛</div><div class="tile-label">Wallet</div></div>
             </div>
 
-            <!-- Payroll & Expenses -->
             <div class="tile-section"><h2>Payroll &amp; Expenses</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="employees"        style="border-color:#f3f4f6;"><div class="tile-icon">👥</div><div class="tile-label">Employees</div></div>
@@ -123,7 +98,6 @@
                 <div class="tile" data-tile="branch-advances"  style="border-color:#fce7f3;"><div class="tile-icon">🏢</div><div class="tile-label">Branch Advances</div></div>
             </div>
 
-            <!-- Ledger & Journals -->
             <div class="tile-section"><h2>Ledger &amp; Journals</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="chart-of-accounts" style="border-color:#e0e7ff;"><div class="tile-icon">📒</div><div class="tile-label">Chart of Accounts</div></div>
@@ -132,7 +106,6 @@
                 <div class="tile" data-tile="opening-balances"  style="border-color:#fef3c7;"><div class="tile-icon">🗂️</div><div class="tile-label">Opening Balances</div></div>
             </div>
 
-            <!-- GST -->
             <div class="tile-section"><h2>GST</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="gstr1"            style="border-color:#dcfce7;"><div class="tile-icon">🇮🇳</div><div class="tile-label">GSTR-1</div></div>
@@ -144,7 +117,6 @@
                 <div class="tile" data-tile="gst-filing"       style="border-color:#dcfce7;"><div class="tile-icon">🗓️</div><div class="tile-label">GST Filing</div></div>
             </div>
 
-            <!-- Reports -->
             <div class="tile-section"><h2>Reports</h2></div>
             <div class="tile-grid">
                 <div class="tile" data-tile="summary"          style="border-color:#dbeafe;"><div class="tile-icon">📈</div><div class="tile-label">Summary</div></div>
@@ -154,41 +126,53 @@
             </div>
         </div>
 
-        <!-- ── SPLIT VIEW ── -->
-        <div id="splitView">
+        <!-- ── SPLIT VIEW (Standard Architecture) ── -->
+        <div id="splitView" class="split-view">
+            
+            <!-- Left Pane: List -->
             <aside id="vaultListPane">
-                <div class="p-4 border-b sticky top-0 bg-white z-10">
+                <div class="sv-pane-header">
                     <div class="flex items-center gap-2 mb-3">
                         <button id="backToTilesBtn" class="text-gray-400 hover:text-gray-700 p-1 rounded" title="Back">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                         </button>
-                        <h2 id="splitTitle" class="text-lg font-bold text-gray-800 flex-1"></h2>
+                        <h2 id="splitTitle" class="text-xl font-bold text-gray-800 flex-1"></h2>
                         <button id="vaultAddBtn" class="btn-ghost btn-sm hidden">+ Add</button>
                     </div>
                     <input id="vaultSearch" type="text" placeholder="Search…" class="form-input text-sm">
                 </div>
-                <div class="overflow-y-auto flex-1 min-h-0 p-3">
+                <div id="vaultListContainer" class="sv-pane-body">
                     <p id="vaultListMsg" class="text-gray-400 text-sm text-center py-8">Loading…</p>
-                    <ul id="vaultList" class="space-y-2"></ul>
+                    <ul id="vaultList">
+                        <!-- List items rendered by JS -->
+                    </ul>
                 </div>
             </aside>
-            <main id="vaultDetailPane" style="display:none;flex:1;background:#f9fafb;padding:1.5rem 2rem;">
+
+            <!-- Right Pane: Details -->
+            <main id="vaultDetailPane" class="p-6 md:p-8" style="display:none;">
+                <!-- Back button (mobile only) -->
                 <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
                     <button id="backToListBtn" class="btn-danger btn-sm flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                         Back
                     </button>
                 </div>
+                
                 <div id="vaultDetailEmpty" class="h-full flex items-center justify-center">
                     <p class="text-gray-400 text-lg">Select an item to view details.</p>
                 </div>
-                <div id="vaultDetailView" class="hidden space-y-4"></div>
+                
+                <div id="vaultDetailView" class="hidden space-y-6">
+                    <!-- Cards rendered by module JS -->
+                </div>
             </main>
         </div>
 
-    </div>
+    </main>
 
-    <div id="footer-placeholder" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
+    <!-- Footer placeholder -->
+    <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>
 
     <script src="core/app-config.js"></script>
     <script src="core/app-notify.js"></script>

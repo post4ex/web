@@ -180,10 +180,10 @@ const VaultBilling = (() => {
             const li = document.createElement('li');
             li.innerHTML = `
                 <strong>${primary}</strong>
-                <span class="client-info">${secondary}</span>
-                <div class="details-info">
+                <span class="sv-item-sub">${secondary}</span>
+                <div class="sv-item-meta">
                     <span>Date: ${dt}</span>
-                    <span class="status-badge bg-indigo-100 text-indigo-700">₹${(inv.TOTAL||0).toFixed(2)}</span>
+                    <span class="sv-status-badge bg-indigo-100 text-indigo-700">₹${(inv.TOTAL||0).toFixed(2)}</span>
                 </div>`;
             li.dataset.ref = key;
             if (key === _currentKey) li.classList.add('selected');
@@ -362,7 +362,7 @@ const VaultBilling = (() => {
     function _injectUI() {
         // Inject list header controls above #vaultList
         const listPane = document.getElementById('vaultListPane');
-        const header   = listPane?.querySelector('.p-4.border-b');
+        const header   = listPane?.querySelector('.sv-pane-header');
         if (header && !document.getElementById('vbUnbilledBtn')) {
             // Add UnBilled toggle next to title
             const titleRow = header.querySelector('.flex.items-center.gap-2');
@@ -424,7 +424,12 @@ const VaultBilling = (() => {
             modal.className = 'modal-overlay hidden';
             modal.innerHTML = `
                 <div class="modal-content space-y-4">
-                    <h2 class="text-xl font-semibold text-gray-800">Filter Invoices</h2>
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold text-gray-800">Filter Invoices</h2>
+                        <button onclick="document.getElementById('vbFilterModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-700 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-medium text-gray-700">Start Date</label><input type="date" id="vbFilterStart" class="form-input mt-1 text-sm"></div>
                         <div><label class="block text-sm font-medium text-gray-700">End Date</label><input type="date" id="vbFilterEnd" class="form-input mt-1 text-sm"></div>
@@ -452,7 +457,10 @@ const VaultBilling = (() => {
             modal.id = 'vbCloseInvModal';
             modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50';
             modal.innerHTML = `
-                <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4 relative">
+                    <button onclick="document.getElementById('vbCloseInvModal').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                     <h3 class="text-base font-semibold text-gray-800">Close Invoice</h3>
                     <div class="space-y-3">
                         <div>
