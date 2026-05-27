@@ -1306,6 +1306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bookButton.textContent = 'Updating...';
             try {
                 const savedEditRef = editOrderRef;
+                const payload = buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, editOrderRef);
                 await submitEditOrder(payload);
                 bookingMessage.textContent = `Updated! Ref: ${savedEditRef} — waiting for server confirmation...`;
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-blue-700 bg-blue-50';
