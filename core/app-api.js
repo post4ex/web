@@ -343,7 +343,7 @@ async function getAppData(sheetName = null) {
     try {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
-        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER'];
         const result  = {};
         const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
         sheets.forEach((s, i) => result[s] = results[i]);

@@ -17,7 +17,7 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 7; // Increment version to recreate schema
+    this.version = 8; // Increment version to recreate schema
     this.db = null;
     
     // Define unique key for each sheet (must match PocketBase field names)
@@ -38,6 +38,7 @@ class AppDatabase {
       'NOTIFICATIONS': 'NOTIF_ID',
       'HOLIDAYS':   'HOLIDAY_ID',
       'EVENTS':     'id',
+      'LEDGER':     'ENTRY_ID',
     };
   }
 
@@ -60,7 +61,7 @@ class AppDatabase {
         const sheets = [
           'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
           'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
-          'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS'
+          'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', 'LEDGER'
         ];
         
         // Create object stores with correct key paths
