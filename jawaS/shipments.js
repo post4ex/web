@@ -660,7 +660,7 @@ function renderProductAndBoxDetails(order) {
                     <div class="font-semibold text-gray-800">${i.PRODUCT||'N/A'}</div>
                     <div class="flex justify-between mt-1 pt-1 border-t"><span class="text-gray-500">Doc#:</span><span class="font-medium text-gray-700">${docCell}</span></div>
                     <div class="flex justify-between mt-1"><span class="text-gray-500">EWay:</span><span class="font-medium text-gray-700">${ewayCell}</span></div>
-                    <div class="flex justify-between mt-1"><span class="text-gray-500">Amt:</span><span class="font-medium text-gray-700">${i.AMOUNT?i.AMOUNT.toFixed(2):'0.00'}</span></div>
+                    <div class="flex justify-between mt-1"><span class="text-gray-500">Amt:</span><span class="font-medium text-gray-700">${parseFloat(i.AMOUNT||0).toFixed(2)}</span></div>
                 </div>`;
             });
             h_body += `</div>`;
@@ -670,7 +670,7 @@ function renderProductAndBoxDetails(order) {
                 const ewayUpload = u.find(up => up.UPLOAD_TYPE === 'Product' && up.DOC_NUMBER === i.EWAY_IF    && up.DOC_TYPE?.toUpperCase() === 'EWB');
                 const docCell    = docUpload  ? `<a href="${docUpload.FILE_URL}"  target="_blank" class="text-blue-600 hover:underline">${i.DOC_NUMBER||'N/A'}</a>`  : (i.DOC_NUMBER||'N/A');
                 const ewayCell   = ewayUpload ? `<a href="${ewayUpload.FILE_URL}" target="_blank" class="text-blue-600 hover:underline">${i.EWAY_IF||'N/A'}</a>` : (i.EWAY_IF||'N/A');
-                h_body += `<tr><td class="px-2 py-1">${i.PRODUCT||'N/A'}</td><td class="px-2 py-1">${docCell}</td><td class="px-2 py-1">${ewayCell}</td><td class="px-2 py-1 text-right">${i.AMOUNT?i.AMOUNT.toFixed(2):'0.00'}</td></tr>`;
+                h_body += `<tr><td class="px-2 py-1">${i.PRODUCT||'N/A'}</td><td class="px-2 py-1">${docCell}</td><td class="px-2 py-1">${ewayCell}</td><td class="px-2 py-1 text-right">${parseFloat(i.AMOUNT||0).toFixed(2)}</td></tr>`;
             });
             h_body += `</tbody></table></div></div>`;
         } else {
@@ -687,14 +687,14 @@ function renderProductAndBoxDetails(order) {
                     <div class="font-semibold text-gray-800">Box#: ${i.BOX_NUM||'N/A'}</div>
                     <div class="flex justify-between mt-1 pt-1 border-t"><span class="text-gray-500">Weight:</span><span class="font-medium text-gray-700">${i.WEIGHT||0}</span></div>
                     <div class="flex justify-between mt-1"><span class="text-gray-500">L*B*H:</span><span class="font-medium text-gray-700">${lbh}</span></div>
-                    <div class="flex justify-between mt-1"><span class="text-gray-500">Chg Wt:</span><span class="font-medium text-gray-700">${(i.CHG_WT||0).toFixed(2)}</span></div>
+                    <div class="flex justify-between mt-1"><span class="text-gray-500">Chg Wt:</span><span class="font-medium text-gray-700">${parseFloat(i.CHG_WT||0).toFixed(2)}</span></div>
                 </div>`;
             });
             h_body += `</div>`;
             h_body += `<div class="hidden sm:block border rounded-md overflow-hidden"><table class="min-w-full text-xs divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Weight</th><th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">L*B*H</th><th class="px-2 py-1 text-right font-medium text-gray-500 uppercase">Chg Wt</th><th class="px-2 py-1 text-right font-medium text-gray-500 uppercase">Box#</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
             b.forEach(i => {
                 const lbh = `${parseFloat(i.LENGTH)||0}*${parseFloat(i.BREADTH)||0}*${parseFloat(i.HIGHT)||0}`;
-                h_body += `<tr><td class="px-2 py-1">${i.WEIGHT||0}</td><td class="px-2 py-1">${lbh}</td><td class="px-2 py-1 text-right">${(i.CHG_WT||0).toFixed(2)}</td><td class="px-2 py-1 text-right">${i.BOX_NUM||'N/A'}</td></tr>`;
+                h_body += `<tr><td class="px-2 py-1">${i.WEIGHT||0}</td><td class="px-2 py-1">${lbh}</td><td class="px-2 py-1 text-right">${parseFloat(i.CHG_WT||0).toFixed(2)}</td><td class="px-2 py-1 text-right">${i.BOX_NUM||'N/A'}</td></tr>`;
             });
             h_body += `</tbody></table></div></div>`;
         } else {
