@@ -481,7 +481,7 @@ const VaultBilling = (() => {
             document.body.appendChild(modal);
             document.getElementById('vbCloseInvCancel').onclick = () => modal.remove();
         }
-        document.getElementById('vbCloseInvDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('vbCloseInvDate').value = fmtDate(Date.now(), 'input');
         document.getElementById('vbCloseInvNum').value = '';
         document.getElementById('vbCloseInvErr').classList.add('hidden');
 

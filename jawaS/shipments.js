@@ -245,8 +245,11 @@ function applyFilters() {
     ui.statusMessage.textContent = '';
 
     if (isMobileView()) {
-        ui.shipmentListPane.classList.remove('hidden');
-        ui.shipmentDetailPane.classList.add('hidden');
+        const detailVisible = !ui.shipmentDetailPane.classList.contains('hidden');
+        if (!detailVisible) {
+            ui.shipmentListPane.classList.remove('hidden');
+            ui.shipmentDetailPane.classList.add('hidden');
+        }
         if (currentSelectedRef && !filteredOrders.find(o => o.REFERENCE === currentSelectedRef))
             currentSelectedRef = null;
     } else {
