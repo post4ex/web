@@ -6,6 +6,7 @@
 let allOrders       = [];
 let currentSelectedRef = null;
 let activeTileFilter   = 'all'; // current tile selection
+let activeTatFilter    = null;  // quick filter within TAT tile: null|'delivered'|'outfordelivery'|'intransit'
 let b2b2cDataMap    = new Map(); // UID → B2B2C record
 let productDataMap  = new Map(); // REFERENCE → [products]
 let multiboxDataMap = new Map(); // REFERENCE → [boxes]
@@ -13,6 +14,7 @@ let uploadsDataMap  = new Map(); // REFERENCE → [uploads]
 let modesDataMap    = new Map(); // SHORT → MODE name
 let carriersDataMap = new Map(); // COMPANY_CODE → COMPANY_NAME
 let branchDataMap   = new Map(); // BRANCH_CODE → branch record
+let tatTrackStatuses = new Map(); // REFERENCE → state string
 
 let ui = {};
 
@@ -41,17 +43,16 @@ function _uploadActionBtns(url, uploadUid) {
 }
 
 // --- TILES ---
-const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due Today' };
+const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)' };
 
-function _isTatDueToday(order) {
+function _isTatDue(order) {
     const tat = parseInt(order.TAT);
     if (!tat || !order.ORDER_DATE) return false;
     const orderMs = parseFloat(order.ORDER_DATE) > 1e10 ? parseFloat(order.ORDER_DATE) : parseFloat(order.ORDER_DATE) * 1000;
-    const dueDate = new Date(orderMs + tat * 86400000);
-    const today   = new Date();
-    return dueDate.getFullYear() === today.getFullYear() &&
-           dueDate.getMonth()    === today.getMonth()    &&
-           dueDate.getDate()     === today.getDate();
+    const dueMs   = orderMs + tat * 86400000;
+    const today   = new Date(); today.setHours(0,0,0,0);
+    const limit   = new Date(today); limit.setDate(today.getDate() + 3); limit.setHours(23,59,59,999);
+    return dueMs >= today.getTime() && dueMs <= limit.getTime();
 }
 
 function updateTileCounts(orders) {
@@ -59,7 +60,7 @@ function updateTileCounts(orders) {
     orders.forEach(o => {
         if (o.TOPAY === 'Yes') counts.topay++;
         if (o.COD && parseFloat(o.COD) > 0) counts.cod++;
-        if (_isTatDueToday(o)) counts.tat++;
+        if (_isTatDue(o)) counts.tat++;
     });    Object.keys(counts).forEach(k => {
         const el = document.getElementById(`cnt-${k}`);
         if (el) el.textContent = counts[k];
@@ -80,6 +81,10 @@ function showSplitView(label) {
 
 function handleTileClick(tile) {
     activeTileFilter = tile;
+    activeTatFilter  = null;
+    tatTrackStatuses.clear();
+    document.getElementById('tatQuickFilters').style.display = 'none';
+    document.getElementById('tatQuickFilters').innerHTML = '';
     showSplitView(_tileLabels[tile] || 'Shipments');
     applyFilters();
 }
@@ -88,7 +93,15 @@ function _tileFilterMatch(order) {
     if (activeTileFilter === 'all')   return true;
     if (activeTileFilter === 'topay') return order.TOPAY === 'Yes';
     if (activeTileFilter === 'cod')   return order.COD && parseFloat(order.COD) > 0;
-    if (activeTileFilter === 'tat')   return _isTatDueToday(order);
+    if (activeTileFilter === 'tat') {
+        if (!_isTatDue(order)) return false;
+        if (activeTatFilter) {
+            const st = tatTrackStatuses.get(order.REFERENCE);
+            if (activeTatFilter === 'intransit') return st && st !== 'delivered' && st !== 'outfordelivery';
+            return st === activeTatFilter;
+        }
+        return true;
+    }
     return true;
 }
 
@@ -254,6 +267,11 @@ function applyFilters() {
         return sdMatch && edMatch && bMatch && cMatch && carMatch && sMatch && tileMatch;
     });
 
+    if (activeTileFilter === 'tat') {
+        const orderMs = o => parseFloat(o.ORDER_DATE) > 1e10 ? parseFloat(o.ORDER_DATE) : parseFloat(o.ORDER_DATE) * 1000;
+        filteredOrders.sort((a, b) => (orderMs(a) + parseInt(a.TAT||0)*86400000) - (orderMs(b) + parseInt(b.TAT||0)*86400000));
+    }
+
     renderShipmentList(filteredOrders);
     ui.statusMessage.textContent = '';
 
@@ -294,11 +312,71 @@ function renderShipmentList(orders) {
         const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
         const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
         const li   = document.createElement('li');
-        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
+        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span id="track-${ref}" class="text-xs text-gray-400"></span></div>`;
         li.dataset.ref = ref;
         li.addEventListener('click', () => handleShipmentSelection(ref, li));
         if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
         ui.shipmentList.appendChild(li);
+    });
+    
+    if (activeTileFilter === 'tat') _fetchTatTrackStatuses(orders);
+}
+
+async function _fetchTatTrackStatuses(orders) {
+    const trackable = orders.filter(o => o.AWB_NUMBER && o.CARRIER);
+    if (!trackable.length) return;
+
+    await Promise.all(trackable.map(async order => {
+        const el = document.getElementById(`track-${order.REFERENCE}`);
+        if (el) el.textContent = '⏳';
+        try {
+            const result = await trackShipment(order.REFERENCE);
+            const state  = result.shipment?.state || 'pending';
+            tatTrackStatuses.set(order.REFERENCE, state);
+            if (el) {
+                const cfg = _stateConfig[state] || _stateConfig.pending;
+                el.innerHTML = `<span class="px-1.5 py-0.5 rounded text-xs ${cfg.cls}">${cfg.label}</span>`;
+            }
+        } catch {
+            if (el) el.textContent = '—';
+        }
+    }));
+
+    _renderTatQuickFilters();
+
+    // auto-filter to Delivered
+    if ([...tatTrackStatuses.values()].some(s => s === 'delivered')) {
+        activeTatFilter = 'delivered';
+        _updateTatPills();
+        applyFilters();
+    }
+}
+
+function _renderTatQuickFilters() {
+    const pills = [
+        { key: 'delivered',     label: 'Delivered',        cls: 'bg-green-100 text-green-800'   },
+        { key: 'outfordelivery',label: 'OFD',              cls: 'bg-blue-100 text-blue-800'     },
+        { key: 'intransit',     label: 'In Transit',       cls: 'bg-yellow-100 text-yellow-800' },
+    ];
+    const el = document.getElementById('tatQuickFilters');
+    el.innerHTML = pills.map(p => `
+        <button data-tqf="${p.key}" class="tqf-pill px-2 py-0.5 rounded-full text-xs font-medium border ${p.cls} border-transparent opacity-60 hover:opacity-100 transition-opacity">${p.label}</button>
+    `).join('');
+    el.querySelectorAll('.tqf-pill').forEach(btn => btn.addEventListener('click', () => {
+        activeTatFilter = activeTatFilter === btn.dataset.tqf ? null : btn.dataset.tqf;
+        _updateTatPills();
+        applyFilters();
+    }));
+    el.style.display = 'flex';
+    _updateTatPills();
+}
+
+function _updateTatPills() {
+    document.querySelectorAll('.tqf-pill').forEach(btn => {
+        btn.classList.toggle('opacity-100', btn.dataset.tqf === activeTatFilter);
+        btn.classList.toggle('opacity-60',  btn.dataset.tqf !== activeTatFilter);
+        btn.classList.toggle('ring-2',      btn.dataset.tqf === activeTatFilter);
+        btn.classList.toggle('ring-offset-1', btn.dataset.tqf === activeTatFilter);
     });
 }
 
