@@ -17,28 +17,29 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 8; // Increment version to recreate schema
+    this.version = 9; // SHIPMENTS added
     this.db = null;
     
     // Define unique key for each sheet (must match PocketBase field names)
     this.sheetKeys = {
-      'ORDERS':     'REFERENCE',
-      'B2B':        'CODE',
-      'B2B2C':      'UID',
-      'RATES':      'UID',
-      'STAFF':      'STAFF_CODE',
-      'ATTENDANCE': 'ATTENDANCE_ID',
-      'BRANCHES':   'BRANCH_CODE',
-      'MODES':      'SHORT',
-      'CARRIERS':   'COMPANY_CODE',
-      'MULTIBOX':   'MB_UID',
-      'PRODUCTS':   'PD_UID',
-      'UPLOADS':    'UPLOAD_UID',
-      'CALC_HISTORY': 'CALC_UID',
+      'ORDERS':        'REFERENCE',
+      'B2B':           'CODE',
+      'B2B2C':         'UID',
+      'RATES':         'UID',
+      'STAFF':         'STAFF_CODE',
+      'ATTENDANCE':    'ATTENDANCE_ID',
+      'BRANCHES':      'BRANCH_CODE',
+      'MODES':         'SHORT',
+      'CARRIERS':      'COMPANY_CODE',
+      'MULTIBOX':      'MB_UID',
+      'PRODUCTS':      'PD_UID',
+      'UPLOADS':       'UPLOAD_UID',
+      'CALC_HISTORY':  'CALC_UID',
       'NOTIFICATIONS': 'NOTIF_ID',
-      'HOLIDAYS':   'HOLIDAY_ID',
-      'EVENTS':     'id',
-      'LEDGER':     'ENTRY_ID',
+      'HOLIDAYS':      'HOLIDAY_ID',
+      'EVENTS':        'id',
+      'LEDGER':        'ENTRY_ID',
+      'SHIPMENTS':     'REFERENCE',
     };
   }
 
@@ -61,7 +62,8 @@ class AppDatabase {
         const sheets = [
           'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
           'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
-          'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', 'LEDGER'
+          'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY',
+          'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', 'LEDGER', 'SHIPMENTS'
         ];
         
         // Create object stores with correct key paths
@@ -222,7 +224,8 @@ class AppDatabase {
     const sheets = [
       'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
       'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
-      'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY', 'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', '_metadata'
+      'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY',
+      'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', 'LEDGER', 'SHIPMENTS', '_metadata'
     ];
     
     for (const sheetName of sheets) {

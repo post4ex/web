@@ -278,21 +278,21 @@ window.deleteUploadRecord = async function (uploadUid, btnEl) {
     }
 };
 
-// trackShipment — fetch tracking data by reference (DB read, fast)
-// Returns {shipment, movements} or throws on error
+// trackShipment — shipment from IDB, movements from app cache
 window.trackShipment = async function (ref) {
-    const base  = CONSTANTS.OPERATIONS_URL;
-    const token = getSessionId();
-    const res   = await fetch(`${base}/api/track?ref=${encodeURIComponent(ref)}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        cache: 'no-store',
-    });
-    const json = await res.json();
-    if (!res.ok || json.status === 'error') throw new Error(json.message || json.detail || 'Tracking failed');
+    const shipment = (await window.appDB?.getSheet('SHIPMENTS') || {})[ref];
+    if (shipment) {
+        // shipment already in IDB — just fetch movements from app cache
+        const json = await callApi(`/api/movements?ref=${encodeURIComponent(ref)}`, {}, 'GET');
+        return { shipment, movements: json.movements };
+    }
+    // fallback — shipment not in IDB yet, get both from app cache via API
+    const json = await callApi(`/api/movements?ref=${encodeURIComponent(ref)}`, {}, 'GET');
+    if (json.status === 'error') throw new Error(json.message || 'Tracking failed');
     return json;  // {shipment, movements}
 };
 
-// trackShipmentLive — force live scrape
+// trackShipmentLive — force live scrape via track service
 window.trackShipmentLive = async function (ref) {
     const base  = CONSTANTS.OPERATIONS_URL;
     const token = getSessionId();
@@ -343,7 +343,7 @@ async function getAppData(sheetName = null) {
     try {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
-        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'EVENTS'];
         const result  = {};
         const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
         sheets.forEach((s, i) => result[s] = results[i]);
