@@ -41,15 +41,26 @@ function _uploadActionBtns(url, uploadUid) {
 }
 
 // --- TILES ---
-const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD' };
+const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due Today' };
+
+function _isTatDueToday(order) {
+    const tat = parseInt(order.TAT);
+    if (!tat || !order.ORDER_DATE) return false;
+    const orderMs = parseFloat(order.ORDER_DATE) > 1e10 ? parseFloat(order.ORDER_DATE) : parseFloat(order.ORDER_DATE) * 1000;
+    const dueDate = new Date(orderMs + tat * 86400000);
+    const today   = new Date();
+    return dueDate.getFullYear() === today.getFullYear() &&
+           dueDate.getMonth()    === today.getMonth()    &&
+           dueDate.getDate()     === today.getDate();
+}
 
 function updateTileCounts(orders) {
-    const counts = { all: orders.length, topay:0, cod:0 };
+    const counts = { all: orders.length, topay:0, cod:0, tat:0 };
     orders.forEach(o => {
         if (o.TOPAY === 'Yes') counts.topay++;
         if (o.COD && parseFloat(o.COD) > 0) counts.cod++;
-    });
-    Object.keys(counts).forEach(k => {
+        if (_isTatDueToday(o)) counts.tat++;
+    });    Object.keys(counts).forEach(k => {
         const el = document.getElementById(`cnt-${k}`);
         if (el) el.textContent = counts[k];
     });
@@ -68,9 +79,7 @@ function showSplitView(label) {
 }
 
 function handleTileClick(tile) {
-    if (tile === 'track') { openTrackTile(); return; }
     activeTileFilter = tile;
-    document.getElementById('trackDetailView')?.classList.add('hidden');
     showSplitView(_tileLabels[tile] || 'Shipments');
     applyFilters();
 }
@@ -79,6 +88,7 @@ function _tileFilterMatch(order) {
     if (activeTileFilter === 'all')   return true;
     if (activeTileFilter === 'topay') return order.TOPAY === 'Yes';
     if (activeTileFilter === 'cod')   return order.COD && parseFloat(order.COD) > 0;
+    if (activeTileFilter === 'tat')   return _isTatDueToday(order);
     return true;
 }
 
@@ -235,8 +245,11 @@ function applyFilters() {
         const sMatch   = !searchTerm ||
             String(order.REFERENCE  || '').toLowerCase().includes(searchTerm) ||
             String(order.AWB_NUMBER || '').toLowerCase().includes(searchTerm) ||
-            (order.CONSIGNOR || '').toLowerCase().includes(searchTerm) ||
-            (order.CONSIGNEE || '').toLowerCase().includes(searchTerm);
+            (b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || '').toLowerCase().includes(searchTerm) ||
+            (b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || '').toLowerCase().includes(searchTerm) ||
+            (b2b2cDataMap.get(order.CONSIGNEE)?.CITY || order.DEST_CITY || '').toLowerCase().includes(searchTerm) ||
+            (b2b2cDataMap.get(order.CONSIGNEE)?.PINCODE || order.DEST_PINCODE || '').toLowerCase().includes(searchTerm) ||
+            (b2b2cDataMap.get(order.CONSIGNOR)?.CITY || order.ORIGIN_CITY || '').toLowerCase().includes(searchTerm);
         const tileMatch = _tileFilterMatch(order);
         return sdMatch && edMatch && bMatch && cMatch && carMatch && sMatch && tileMatch;
     });
@@ -299,7 +312,6 @@ function showDetailView() {
     }
     ui.emptyView.classList.add('hidden');
     ui.detailView.classList.remove('hidden');
-    document.getElementById('trackDetailView')?.classList.add('hidden');
 }
 
 // --- SELECTION HANDLER ---
@@ -319,8 +331,8 @@ function handleShipmentSelection(ref, selectedLi) {
     renderShipmentDetails(order);
     const cnor = b2b2cDataMap.get(order.CONSIGNOR) || {};
     const cnee = b2b2cDataMap.get(order.CONSIGNEE) || {};
-    renderPartyDetails('Consignor', cnor.NAME || order.CONSIGNOR, order.ORIGIN_CITY, cnor.PINCODE || order.ORIGIN_PINCODE, cnor.ADDRESS || '', cnor.MOBILE || '', ui.consignorDetailsContainer);
-    renderPartyDetails('Consignee', cnee.NAME || order.CONSIGNEE, order.DEST_CITY,   cnee.PINCODE || order.DEST_PINCODE,   cnee.ADDRESS || '', cnee.MOBILE || '', ui.consigneeDetailsContainer);
+    renderPartyDetails('Consignor', cnor.NAME || order.CONSIGNOR, cnor.CITY || order.ORIGIN_CITY, cnor.PINCODE || order.ORIGIN_PINCODE, cnor.STATE || '', cnor.MOBILE || '', ui.consignorDetailsContainer, cnor.ADDRESS || '');
+    renderPartyDetails('Consignee', cnee.NAME || order.CONSIGNEE, cnee.CITY || order.DEST_CITY,   cnee.PINCODE || order.DEST_PINCODE,   cnee.STATE || '', cnee.MOBILE || '', ui.consigneeDetailsContainer, cnee.ADDRESS || '');
     renderProductAndBoxDetails(order);
 
     const toggleBtn = document.getElementById('toggleUploadsBtn');
@@ -436,7 +448,7 @@ function renderShipmentDetails(order) {
         }
     });
     document.getElementById('mailOrderBtn').addEventListener('click', () => mailSelectedShipment());
-    document.getElementById('waOrderBtn').addEventListener('click',   () => showNotification('WhatsApp not implemented yet.', 'info'));
+    document.getElementById('waOrderBtn').addEventListener('click',   () => waSelectedShipment());
     document.getElementById('tgOrderBtn').addEventListener('click',   () => showNotification('Telegram not implemented yet.', 'info'));
 
     if (canDelete) {
@@ -477,7 +489,7 @@ function renderTrackingStatus(order) {
         `<button onclick="console.warn('ticket not implemented')" title="Ticket" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg></button>`,
         `<button onclick="console.warn('mark not implemented')" title="Mark" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>`,
         `<button onclick="mailSelectedShipmentTracking()" title="Mail" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
-        `<button onclick="console.warn('wa tracking not implemented')" title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
+        `<button onclick="waSelectedShipmentTracking()" title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button onclick="console.warn('tg tracking not implemented')" title="Telegram" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
         `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`,
     ].join('');
@@ -576,8 +588,8 @@ function _showPodImage(src, isInline) {
 }
 
 // --- RENDER: PARTY DETAILS ---
-function renderPartyDetails(label, name, city, pincode, state, mobile, container) {
-    const d = [{l:'Name',v:name},{l:'City',v:city},{l:'Pincode',v:pincode},{l:'State',v:state},{l:'Mobile',v:mobile}];
+function renderPartyDetails(label, name, city, pincode, state, mobile, container, address) {
+    const d = [{l:'Name',v:name},{l:'City',v:city},{l:'Pincode',v:pincode},{l:'State',v:state},{l:'Address',v:address},{l:'Mobile',v:mobile}];
     let h = `<div class="space-y-2 text-sm">`;
     d.forEach(i => {
         if (i.v) h += `<div class="flex justify-between"><span class="text-gray-500">${i.l}:</span><span class="font-medium text-right">${i.v}</span></div>`;
@@ -749,7 +761,7 @@ function renderProductAndBoxDetails(order) {
         h_header += [
             `<button onclick="printSelectedShipmentDocsAndBox()" title="Print Docs+Box" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
             `<button onclick="mailSelectedShipmentUploads()" title="Mail All"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
-            `<button onclick="console.warn('wa uploads not implemented')"    title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
+            `<button onclick="waSelectedShipmentUploads()"  title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
             `<button onclick="console.warn('tg uploads not implemented')"    title="Telegram All" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
             `<button id="toggleUploadsBtn" title="Toggle Uploads" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>`,
         ].join('');
@@ -901,22 +913,22 @@ function _docToAttachment(title, bodyHtml) {
 
 function renderDocumentCenter(order) {
     const r = order.REFERENCE;
-    function actionBtns(printFn, dlFn, mailFn) {
+    function actionBtns(printFn, dlFn, mailFn, waFn) {
         return [
             `<button onclick="${printFn}()" title="Print" class="doc-action-btn">${_docIco.print}</button>`,
             `<button onclick="${mailFn}()" title="Mail" class="doc-action-btn">${_docIco.mail}</button>`,
             `<button onclick="${dlFn}()" title="Download" class="doc-action-btn">${_docIco.download}</button>`,
-            `<button onclick="console.warn('whatsapp not implemented')" title="WhatsApp" class="doc-action-btn doc-action-btn--wa">${_docIco.whatsapp}</button>`,
+            `<button onclick="${waFn}()" title="WhatsApp" class="doc-action-btn doc-action-btn--wa">${_docIco.whatsapp}</button>`,
             `<button onclick="console.warn('telegram not implemented')" title="Telegram" class="doc-action-btn doc-action-btn--tg">${_docIco.telegram}</button>`,
         ].join('');
     }
 
     const docs = [
-        { label: 'Label',       sys: actionBtns('printSelectedShipmentLabel',     'downloadSelectedShipmentLabel',     'mailSelectedShipmentLabel') },
-        { label: 'Receipt',     sys: actionBtns('printSelectedShipmentReceipt',    'downloadSelectedShipmentReceipt',   'mailSelectedShipmentReceipt') },
-        { label: 'POD',         sys: actionBtns('printSelectedShipmentPOD',        'downloadSelectedShipmentPOD',       'mailSelectedShipmentPOD') },
-        { label: 'Office Copy', sys: actionBtns('printSelectedShipmentOfficeCopy', 'downloadSelectedShipmentOfficeCopy','mailSelectedShipmentOfficeCopy') },
-        { label: 'Docs + Box',  sys: actionBtns('printSelectedShipmentDocsAndBox', 'downloadSelectedShipmentDocsAndBox','mailSelectedShipmentDocsAndBox') },
+        { label: 'Label',       sys: actionBtns('printSelectedShipmentLabel',     'downloadSelectedShipmentLabel',     'mailSelectedShipmentLabel',     'waSelectedShipmentLabel') },
+        { label: 'Receipt',     sys: actionBtns('printSelectedShipmentReceipt',    'downloadSelectedShipmentReceipt',   'mailSelectedShipmentReceipt',   'waSelectedShipmentReceipt') },
+        { label: 'POD',         sys: actionBtns('printSelectedShipmentPOD',        'downloadSelectedShipmentPOD',       'mailSelectedShipmentPOD',       'waSelectedShipmentPOD') },
+        { label: 'Office Copy', sys: actionBtns('printSelectedShipmentOfficeCopy', 'downloadSelectedShipmentOfficeCopy','mailSelectedShipmentOfficeCopy','waSelectedShipmentOfficeCopy') },
+        { label: 'Docs + Box',  sys: actionBtns('printSelectedShipmentDocsAndBox', 'downloadSelectedShipmentDocsAndBox','mailSelectedShipmentDocsAndBox','waSelectedShipmentDocsAndBox') },
     ];
 
     let h = `<div class="divide-y divide-gray-100">`;
@@ -940,11 +952,101 @@ function renderDocumentCenter(order) {
         `<button onclick="printSelectedShipmentAll()" title="Print All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
         `<button onclick="downloadSelectedShipmentAll()" title="Download All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.download}</button>`,
         `<button onclick="mailSelectedShipment()"        title="Mail All"     class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
-        `<button onclick="console.warn('wa all not implemented')"    title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
+        `<button onclick="waSelectedShipment()"          title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button onclick="console.warn('tg all not implemented')"    title="Telegram All" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
     ].join('');
 
     ui.documentCenterContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Document Center</h3><div class="flex items-center gap-0.5">${headerBtns}</div></div><div class="detail-card-body p-0 px-2 py-2">${h}</div>`;
+}
+
+// --- WHATSAPP HELPERS ---
+async function _waOrder(payload) {
+    try {
+        const res = await callApi('/api/waOrder', payload);
+        showNotification(`✅ WhatsApp sent to ${res.sent_to?.join(', ')}`, 'success');
+    } catch (e) {
+        showNotification(`❌ ${e.message}`, 'error');
+    }
+}
+
+function _getWaMobiles(order) {
+    const cnor = b2b2cDataMap.get(order.CONSIGNOR) || {};
+    const cnee = b2b2cDataMap.get(order.CONSIGNEE) || {};
+    return [cnor.MOBILE, cnee.MOBILE].filter(Boolean).join(',');
+}
+
+async function waSelectedShipment() {
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    await _waOrder({ reference: order.REFERENCE, to: _getWaMobiles(order), template: 'SHIPMENT_DETAIL', audience: 'b2b' });
+}
+
+async function waSelectedShipmentTracking() {
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    const result    = window._lastTrackingResult || {};
+    const s         = result.shipment  || {};
+    const movements = result.movements || [];
+    const sc        = _stateConfig[s.state] || _stateConfig.intransit;
+    const movText   = movements.slice(0, 10).map(m =>
+        `  ${[m.date, m.time].filter(Boolean).join(' ')} | ${m.location || ''} | ${m.activity || ''}`
+    ).join('\n') || 'No history';
+    await _waOrder({
+        reference: order.REFERENCE,
+        to: _getWaMobiles(order),
+        template: 'SHIPMENT_TRACKING',
+        audience: 'b2b',
+        template_vars: {
+            status:      sc.label + (s.status_raw ? ` — ${s.status_raw}` : ''),
+            origin_line: s.carrier_origin      ? `Origin: ${s.carrier_origin}\n`      : '',
+            dest_line:   s.carrier_destination ? `Dest: ${s.carrier_destination}\n`   : '',
+            movements:   movText,
+        },
+    });
+}
+
+async function waSelectedShipmentUploads() {
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    const uploads     = uploadsDataMap.get(order.REFERENCE) || [];
+    const uploadTypes = [...new Set(uploads.map(u => u.UPLOAD_TYPE).filter(Boolean))].join(', ') || 'None';
+    const fileUrls    = uploads
+        .filter(u => u.FILE_URL)
+        .map(u => ({ url: u.FILE_URL, caption: `${u.UPLOAD_TYPE} — ${order.AWB_NUMBER || order.REFERENCE}`, filename: u.FILE_URL.split('/').pop() }));
+    await _waOrder({
+        reference: order.REFERENCE,
+        to: _getWaMobiles(order),
+        template: 'SHIPMENT_UPLOADS',
+        audience: 'b2b',
+        template_vars: { upload_types: uploadTypes },
+        file_urls: fileUrls,
+    });
+}
+
+// Doc center per-doc WA — sends shipment detail + file
+async function waSelectedShipmentLabel()      { await _waSelectedShipmentDoc('Label'); }
+async function waSelectedShipmentReceipt()    { await _waSelectedShipmentDoc('Receipt'); }
+async function waSelectedShipmentPOD()        { await _waSelectedShipmentDoc('POD'); }
+async function waSelectedShipmentOfficeCopy() { await _waSelectedShipmentDoc('OfficeCopy'); }
+async function waSelectedShipmentDocsAndBox() { await _waSelectedShipmentDoc('DocsAndBox'); }
+
+async function _waSelectedShipmentDoc(docType) {
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    const uploads  = uploadsDataMap.get(order.REFERENCE) || [];
+    const relevant = uploads.filter(u => u.UPLOAD_TYPE === docType && u.FILE_URL);
+    const fileUrls = relevant.map(u => ({
+        url:      u.FILE_URL,
+        caption:  `${docType} — ${order.AWB_NUMBER || order.REFERENCE}`,
+        filename: u.FILE_URL.split('/').pop(),
+    }));
+    await _waOrder({
+        reference: order.REFERENCE,
+        to: _getWaMobiles(order),
+        template: 'SHIPMENT_DETAIL',
+        audience: 'b2b',
+        file_urls: fileUrls,
+    });
 }
 
 // --- BOOTSTRAP ---

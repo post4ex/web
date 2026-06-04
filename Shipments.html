@@ -86,10 +86,10 @@
                 <div class="tile-count text-purple-700" id="cnt-cod">…</div>
                 <div class="tile-label">COD</div>
             </div>
-            <div class="tile" data-tile="track" style="border-color:#d1fae5;">
-                <div class="tile-icon">📡</div>
-                <div class="tile-count text-green-700" id="cnt-track">—</div>
-                <div class="tile-label">Track</div>
+            <div class="tile" data-tile="tat" style="border-color:#fee2e2;">
+                <div class="tile-icon">⏰</div>
+                <div class="tile-count text-red-600" id="cnt-tat">…</div>
+                <div class="tile-label">TAT Due Today</div>
             </div>
         </div>
     </div>
@@ -145,18 +145,7 @@
                 <div id="trackingHistoryContainer" class="detail-card"></div>
             </div>
 
-            <!-- Track tile detail view -->
-            <div id="trackDetailView" class="hidden space-y-6">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div id="t-shipmentDetailsContainer" class="detail-card"></div>
-                    <div id="t-consignorDetailsContainer" class="detail-card"></div>
-                </div>
-                <div id="t-consigneeDetailsContainer" class="detail-card"></div>
-                <div id="t-trackingStatusContainer" class="detail-card"></div>
-                <div id="t-trackingHistoryContainer" class="detail-card"></div>
-            </div>
-
-            <div id="emptyView" class="h-full flex items-center justify-center">
+<div id="emptyView" class="h-full flex items-center justify-center">
                 <p class="text-gray-500 text-lg">Select a shipment from the list to view details.</p>
             </div>
         </main>
@@ -221,6 +210,5 @@
     <script src="core/layout.js"></script>
     <script src="jawaS/shipments.js"></script>
     <script src="utils/docgen.js"></script>
-    <script src="jawaS/track-tile.js"></script>
 </body>
 </html>
