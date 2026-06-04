@@ -61,7 +61,9 @@ function _isOverdueTat(order) {
     const orderMs = parseFloat(order.ORDER_DATE) > 1e10 ? parseFloat(order.ORDER_DATE) : parseFloat(order.ORDER_DATE) * 1000;
     const dueMs   = orderMs + tat * 86400000;
     const today   = new Date(); today.setHours(0,0,0,0);
-    return dueMs < today.getTime();
+    const monthAgo = new Date(today); monthAgo.setDate(today.getDate() - 30);
+    // Overdue = past due date, but not older than 1 month
+    return dueMs < today.getTime() && dueMs >= monthAgo.getTime();
 }
 
 function updateTileCounts(orders) {
@@ -115,7 +117,16 @@ function _tileFilterMatch(order) {
         }
         return true;
     }
-    if (activeTileFilter === 'overduetat') return _isOverdueTat(order);
+    if (activeTileFilter === 'overduetat') {
+        if (!_isOverdueTat(order)) return false;
+        // Exclude delivered orders after tracking fetch
+        if (activeTatFilter) {
+            const st = tatTrackStatuses.get(order.REFERENCE);
+            if (activeTatFilter === 'intransit') return st && st !== 'delivered' && st !== 'outfordelivery';
+            return st === activeTatFilter;
+        }
+        return true;
+    }
     if (activeTileFilter === 'heavy')      return parseFloat(order.WEIGHT) > 10;
     if (activeTileFilter === 'highvalue')  return parseFloat(order.VALUE)  > 100000;
     return true;
@@ -337,7 +348,7 @@ function renderShipmentList(orders) {
         ui.shipmentList.appendChild(li);
     });
     
-    if (activeTileFilter === 'tat') _fetchTatTrackStatuses(orders);
+    if (activeTileFilter === 'tat' || activeTileFilter === 'overduetat') _fetchTatTrackStatuses(orders);
 }
 
 async function _fetchTatTrackStatuses(orders) {
