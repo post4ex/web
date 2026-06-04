@@ -638,7 +638,8 @@ async function _fetchAndRenderTracking(order, live = false) {
             const cachedShipment = shipmentsDataMap.get(order.REFERENCE);
             if (cachedShipment) {
                 const movResult = await trackShipment(order.REFERENCE); // calls /api/movements only
-                result = { shipment: cachedShipment, movements: movResult.movements || [] };
+                const normShipment = Object.fromEntries(Object.entries(cachedShipment).map(([k, v]) => [k.toLowerCase(), v]));
+                result = { shipment: normShipment, movements: movResult.movements || [] };
             } else {
                 result = await trackShipment(order.REFERENCE);
             }
