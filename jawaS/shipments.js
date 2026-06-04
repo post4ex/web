@@ -618,7 +618,6 @@ function renderTrackingStatus(order) {
 
 async function _fetchAndRenderTracking(order, live = false) {
     const statusEl  = document.getElementById('liveTrackingStatus');
-    const historyEl = ui.trackingHistoryContainer.querySelector('#liveTrackingHistory');
     if (!statusEl) return;
 
     if (!order.AWB_NUMBER || !order.CARRIER) {
@@ -690,6 +689,7 @@ async function _fetchAndRenderTracking(order, live = false) {
 
     } catch (err) {
         statusEl.innerHTML = `<p class="text-xs text-red-500">${err.message}</p>`;
+        const historyEl = document.getElementById('liveTrackingHistory');
         if (historyEl) historyEl.innerHTML = '';
     }
 }
