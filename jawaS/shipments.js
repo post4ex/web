@@ -1111,19 +1111,31 @@ async function waSelectedShipmentDocsAndBox() { await _waSelectedShipmentDoc('Do
 async function _waSelectedShipmentDoc(docType) {
     const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
     if (!order) return;
-    const uploads  = uploadsDataMap.get(order.REFERENCE) || [];
-    const relevant = uploads.filter(u => u.UPLOAD_TYPE === docType && u.FILE_URL);
-    const fileUrls = relevant.map(u => ({
+    
+    // Map doc-center label to actual UPLOAD_TYPE in database
+    const typeMap = {
+        'Receipt':     'Reciept',  // backend typo
+        'POD':         'POD',
+        'Label':       null,       // no upload type exists
+        'OfficeCopy':  null,       // no upload type exists
+        'DocsAndBox':  null        // no upload type exists
+    };
+    
+    const uploadType = typeMap[docType];
+    const uploads    = uploadsDataMap.get(order.REFERENCE) || [];
+    const relevant   = uploadType ? uploads.filter(u => u.UPLOAD_TYPE === uploadType && u.FILE_URL) : [];
+    const fileUrls   = relevant.map(u => ({
         url:      u.FILE_URL,
         caption:  `${docType} — ${order.AWB_NUMBER || order.REFERENCE}`,
         filename: u.FILE_URL.split('/').pop(),
     }));
+    
     await _waOrder({
         reference: order.REFERENCE,
         to: _getWaMobiles(order),
         template: 'SHIPMENT_DETAIL',
         audience: 'b2b',
-        file_urls: fileUrls,
+        file_urls: fileUrls,  // empty array if no uploads exist
     });
 }
 
