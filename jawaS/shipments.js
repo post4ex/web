@@ -43,7 +43,7 @@ function _uploadActionBtns(url, uploadUid) {
 }
 
 // --- TILES ---
-const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)' };
+const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)', overduetat:'Overdue TAT', heavy:'Heavy (>10 kg)', highvalue:'High Value (>1L)' };
 
 function _isTatDue(order) {
     const tat = parseInt(order.TAT);
@@ -55,13 +55,26 @@ function _isTatDue(order) {
     return dueMs >= today.getTime() && dueMs <= limit.getTime();
 }
 
+function _isOverdueTat(order) {
+    const tat = parseInt(order.TAT);
+    if (!tat || !order.ORDER_DATE) return false;
+    const orderMs = parseFloat(order.ORDER_DATE) > 1e10 ? parseFloat(order.ORDER_DATE) : parseFloat(order.ORDER_DATE) * 1000;
+    const dueMs   = orderMs + tat * 86400000;
+    const today   = new Date(); today.setHours(0,0,0,0);
+    return dueMs < today.getTime();
+}
+
 function updateTileCounts(orders) {
-    const counts = { all: orders.length, topay:0, cod:0, tat:0 };
+    const counts = { all: orders.length, topay:0, cod:0, tat:0, overduetat:0, heavy:0, highvalue:0 };
     orders.forEach(o => {
         if (o.TOPAY === 'Yes') counts.topay++;
         if (o.COD && parseFloat(o.COD) > 0) counts.cod++;
         if (_isTatDue(o)) counts.tat++;
-    });    Object.keys(counts).forEach(k => {
+        if (_isOverdueTat(o)) counts.overduetat++;
+        if (parseFloat(o.WEIGHT) > 10) counts.heavy++;
+        if (parseFloat(o.VALUE) > 100000) counts.highvalue++;
+    });
+    Object.keys(counts).forEach(k => {
         const el = document.getElementById(`cnt-${k}`);
         if (el) el.textContent = counts[k];
     });
@@ -102,6 +115,9 @@ function _tileFilterMatch(order) {
         }
         return true;
     }
+    if (activeTileFilter === 'overduetat') return _isOverdueTat(order);
+    if (activeTileFilter === 'heavy')      return parseFloat(order.WEIGHT) > 10;
+    if (activeTileFilter === 'highvalue')  return parseFloat(order.VALUE)  > 100000;
     return true;
 }
 
@@ -267,10 +283,12 @@ function applyFilters() {
         return sdMatch && edMatch && bMatch && cMatch && carMatch && sMatch && tileMatch;
     });
 
-    if (activeTileFilter === 'tat') {
+    if (activeTileFilter === 'tat' || activeTileFilter === 'overduetat') {
         const orderMs = o => parseFloat(o.ORDER_DATE) > 1e10 ? parseFloat(o.ORDER_DATE) : parseFloat(o.ORDER_DATE) * 1000;
         filteredOrders.sort((a, b) => (orderMs(a) + parseInt(a.TAT||0)*86400000) - (orderMs(b) + parseInt(b.TAT||0)*86400000));
     }
+    if (activeTileFilter === 'heavy')     filteredOrders.sort((a, b) => parseFloat(b.WEIGHT||0) - parseFloat(a.WEIGHT||0));
+    if (activeTileFilter === 'highvalue') filteredOrders.sort((a, b) => parseFloat(b.VALUE||0)  - parseFloat(a.VALUE||0));
 
     renderShipmentList(filteredOrders);
     ui.statusMessage.textContent = '';
