@@ -347,15 +347,19 @@ function renderShipmentList(orders) {
         const ref  = order.REFERENCE; if (!ref) return;
         const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
         const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
+        const s    = shipmentsDataMap.get(ref);
+        const state = s?.state || s?.STATE || null;
+        const cfg  = state ? (_stateConfig[state] || _stateConfig.intransit) : null;
+        const badge = cfg ? `<span class="px-1.5 py-0.5 rounded text-xs ${cfg.cls}">${cfg.label}</span>` : '';
         const li   = document.createElement('li');
-        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
+        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span>${badge}</div>`;
         li.dataset.ref = ref;
         li.addEventListener('click', () => handleShipmentSelection(ref, li));
         if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
         ui.shipmentList.appendChild(li);
     });
-    
-    if (activeTileFilter === 'tat' || activeTileFilter === 'overduetat') _fetchTatTrackStatuses(orders);
+
+    _fetchTatTrackStatuses(orders);
 }
 
 async function _fetchTatTrackStatuses(orders) {
