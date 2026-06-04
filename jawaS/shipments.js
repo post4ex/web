@@ -371,12 +371,16 @@ async function _fetchTatTrackStatuses(orders) {
         }
     });
 
-    _renderTatQuickFilters();
-
-    if ([...tatTrackStatuses.values()].some(s => s === 'delivered')) {
-        activeTatFilter = 'delivered';
-        _updateTatPills();
-        applyFilters();
+    if (activeTileFilter === 'tat' || activeTileFilter === 'overduetat') {
+        _renderTatQuickFilters();
+        if ([...tatTrackStatuses.values()].some(s => s === 'delivered')) {
+            activeTatFilter = 'delivered';
+            _updateTatPills();
+            applyFilters();
+        }
+    } else {
+        const el = document.getElementById('tatQuickFilters');
+        if (el) { el.style.display = 'none'; el.innerHTML = ''; }
     }
 }
 
