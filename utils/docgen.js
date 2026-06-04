@@ -705,6 +705,21 @@ function _openInNewTab(title, bodyHtml) {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+function _downloadDoc(title, bodyHtml) {
+    const jsSrc = getJsBarcodeSrc();
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+        <style>body{margin:0;padding:1rem;background:#f3f4f6;}@media print{body{padding:0;background:#fff;}}</style>
+    </head><body>${bodyHtml}
+        <script src="${jsSrc}"><\/script>
+        <script>window.addEventListener('load',function(){document.querySelectorAll('svg.barcode-svg[data-value]').forEach(function(el){try{var v=el.getAttribute('data-value');if(v)JsBarcode(el,v,{format:'CODE128',displayValue:true,fontSize:14,margin:5,height:40,width:2});}catch(e){}});});<\/script>
+    </body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `${title}.html`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 function _getSelectedOrder() {
     if (!currentSelectedRef) { showNotification('No shipment selected.', 'error'); return null; }
     const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
@@ -972,4 +987,141 @@ function printSelectedShipmentDocsAndBox() {
     const products      = productDataMap.get(order.REFERENCE) || [];
     const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     _openInNewTab(`Docs+Box - ${order.AWB_NUMBER||order.REFERENCE}`, buildDocsAndBox(order, cnor, cnee, products, multiboxItems));
+}
+
+// --- DOWNLOAD FUNCTIONS ---
+function downloadSelectedShipmentLabel() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor         = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee         = b2b2cDataMap.get(order.CONSIGNEE);
+    const products     = productDataMap.get(order.REFERENCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    const awb          = order.AWB_NUMBER || order.REFERENCE;
+    const pieces       = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
+    const layoutSelect = document.getElementById('label-print-layout');
+    const layout       = layoutSelect ? layoutSelect.value : '2up-landscape';
+    const isPortrait   = layout === '4up-portrait';
+    const pageStyle    = `<style>@page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
+        body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}
+        .label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;
+            height:${isPortrait?'138mm':'192mm'}!important;display:flex;flex-direction:column;overflow:hidden;}</style>`;
+    let bodyHtml = pageStyle + getLabelStyles();
+    if (multiboxItems.length > 0) {
+        for (let i = 0; i < pieces; i++) bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'box', index:i });
+        bodyHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'summary' });
+    } else {
+        bodyHtml += buildLabel(order, cnor, cnee, products, [], { type:'box', index:0 });
+    }
+    _downloadDoc(`Label - ${awb}`, bodyHtml);
+}
+
+function downloadSelectedShipmentReceipt() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor  = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee  = b2b2cDataMap.get(order.CONSIGNEE);
+    const branch = branchDataMap.get(order.BRANCH);
+    _downloadDoc(`Receipt - ${order.AWB_NUMBER||order.REFERENCE}`, buildReceipt(order, cnor, cnee, productDataMap.get(order.REFERENCE)||[], branch));
+}
+
+function downloadSelectedShipmentPOD() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor  = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee  = b2b2cDataMap.get(order.CONSIGNEE);
+    const branch = branchDataMap.get(order.BRANCH);
+    _downloadDoc(`POD - ${order.AWB_NUMBER||order.REFERENCE}`, buildPOD(order, cnor, cnee, productDataMap.get(order.REFERENCE)||[], branch));
+}
+
+function downloadSelectedShipmentOfficeCopy() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor  = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee  = b2b2cDataMap.get(order.CONSIGNEE);
+    const branch = branchDataMap.get(order.BRANCH);
+    _downloadDoc(`OfficeCopy - ${order.AWB_NUMBER||order.REFERENCE}`, buildOfficeCopy(order, cnor, cnee, productDataMap.get(order.REFERENCE)||[], branch));
+}
+
+function downloadSelectedShipmentDocsAndBox() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor         = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee         = b2b2cDataMap.get(order.CONSIGNEE);
+    const products     = productDataMap.get(order.REFERENCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    _downloadDoc(`DocsAndBox - ${order.AWB_NUMBER||order.REFERENCE}`, buildDocsAndBox(order, cnor, cnee, products, multiboxItems));
+}
+
+function downloadSelectedShipmentAll() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor          = b2b2cDataMap.get(order.CONSIGNOR);
+    const cnee          = b2b2cDataMap.get(order.CONSIGNEE);
+    const products      = productDataMap.get(order.REFERENCE) || [];
+    const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    const branch        = branchDataMap.get(order.BRANCH);
+    const awb           = order.AWB_NUMBER || order.REFERENCE;
+    const pieces        = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
+    const layoutSelect  = document.getElementById('label-print-layout');
+    const layout        = layoutSelect ? layoutSelect.value : '2up-landscape';
+    const isPortrait    = layout === '4up-portrait';
+
+    const pageStyle = `<style>
+        @page label-page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
+        @page doc-page{size:A4 portrait;margin:8mm;}
+        .label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;
+            height:${isPortrait?'138mm':'192mm'}!important;display:flex;flex-direction:column;overflow:hidden;}
+        .label-section{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;page:label-page;}
+        .receipt-wrapper,.ps-wrapper{page-break-before:always;break-before:always;page:doc-page;}</style>`;
+
+    let labelHtml = pageStyle + getLabelStyles() + '<div class="label-section">';
+    if (multiboxItems.length > 0) {
+        for (let i = 0; i < pieces; i++) labelHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'box', index:i });
+        labelHtml += buildLabel(order, cnor, cnee, products, multiboxItems, { type:'summary' });
+    } else {
+        labelHtml += buildLabel(order, cnor, cnee, products, [], { type:'box', index:0 });
+    }
+    labelHtml += '</div>';
+
+    const combined = labelHtml
+        + buildReceipt(order, cnor, cnee, products, branch)
+        + buildPOD(order, cnor, cnee, products, branch)
+        + buildOfficeCopy(order, cnor, cnee, products, branch)
+        + buildDocsAndBox(order, cnor, cnee, products, multiboxItems);
+
+    _downloadDoc(`AllDocs - ${awb}`, combined);
+}
+
+// --- MAIL WITH ATTACHMENT FUNCTIONS ---
+function mailSelectedShipmentLabel() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const cnor = b2b2cDataMap.get(order.CONSIGNOR), cnee = b2b2cDataMap.get(order.CONSIGNEE);
+    const products = productDataMap.get(order.REFERENCE) || [], multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
+    const awb = order.AWB_NUMBER || order.REFERENCE, pieces = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
+    const layout = (document.getElementById('label-print-layout') || {}).value || '2up-landscape';
+    const isPortrait = layout === '4up-portrait';
+    const pageStyle = `<style>@page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;}.label-wrapper{width:49%;max-width:49%!important;height:${isPortrait?'138mm':'192mm'}!important;}</style>`;
+    let body = pageStyle + getLabelStyles();
+    if (multiboxItems.length > 0) { for (let i=0;i<pieces;i++) body += buildLabel(order,cnor,cnee,products,multiboxItems,{type:'box',index:i}); body += buildLabel(order,cnor,cnee,products,multiboxItems,{type:'summary'}); }
+    else body += buildLabel(order,cnor,cnee,products,[],{type:'box',index:0});
+    mailSelectedShipment(_docToAttachment(`Label-${awb}`, body), { DOC_LABEL: 'Shipping Label' });
+}
+
+function mailSelectedShipmentReceipt() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
+    mailSelectedShipment(_docToAttachment(`Receipt-${awb}`, buildReceipt(order, b2b2cDataMap.get(order.CONSIGNOR), b2b2cDataMap.get(order.CONSIGNEE), productDataMap.get(order.REFERENCE)||[], branchDataMap.get(order.BRANCH))), { DOC_LABEL: 'Receipt' });
+}
+
+function mailSelectedShipmentPOD() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
+    mailSelectedShipment(_docToAttachment(`POD-${awb}`, buildPOD(order, b2b2cDataMap.get(order.CONSIGNOR), b2b2cDataMap.get(order.CONSIGNEE), productDataMap.get(order.REFERENCE)||[], branchDataMap.get(order.BRANCH))), { DOC_LABEL: 'Proof of Delivery' });
+}
+
+function mailSelectedShipmentOfficeCopy() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
+    mailSelectedShipment(_docToAttachment(`OfficeCopy-${awb}`, buildOfficeCopy(order, b2b2cDataMap.get(order.CONSIGNOR), b2b2cDataMap.get(order.CONSIGNEE), productDataMap.get(order.REFERENCE)||[], branchDataMap.get(order.BRANCH))), { DOC_LABEL: 'Office Copy' });
+}
+
+function mailSelectedShipmentDocsAndBox() {
+    const order = _getSelectedOrder(); if (!order) return;
+    const awb = order.AWB_NUMBER || order.REFERENCE;
+    mailSelectedShipment(_docToAttachment(`DocsAndBox-${awb}`, buildDocsAndBox(order, b2b2cDataMap.get(order.CONSIGNOR), b2b2cDataMap.get(order.CONSIGNEE), productDataMap.get(order.REFERENCE)||[], multiboxDataMap.get(order.REFERENCE)||[])), { DOC_LABEL: 'Docs & Box Labels' });
 }

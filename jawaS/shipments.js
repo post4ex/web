@@ -435,7 +435,7 @@ function renderShipmentDetails(order) {
                 .catch(() => showNotification('\u274c Share not supported', 'error'));
         }
     });
-    document.getElementById('mailOrderBtn').addEventListener('click', () => showNotification('Email not implemented yet.', 'info'));
+    document.getElementById('mailOrderBtn').addEventListener('click', () => mailSelectedShipment());
     document.getElementById('waOrderBtn').addEventListener('click',   () => showNotification('WhatsApp not implemented yet.', 'info'));
     document.getElementById('tgOrderBtn').addEventListener('click',   () => showNotification('Telegram not implemented yet.', 'info'));
 
@@ -476,7 +476,7 @@ function renderTrackingStatus(order) {
     const headerBtns = [
         `<button onclick="console.warn('ticket not implemented')" title="Ticket" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg></button>`,
         `<button onclick="console.warn('mark not implemented')" title="Mark" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>`,
-        `<button onclick="console.warn('mail tracking not implemented')" title="Mail" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
+        `<button onclick="mailSelectedShipmentTracking()" title="Mail" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
         `<button onclick="console.warn('wa tracking not implemented')" title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button onclick="console.warn('tg tracking not implemented')" title="Telegram" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
         `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`,
@@ -518,6 +518,7 @@ async function _fetchAndRenderTracking(order, live = false) {
 
         const s = result.shipment || {};
         const movements = result.movements || [];
+        window._lastTrackingResult = result; // cache for mail
 
         // --- update card header title with status + date ---
         const sc         = _stateConfig[s.state] || _stateConfig.intransit;
@@ -747,7 +748,7 @@ function renderProductAndBoxDetails(order) {
     if (u.length > 0) {
         h_header += [
             `<button onclick="printSelectedShipmentDocsAndBox()" title="Print Docs+Box" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
-            `<button onclick="console.warn('mail uploads not implemented')"  title="Mail All"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
+            `<button onclick="mailSelectedShipmentUploads()" title="Mail All"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
             `<button onclick="console.warn('wa uploads not implemented')"    title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
             `<button onclick="console.warn('tg uploads not implemented')"    title="Telegram All" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
             `<button id="toggleUploadsBtn" title="Toggle Uploads" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>`,
@@ -758,26 +759,164 @@ function renderProductAndBoxDetails(order) {
     ui.productBoxDetailsContainer.innerHTML = `${h_header}<div class="detail-card-body">${h_body}</div>`;
 }
 
-// --- RENDER: DOCUMENT CENTER ---
+async function mailSelectedShipmentTracking() {
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    const result    = window._lastTrackingResult || {};
+    const s         = result.shipment  || {};
+    const movements = result.movements || [];
+    const sc        = _stateConfig[s.state] || _stateConfig.intransit;
+
+    const statusRow = s.status_raw ? `<tr><td style='padding:8px 10px;font-weight:bold;background:#f5f5f5'>Status</td><td style='padding:8px 10px'>${s.status_raw}</td></tr>` : '';
+    const originRow = s.carrier_origin ? `<tr><td style='padding:8px 10px;font-weight:bold'>Origin</td><td style='padding:8px 10px'>${s.carrier_origin}</td></tr>` : '';
+    const destRow   = s.carrier_destination ? `<tr><td style='padding:8px 10px;font-weight:bold;background:#f5f5f5'>Destination</td><td style='padding:8px 10px;background:#f5f5f5'>${s.carrier_destination}</td></tr>` : '';
+
+    const movRows = movements.map(m =>
+        `<tr><td style='border:1px solid #ddd;padding:5px'>${m.date||''}</td><td style='border:1px solid #ddd;padding:5px'>${m.time||''}</td><td style='border:1px solid #ddd;padding:5px'>${m.location||''}</td><td style='border:1px solid #ddd;padding:5px'>${m.activity||''}</td></tr>`
+    ).join('');
+    const movTable = movements.length ? `<h3 style='font-size:13px;color:#1a237e;margin:16px 0 6px'>Movement History</h3>
+        <table style='border-collapse:collapse;width:100%;font-size:12px'>
+        <thead><tr><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Date</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Time</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Location</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Activity</th></tr></thead>
+        <tbody>${movRows}</tbody></table>` : '<p style="font-size:12px;color:#999">No movement history available.</p>';
+
+    const cnor = b2b2cDataMap.get(order.CONSIGNOR) || {};
+    const cnee = b2b2cDataMap.get(order.CONSIGNEE) || {};
+    const emails = [...new Set([cnor.EMAIL, cnee.EMAIL].filter(Boolean))];
+    if (!emails.length) { showNotification('No email address on file.', 'error'); return; }
+
+    try {
+        await callApi('/api/mailOrder', {
+            reference: order.REFERENCE,
+            to: emails.join(','),
+            template: 'SHIPMENT_TRACKING',
+            template_vars: {
+                STATUS_LABEL: sc.label,
+                STATUS_ROW:   statusRow,
+                ORIGIN_ROW:   originRow,
+                DEST_ROW:     destRow,
+                MOV_TABLE:    movTable,
+            },
+        });
+        showNotification(`✅ Email sent to ${emails.join(', ')}`, 'success');
+    } catch (e) {
+        showNotification(`❌ ${e.message}`, 'error');
+    }
+}
+
+async function mailSelectedShipmentUploads() {
+    const order = allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    const r        = order.REFERENCE;
+    const prods    = productDataMap.get(r)  || [];
+    const boxes    = multiboxDataMap.get(r) || [];
+    const uploads  = uploadsDataMap.get(r)  || [];
+
+    // build products table
+    const prodTable = prods.length ? `<h3 style='font-size:13px;color:#1a237e;margin:16px 0 6px'>Products</h3>
+        <table style='border-collapse:collapse;width:100%;font-size:12px'>
+        <thead><tr><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5;text-align:left'>Product</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5;text-align:left'>Doc#</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5;text-align:left'>EWay</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5;text-align:right'>Amount</th></tr></thead>
+        <tbody>${prods.map(p=>`<tr><td style='border:1px solid #ddd;padding:5px'>${p.PRODUCT||''}</td><td style='border:1px solid #ddd;padding:5px'>${p.DOC_NUMBER||''}</td><td style='border:1px solid #ddd;padding:5px'>${p.EWAY_IF||''}</td><td style='border:1px solid #ddd;padding:5px;text-align:right'>${parseFloat(p.AMOUNT||0).toFixed(2)}</td></tr>`).join('')}</tbody></table>` : '';
+
+    // build multibox table
+    const boxTable = boxes.length ? `<h3 style='font-size:13px;color:#1a237e;margin:16px 0 6px'>MultiBox</h3>
+        <table style='border-collapse:collapse;width:100%;font-size:12px'>
+        <thead><tr><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Box#</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Weight</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>L×B×H</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5;text-align:right'>ChgWt</th></tr></thead>
+        <tbody>${boxes.map(b=>`<tr><td style='border:1px solid #ddd;padding:5px'>${b.BOX_NUM||''}</td><td style='border:1px solid #ddd;padding:5px'>${b.WEIGHT||0}</td><td style='border:1px solid #ddd;padding:5px'>${parseFloat(b.LENGTH||0)}×${parseFloat(b.BREADTH||0)}×${parseFloat(b.HIGHT||0)}</td><td style='border:1px solid #ddd;padding:5px;text-align:right'>${parseFloat(b.CHG_WT||0).toFixed(2)}</td></tr>`).join('')}</tbody></table>` : '';
+
+    // build uploads table
+    const uplTable = uploads.length ? `<h3 style='font-size:13px;color:#1a237e;margin:16px 0 6px'>Uploads</h3>
+        <table style='border-collapse:collapse;width:100%;font-size:12px'>
+        <thead><tr><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Type</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Doc#/ID</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Details</th><th style='border:1px solid #ddd;padding:5px;background:#f5f5f5'>Date</th></tr></thead>
+        <tbody>${uploads.map(u=>{
+            const idt = u.AWB_NUMBER||u.KYC_NUMBER||u.REFERENCE||'';
+            let det = u.UPLOAD_TYPE==='MultiBox'?`Child:${u.CHILD_AWB||''}`:u.UPLOAD_TYPE==='KYC'?`${u.CUSTOMER_UID||''}(${u.KYC_TYPE||''})`:u.UPLOAD_TYPE==='Product'?`${u.DOC_NUMBER||''}(${u.DOC_TYPE||''})`:u.STATUS_REMARK||'';
+            return `<tr><td style='border:1px solid #ddd;padding:5px'>${u.UPLOAD_TYPE||''}</td><td style='border:1px solid #ddd;padding:5px'>${idt}</td><td style='border:1px solid #ddd;padding:5px'>${det}</td><td style='border:1px solid #ddd;padding:5px'>${u.TIME_STAMP||''}</td></tr>`;
+        }).join('')}</tbody></table>` : '';
+
+    // fetch upload files as base64 attachments
+    const attachments = [];
+    for (const u of uploads) {
+        if (!u.FILE_URL) continue;
+        try {
+            const blobUrl  = await fetchFileUrl(u.FILE_URL);
+            const resp     = await fetch(blobUrl);
+            const buf      = await resp.arrayBuffer();
+            const b64      = btoa(String.fromCharCode(...new Uint8Array(buf)));
+            const mime     = resp.headers.get('content-type') || 'application/octet-stream';
+            const filename = u.FILE_URL.split('/').pop();
+            attachments.push({ name: filename, b64, mime });
+            URL.revokeObjectURL(blobUrl);
+        } catch { /* skip failed fetches */ }
+    }
+
+    const cnor = b2b2cDataMap.get(order.CONSIGNOR) || {};
+    const cnee = b2b2cDataMap.get(order.CONSIGNEE) || {};
+    const emails = [...new Set([cnor.EMAIL, cnee.EMAIL].filter(Boolean))];
+    if (!emails.length) { showNotification('No email address on file.', 'error'); return; }
+
+    try {
+        await callApi('/api/mailOrder', {
+            reference: r,
+            to: emails.join(','),
+            template: 'SHIPMENT_UPLOADS',
+            template_vars: { PRODUCTS_TABLE: prodTable, MULTIBOX_TABLE: boxTable, UPLOADS_TABLE: uplTable },
+            attachments,
+        });
+        showNotification(`✅ Email sent to ${emails.join(', ')}`, 'success');
+    } catch (e) {
+        showNotification(`❌ ${e.message}`, 'error');
+    }
+}
+
+// --- MAIL HELPER ---
+async function mailSelectedShipment(attachment = null, templateVars = {}) {
+    const order = _getSelectedOrder ? _getSelectedOrder() : allOrders.find(o => o.REFERENCE === currentSelectedRef);
+    if (!order) return;
+    const cnor   = b2b2cDataMap.get(order.CONSIGNOR) || {};
+    const cnee   = b2b2cDataMap.get(order.CONSIGNEE) || {};
+    const emails = [...new Set([cnor.EMAIL, cnee.EMAIL].filter(Boolean))];
+    if (!emails.length) { showNotification('No email address on file for consignor or consignee.', 'error'); return; }
+    try {
+        const payload = {
+            reference: order.REFERENCE,
+            to: emails.join(','),
+            template: attachment ? 'SHIPMENT_DOC' : 'SHIPMENT_DETAIL',
+            template_vars: templateVars,
+        };
+        if (attachment) { payload.attachment_b64 = attachment.b64; payload.attachment_name = attachment.name; }
+        await callApi('/api/mailOrder', payload);
+        showNotification(`✅ Email sent to ${emails.join(', ')}`, 'success');
+    } catch (e) {
+        showNotification(`❌ ${e.message}`, 'error');
+    }
+}
+
+function _docToAttachment(title, bodyHtml) {
+    const jsSrc = typeof getJsBarcodeSrc === 'function' ? getJsBarcodeSrc() : '';
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title></head><body>${bodyHtml}<script src="${jsSrc}"><\/script></body></html>`;
+    const b64  = btoa(unescape(encodeURIComponent(html)));
+    return { b64, name: `${title}.html` };
+}
+
+
 function renderDocumentCenter(order) {
     const r = order.REFERENCE;
-    // icon SVGs — use shared _docIco
-    function actionBtns(printFn) {
+    function actionBtns(printFn, dlFn, mailFn) {
         return [
             `<button onclick="${printFn}()" title="Print" class="doc-action-btn">${_docIco.print}</button>`,
-            `<button onclick="console.warn('mail not implemented')" title="Mail" class="doc-action-btn">${_docIco.mail}</button>`,
-            `<button onclick="console.warn('download not implemented')" title="Download" class="doc-action-btn">${_docIco.download}</button>`,
+            `<button onclick="${mailFn}()" title="Mail" class="doc-action-btn">${_docIco.mail}</button>`,
+            `<button onclick="${dlFn}()" title="Download" class="doc-action-btn">${_docIco.download}</button>`,
             `<button onclick="console.warn('whatsapp not implemented')" title="WhatsApp" class="doc-action-btn doc-action-btn--wa">${_docIco.whatsapp}</button>`,
             `<button onclick="console.warn('telegram not implemented')" title="Telegram" class="doc-action-btn doc-action-btn--tg">${_docIco.telegram}</button>`,
         ].join('');
     }
 
     const docs = [
-        { label: 'Label',       sys: actionBtns('printSelectedShipmentLabel') },
-        { label: 'Receipt',     sys: actionBtns('printSelectedShipmentReceipt') },
-        { label: 'POD',         sys: actionBtns('printSelectedShipmentPOD') },
-        { label: 'Office Copy', sys: actionBtns('printSelectedShipmentOfficeCopy') },
-        { label: 'Docs + Box',  sys: actionBtns('printSelectedShipmentDocsAndBox') },
+        { label: 'Label',       sys: actionBtns('printSelectedShipmentLabel',     'downloadSelectedShipmentLabel',     'mailSelectedShipmentLabel') },
+        { label: 'Receipt',     sys: actionBtns('printSelectedShipmentReceipt',    'downloadSelectedShipmentReceipt',   'mailSelectedShipmentReceipt') },
+        { label: 'POD',         sys: actionBtns('printSelectedShipmentPOD',        'downloadSelectedShipmentPOD',       'mailSelectedShipmentPOD') },
+        { label: 'Office Copy', sys: actionBtns('printSelectedShipmentOfficeCopy', 'downloadSelectedShipmentOfficeCopy','mailSelectedShipmentOfficeCopy') },
+        { label: 'Docs + Box',  sys: actionBtns('printSelectedShipmentDocsAndBox', 'downloadSelectedShipmentDocsAndBox','mailSelectedShipmentDocsAndBox') },
     ];
 
     let h = `<div class="divide-y divide-gray-100">`;
@@ -799,7 +938,8 @@ function renderDocumentCenter(order) {
 
     const headerBtns = [
         `<button onclick="printSelectedShipmentAll()" title="Print All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.print}</button>`,
-        `<button onclick="console.warn('mail all not implemented')"  title="Mail All"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
+        `<button onclick="downloadSelectedShipmentAll()" title="Download All" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.download}</button>`,
+        `<button onclick="mailSelectedShipment()"        title="Mail All"     class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
         `<button onclick="console.warn('wa all not implemented')"    title="WhatsApp All" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button onclick="console.warn('tg all not implemented')"    title="Telegram All" class="p-1.5 doc-action-btn--tg rounded hover:bg-blue-50">${_docIco.telegram}</button>`,
     ].join('');
