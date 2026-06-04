@@ -309,6 +309,7 @@ function applyFilters() {
     if (activeTileFilter === 'highvalue') filteredOrders.sort((a, b) => parseFloat(b.VALUE||0)  - parseFloat(a.VALUE||0));
 
     renderShipmentList(filteredOrders);
+    _fetchTatTrackStatuses(filteredOrders);
     ui.statusMessage.textContent = '';
 
     if (isMobileView()) {
@@ -354,8 +355,6 @@ function renderShipmentList(orders) {
         if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
         ui.shipmentList.appendChild(li);
     });
-
-    _fetchTatTrackStatuses(orders);
 }
 
 async function _fetchTatTrackStatuses(orders) {
@@ -376,7 +375,6 @@ async function _fetchTatTrackStatuses(orders) {
         if ([...tatTrackStatuses.values()].some(s => s === 'delivered')) {
             activeTatFilter = 'delivered';
             _updateTatPills();
-            applyFilters();
         }
     } else {
         const el = document.getElementById('tatQuickFilters');
