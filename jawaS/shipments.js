@@ -348,7 +348,7 @@ function renderShipmentList(orders) {
         const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
         const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
         const li   = document.createElement('li');
-        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span id="track-${ref}" class="text-xs text-gray-400"></span></div>`;
+        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span></div>`;
         li.dataset.ref = ref;
         li.addEventListener('click', () => handleShipmentSelection(ref, li));
         if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
@@ -364,11 +364,6 @@ async function _fetchTatTrackStatuses(orders) {
         const s     = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
         if (state) tatTrackStatuses.set(order.REFERENCE, state);
-        const el = document.getElementById(`track-${order.REFERENCE}`);
-        if (el && state) {
-            const cfg = _stateConfig[state] || _stateConfig.pending;
-            el.innerHTML = `<span class="px-1.5 py-0.5 rounded text-xs ${cfg.cls}">${cfg.label}</span>`;
-        }
     });
 
     _renderTatQuickFilters();
@@ -626,7 +621,6 @@ async function _fetchAndRenderTracking(order, live = false) {
     }
 
     statusEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Fetching live status…</p>`;
-    if (historyEl) historyEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Loading…</p>`;
 
     try {
         let result;
