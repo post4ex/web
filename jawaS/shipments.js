@@ -14,7 +14,8 @@ let uploadsDataMap  = new Map(); // REFERENCE → [uploads]
 let modesDataMap    = new Map(); // SHORT → MODE name
 let carriersDataMap = new Map(); // COMPANY_CODE → COMPANY_NAME
 let branchDataMap   = new Map(); // BRANCH_CODE → branch record
-let tatTrackStatuses = new Map(); // REFERENCE → state string
+let shipmentsDataMap = new Map(); // REFERENCE → SHIPMENTS record (state, status_raw, etc.)
+let tatTrackStatuses = new Map(); // REFERENCE → state string (read from shipmentsDataMap, no network)
 
 let ui = {};
 
@@ -98,6 +99,9 @@ function handleTileClick(tile) {
     activeTileFilter = tile;
     activeTatFilter  = null;
     tatTrackStatuses.clear();
+    shipmentsDataMap.forEach((s, ref) => {
+        if (s.state) tatTrackStatuses.set(ref, s.state);
+    });
     document.getElementById('tatQuickFilters').style.display = 'none';
     document.getElementById('tatQuickFilters').innerHTML = '';
     showSplitView(_tileLabels[tile] || 'Shipments');
@@ -177,6 +181,9 @@ function initializePageWithData(appData) {
 
         if (appData.BRANCHES)
             Object.values(appData.BRANCHES).forEach(b => { if (b.BRANCH_CODE) branchDataMap.set(b.BRANCH_CODE, b); });
+
+        if (appData.SHIPMENTS)
+            Object.values(appData.SHIPMENTS).forEach(s => { if (s.REFERENCE) shipmentsDataMap.set(s.REFERENCE, s); });
 
         populateFilters(allOrders);
         setupFilterListeners();
@@ -352,28 +359,20 @@ function renderShipmentList(orders) {
 }
 
 async function _fetchTatTrackStatuses(orders) {
-    const trackable = orders.filter(o => o.AWB_NUMBER && o.CARRIER);
-    if (!trackable.length) return;
-
-    await Promise.all(trackable.map(async order => {
+    // State is already in shipmentsDataMap — no network call needed
+    orders.forEach(order => {
+        const s     = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        if (state) tatTrackStatuses.set(order.REFERENCE, state);
         const el = document.getElementById(`track-${order.REFERENCE}`);
-        if (el) el.textContent = '⏳';
-        try {
-            const result = await trackShipment(order.REFERENCE);
-            const state  = result.shipment?.state || 'pending';
-            tatTrackStatuses.set(order.REFERENCE, state);
-            if (el) {
-                const cfg = _stateConfig[state] || _stateConfig.pending;
-                el.innerHTML = `<span class="px-1.5 py-0.5 rounded text-xs ${cfg.cls}">${cfg.label}</span>`;
-            }
-        } catch {
-            if (el) el.textContent = '—';
+        if (el && state) {
+            const cfg = _stateConfig[state] || _stateConfig.pending;
+            el.innerHTML = `<span class="px-1.5 py-0.5 rounded text-xs ${cfg.cls}">${cfg.label}</span>`;
         }
-    }));
+    });
 
     _renderTatQuickFilters();
 
-    // auto-filter to Delivered
     if ([...tatTrackStatuses.values()].some(s => s === 'delivered')) {
         activeTatFilter = 'delivered';
         _updateTatPills();
@@ -631,9 +630,19 @@ async function _fetchAndRenderTracking(order, live = false) {
     if (historyEl) historyEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Loading…</p>`;
 
     try {
-        const result = live
-            ? await trackShipmentLive(order.REFERENCE)
-            : await trackShipment(order.REFERENCE);
+        let result;
+        if (live) {
+            result = await trackShipmentLive(order.REFERENCE);
+        } else {
+            // Use cached shipment from IDB — only movements need a network call
+            const cachedShipment = shipmentsDataMap.get(order.REFERENCE);
+            if (cachedShipment) {
+                const movResult = await trackShipment(order.REFERENCE); // calls /api/movements only
+                result = { shipment: cachedShipment, movements: movResult.movements || [] };
+            } else {
+                result = await trackShipment(order.REFERENCE);
+            }
+        }
 
         const s = result.shipment || {};
         const movements = result.movements || [];
