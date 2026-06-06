@@ -105,8 +105,8 @@
         if (val instanceof Date) return isNaN(val) ? null : val;
 
         // Unix milliseconds (number or numeric string > 10 digits)
-        if (typeof val === 'number' || (typeof val === 'string' && /^\d{10,}$/.test(val.trim()))) {
-            const d = new Date(Number(val));
+        if (typeof val === 'number' || (typeof val === 'string' && /^\d{10,}(\.\d+)?$/.test(val.trim()))) {
+            const d = new Date(Math.trunc(Number(val)));
             return isNaN(d) ? null : d;
         }
 
