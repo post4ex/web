@@ -59,9 +59,19 @@ async function callApi(endpoint, payload = {}, method = 'POST') {
 window._syncInProgress = false;
 window._sseBuffer      = [];
 
-async function _applyDelta({ collection, action, key, data }) {
+async function _applyDelta({ collection, action, key, data, id }) {
     if (action === 'upsert') await window.appDB.mergeSheet(collection, { [key]: data });
-    else if (action === 'delete') await window.appDB.deleteRecord(collection, key);
+    else if (action === 'delete') {
+        // try key first, then fall back to UUID (id) via secondary index
+        await window.appDB.deleteRecord(collection, key);
+        if (id && id !== key) {
+            const rec = await window.appDB.getByPbId(collection, id);
+            if (rec) {
+                const keyPath = window.appDB.sheetKeys[collection] || 'id';
+                await window.appDB.deleteRecord(collection, rec[keyPath]);
+            }
+        }
+    }
 }
 window._applyDelta = _applyDelta;
 
@@ -120,17 +130,20 @@ async function pullDeltaSince(since_ms) {
             }
         }
 
-        // Deletes — zero HTTP, pure IDB
+        // Deletes — use getByPbId to resolve key, then delete
         for (const [col, pb_ids] of Object.entries(deletes)) {
             const keyPath = window.appDB.sheetKeys[col] || 'id';
             for (const pb_id of pb_ids) {
-                const rec = await window.appDB.getByPbId(col, pb_id);
-                if (rec) {
-                    const key = rec[keyPath];
-                    console.log('[pullDeltaSince] deletes:', col, 'pb_id=', pb_id, 'key=', key);
-                    await window.appDB.deleteRecord(col, key);
-                    hasNewData = true;
+                if (keyPath === 'id') {
+                    // UUID is the key — delete directly
+                    await window.appDB.deleteRecord(col, pb_id);
+                } else {
+                    // resolve via secondary id index
+                    const rec = await window.appDB.getByPbId(col, pb_id);
+                    if (rec) await window.appDB.deleteRecord(col, rec[keyPath]);
+                    else await window.appDB.deleteRecord(col, pb_id); // best effort
                 }
+                hasNewData = true;
             }
         }
 
