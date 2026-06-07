@@ -17,7 +17,7 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 9; // SHIPMENTS added
+    this.version = 10; // EVENTS store removed
     this.db = null;
     
     // Define unique key for each sheet (must match PocketBase field names)
@@ -37,7 +37,6 @@ class AppDatabase {
       'CALC_HISTORY':  'CALC_UID',
       'NOTIFICATIONS': 'NOTIF_ID',
       'HOLIDAYS':      'HOLIDAY_ID',
-      'EVENTS':        'id',
       'LEDGER':        'ENTRY_ID',
       'SHIPMENTS':     'REFERENCE',
     };
@@ -63,7 +62,7 @@ class AppDatabase {
           'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
           'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
           'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY',
-          'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', 'LEDGER', 'SHIPMENTS'
+          'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS'
         ];
         
         // Create object stores with correct key paths
@@ -225,7 +224,7 @@ class AppDatabase {
       'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
       'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
       'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY',
-      'NOTIFICATIONS', 'HOLIDAYS', 'EVENTS', 'LEDGER', 'SHIPMENTS', '_metadata'
+      'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', '_metadata'
     ];
     
     for (const sheetName of sheets) {
@@ -284,20 +283,9 @@ class AppDatabase {
   }
 
   async getLastEventStamp() {
-    if (!this.db) return 0;
-    return new Promise(resolve => {
-      try {
-        const tx    = this.db.transaction(['EVENTS'], 'readonly');
-        const index = tx.objectStore('EVENTS').index('TIME_STAMP');
-        const req   = index.openCursor(null, 'prev');
-        req.onsuccess = () => {
-          const ts = req.result ? Number(req.result.value.TIME_STAMP) : 0;
-          console.log('[idb] getLastEventStamp:', ts);
-          resolve(ts);
-        };
-        req.onerror = () => resolve(0);
-      } catch (_) { resolve(0); }
-    });
+    const ts = (await this.getMetadata('lastEventStamp')) || 0;
+    console.log('[idb] getLastEventStamp:', ts);
+    return ts;
   }
 
   async getByPbId(sheetName, pbId) {

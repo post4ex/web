@@ -86,11 +86,6 @@ async function pullDeltaSince(since_ms) {
         console.log('[pullDeltaSince] fetchEvents returned', events.length, 'events');
         if (!events.length) { window._lastDeltaSync = Date.now(); return; }
 
-        // Store events in IDB
-        const evMap = {};
-        events.forEach(e => { evMap[e.id] = e; });
-        await window.appDB.mergeSheet('EVENTS', evMap);
-
         // Split into upserts and deletes
         const upserts = {}, deletes = {};
         for (const ev of events) {
@@ -140,6 +135,8 @@ async function pullDeltaSince(since_ms) {
         }
 
         window._lastDeltaSync = Date.now();
+        const maxTs = Math.max(...events.map(e => Number(e.TIME_STAMP) || 0));
+        if (maxTs > 0) await window.appDB.setMetadata('lastEventStamp', maxTs).catch(() => {});
         if (hasNewData) _scheduleRefresh();
     } catch (e) { console.warn('[pullDeltaSince] error:', e.message); }
 }
@@ -343,7 +340,7 @@ async function getAppData(sheetName = null) {
     try {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
-        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'EVENTS'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS'];
         const result  = {};
         const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
         sheets.forEach((s, i) => result[s] = results[i]);

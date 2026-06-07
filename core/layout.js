@@ -237,6 +237,7 @@ async function _handleSSEMessage(payload) {
         if (window._syncInProgress) { window._sseBuffer.push(payload); return; }
         console.log('[SSE] delta applying:', payload.collection, payload.action, payload.key);
         await _applyDelta(payload);
+        if (payload.ts) await window.appDB.setMetadata('lastEventStamp', payload.ts).catch(() => {});
         _scheduleRefresh();
     }
 }
