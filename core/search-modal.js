@@ -3,13 +3,14 @@
 // ============================================================================
 
 const CUSTOM_CARRIERS = [
-    { value: 'jetline',    label: 'Jetline',     type: 'slug' },
-    { value: 'trackon',    label: 'Trackon',     type: 'slug' },
-    { value: 'delhivery',  label: 'Delhivery',   type: 'slug' },
-    { value: 'shiprocket', label: 'Shiprocket',  type: 'slug' },
-    { value: 'bigship',    label: 'Bigship',     type: 'slug' },
-    { value: 'tc',         label: 'TrackCourier',type: 'tc'   },
-    { value: '17track',    label: '17Track',     type: '17t'  },
+    { value: 'jetline',    label: 'Jetline',         type: 'slug' },
+    { value: 'trackon',    label: 'Trackon',         type: 'slug' },
+    { value: 'delhivery',  label: 'Delhivery',       type: 'slug' },
+    { value: 'shiprocket', label: 'Shiprocket',      type: 'slug' },
+    { value: 'bigship',    label: 'Bigship',         type: 'slug' },
+    { value: 'airways',    label: 'Airways Courier', type: 'slug' },
+    { value: 'tc',         label: 'TrackCourier',    type: 'tc'   },
+    { value: '17track',    label: '17Track',         type: '17t'  },
 ];
 
 // Carriers that need a sub-carrier param for tc/17track
@@ -38,7 +39,7 @@ function _injectModal() {
     el.tabIndex = -1;
     el.innerHTML = `
 <div id="sm-overlay" role="dialog" aria-modal="true" aria-label="Track Shipment" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);justify-content:center;align-items:flex-start;padding-top:5vh;" tabindex="-1">
-    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:680px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;margin:0 1rem;">
+    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:960px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;margin:0 1rem;">
         <!-- Header -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.75rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);">
             <i class="fa-solid fa-magnifying-glass" style="color:#9C2007;font-size:0.9rem;"></i>
