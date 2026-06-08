@@ -292,13 +292,18 @@ function _renderResult(data) {
     ].filter(i => i.value);
 
     // Desktop movement table
-    const movRows = movements.map((m, i) => `
+    const movRows = movements.map((m, i) => {
+        const sysTs = m.activity_stamp || m.time_stamp || 0;
+        const sysTime = sysTs ? (typeof fmtDate === 'function' ? fmtDate(sysTs, 'full') : sysTs) : '—';
+        return `
         <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};">
             <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||m.DATE||''}</td>
             <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||m.TIME||''}</td>
             <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||m.LOCATION||''}</td>
             <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;font-weight:${i===0?700:500};">${m.activity||m.ACTIVITY||''}</td>
-        </tr>`).join('');
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.68rem;color:#94a3b8;">${sysTime}</td>
+        </tr>`;
+    }).join('');
 
     // Mobile movement cards
     const movCards = movements.map((m, i) => `
@@ -391,6 +396,7 @@ function _renderResult(data) {
                             <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Time</th>
                             <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Location</th>
                             <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Activity</th>
+                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Sys Time</th>
                         </tr></thead>
                         <tbody>${movRows}</tbody>
                     </table>` : noMov}
