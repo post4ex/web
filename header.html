@@ -57,9 +57,9 @@
 
             <!-- Auth Controls & Tools -->
             <div class="flex items-center space-x-4">
-                <a id="nav-search-private" href="search.html" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
+                <button id="nav-search-private" title="Track Shipment" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'" onclick="typeof openSearchModal === 'function' && openSearchModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
-                </a>
+                </button>
 
                 <button id="desktop-logout-button" title="Logout" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -263,6 +263,9 @@
             if (localStorage.getItem('loginData')) {
                 const globalNotif = document.getElementById('notification-container-global');
                 if (globalNotif) globalNotif.classList.remove('hidden');
+
+                const searchBtn = document.getElementById('nav-search-private');
+                if (searchBtn) searchBtn.classList.remove('hidden');
 
                 document.getElementById('container-desktop-private')?.classList.remove('hidden');
                 document.getElementById('container-desktop-private')?.classList.add('flex');
