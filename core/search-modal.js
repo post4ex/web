@@ -38,19 +38,19 @@ function _injectModal() {
     el.setAttribute('aria-label', 'Track Shipment');
     el.tabIndex = -1;
     el.innerHTML = `
-<div id="sm-overlay" role="dialog" aria-modal="true" aria-label="Track Shipment" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);justify-content:center;align-items:flex-start;padding-top:5vh;" tabindex="-1">
-    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:1200px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;margin:0 1rem;">
+<div id="sm-overlay" role="dialog" aria-modal="true" aria-label="Track Shipment" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);justify-content:center;align-items:center;" tabindex="-1">
+    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:1200px;height:100vh;max-height:100vh;overflow-y:auto;display:flex;flex-direction:column;margin:0 1rem;">
         <!-- Header -->
-        <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.75rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);">
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.75rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);position:sticky;top:0;z-index:1;">
             <i class="fa-solid fa-magnifying-glass" style="color:#9C2007;font-size:0.9rem;"></i>
             <span style="font-size:0.85rem;font-weight:800;color:#1e293b;flex:1;">Track Shipment</span>
-            <button id="sm-close" class="btn btn-sm" aria-label="Close" style="padding:0.35rem 0.5rem;" tabindex="0">
+            <button id="sm-close" aria-label="Close" tabindex="0" style="display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;border:none;background:transparent;cursor:pointer;color:#64748b;font-size:1.1rem;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='#f1f5f9';this.style.color='#1e293b'" onmouseout="this.style.background='transparent';this.style.color='#64748b'">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
 
         <!-- Controls -->
-        <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;flex-shrink:0;">
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
             <!-- Mode Tabs -->
             <div style="display:flex;gap:0.5rem;margin-bottom:0.875rem;" role="group" aria-label="Tracking mode">
                 <button class="btn btn-sm sm-tab btn-active" data-mode="default" style="flex:1;">Default</button>
@@ -59,7 +59,7 @@ function _injectModal() {
             </div>
 
             <!-- Input row -->
-            <div style="display:flex;gap:0.5rem;align-items:flex-start;flex-wrap:wrap;">
+            <div style="display:flex;gap:0.5rem;align-items:flex-start;">
                 <!-- Custom: carrier select -->
                 <div id="sm-carrier-wrap" style="display:none;flex-shrink:0;">
                     <select id="sm-carrier-sel" aria-label="Select carrier" style="padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;min-width:130px;">
@@ -82,7 +82,7 @@ function _injectModal() {
         </div>
 
         <!-- Result area -->
-        <div id="sm-result-wrap" style="overflow-y:auto;flex:1;padding:1rem 1.25rem;">
+        <div id="sm-result-wrap" style="padding:1rem 1.25rem;">
             <div id="sm-msg"    class="hidden" style="padding:0.6rem 0.875rem;border-radius:0.5rem;font-size:0.78rem;font-weight:600;text-align:center;margin-bottom:0.75rem;"></div>
             <div id="sm-loader" class="hidden" style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.8rem;">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem;margin-bottom:0.5rem;display:block;"></i>Fetching tracking data…
