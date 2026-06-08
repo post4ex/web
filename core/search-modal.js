@@ -51,15 +51,13 @@ function _injectModal() {
 
         <!-- Controls -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
-            <!-- Mode Tabs -->
-            <div style="display:flex;gap:0.5rem;margin-bottom:0.875rem;" role="group" aria-label="Tracking mode">
-                <button class="btn btn-sm sm-tab btn-active" data-mode="default" style="flex:1;">Default</button>
-                <button class="btn btn-sm sm-tab" data-mode="live"    style="flex:1;">Live</button>
-                <button class="btn btn-sm sm-tab" data-mode="custom"  style="flex:1;">Custom</button>
-            </div>
-
-            <!-- Input row -->
-            <div style="display:flex;gap:0.5rem;align-items:flex-start;">
+            <!-- Single row: tabs + dropdowns + input + track btn -->
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                <div style="display:flex;gap:0.25rem;flex-shrink:0;" role="group" aria-label="Tracking mode">
+                    <button class="btn btn-sm sm-tab btn-active" data-mode="default">Default</button>
+                    <button class="btn btn-sm sm-tab" data-mode="live">Live</button>
+                    <button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>
+                </div>
                 <!-- Custom: carrier select -->
                 <div id="sm-carrier-wrap" style="display:none;flex-shrink:0;">
                     <select id="sm-carrier-sel" aria-label="Select carrier" style="padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;min-width:130px;">
@@ -80,7 +78,6 @@ function _injectModal() {
             </div>
             <p id="sm-mode-hint" style="font-size:0.68rem;color:#94a3b8;margin-top:0.4rem;">Reads from cache. Fast.</p>
         </div>
-
         <!-- Result area -->
         <div id="sm-result-wrap" style="padding:1rem 1.25rem;">
             <div id="sm-msg"    class="hidden" style="padding:0.6rem 0.875rem;border-radius:0.5rem;font-size:0.78rem;font-weight:600;text-align:center;margin-bottom:0.75rem;"></div>
@@ -318,31 +315,63 @@ function _renderResult(data) {
 
     rc.innerHTML = `
         <div style="font-family:'Inter',sans-serif;">
-            <!-- Shipment info + status hero -->
-            <div style="display:flex;gap:0.875rem;margin-bottom:0.875rem;flex-wrap:wrap;">
-                ${infoItems.length ? `
-                <div class="tray" style="flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.5rem;">
-                    ${infoItems.map(item => `
-                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.625rem;padding:0.6rem 0.75rem;">
-                        <p style="font-size:0.6rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.2rem;">
-                            <i class="fa-solid ${item.icon}" style="margin-right:0.3rem;"></i>${item.label}
-                        </p>
-                        <p style="font-size:0.78rem;font-weight:700;color:#1e293b;">${item.value}</p>
-                    </div>`).join('')}
-                </div>` : ''}
-                <!-- Status hero -->
-                <div style="flex:1;min-width:150px;background:${ss.bg};border-radius:0.875rem;padding:1rem 1.25rem;box-shadow:0 6px 24px ${ss.glow};display:flex;flex-direction:column;justify-content:center;gap:0.6rem;">
-                    <div style="display:flex;align-items:center;gap:0.75rem;">
-                        <div style="width:2.5rem;height:2.5rem;background:rgba(255,255,255,0.18);border-radius:0.625rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <i class="fa-solid ${st.icon}" style="color:white;font-size:1rem;"></i>
-                        </div>
+            <!-- Shipment summary: 2-row table (desktop) / 2 cards (mobile) -->
+            <div style="margin-bottom:0.875rem;border:1px solid #e2e8f0;border-radius:0.875rem;overflow:hidden;">
+
+                <!-- DESKTOP: 2-row table -->
+                <table id="sm-info-desktop" style="display:${isMobile?'none':'table'};width:100%;border-collapse:collapse;">
+                    <tbody>
+                        <tr>
+                            ${infoItems.map((item, i) => `
+                            <td style="padding:0.55rem 0.875rem;border-bottom:1px solid #f1f5f9;${i>0?'border-left:1px solid #f1f5f9;':''}vertical-align:top;background:#f8fafc;">
+                                <p style="font-size:0.58rem;color:#9C2007;opacity:0.8;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin:0 0 0.15rem;">
+                                    <i class="fa-solid ${item.icon}" style="margin-right:0.25rem;"></i>${item.label}
+                                </p>
+                            </td>`).join('')}
+                            <td style="padding:0.55rem 0.875rem;border-bottom:1px solid #f1f5f9;border-left:1px solid #f1f5f9;vertical-align:top;background:${ss.bg};">
+                                <p style="font-size:0.58rem;color:rgba(255,255,255,0.7);font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin:0 0 0.15rem;">
+                                    <i class="fa-solid fa-circle-dot" style="margin-right:0.25rem;"></i>Status
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            ${infoItems.map((item, i) => `
+                            <td style="padding:0.55rem 0.875rem;${i>0?'border-left:1px solid #f1f5f9;':''}vertical-align:top;">
+                                <p style="font-size:0.82rem;font-weight:700;color:#1e293b;margin:0;">${item.value}</p>
+                            </td>`).join('')}
+                            <td style="padding:0.55rem 0.875rem;border-left:1px solid #f1f5f9;vertical-align:middle;background:${ss.bg};">
+                                <div style="display:flex;align-items:center;gap:0.5rem;">
+                                    <i class="fa-solid ${st.icon}" style="color:white;font-size:0.9rem;"></i>
+                                    <span style="color:white;font-size:0.85rem;font-weight:800;">${st.label}</span>
+                                </div>
+                                ${shipment.carrier_name||shipment.carrier ? `<p style="color:rgba(255,255,255,0.75);font-size:0.68rem;font-weight:600;margin:0.2rem 0 0;">${shipment.carrier_name||shipment.carrier}</p>` : ''}
+                                ${shipment.status_raw ? `<p style="color:rgba(255,255,255,0.65);font-size:0.65rem;margin:0.15rem 0 0;">${shipment.status_raw}</p>` : ''}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- MOBILE: 2 cards -->
+                <div id="sm-info-mobile" style="display:${isMobile?'flex':'none'};flex-direction:column;gap:0.5rem;padding:0.75rem;">
+                    <!-- Card 1: info fields in grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;">
+                        ${infoItems.map(item => `
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.5rem 0.65rem;">
+                            <p style="font-size:0.58rem;color:#9C2007;opacity:0.8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.15rem;">
+                                <i class="fa-solid ${item.icon}" style="margin-right:0.2rem;"></i>${item.label}
+                            </p>
+                            <p style="font-size:0.78rem;font-weight:700;color:#1e293b;margin:0;">${item.value}</p>
+                        </div>`).join('')}
+                    </div>
+                    <!-- Card 2: status -->
+                    <div style="background:${ss.bg};border-radius:0.5rem;padding:0.75rem 0.875rem;display:flex;align-items:center;gap:0.75rem;">
+                        <i class="fa-solid ${st.icon}" style="color:white;font-size:1.1rem;flex-shrink:0;"></i>
                         <div>
-                            <p style="color:rgba(255,255,255,0.65);font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Status</p>
-                            <p style="color:white;font-size:1rem;font-weight:800;">${st.label}</p>
+                            <p style="color:white;font-size:0.9rem;font-weight:800;margin:0;">${st.label}</p>
+                            ${shipment.carrier_name||shipment.carrier ? `<p style="color:rgba(255,255,255,0.75);font-size:0.7rem;margin:0.1rem 0 0;">${shipment.carrier_name||shipment.carrier}</p>` : ''}
+                            ${shipment.status_raw ? `<p style="color:rgba(255,255,255,0.65);font-size:0.65rem;margin:0.1rem 0 0;">${shipment.status_raw}</p>` : ''}
                         </div>
                     </div>
-                    ${shipment.carrier_name||shipment.carrier ? `<span style="background:rgba(255,255,255,0.18);color:white;font-size:0.68rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:2rem;align-self:flex-start;">${shipment.carrier_name||shipment.carrier}</span>` : ''}
-                    ${shipment.status_raw ? `<p style="background:rgba(0,0,0,0.15);color:rgba(255,255,255,0.85);font-size:0.7rem;padding:0.4rem 0.75rem;border-radius:0.4rem;">${shipment.status_raw}</p>` : ''}
                 </div>
             </div>
 
@@ -355,7 +384,7 @@ function _renderResult(data) {
                     ${movements.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.62rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:2rem;">${movements.length} events</span>` : ''}
                 </div>
                 <!-- Desktop table -->
-                <div id="sm-mov-desktop" style="display:${isMobile?'none':'block'};max-height:240px;overflow-y:auto;">
+                <div id="sm-mov-desktop" style="display:${isMobile?'none':'block'};">
                     ${movRows ? `<table style="width:100%;border-collapse:collapse;">
                         <thead><tr style="background:#f8fafc;position:sticky;top:0;">
                             <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Date</th>
@@ -376,12 +405,16 @@ function _renderResult(data) {
     rc.classList.remove('hidden');
 
     // Responsive toggle on resize
-    const desktop = rc.querySelector('#sm-mov-desktop');
-    const mobile  = rc.querySelector('#sm-mov-mobile');
+    const desktop   = rc.querySelector('#sm-mov-desktop');
+    const mobile    = rc.querySelector('#sm-mov-mobile');
+    const infoDesk  = rc.querySelector('#sm-info-desktop');
+    const infoMob   = rc.querySelector('#sm-info-mobile');
     const _resize = () => {
         const mob = window.innerWidth <= 640;
-        if (desktop) desktop.style.display = mob ? 'none' : 'block';
-        if (mobile)  mobile.style.display  = mob ? 'block' : 'none';
+        if (desktop)  desktop.style.display  = mob ? 'none'  : 'table';
+        if (mobile)   mobile.style.display   = mob ? 'block' : 'none';
+        if (infoDesk) infoDesk.style.display = mob ? 'none'  : 'table';
+        if (infoMob)  infoMob.style.display  = mob ? 'flex'  : 'none';
     };
     window.removeEventListener('resize', _smResizeHandler);
     _smResizeHandler = _resize;
