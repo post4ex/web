@@ -127,6 +127,7 @@ function _bindModalEvents() {
 }
 
 let _currentMode = 'default';
+let _smResizeHandler = null;
 
 function _setMode(mode) {
     _currentMode = mode;
@@ -205,7 +206,8 @@ async function _doSearch() {
     } else if (_currentMode === 'live') {
         url = `${base}/api/track/live?${_refOrAwb(query)}`;
     } else {
-        url = `${base}/api/track/tracking?${_refOrAwb(query)}`;
+        // Default: local cache, no outbound HF call
+        url = `${base}/api/movements?${_refOrAwb(query)}`;
     }
 
     _showLoader();
@@ -231,56 +233,136 @@ function _refOrAwb(q) {
 }
 
 // ============================================================================
-// Render result (reuses tracking.js renderTrackingResult if available)
+// Render result — self-contained, no external dependency
 // ============================================================================
 function _renderResult(data) {
     _clearResult();
     const rc = document.getElementById('sm-result');
     if (!rc) return;
 
-    // If custom carrier — data has {status, data:{movements,shipment}} or {status, data:{...}}
-    // Normalise to {shipment, movements}
-    const normalised = _normaliseData(data);
-
-    if (typeof renderTrackingResult === 'function') {
-        rc.classList.remove('hidden');
-        renderTrackingResult(normalised, 'sm-result');
+    // Normalise: proxy /tracking → {status,shipment,movements}
+    //            proxy /track/{carrier} → {status,data:{movements,...}}
+    let shipment, movements;
+    if (data.shipment !== undefined) {
+        shipment  = data.shipment  || {};
+        movements = data.movements || [];
     } else {
-        rc.innerHTML = _fallbackTable(normalised);
-        rc.classList.remove('hidden');
+        const inner = data.data || data;
+        shipment  = inner.shipment  || {};
+        movements = inner.movements || [];
     }
-}
 
-function _normaliseData(data) {
-    // Proxy endpoints return {status, data:{...}}
-    // Tracking endpoints return {status, shipment:{...}, movements:[...]}
-    if (data.shipment !== undefined) return data;
-    const inner = data.data || data;
-    return {
-        shipment:  inner.shipment  || inner,
-        movements: inner.movements || [],
+    const st = STATE_BADGE[shipment.state] || STATE_BADGE.pending;
+    const stateStyles = {
+        delivered:      { bg: 'linear-gradient(135deg,#9C2007,#7a1805)', glow: 'rgba(156,32,7,0.3)'    },
+        outfordelivery: { bg: 'linear-gradient(135deg,#2563eb,#1d4ed8)', glow: 'rgba(37,99,235,0.3)'   },
+        intransit:      { bg: 'linear-gradient(135deg,#d97706,#b45309)', glow: 'rgba(217,119,6,0.3)'   },
+        exception:      { bg: 'linear-gradient(135deg,#dc2626,#b91c1c)', glow: 'rgba(220,38,38,0.3)'   },
+        pending:        { bg: 'linear-gradient(135deg,#6b7280,#4b5563)', glow: 'rgba(107,114,128,0.2)' },
     };
-}
+    const ss = stateStyles[shipment.state] || stateStyles.pending;
 
-function _fallbackTable(data) {
-    const mvs = data.movements || [];
-    const rows = mvs.map(m => `<tr>
-        <td style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||''}</td>
-        <td style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#9ca3af;">${m.time||''}</td>
-        <td style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||''}</td>
-        <td style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;">${m.activity||''}</td>
-    </tr>`).join('');
-    return rows
-        ? `<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
-            <thead><tr style="background:#f8fafc;">
-                <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.65rem;color:#94a3b8;text-transform:uppercase;">Date</th>
-                <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.65rem;color:#94a3b8;text-transform:uppercase;">Time</th>
-                <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.65rem;color:#94a3b8;text-transform:uppercase;">Location</th>
-                <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.65rem;color:#94a3b8;text-transform:uppercase;">Activity</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-           </table>`
-        : '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:2rem;">No movements recorded yet.</p>';
+    const infoItems = [
+        { label: 'Reference',   value: shipment.reference,                                      icon: 'fa-fingerprint'     },
+        { label: 'AWB No.',     value: shipment.awb || shipment.carrier_awb,                    icon: 'fa-hashtag'         },
+        { label: 'Origin',      value: shipment.carrier_origin || shipment.origin,              icon: 'fa-circle-dot'      },
+        { label: 'Destination', value: shipment.carrier_destination || shipment.destination,    icon: 'fa-location-dot'    },
+        { label: 'Booked On',   value: shipment.booked_date || shipment.order_date,             icon: 'fa-calendar-days'   },
+        { label: 'Weight',      value: shipment.weight ? `${shipment.weight} kg · ${shipment.pieces||1} pcs` : null, icon: 'fa-weight-hanging' },
+    ].filter(i => i.value);
+
+    // Desktop movement table
+    const movRows = movements.map((m, i) => `
+        <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};">
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;font-weight:${i===0?700:500};">${m.activity||''}</td>
+        </tr>`).join('');
+
+    // Mobile movement cards
+    const movCards = movements.map((m, i) => `
+        <div style="border-radius:0.625rem;padding:0.65rem 0.875rem;border:1px solid ${i===0?'#bfdbfe':'#e2e8f0'};background:${i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.4rem;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.2rem;">
+                <span style="font-size:0.75rem;font-weight:700;color:${i===0?'#1d4ed8':'#374151'};">${m.activity||''}</span>
+                <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;">${m.date||''} ${m.time||''}</span>
+            </div>
+            ${m.location?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">${m.location}</p>`:''}
+        </div>`).join('');
+
+    const noMov = '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1.5rem;">No movements recorded yet.</p>';
+    const isMobile = window.innerWidth <= 640;
+
+    rc.innerHTML = `
+        <div style="font-family:'Inter',sans-serif;">
+            <!-- Shipment info + status hero -->
+            <div style="display:flex;gap:0.875rem;margin-bottom:0.875rem;flex-wrap:wrap;">
+                ${infoItems.length ? `
+                <div style="flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.5rem;">
+                    ${infoItems.map(item => `
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.625rem;padding:0.6rem 0.75rem;">
+                        <p style="font-size:0.6rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.2rem;">
+                            <i class="fa-solid ${item.icon}" style="margin-right:0.3rem;"></i>${item.label}
+                        </p>
+                        <p style="font-size:0.78rem;font-weight:700;color:#1e293b;">${item.value}</p>
+                    </div>`).join('')}
+                </div>` : ''}
+                <!-- Status hero -->
+                <div style="flex:1;min-width:150px;background:${ss.bg};border-radius:0.875rem;padding:1rem 1.25rem;box-shadow:0 6px 24px ${ss.glow};display:flex;flex-direction:column;justify-content:center;gap:0.6rem;">
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <div style="width:2.5rem;height:2.5rem;background:rgba(255,255,255,0.18);border-radius:0.625rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fa-solid ${st.icon}" style="color:white;font-size:1rem;"></i>
+                        </div>
+                        <div>
+                            <p style="color:rgba(255,255,255,0.65);font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Status</p>
+                            <p style="color:white;font-size:1rem;font-weight:800;">${st.label}</p>
+                        </div>
+                    </div>
+                    ${shipment.carrier_name||shipment.carrier ? `<span style="background:rgba(255,255,255,0.18);color:white;font-size:0.68rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:2rem;align-self:flex-start;">${shipment.carrier_name||shipment.carrier}</span>` : ''}
+                    ${shipment.status_raw ? `<p style="background:rgba(0,0,0,0.15);color:rgba(255,255,255,0.85);font-size:0.7rem;padding:0.4rem 0.75rem;border-radius:0.4rem;">${shipment.status_raw}</p>` : ''}
+                </div>
+            </div>
+
+            <!-- Movement history -->
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:0.875rem;overflow:hidden;">
+                <div style="padding:0.75rem 0.875rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
+                    <span style="font-size:0.7rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:0.07em;">
+                        <i class="fa-solid fa-timeline" style="color:#2563eb;margin-right:0.4rem;"></i>Movement History
+                    </span>
+                    ${movements.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.62rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:2rem;">${movements.length} events</span>` : ''}
+                </div>
+                <!-- Desktop table -->
+                <div id="sm-mov-desktop" style="display:${isMobile?'none':'block'};max-height:240px;overflow-y:auto;">
+                    ${movRows ? `<table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="background:#f8fafc;position:sticky;top:0;">
+                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Date</th>
+                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Time</th>
+                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Location</th>
+                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Activity</th>
+                        </tr></thead>
+                        <tbody>${movRows}</tbody>
+                    </table>` : noMov}
+                </div>
+                <!-- Mobile cards -->
+                <div id="sm-mov-mobile" style="display:${isMobile?'block':'none'};padding:0.75rem;">
+                    ${movCards || noMov}
+                </div>
+            </div>
+        </div>`;
+
+    rc.classList.remove('hidden');
+
+    // Responsive toggle on resize
+    const desktop = rc.querySelector('#sm-mov-desktop');
+    const mobile  = rc.querySelector('#sm-mov-mobile');
+    const _resize = () => {
+        const mob = window.innerWidth <= 640;
+        if (desktop) desktop.style.display = mob ? 'none' : 'block';
+        if (mobile)  mobile.style.display  = mob ? 'block' : 'none';
+    };
+    window.removeEventListener('resize', _smResizeHandler);
+    _smResizeHandler = _resize;
+    window.addEventListener('resize', _resize);
 }
 
 // ============================================================================
