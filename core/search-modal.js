@@ -39,12 +39,12 @@ function _injectModal() {
     el.tabIndex = -1;
     el.innerHTML = `
 <div id="sm-overlay" role="dialog" aria-modal="true" aria-label="Track Shipment" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);justify-content:center;align-items:flex-start;padding-top:5vh;" tabindex="-1">
-    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:960px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;margin:0 1rem;">
+    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:1200px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;margin:0 1rem;">
         <!-- Header -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.75rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);">
             <i class="fa-solid fa-magnifying-glass" style="color:#9C2007;font-size:0.9rem;"></i>
             <span style="font-size:0.85rem;font-weight:800;color:#1e293b;flex:1;">Track Shipment</span>
-            <button id="sm-close" aria-label="Close" style="background:none;border:none;cursor:pointer;padding:0.25rem;color:#94a3b8;font-size:1.1rem;line-height:1;" tabindex="0">
+            <button id="sm-close" class="btn btn-sm" aria-label="Close" style="padding:0.35rem 0.5rem;" tabindex="0">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -53,9 +53,9 @@ function _injectModal() {
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;flex-shrink:0;">
             <!-- Mode Tabs -->
             <div style="display:flex;gap:0.5rem;margin-bottom:0.875rem;" role="group" aria-label="Tracking mode">
-                <button class="sm-tab" data-mode="default" style="flex:1;padding:0.45rem 0.5rem;border-radius:0.5rem;border:1px solid #e2e8f0;font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.15s;background:#eff6ff;color:#2563eb;border-color:#bfdbfe;">Default</button>
-                <button class="sm-tab" data-mode="live"    style="flex:1;padding:0.45rem 0.5rem;border-radius:0.5rem;border:1px solid #e2e8f0;font-size:0.72rem;font-weight:600;cursor:pointer;transition:all 0.15s;background:#fff;color:#64748b;">Live</button>
-                <button class="sm-tab" data-mode="custom"  style="flex:1;padding:0.45rem 0.5rem;border-radius:0.5rem;border:1px solid #e2e8f0;font-size:0.72rem;font-weight:600;cursor:pointer;transition:all 0.15s;background:#fff;color:#64748b;">Custom</button>
+                <button class="btn btn-sm sm-tab btn-active" data-mode="default" style="flex:1;">Default</button>
+                <button class="btn btn-sm sm-tab" data-mode="live"    style="flex:1;">Live</button>
+                <button class="btn btn-sm sm-tab" data-mode="custom"  style="flex:1;">Custom</button>
             </div>
 
             <!-- Input row -->
@@ -135,11 +135,11 @@ function _setMode(mode) {
     const hints = { default: 'Reads from cache. Fast.', live: 'Live carrier scrape. Slower.', custom: 'Route directly to a specific carrier.' };
     document.getElementById('sm-mode-hint').textContent = hints[mode] || '';
     document.querySelectorAll('.sm-tab').forEach(t => {
-        const active = t.dataset.mode === mode;
-        t.style.background = active ? '#eff6ff' : '#fff';
-        t.style.color = active ? '#2563eb' : '#64748b';
-        t.style.borderColor = active ? '#bfdbfe' : '#e2e8f0';
-        t.style.fontWeight = active ? '700' : '600';
+        if (t.dataset.mode === mode) {
+            t.classList.add('btn-active');
+        } else {
+            t.classList.remove('btn-active');
+        }
     });
     const carrierWrap = document.getElementById('sm-carrier-wrap');
     const subWrap     = document.getElementById('sm-subcarrier-wrap');
@@ -234,6 +234,26 @@ function _refOrAwb(q) {
 }
 
 // ============================================================================
+// Sort movements — newest first
+// ============================================================================
+function _sortMovements(movements) {
+    if (!movements || !movements.length) return [];
+    return [...movements].sort((a, b) => {
+        const aStamp = a.activity_stamp || a.ACTIVITY_STAMP || 0;
+        const bStamp = b.activity_stamp || b.ACTIVITY_STAMP || 0;
+        if (aStamp && bStamp) return bStamp - aStamp;
+
+        const aRec = a.recorded_at || a.RECORDED_AT || 0;
+        const bRec = b.recorded_at || b.RECORDED_AT || 0;
+        if (aRec && bRec) return bRec - aRec;
+
+        const aStr = `${a.date || a.DATE || ''} ${a.time || a.TIME || ''}`.trim();
+        const bStr = `${b.date || b.DATE || ''} ${b.time || b.TIME || ''}`.trim();
+        return bStr.localeCompare(aStr);
+    });
+}
+
+// ============================================================================
 // Render result — self-contained, no external dependency
 // ============================================================================
 function _renderResult(data) {
@@ -252,6 +272,8 @@ function _renderResult(data) {
         shipment  = inner.shipment  || {};
         movements = inner.movements || [];
     }
+
+    movements = _sortMovements(movements);
 
     const st = STATE_BADGE[shipment.state] || STATE_BADGE.pending;
     const stateStyles = {
@@ -275,20 +297,20 @@ function _renderResult(data) {
     // Desktop movement table
     const movRows = movements.map((m, i) => `
         <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};">
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;font-weight:${i===0?700:500};">${m.activity||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||m.DATE||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||m.TIME||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||m.LOCATION||''}</td>
+            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;font-weight:${i===0?700:500};">${m.activity||m.ACTIVITY||''}</td>
         </tr>`).join('');
 
     // Mobile movement cards
     const movCards = movements.map((m, i) => `
         <div style="border-radius:0.625rem;padding:0.65rem 0.875rem;border:1px solid ${i===0?'#bfdbfe':'#e2e8f0'};background:${i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.4rem;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.2rem;">
-                <span style="font-size:0.75rem;font-weight:700;color:${i===0?'#1d4ed8':'#374151'};">${m.activity||''}</span>
-                <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;">${m.date||''} ${m.time||''}</span>
+                <span style="font-size:0.75rem;font-weight:700;color:${i===0?'#1d4ed8':'#374151'};">${m.activity||m.ACTIVITY||''}</span>
+                <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;">${m.date||m.DATE||''} ${m.time||m.TIME||''}</span>
             </div>
-            ${m.location?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">${m.location}</p>`:''}
+            ${(m.location||m.LOCATION)?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">${m.location||m.LOCATION}</p>`:''}
         </div>`).join('');
 
     const noMov = '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1.5rem;">No movements recorded yet.</p>';
@@ -299,7 +321,7 @@ function _renderResult(data) {
             <!-- Shipment info + status hero -->
             <div style="display:flex;gap:0.875rem;margin-bottom:0.875rem;flex-wrap:wrap;">
                 ${infoItems.length ? `
-                <div style="flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.5rem;">
+                <div class="tray" style="flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.5rem;">
                     ${infoItems.map(item => `
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.625rem;padding:0.6rem 0.75rem;">
                         <p style="font-size:0.6rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.2rem;">
