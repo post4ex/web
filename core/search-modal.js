@@ -31,6 +31,16 @@ const STATE_BADGE = {
 function _injectModal() {
     if (document.getElementById('sm-overlay')) return;
 
+    if (!document.getElementById('sm-style')) {
+        const s = document.createElement('style');
+        s.id = 'sm-style';
+        s.textContent = `
+            .sm-tabs-group { display:flex; gap:0.25rem; flex-shrink:0; }
+            @media (max-width:640px) { .sm-tabs-group { width:100%; } }
+        `;
+        document.head.appendChild(s);
+    }
+
     const el = document.createElement('div');
     el.id = 'sm-overlay';
     el.setAttribute('role', 'dialog');
@@ -51,9 +61,9 @@ function _injectModal() {
 
         <!-- Controls -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
-            <!-- Single row: tabs + dropdowns + input + track btn -->
+            <!-- Single row desktop / 2-row mobile -->
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                <div style="display:flex;gap:0.25rem;flex-shrink:0;" role="group" aria-label="Tracking mode">
+                <div class="sm-tabs-group" role="group" aria-label="Tracking mode">
                     <button class="btn btn-sm sm-tab btn-active" data-mode="default">Default</button>
                     <button class="btn btn-sm sm-tab" data-mode="live">Live</button>
                     <button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>
