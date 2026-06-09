@@ -317,7 +317,7 @@ function _renderResult(data) {
         movements = data.movements || [];
     } else {
         const inner = data.data || data;
-        shipment  = inner.shipment  || {};
+        shipment  = inner.shipment || (inner.movements ? inner : {});
         movements = inner.movements || [];
     }
 

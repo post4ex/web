@@ -2,7 +2,7 @@
 // TRACKING.JS — Authenticated tracking page logic
 // ============================================================================
 
-const STATE_BADGE = {
+const TRACK_STATE_BADGE = {
     delivered:      { bg: 'bg-amber-100',  text: 'text-amber-800',  icon: 'fa-circle-check',         label: 'Delivered'        },
     outfordelivery: { bg: 'bg-blue-100',   text: 'text-blue-700',   icon: 'fa-truck',                label: 'Out for Delivery' },
     intransit:      { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fa-route',                label: 'In Transit'       },
@@ -13,7 +13,7 @@ const STATE_BADGE = {
 function renderTrackingResult(data, containerId) {
     const s   = data.shipment || {};
     const mvs = data.movements || [];
-    const st  = STATE_BADGE[s.state] || STATE_BADGE.pending;
+    const st  = TRACK_STATE_BADGE[s.state] || TRACK_STATE_BADGE.pending;
 
     const stateStyle = {
         delivered:      { bg: 'linear-gradient(135deg,#9C2007,#7a1805)', glow: 'rgba(156,32,7,0.3)'   },
@@ -146,7 +146,7 @@ async function doAuthTrack(query, msgId, loadingId, resultId) {
     try {
         const token = getSessionId();
         const param = query.match(/^\d{14}$/) ? 'ref' : 'awb';
-        const res   = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/track?${param}=${encodeURIComponent(query)}`, {
+        const res   = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/movements?${param}=${encodeURIComponent(query)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (loading) loading.classList.add('hidden');
