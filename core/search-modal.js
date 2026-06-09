@@ -46,11 +46,6 @@ function _injectModal() {
     }
 
     const el = document.createElement('div');
-    el.id = 'sm-overlay';
-    el.setAttribute('role', 'dialog');
-    el.setAttribute('aria-modal', 'true');
-    el.setAttribute('aria-label', 'Track Shipment');
-    el.tabIndex = -1;
     el.innerHTML = `
 <div id="sm-overlay" role="dialog" aria-modal="true" aria-label="Track Shipment" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);justify-content:center;align-items:flex-start;padding-top:3rem;" tabindex="-1">
     <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:1200px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;margin:0 1rem;">
