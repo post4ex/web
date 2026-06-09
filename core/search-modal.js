@@ -36,7 +36,12 @@ function _injectModal() {
         s.id = 'sm-style';
         s.textContent = `
             .sm-tabs-group { display:flex; gap:0.25rem; flex-shrink:0; }
-            @media (max-width:640px) { .sm-tabs-group { width:100%; } }
+            @media (max-width:640px) {
+                .sm-tabs-group { width:100%; }
+                .sm-tabs-group .sm-tab { flex:1; }
+                #sm-carrier-wrap, #sm-subcarrier-wrap { flex:1; width:100%; }
+                #sm-carrier-wrap select, #sm-subcarrier-wrap select { width:100%; }
+            }
         `;
         document.head.appendChild(s);
     }
@@ -54,7 +59,7 @@ function _injectModal() {
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.75rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);position:sticky;top:0;z-index:1;">
             <i class="fa-solid fa-magnifying-glass" style="color:#9C2007;font-size:0.9rem;"></i>
             <span style="font-size:0.85rem;font-weight:800;color:#1e293b;flex:1;">Track Shipment</span>
-            <button id="sm-close" aria-label="Close" tabindex="0" style="display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;border:none;background:transparent;cursor:pointer;color:#64748b;font-size:1.1rem;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='#f1f5f9';this.style.color='#1e293b'" onmouseout="this.style.background='transparent';this.style.color='#64748b'">
+            <button id="sm-close" aria-label="Close" tabindex="0" style="display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;border:none;background:#f1f5f9;cursor:pointer;color:#374151;font-size:1.1rem;flex-shrink:0;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9';this.style.color='#374151'">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -82,11 +87,13 @@ function _injectModal() {
                 <!-- AWB / Ref input -->
                 <input id="sm-input" type="text" placeholder="AWB or Reference number" aria-label="AWB or Reference number"
                     style="flex:1;min-width:140px;padding:0.55rem 0.875rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.82rem;outline:none;color:#1e293b;" />
+                <button id="sm-scan-btn" type="button" title="Scan barcode" aria-label="Scan barcode" style="display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:0.5rem;cursor:pointer;color:#374151;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                    <i class="fa-solid fa-barcode" style="font-size:0.9rem;"></i>
+                </button>
                 <button id="sm-search-btn" style="padding:0.55rem 1.1rem;background:#9C2007;color:#fff;border:none;border-radius:0.5rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s;">
                     <i class="fa-solid fa-magnifying-glass" style="margin-right:0.3rem;"></i>Track
                 </button>
             </div>
-            <p id="sm-mode-hint" style="font-size:0.68rem;color:#94a3b8;margin-top:0.4rem;">Reads from cache. Fast.</p>
         </div>
         <!-- Result area -->
         <div id="sm-result-wrap" style="padding:1rem 1.25rem;">
@@ -129,6 +136,34 @@ function _bindModalEvents() {
     // Carrier select → show sub-carrier if needed
     carrierSel.addEventListener('change', () => _onCarrierChange());
 
+    // Scan button — uses <scan-barcode> web component if available, else file picker fallback
+    const scanBtn = document.getElementById('sm-scan-btn');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', () => {
+            // Dynamically inject <scan-barcode> component on first use
+            if (!document.querySelector('script[src*="barcode-scanner"]')) {
+                const sc = document.createElement('script');
+                sc.type = 'module';
+                sc.src = (window.location.pathname.includes('/core/') ? '../' : '') + 'utils/barcode-scanner.js';
+                document.head.appendChild(sc);
+            }
+            // Create a hidden <scan-barcode> element, trigger it
+            let el = document.getElementById('sm-scanner-el');
+            if (!el) {
+                el = document.createElement('scan-barcode');
+                el.id = 'sm-scanner-el';
+                el.setAttribute('icon-only', '');
+                el.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
+                document.getElementById('sm-box').appendChild(el);
+                el.addEventListener('scanned', e => {
+                    const inp = document.getElementById('sm-input');
+                    if (inp) { inp.value = e.detail.value; inp.focus(); }
+                });
+            }
+            el.querySelector('.scan-trigger, button')?.click();
+        });
+    }
+
     // Search
     searchBtn.addEventListener('click', _doSearch);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') _doSearch(); });
@@ -139,8 +174,6 @@ let _smResizeHandler = null;
 
 function _setMode(mode) {
     _currentMode = mode;
-    const hints = { default: 'Reads from cache. Fast.', live: 'Live carrier scrape. Slower.', custom: 'Route directly to a specific carrier.' };
-    document.getElementById('sm-mode-hint').textContent = hints[mode] || '';
     document.querySelectorAll('.sm-tab').forEach(t => {
         if (t.dataset.mode === mode) {
             t.classList.add('btn-active');
@@ -183,10 +216,16 @@ function _onCarrierChange() {
 // API call
 // ============================================================================
 async function _doSearch() {
-    const query = document.getElementById('sm-input').value.trim();
-    if (!query) { _showMsg('Enter an AWB or Reference number.', 'error'); return; }
+    const raw   = document.getElementById('sm-input').value.trim();
+    const query = raw.replace(/[^a-zA-Z0-9\-\/]/g, '');  // strip special chars
+    if (!query || query.length < 4) {
+        _showMsg('Enter at least 4 characters (letters and digits only).', 'error');
+        return;
+    }
 
     const token = typeof getSessionId === 'function' ? getSessionId() : '';
+    if (!token) { _showMsg('Session expired. Please log in again.', 'error'); return; }
+
     const base  = (window.CONSTANTS || {}).OPERATIONS_URL || '';
 
     let url;
@@ -223,16 +262,22 @@ async function _doSearch() {
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         _hideLoader();
         if (res.status === 401) { typeof handleLogout === 'function' && handleLogout(); return; }
+        if (res.status === 404) { _showMsg('Shipment not found.', 'error'); return; }
+        if (res.status === 400) { _showMsg('Invalid AWB or reference number.', 'error'); return; }
+        if (res.status >= 500)  { _showMsg('Server error. Please try again shortly.', 'error'); return; }
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
-            _showMsg(body.detail || 'Something went wrong.', 'error');
+            _showMsg(body.detail || `Request failed (${res.status}).`, 'error');
             return;
         }
         const data = await res.json();
+        if (!data || (Array.isArray(data) && !data.length)) {
+            _showMsg('No tracking data found.', 'error'); return;
+        }
         _renderResult(data);
     } catch {
         _hideLoader();
-        _showMsg('Network error. Please try again.', 'error');
+        _showMsg('Network error. Please check your connection.', 'error');
     }
 }
 
