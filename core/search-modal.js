@@ -39,6 +39,7 @@ function _injectModal() {
             @media (max-width:640px) {
                 .sm-tabs-group { width:100%; }
                 .sm-tabs-group .sm-tab { flex:1; }
+                .sm-input-group { width:100%; flex-basis:100%; min-width:0; }
             }
         `;
         document.head.appendChild(s);
@@ -83,19 +84,18 @@ function _injectModal() {
                     <div id="sm-subcarrier-wrap" style="display:none;flex:1;min-width:120px;">
                         <select id="sm-subcarrier-sel" aria-label="Select sub-carrier" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;"></select>
                     </div>
+                    <!-- input group: flex:1 so it fills remaining space on desktop; breaks to new row on mobile via CSS -->
+                    <div class="sm-input-group" style="display:flex;gap:0.5rem;align-items:center;flex:1;min-width:200px;">
+                        <input id="sm-input" type="text" placeholder="AWB or Reference number" aria-label="AWB or Reference number"
+                            style="flex:1;padding:0.55rem 0.875rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.82rem;outline:none;color:#1e293b;" />
+                        <button id="sm-scan-btn" type="button" title="Scan barcode" aria-label="Scan barcode" style="display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:0.5rem;cursor:pointer;color:#374151;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                            <i class="fa-solid fa-barcode" style="font-size:0.9rem;"></i>
+                        </button>
+                        <button id="sm-search-btn" style="padding:0.55rem 1.1rem;background:#9C2007;color:#fff;border:none;border-radius:0.5rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s;flex-shrink:0;">
+                            <i class="fa-solid fa-magnifying-glass" style="margin-right:0.3rem;"></i>Track
+                        </button>
+                    </div>
                 </div>
-                <!-- Row 2: input + scan + track (always its own row) -->
-                <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <input id="sm-input" type="text" placeholder="AWB or Reference number" aria-label="AWB or Reference number"
-                        style="flex:1;padding:0.55rem 0.875rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.82rem;outline:none;color:#1e293b;" />
-                    <button id="sm-scan-btn" type="button" title="Scan barcode" aria-label="Scan barcode" style="display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:0.5rem;cursor:pointer;color:#374151;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
-                        <i class="fa-solid fa-barcode" style="font-size:0.9rem;"></i>
-                    </button>
-                <button id="sm-search-btn" style="padding:0.55rem 1.1rem;background:#9C2007;color:#fff;border:none;border-radius:0.5rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s;">
-                    <i class="fa-solid fa-magnifying-glass" style="margin-right:0.3rem;"></i>Track
-                </button>
-                </div><!-- end row 2 -->
-            </div><!-- end column wrapper -->
         </div>
         <!-- Result area -->
         <div id="sm-result-wrap" style="padding:1rem 1.25rem;display:none;">
