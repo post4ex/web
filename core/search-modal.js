@@ -39,9 +39,6 @@ function _injectModal() {
             @media (max-width:640px) {
                 .sm-tabs-group { width:100%; }
                 .sm-tabs-group .sm-tab { flex:1; }
-                #sm-carrier-wrap, #sm-subcarrier-wrap { flex:1; min-width:120px; }
-                #sm-carrier-wrap select, #sm-subcarrier-wrap select { width:100%; }
-                #sm-input { width:100%; flex-basis:100%; }
             }
         `;
         document.head.appendChild(s);
@@ -55,7 +52,7 @@ function _injectModal() {
     el.tabIndex = -1;
     el.innerHTML = `
 <div id="sm-overlay" role="dialog" aria-modal="true" aria-label="Track Shipment" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);justify-content:center;align-items:center;" tabindex="-1">
-    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:1200px;height:100vh;max-height:100vh;overflow-y:auto;display:flex;flex-direction:column;margin:0 1rem;">
+    <div id="sm-box" style="background:#fff;border-radius:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.18);width:100%;max-width:1200px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;margin:0 1rem;">
         <!-- Header -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.75rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);position:sticky;top:0;z-index:1;">
             <i class="fa-solid fa-magnifying-glass" style="color:#9C2007;font-size:0.9rem;"></i>
@@ -67,37 +64,41 @@ function _injectModal() {
 
         <!-- Controls -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
-            <!-- Single row desktop / 2-row mobile -->
-            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                <div class="sm-tabs-group" role="group" aria-label="Tracking mode">
-                    <button class="btn btn-sm sm-tab btn-active" data-mode="default">Default</button>
-                    <button class="btn btn-sm sm-tab" data-mode="live">Live</button>
-                    <button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>
+            <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                <!-- Row 1: tabs + dropdowns -->
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <div class="sm-tabs-group" role="group" aria-label="Tracking mode">
+                        <button class="btn btn-sm sm-tab btn-active" data-mode="default">Default</button>
+                        <button class="btn btn-sm sm-tab" data-mode="live">Live</button>
+                        <button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>
+                    </div>
+                    <!-- Custom: carrier select -->
+                    <div id="sm-carrier-wrap" style="display:none;flex:1;min-width:120px;">
+                        <select id="sm-carrier-sel" aria-label="Select carrier" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;">
+                            <option value="">— Carrier —</option>
+                            ${CUSTOM_CARRIERS.map(c => `<option value="${c.value}" data-type="${c.type}">${c.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <!-- Custom: sub-carrier (tc / 17track) -->
+                    <div id="sm-subcarrier-wrap" style="display:none;flex:1;min-width:120px;">
+                        <select id="sm-subcarrier-sel" aria-label="Select sub-carrier" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;"></select>
+                    </div>
                 </div>
-                <!-- Custom: carrier select -->
-                <div id="sm-carrier-wrap" style="display:none;flex-shrink:0;">
-                    <select id="sm-carrier-sel" aria-label="Select carrier" style="padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;min-width:130px;">
-                        <option value="">— Carrier —</option>
-                        ${CUSTOM_CARRIERS.map(c => `<option value="${c.value}" data-type="${c.type}">${c.label}</option>`).join('')}
-                    </select>
-                </div>
-                <!-- Custom: sub-carrier (tc / 17track) -->
-                <div id="sm-subcarrier-wrap" style="display:none;flex-shrink:0;">
-                    <select id="sm-subcarrier-sel" aria-label="Select sub-carrier" style="padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;min-width:130px;"></select>
-                </div>
-                <!-- AWB / Ref input -->
-                <input id="sm-input" type="text" placeholder="AWB or Reference number" aria-label="AWB or Reference number"
-                    style="flex:1;min-width:140px;padding:0.55rem 0.875rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.82rem;outline:none;color:#1e293b;" />
-                <button id="sm-scan-btn" type="button" title="Scan barcode" aria-label="Scan barcode" style="display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:0.5rem;cursor:pointer;color:#374151;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
-                    <i class="fa-solid fa-barcode" style="font-size:0.9rem;"></i>
-                </button>
+                <!-- Row 2: input + scan + track (always its own row) -->
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <input id="sm-input" type="text" placeholder="AWB or Reference number" aria-label="AWB or Reference number"
+                        style="flex:1;padding:0.55rem 0.875rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.82rem;outline:none;color:#1e293b;" />
+                    <button id="sm-scan-btn" type="button" title="Scan barcode" aria-label="Scan barcode" style="display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:0.5rem;cursor:pointer;color:#374151;flex-shrink:0;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                        <i class="fa-solid fa-barcode" style="font-size:0.9rem;"></i>
+                    </button>
                 <button id="sm-search-btn" style="padding:0.55rem 1.1rem;background:#9C2007;color:#fff;border:none;border-radius:0.5rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s;">
                     <i class="fa-solid fa-magnifying-glass" style="margin-right:0.3rem;"></i>Track
                 </button>
-            </div>
+                </div><!-- end row 2 -->
+            </div><!-- end column wrapper -->
         </div>
         <!-- Result area -->
-        <div id="sm-result-wrap" style="padding:1rem 1.25rem;">
+        <div id="sm-result-wrap" style="padding:1rem 1.25rem;display:none;">
             <div id="sm-msg"    class="hidden" style="padding:0.6rem 0.875rem;border-radius:0.5rem;font-size:0.78rem;font-weight:600;text-align:center;margin-bottom:0.75rem;"></div>
             <div id="sm-loader" class="hidden" style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.8rem;">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem;margin-bottom:0.5rem;display:block;"></i>Fetching tracking data…
@@ -464,6 +465,7 @@ function _renderResult(data) {
         </div>`;
 
     rc.classList.remove('hidden');
+    document.getElementById('sm-result-wrap').style.display = 'block';
 
     // Responsive toggle on resize
     const desktop   = rc.querySelector('#sm-mov-desktop');
@@ -493,12 +495,14 @@ function _showMsg(text, type) {
     el.style.background = type === 'error' ? '#fef2f2' : '#eff6ff';
     el.style.color       = type === 'error' ? '#b91c1c'  : '#1d4ed8';
     el.classList.remove('hidden');
+    document.getElementById('sm-result-wrap').style.display = 'block';
 }
 
 function _showLoader() {
     document.getElementById('sm-msg')?.classList.add('hidden');
     document.getElementById('sm-result')?.classList.add('hidden');
     document.getElementById('sm-loader')?.classList.remove('hidden');
+    document.getElementById('sm-result-wrap').style.display = 'block';
 }
 
 function _hideLoader() {
@@ -508,6 +512,7 @@ function _hideLoader() {
 function _clearResult() {
     document.getElementById('sm-msg')?.classList.add('hidden');
     document.getElementById('sm-result')?.classList.add('hidden');
+    document.getElementById('sm-result-wrap').style.display = 'none';
     const rc = document.getElementById('sm-result');
     if (rc) rc.innerHTML = '';
 }
