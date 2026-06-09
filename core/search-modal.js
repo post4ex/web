@@ -39,8 +39,9 @@ function _injectModal() {
             @media (max-width:640px) {
                 .sm-tabs-group { width:100%; }
                 .sm-tabs-group .sm-tab { flex:1; }
-                #sm-carrier-wrap, #sm-subcarrier-wrap { flex:1; width:100%; }
+                #sm-carrier-wrap, #sm-subcarrier-wrap { flex:1; min-width:120px; }
                 #sm-carrier-wrap select, #sm-subcarrier-wrap select { width:100%; }
+                #sm-input { width:100%; flex-basis:100%; }
             }
         `;
         document.head.appendChild(s);
