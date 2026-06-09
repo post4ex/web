@@ -39,6 +39,7 @@ function _injectModal() {
             @media (max-width:640px) {
                 .sm-tabs-group { width:100%; }
                 .sm-tabs-group .sm-tab { flex:1; }
+                #sm-carrier-wrap, #sm-subcarrier-wrap { flex:1; width:auto !important; }
                 .sm-input-group { width:100%; flex-basis:100%; min-width:0; }
             }
         `;
@@ -74,14 +75,14 @@ function _injectModal() {
                         <button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>
                     </div>
                     <!-- Custom: carrier select -->
-                    <div id="sm-carrier-wrap" style="display:none;flex:1;min-width:120px;">
+                    <div id="sm-carrier-wrap" style="display:none;width:140px;flex-shrink:0;">
                         <select id="sm-carrier-sel" aria-label="Select carrier" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;">
                             <option value="">— Carrier —</option>
                             ${CUSTOM_CARRIERS.map(c => `<option value="${c.value}" data-type="${c.type}">${c.label}</option>`).join('')}
                         </select>
                     </div>
                     <!-- Custom: sub-carrier (tc / 17track) -->
-                    <div id="sm-subcarrier-wrap" style="display:none;flex:1;min-width:120px;">
+                    <div id="sm-subcarrier-wrap" style="display:none;width:140px;flex-shrink:0;">
                         <select id="sm-subcarrier-sel" aria-label="Select sub-carrier" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;"></select>
                     </div>
                     <!-- input group: flex:1 so it fills remaining space on desktop; breaks to new row on mobile via CSS -->
