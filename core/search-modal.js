@@ -290,19 +290,18 @@ function _refOrAwb(q) {
 // ============================================================================
 function _sortMovements(movements) {
     if (!movements || !movements.length) return [];
-    return [...movements].sort((a, b) => {
-        const aStamp = a.activity_stamp || a.ACTIVITY_STAMP || 0;
-        const bStamp = b.activity_stamp || b.ACTIVITY_STAMP || 0;
-        if (aStamp && bStamp) return bStamp - aStamp;
+    return movements.map((m, i) => ({ m, i })).sort((a, b) => {
+        const aStamp = a.m.activity_stamp || a.m.ACTIVITY_STAMP || 0;
+        const bStamp = b.m.activity_stamp || b.m.ACTIVITY_STAMP || 0;
+        if (aStamp !== bStamp) return bStamp - aStamp;
 
-        const aRec = a.recorded_at || a.RECORDED_AT || 0;
-        const bRec = b.recorded_at || b.RECORDED_AT || 0;
-        if (aRec && bRec) return bRec - aRec;
+        // Tiebreaker: TIME_STAMP (insertion/discovery time — already sorted correctly by backend)
+        const aTs = a.m.time_stamp || a.m.TIME_STAMP || 0;
+        const bTs = b.m.time_stamp || b.m.TIME_STAMP || 0;
+        if (aTs !== bTs) return bTs - aTs;
 
-        const aStr = `${a.date || a.DATE || ''} ${a.time || a.TIME || ''}`.trim();
-        const bStr = `${b.date || b.DATE || ''} ${b.time || b.TIME || ''}`.trim();
-        return bStr.localeCompare(aStr);
-    });
+        return a.i - b.i; // preserve backend order on full tie
+    }).map(x => x.m);
 }
 
 // ============================================================================
