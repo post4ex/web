@@ -56,22 +56,13 @@ function buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotal
             VOLUME:  box.volWeight,
             CHG_WT:  box.chargeWeight
         })),
-        products: [
-            ...consignmentProducts.map(p => ({
+        products: consignmentProducts.map(p => ({
                 DOC_NUMBER: p.docNo,
                 DOC_TYPE:   p.type,
                 PRODUCT:    p.name,
-                AMOUNT:     p.amount || 0
-            })),
-            ...consignmentProducts
-                .filter(p => p.ewayBill)
-                .map(p => ({
-                    DOC_NUMBER: p.ewayBill,
-                    DOC_TYPE:   'EWB',
-                    PRODUCT:    p.name,
-                    AMOUNT:     0
-                }))
-        ]
+                AMOUNT:     p.amount || 0,
+                EWAY_IF:    p.ewayBill || ''
+            }))
     };
 }
 

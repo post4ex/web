@@ -505,15 +505,12 @@ function renderShipmentDetails(order) {
         const cnee  = b2b2cDataMap.get(order.CONSIGNEE) || {};
         const prods = productDataMap.get(order.REFERENCE)  || [];
         const boxes = multiboxDataMap.get(order.REFERENCE) || [];
+        const totalChgWt = boxes.reduce((s, b) => s + parseFloat(b.CHG_WT || 0), 0);
         return [
-            `Date: ${fmtDate(order.ORDER_DATE)}`,
-            `AWB: ${order.AWB_NUMBER || 'N/A'}`,
+            `Date: ${fmtDate(order.ORDER_DATE)}, AWB: ${order.AWB_NUMBER || 'N/A'},`,
             `Carrier: ${carriersDataMap.get(order.CARRIER) || order.CARRIER || 'N/A'}`,
             order.TOPAY === 'Yes' ? `ToPay: Yes (${order.TOTAL || 'N/A'})` : null,
             order.COD && parseFloat(order.COD) > 0 ? `COD: ${order.COD}` : null,
-            `Value: ${order.VALUE || 'N/A'}`,
-            `Pcs: ${order.PIECS || 'N/A'}`,
-            `Wt: ${order.WEIGHT || 'N/A'} kg`,
             ``,
             `Consignee: ${cnee.NAME || order.CONSIGNEE || 'N/A'}`,
             cnee.ADDRESS ? `  ${cnee.ADDRESS}` : null,
@@ -524,11 +521,16 @@ function renderShipmentDetails(order) {
             cnor.CITY   ? `  ${cnor.CITY} - ${cnor.PINCODE || ''}` : null,
             cnor.MOBILE ? `  Ph: ${cnor.MOBILE}` : null,
             prods.length > 0 ? `` : null,
-            prods.length > 0 ? `Products:` : null,
+            prods.length > 0 ? `Products: Value: ${order.VALUE || 'N/A'}` : null,
             ...prods.map(p => `  ${p.PRODUCT || 'N/A'} | Doc: ${p.DOC_NUMBER || 'N/A'} | Amt: ${p.AMOUNT || 0}`),
             boxes.length > 0 ? `` : null,
-            boxes.length > 0 ? `Boxes:` : null,
+            boxes.length > 0 ? `Boxes:  Pcs: ${order.PIECS || 'N/A'},  Wt: ${order.WEIGHT || 'N/A'} kg, Chg: ${totalChgWt.toFixed(1)} kg` : null,
             ...boxes.map(b => `  Box#${b.BOX_NUM || 'N/A'} | Wt:${b.WEIGHT || 0} | ${parseFloat(b.LENGTH)||0}x${parseFloat(b.BREADTH)||0}x${parseFloat(b.HIGHT)||0} | ChgWt:${parseFloat(b.CHG_WT||0).toFixed(2)}`),
+            (() => {
+                const last = (window._lastTrackingResult?.movements || [])[0];
+                if (!last?.activity) return null;
+                return `\nLast Activity:\n  ${[last.date, last.time, last.location, last.activity].filter(Boolean).join(' | ')}`;
+            })(),
         ].filter(l => l !== null).join('\n');
     }
 
@@ -586,8 +588,9 @@ const _stateConfig = {
 
 // --- RENDER: TRACKING STATUS ---
 function renderTrackingStatus(order) {
+    const copyIcon = order.AWB_NUMBER ? `<button data-copy="${order.AWB_NUMBER}" onclick="navigator.clipboard.writeText(this.dataset.copy).then(() => showNotification('AWB Copied','success',1000))" class="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none" title="Copy AWB"><svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>` : '';
     const staticGrid = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm mb-3">
-        <div><div class="text-gray-500 text-xs">AWB Number</div><div class="font-semibold text-gray-800">${order.AWB_NUMBER || 'N/A'}</div></div>
+        <div><div class="text-gray-500 text-xs">AWB Number</div><div class="font-semibold text-gray-800">${order.AWB_NUMBER || 'N/A'}${copyIcon}</div></div>
         <div><div class="text-gray-500 text-xs">Order Date</div><div class="font-semibold text-gray-800">${fmtDate(order.ORDER_DATE)}</div></div>
         <div><div class="text-gray-500 text-xs">Transit Date</div><div class="font-semibold text-gray-800">${fmtDate(order.TRANSIT_DATE)}</div></div>
         <div><div class="text-gray-500 text-xs">Document Date</div><div class="font-semibold text-gray-800">${order.INVOICE_DATE && order.INVOICE_DATE !== '0' && order.INVOICE_DATE !== 0 ? fmtDate(order.INVOICE_DATE) : 'N/A'}</div></div>
@@ -618,6 +621,19 @@ function renderTrackingStatus(order) {
         _fetchAndRenderTracking(order, false);
 }
 
+function _sortMovements(movements) {
+    if (!movements || !movements.length) return [];
+    return movements.map((m, i) => ({ m, i })).sort((a, b) => {
+        const aStamp = a.m.activity_stamp || a.m.ACTIVITY_STAMP || 0;
+        const bStamp = b.m.activity_stamp || b.m.ACTIVITY_STAMP || 0;
+        if (aStamp !== bStamp) return bStamp - aStamp;
+        const aTs = a.m.time_stamp || a.m.TIME_STAMP || 0;
+        const bTs = b.m.time_stamp || b.m.TIME_STAMP || 0;
+        if (aTs !== bTs) return bTs - aTs;
+        return a.i - b.i;
+    }).map(x => x.m);
+}
+
 async function _fetchAndRenderTracking(order, live = false) {
     const statusEl  = document.getElementById('liveTrackingStatus');
     if (!statusEl) return;
@@ -646,8 +662,9 @@ async function _fetchAndRenderTracking(order, live = false) {
         }
 
         const s = result.shipment || {};
-        const movements = result.movements || [];
-        window._lastTrackingResult = result; // cache for mail
+        const movements = _sortMovements(result.movements || []);
+        const lastMov = movements[0] || {};
+        window._lastTrackingResult = { ...result, movements };
 
         // --- update card header title with status + date ---
         const sc         = _stateConfig[s.state] || _stateConfig.intransit;

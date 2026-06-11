@@ -31,6 +31,10 @@ const STATE_BADGE = {
 function _injectModal() {
     if (document.getElementById('sm-overlay')) return;
 
+    const canLive   = typeof hasPermission === 'function' && hasPermission('STAFF');
+    const canCustom = typeof hasPermission === 'function' && hasPermission('MANAGER');
+    const showTabs  = canLive || canCustom;
+
     if (!document.getElementById('sm-style')) {
         const s = document.createElement('style');
         s.id = 'sm-style';
@@ -61,11 +65,12 @@ function _injectModal() {
         <!-- Controls -->
         <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                ${showTabs ? `
                 <div class="sm-tabs-group" role="group" aria-label="Tracking mode">
                     <button class="btn btn-sm sm-tab btn-active" data-mode="default">Default</button>
-                    <button class="btn btn-sm sm-tab" data-mode="live">Live</button>
-                    <button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>
-                </div>
+                    ${canLive   ? `<button class="btn btn-sm sm-tab" data-mode="live">Live</button>`     : ''}
+                    ${canCustom ? `<button class="btn btn-sm sm-tab" data-mode="custom">Custom</button>` : ''}
+                </div>` : ''}
                 <div id="sm-carrier-wrap" style="display:none;">
                     <select id="sm-carrier-sel" aria-label="Select carrier" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.78rem;color:#374151;background:#fff;outline:none;min-width:130px;">
                         <option value="">— Carrier —</option>
@@ -259,6 +264,7 @@ async function _doSearch() {
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         _hideLoader();
         if (res.status === 401) { typeof handleLogout === 'function' && handleLogout(); return; }
+        if (res.status === 403) { _showMsg('This tracking mode is not available for your role.', 'error'); return; }
         if (res.status === 404) { _showMsg('Shipment not found.', 'error'); return; }
         if (res.status === 400) { _showMsg('Invalid AWB or reference number.', 'error'); return; }
         if (res.status >= 500)  { _showMsg('Server error. Please try again shortly.', 'error'); return; }
