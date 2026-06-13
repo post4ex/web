@@ -914,18 +914,14 @@ document.addEventListener('DOMContentLoaded', () => {
             chargeWeight: parseFloat(b.CHG_WT)  || 0,
         }));
 
-        // Fill products (exclude EWB rows — they are derived)
-        const mainProds = prods.filter(p => p.DOC_TYPE !== 'EWB');
-        consignmentProducts = mainProds.map(p => {
-            const ewb = prods.find(e => e.DOC_TYPE === 'EWB' && e.PRODUCT === p.PRODUCT);
-            return {
-                name:     p.PRODUCT    || '',
-                docNo:    p.DOC_NUMBER || '',
-                ewayBill: ewb ? ewb.DOC_NUMBER : '',
-                type:     p.DOC_TYPE   || 'INV',
-                amount:   parseFloat(p.AMOUNT) || 0,
-            };
-        });
+        // Fill products
+        consignmentProducts = prods.filter(p => p.DOC_TYPE !== 'EWB').map(p => ({
+            name:     p.PRODUCT    || '',
+            docNo:    p.DOC_NUMBER || '',
+            ewayBill: p.EWAY_IF ? String(p.EWAY_IF) : '',
+            type:     p.DOC_TYPE   || 'INV',
+            amount:   parseFloat(p.AMOUNT) || 0,
+        }));
 
         renderMultiboxTable();
         renderProductTable();

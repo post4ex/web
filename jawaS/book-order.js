@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
         consignmentProducts = prods.map(p => ({
             name:     p.PRODUCT    || '',
             docNo:    p.DOC_NUMBER || '',
-            ewayBill: p.EWAY_IF    || '',
+            ewayBill: p.EWAY_IF ? String(p.EWAY_IF) : '',
             type:     p.DOC_TYPE   || 'INV',
             amount:   parseFloat(p.AMOUNT) || 0,
         }));

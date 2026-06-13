@@ -9,7 +9,7 @@ const AdminUsers = (() => {
     let _selected = null;
 
     const ROLES    = ['MASTER','ADMIN','AUDITOR','ACCOUNTANT','MANAGER','STAFF','CLIENT'];
-    const STATUSES = ['ACTIVE','INACTIVE','SUSPENDED'];
+    const STATUSES = ['ACTIVE','INACTIVE'];
 
     // Fields excluded from editing — shown as read-only labels instead
     const SKIP_FIELDS = new Set(['PASS','RESET_TOKEN','id','collectionId','collectionName','created','updated']);
@@ -37,7 +37,7 @@ const AdminUsers = (() => {
     function _joinMobile(cc, num) {
         cc  = (cc  || '91').trim();
         num = (num || '').trim();
-        return num ? `${cc}-${num}` : '';
+        return num ? `${cc}${num}` : '';
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -170,6 +170,12 @@ const AdminUsers = (() => {
             });
 
             if (!Object.keys(fields).length) return showNotification('No changes', 'info');
+
+            // validate EMAIL and MOBILE if changed
+            if (fields.EMAIL && window.InputValidator && !window.InputValidator.email(fields.EMAIL))
+                return showNotification('❌ Invalid email address', 'error');
+            if (fields.MOBILE && window.InputValidator && !window.InputValidator.mobile(fields.MOBILE))
+                return showNotification('❌ MOBILE must be 91XXXXXXXXXX (12 digits)', 'error');
 
             AdminPage.requireSudo(async sudoToken => {
                 try {

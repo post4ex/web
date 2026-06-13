@@ -12,7 +12,7 @@ const TRACK_STATE_BADGE = {
 
 function renderTrackingResult(data, containerId) {
     const s   = data.shipment || {};
-    const mvs = data.movements || [];
+    const mvs = (data.movements || []).slice().sort((a, b) => (a.row_number ?? 0) - (b.row_number ?? 0));
     const st  = TRACK_STATE_BADGE[s.state] || TRACK_STATE_BADGE.pending;
 
     const stateStyle = {

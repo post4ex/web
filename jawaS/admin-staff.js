@@ -6,22 +6,14 @@
 
 const AdminStaff = (() => {
 
-    // Validation helpers
+    // Validation helpers — delegate to global InputValidator
     const _validate = {
-        pan: (v) => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v),
-        aadhar: (v) => !v || /^[0-9]{12}$/.test(v),
-        pin: (v) => !v || /^[1-9][0-9]{5}$/.test(v),
-        age18: (dob) => {
-            if (!dob) return true;
-            const today = new Date();
-            const birth = new Date(dob);
-            const age = today.getFullYear() - birth.getFullYear();
-            const monthDiff = today.getMonth() - birth.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-                return age - 1 >= 18;
-            }
-            return age >= 18;
-        }
+        pan:    (v) => InputValidator.pan(v),
+        aadhar: (v) => InputValidator.aadhar(v),
+        pin:    (v) => InputValidator.pin(v),
+        mobile: (v) => InputValidator.mobile(v),
+        ifsc:   (v) => InputValidator.ifsc(v),
+        age18:  (v) => InputValidator.age18(v),
     };
 
     function _showFieldError(input, msg) {
@@ -190,19 +182,23 @@ const AdminStaff = (() => {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Mobile</label>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Mobile *</label>
                             <div class="flex gap-2">
-                                <input name="MOBILE_CC" value="${(s?.MOBILE||'').includes('-') ? s.MOBILE.split('-')[0] : '91'}" class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" ${!canEdit ? 'disabled' : ''}>
-                                <input name="MOBILE_NUM" value="${(s?.MOBILE||'').includes('-') ? s.MOBILE.split('-')[1] : (s?.MOBILE||'')}" class="form-input text-sm flex-1" placeholder="Number" ${!canEdit ? 'disabled' : ''}>
+                                <input name="MOBILE_CC" value="91" class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" ${!canEdit ? 'disabled' : ''}>
+                                <input name="MOBILE_NUM" value="${(s?.MOBILE||'').replace(/^91/, '')}" required class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile" ${!canEdit ? 'disabled' : ''}>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
-                            <input name="EMAIL" type="email" value="${s?.EMAIL || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Email *</label>
+                            <input name="EMAIL" type="email" required value="${s?.EMAIL || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Emergency Contact</label>
-                            <input name="EMERGENCY_CONTACT" value="${s?.EMERGENCY_CONTACT || ''}" class="form-input text-sm" placeholder="Name - Number" ${!canEdit ? 'disabled' : ''}>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Emergency Contact Mobile</label>
+                            <div class="flex gap-2">
+                                <input id="sfEmergencyCC" value="91" class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" ${!canEdit ? 'disabled' : ''}>
+                                <input id="sfEmergencyNum" type="tel" value="${(s?.EMERGENCY_CONTACT||'').replace(/^91/, '')}" class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile" ${!canEdit ? 'disabled' : ''}>
+                            </div>
+                            <input type="hidden" name="EMERGENCY_CONTACT" id="sfEmergencyContact" value="${s?.EMERGENCY_CONTACT || ''}">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Aadhar Number</label>
@@ -210,7 +206,7 @@ const AdminStaff = (() => {
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">PAN Number</label>
-                            <input name="PAN_NUM" value="${s?.PAN_NUM || ''}" maxlength="10" class="form-input text-sm" data-validate="pan" ${!canEdit ? 'disabled' : ''}>
+                            <input name="PAN_NUM" value="${s?.PAN_NUM || ''}" maxlength="10" class="form-input text-sm" data-validate="pan" data-uppercase ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Father's Name</label>
@@ -246,7 +242,7 @@ const AdminStaff = (() => {
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Bank IFSC</label>
-                            <input name="BANK_IFSC" value="${s?.BANK_IFSC || ''}" maxlength="11" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <input name="BANK_IFSC" value="${s?.BANK_IFSC || ''}" maxlength="11" class="form-input text-sm" data-validate="ifsc" data-uppercase ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
@@ -265,8 +261,8 @@ const AdminStaff = (() => {
                             <input name="ADDRESS" value="${s?.ADDRESS || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div class="relative">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Pincode</label>
-                            <input name="PINCODE" id="sfPincode" value="${s?.PINCODE || ''}" maxlength="6" class="form-input text-sm" data-validate="pin" ${!canEdit ? 'disabled' : ''}>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Pincode *</label>
+                            <input name="PINCODE" id="sfPincode" required value="${s?.PINCODE || ''}" maxlength="6" class="form-input text-sm" data-validate="pin" ${!canEdit ? 'disabled' : ''}>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">City</label>
@@ -283,7 +279,7 @@ const AdminStaff = (() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">GST Code</label>
-                                <input name="GST_CODE" value="${s?.GST_CODE || ''}" class="form-input text-sm" maxlength="2">
+                                <input name="GST_CODE" value="${s?.GST_CODE || ''}" class="form-input text-sm" maxlength="2" data-uppercase>
                             </div>
                         </div>
                         ${canEdit ? `
@@ -359,6 +355,17 @@ const AdminStaff = (() => {
             });
         }
 
+        // auto-uppercase inputs
+        if (canEdit) {
+            view.querySelectorAll('[data-uppercase]').forEach(input => {
+                input.addEventListener('input', () => {
+                    const pos = input.selectionStart;
+                    input.value = input.value.toUpperCase();
+                    input.setSelectionRange(pos, pos);
+                });
+            });
+        }
+
         // pincode auto-fill
         if (canEdit) {
             let _pt;
@@ -384,10 +391,12 @@ const AdminStaff = (() => {
                     const val = input.value.trim();
                     if (val && !_validate[type](val)) {
                         const labels = {
-                            pan: 'Invalid PAN format (e.g., ABCDE1234F)',
+                            pan:    'Invalid PAN format (e.g., ABCDE1234F)',
                             aadhar: 'Invalid Aadhar (12 digits required)',
-                            pin: 'Invalid pincode format',
-                            age18: 'Staff must be at least 18 years old'
+                            pin:    'Invalid pincode format',
+                            mobile: 'Mobile must be 91XXXXXXXXXX',
+                            ifsc:   'Invalid IFSC (e.g., SBIN0001234)',
+                            age18:  'Staff must be at least 18 years old'
                         };
                         _showFieldError(input, labels[type] || 'Invalid format');
                     } else {
@@ -415,9 +424,20 @@ const AdminStaff = (() => {
                 const data = Object.fromEntries(new FormData(f));
                 const cc   = (data.MOBILE_CC  || '91').trim();
                 const num  = (data.MOBILE_NUM || '').trim();
-                data.MOBILE = num ? `${cc}-${num}` : '';
+                data.MOBILE = num ? `${cc}${num}` : '';
                 delete data.MOBILE_CC;
                 delete data.MOBILE_NUM;
+
+                // build EMERGENCY_CONTACT from CC+num fields
+                const ecc  = (document.getElementById('sfEmergencyCC')?.value  || '91').trim();
+                const enum_ = (document.getElementById('sfEmergencyNum')?.value || '').trim();
+                data.EMERGENCY_CONTACT = enum_ ? `${ecc}${enum_}` : '';
+
+                // cast date fields to Unix ms bigint
+                for (const f of ['DATE_BIRTH', 'DATE_JOIN', 'DATE_LEAVE']) {
+                    if (data[f]) data[f] = new Date(data[f]).getTime() || null;
+                    else delete data[f];
+                }
 
                 const staffCode = data.STAFF_CODE || (isEdit ? s.STAFF_CODE : '');
                 const action    = isEdit ? 'update_staff' : 'new_staff';
@@ -433,8 +453,7 @@ const AdminStaff = (() => {
                     });
                     const rec = res.record;
                     _staff[rec.STAFF_CODE] = rec;
-                    _selected = rec.STAFF_CODE;
-                    _renderList(_staff);
+                    _selected = rec.STAFF_CODE;                    _renderList(_staff);
                     _renderDetail(rec);
                     const cnt = document.getElementById('cnt-staff');
                     if (cnt) cnt.textContent = Object.keys(_staff).length;
@@ -460,9 +479,11 @@ const AdminStaff = (() => {
                     const writeToken = await _staffOtp(s.STAFF_CODE, 'delete_staff');
                     btn.disabled = true; sp.classList.remove('hidden');
                     await callApi('/api/deleteStaff', { record_id: s.id, STAFF_CODE: s.STAFF_CODE, write_token: writeToken });
-                    delete _staff[s.STAFF_CODE];
+                    // soft delete — backend returns upsert with STATUS=Resigned, update local cache
+                    _staff[s.STAFF_CODE] = { ..._staff[s.STAFF_CODE], STATUS: 'Resigned' };
                     _selected = null;
                     _renderList(_staff);
+                    _renderDetail(_staff[s.STAFF_CODE]);
                     AdminPage.showDetail(false);
                     const cnt = document.getElementById('cnt-staff');
                     if (cnt) cnt.textContent = Object.keys(_staff).length;

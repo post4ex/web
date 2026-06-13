@@ -22,7 +22,9 @@ const fields = {
     pincode:    document.getElementById('ac_pincode'),
     address:    document.getElementById('ac_address'),
     email:      document.getElementById('ac_email'),
-    gst:        document.getElementById('ac_gst'),
+    gst:        document.getElementById('ac_gstin'),
+    pan:        document.getElementById('ac_pan'),
+    aadhaar:    document.getElementById('ac_aadhaar'),
     carrier:    document.getElementById('ac_carrier'),
     branch:     document.getElementById('ac_branch'),
     code:       document.getElementById('ac_code'),
@@ -45,7 +47,7 @@ let addContactType = null; // 'sender' | 'receiver'
 // --- PINCODE HELPERS ---
 
 function clearDerivedFields() {
-    ['city', 'state', 'stateCode', 'gstCode', ...LOGISTICS_FIELDS].forEach(k => { fields[k].value = ''; });
+    ['city', 'state', 'stateCode', 'gstCode', 'gst', 'pan', 'aadhaar', ...LOGISTICS_FIELDS].forEach(k => { if (fields[k]) fields[k].value = ''; });
 }
 
 function lockLogisticsFields() {
@@ -183,25 +185,27 @@ saveBtn.addEventListener('click', async () => {
     }
 
     const payload = {
-        NAME:             name,
-        MOBILE:           mobile,
-        ADDRESS:          address,
-        PINCODE:          pincode,
-        EMAIL:            fields.email.value.trim(),
-        GST_ID_PAN_ADHAR: fields.gst.value.trim(),
-        CARRIER:          fields.carrier.value.trim(),
-        BRANCH:           fields.branch.value,
-        CODE:             fields.code.value,
-        CITY:             fields.city.value,
-        STATE:            fields.state.value,
-        CODE_STATE:       fields.stateCode.value,
-        GST_CODE:         fields.gstCode.value,
-        ZONE:             zone,
-        ODA:              fields.oda.value.trim(),
-        EXPRESS_TAT:      fields.expressTat.value,
-        AIRLINE_TAT:      fields.airlineTat.value,
-        SURFACE_TAT:      fields.surfaceTat.value,
-        PREMIUM_TAT:      fields.premiumTat.value,
+        NAME:        name,
+        MOBILE:      mobile,
+        ADDRESS:     address,
+        PINCODE:     pincode,
+        EMAIL:       fields.email.value.trim() || null,
+        GSTIN:       fields.gst.value.trim().toUpperCase() || null,
+        PAN:         fields.pan.value.trim().toUpperCase() || null,
+        AADHAAR:     fields.aadhaar.value.trim() || null,
+        CARRIER:     fields.carrier.value.trim() || null,
+        BRANCH:      fields.branch.value,
+        CODE:        fields.code.value,
+        CITY:        fields.city.value,
+        STATE:       fields.state.value,
+        CODE_STATE:  fields.stateCode.value,
+        GST_CODE:    fields.gstCode.value,
+        ZONE:        zone,
+        ODA:         fields.oda.value.trim() || null,
+        EXPRESS_TAT: fields.expressTat.value,
+        AIRLINE_TAT: fields.airlineTat.value,
+        SURFACE_TAT: fields.surfaceTat.value,
+        PREMIUM_TAT: fields.premiumTat.value,
     };
 
     saveBtn.disabled = true;

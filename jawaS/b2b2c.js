@@ -54,18 +54,18 @@ const B2B2CModule = (() => {
     // ── Mobile helpers ────────────────────────────────────────────────────────
     function _splitMobile(val) {
         if (!val) return { cc: '91', num: '' };
-        const idx = val.indexOf('-');
-        return idx === -1 ? { cc: '91', num: val } : { cc: val.slice(0, idx), num: val.slice(idx + 1) };
+        const clean = val.replace('-', '');
+        return { cc: '91', num: clean.replace(/^91/, '') };
     }
     function _joinMobile() {
         const cc  = (ui.mobileCCInput.value  || '91').trim();
         const num = (ui.mobileNumInput.value || '').trim();
-        return num ? `${cc}-${num}` : '';
+        return num ? `${cc}${num}` : '';
     }
 
     // ── Constants ─────────────────────────────────────────────────────────────
     const DERIVED_FIELDS = ['CITY', 'STATE', 'CODE_STATE', 'GST_CODE', 'ZONE', 'EXPRESS_TAT', 'AIRLINE_TAT', 'SURFACE_TAT', 'PREMIUM_TAT', 'ODA'];
-    const LOCKED_FIELDS  = ['NAME', 'BRANCH', 'CODE', 'GST_ID_PAN_ADHAR', 'PINCODE', ...DERIVED_FIELDS];
+    const LOCKED_FIELDS  = ['NAME', 'BRANCH', 'CODE', 'GSTIN', 'PAN', 'AADHAAR', 'PINCODE', ...DERIVED_FIELDS];
 
     // ── Data loading ──────────────────────────────────────────────────────────
     function _handleDataLoaded(event) {
@@ -143,7 +143,7 @@ const B2B2CModule = (() => {
         for (const key in client) {
             if (key === 'MOBILE') continue;
             const input = ui.form.querySelector(`[name="${key}"]`);
-            if (input) input.value = key === 'TIME_STAMP' && client[key] ? fmtDate(client[key], 'full') : (client[key] || '');
+            if (input) input.value = key === 'TIME_STAMP' && client[key] ? fmtDate(client[key], 'full') : (client[key] ?? '');
         }
         const { cc, num } = _splitMobile(client.MOBILE);
         ui.mobileCCInput.value  = cc;

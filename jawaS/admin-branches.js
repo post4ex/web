@@ -6,19 +6,19 @@
 
 const AdminBranches = (() => {
 
-    // Validation helpers - use centralized InputValidator
-    const _validate = window.InputValidator || {
-        branchCode: (v) => !v || /^[A-Z]{3}$/.test(v),
-        gstin: (v) => !v || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v),
-        pan: (v) => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v),
-        pin: (v) => !v || /^[1-9][0-9]{5}$/.test(v),
-        email: (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
-        upi: (v) => !v || /^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/.test(v),
-        ifsc: (v) => !v || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v),
-        mobile: (v) => !v || /^[0-9]{7,15}$/.test(v),
-        bankAccount: (v) => !v || /^[0-9]{9,18}$/.test(v),
-        stateCode: (v) => !v || /^[A-Z]{2}$/.test(v),
-        gstCode: (v) => !v || /^[0-9]{2}$/.test(v)
+    // Validation helpers — delegate to global InputValidator
+    const _validate = {
+        branchCode: (v) => InputValidator.branchCode(v),
+        gstin:      (v) => InputValidator.gstin(v),
+        pan:        (v) => InputValidator.pan(v),
+        pin:        (v) => InputValidator.pin(v),
+        email:      (v) => InputValidator.email(v),
+        upi:        (v) => InputValidator.upi(v),
+        ifsc:       (v) => InputValidator.ifsc(v),
+        mobile:     (v) => InputValidator.mobile(v),
+        bankAccount:(v) => InputValidator.bankAccount(v),
+        stateCode:  (v) => InputValidator.stateCode(v),
+        gstCode:    (v) => InputValidator.gstCode(v),
     };
 
     function _showFieldError(input, msg) {
@@ -60,12 +60,12 @@ const AdminBranches = (() => {
     // ── Mobile helpers ────────────────────────────────────────────────────────
     function _splitMobile(val) {
         if (!val) return { cc: '91', num: '' };
-        const idx = val.indexOf('-');
-        return idx === -1 ? { cc: '91', num: val } : { cc: val.slice(0, idx), num: val.slice(idx + 1) };
+        const clean = val.replace('-', '');
+        return { cc: '91', num: clean.replace(/^91/, '') };
     }
     function _joinMobile(cc, num) {
         cc = (cc || '91').trim(); num = (num || '').trim();
-        return num ? `${cc}-${num}` : '';
+        return num ? `${cc}${num}` : '';
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ const AdminBranches = (() => {
                         <input name="MOBILE_CC"  value="${cc}"  class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3">
                         <input name="MOBILE_NUM" value="${num}" class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile">
                     </div>
-                    <p class="text-xs text-gray-400 mt-0.5">CC - Number (e.g. 91 - 9876543210)</p>
+                    <p class="text-xs text-gray-400 mt-0.5">CCNumber (e.g. 919876543210)</p>
                 </div>`;
             const isRO = isEdit && READONLY_ON_EDIT.has(f);
             const isAuto = PINCODE_AUTO.has(f);
@@ -297,7 +297,7 @@ const AdminBranches = (() => {
                         email: 'Invalid email format',
                         upi: 'Invalid UPI format (e.g., user@bank)',
                         ifsc: 'Invalid IFSC format (e.g., SBIN0001234)',
-                        mobile: 'Invalid mobile number (7-15 digits)',
+                        mobile: 'Mobile must be 91XXXXXXXXXX (12 digits)',
                         bankAccount: 'Invalid account number (9-18 digits)',
                         stateCode: 'Invalid state code (2 uppercase letters, e.g., DL, HR)',
                         gstCode: 'Invalid GST code (2 digits, e.g., 01, 27)'

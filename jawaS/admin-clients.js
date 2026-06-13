@@ -193,8 +193,16 @@ const AdminClients = (() => {
                                     <input name="GST_CODE" id="clientsGstCode" class="form-input" maxlength="2">
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">GST / PAN / Adhar</label>
-                                    <input name="ID_GST_PAN_ADHAR" class="form-input">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
+                                    <input name="GSTIN" class="form-input uppercase" maxlength="15" placeholder="22AAAAA0000A1Z5">
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">PAN</label>
+                                    <input name="PAN" class="form-input uppercase" maxlength="10" placeholder="AAAAA0000A">
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Aadhaar</label>
+                                    <input name="AADHAAR" class="form-input" maxlength="12" placeholder="12-digit number">
                                 </div>
                                 <div class="md:col-span-1">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Branch*</label>
@@ -294,6 +302,31 @@ const AdminClients = (() => {
                                     </div>
                                     <div id="clientsWpGroupList" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border rounded-lg bg-gray-50">
                                     </div>
+                                </div>
+                            </div>
+                            <h3 class="text-md font-semibold text-indigo-600 mt-5 mb-3 border-t pt-4">Admin / Subscription</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Credit Limit (₹)</label>
+                                    <input type="number" step="any" min="0" name="CREDIT_LIMIT" class="form-input" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Users</label>
+                                    <input type="number" min="1" name="MAX_USERS_ALLOWED" class="form-input" placeholder="e.g., 5">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Logins/User</label>
+                                    <input type="number" min="1" name="MAX_LOGINS_PER_USER" class="form-input" placeholder="e.g., 3">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Subscription Type</label>
+                                    <select name="SUBSCRIPTION_TYPE" class="form-input">
+                                        <option value="">— Select —</option>
+                                        <option value="Basic">Basic</option>
+                                        <option value="Standard">Standard</option>
+                                        <option value="Premium">Premium</option>
+                                        <option value="Enterprise">Enterprise</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="mt-6 flex justify-center items-center gap-4 flex-wrap border-t pt-6">
@@ -578,6 +611,24 @@ const AdminClients = (() => {
                 </div>
             </div>
             <div class="border-b pb-4">
+                <h3 class="text-md font-semibold text-indigo-600 mb-3">Identity</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div><span class="font-semibold text-gray-600">GSTIN:</span> ${c.GSTIN||'-'}</div>
+                    <div><span class="font-semibold text-gray-600">PAN:</span> ${c.PAN||'-'}</div>
+                    <div><span class="font-semibold text-gray-600">Aadhaar:</span> ${c.AADHAAR||'-'}</div>
+                </div>
+            </div>
+            <div class="border-b pb-4">
+                <h3 class="text-md font-semibold text-indigo-600 mb-3">Admin / Subscription</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div><span class="font-semibold text-gray-600">Credit Limit:</span> ₹${c.CREDIT_LIMIT??'-'}</div>
+                    <div><span class="font-semibold text-gray-600">Used Limit:</span> ₹${c.USED_LIMIT??'-'}</div>
+                    <div><span class="font-semibold text-gray-600">Max Users:</span> ${c.MAX_USERS_ALLOWED||'-'}</div>
+                    <div><span class="font-semibold text-gray-600">Max Logins/User:</span> ${c.MAX_LOGINS_PER_USER||'-'}</div>
+                    <div><span class="font-semibold text-gray-600">Subscription:</span> ${c.SUBSCRIPTION_TYPE||'-'}</div>
+                </div>
+            </div>
+            <div class="border-b pb-4">
                 <h3 class="text-md font-semibold text-indigo-600 mb-3">Charges & Settings</h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div><span class="font-semibold text-gray-600">Weight Change:</span> ${c.WEIGHT_CHANGE||'-'}</div>
@@ -640,16 +691,21 @@ const AdminClients = (() => {
                 return;
             }
             if (k === 'MOBILE_NUMBER') {
-                const parts = (v || '').split('-');
                 const form2 = document.getElementById('clientsForm');
                 const ccEl  = form2.querySelector('[name="MOBILE_CC"]');
                 const numEl = form2.querySelector('[name="MOBILE_NUM"]');
-                if (parts.length === 2) {
+                const mobile = v || '';
+                // Support both legacy "91-XXXXXXXXXX" and current "91XXXXXXXXXX"
+                if (mobile.includes('-')) {
+                    const parts = mobile.split('-');
                     if (ccEl)  ccEl.value  = parts[0];
                     if (numEl) numEl.value = parts[1];
+                } else if (mobile.length >= 10) {
+                    if (ccEl)  ccEl.value  = mobile.slice(0, 2);
+                    if (numEl) numEl.value = mobile.slice(2);
                 } else {
                     if (ccEl)  ccEl.value  = '91';
-                    if (numEl) numEl.value = v || '';
+                    if (numEl) numEl.value = mobile;
                 }
                 return;
             }
@@ -694,15 +750,13 @@ const AdminClients = (() => {
     // ── Validation ────────────────────────────────────────────────────────────
     // field name → [validator fn, error message]
     const FIELD_VALIDATORS = {
-        'MOBILE_NUM':      [v => window.InputValidator.mobile(v),   'Invalid mobile number'],
-        'EMAIL':           [v => window.InputValidator.email(v),    'Invalid email address'],
-        'B2B_PINCODE':     [v => window.InputValidator.pin(v),      'Invalid pincode (6 digits)'],
-        'BRANCH':          [v => window.InputValidator.branchCode(v.toUpperCase()), 'Branch must be 3 uppercase letters (e.g., DDN)'],
-        'ID_GST_PAN_ADHAR':[v => {
-            if (!v) return true;
-            const u = v.toUpperCase();
-            return window.InputValidator.gstin(u) || window.InputValidator.pan(u) || window.InputValidator.aadhar(u);
-        }, 'Invalid GST / PAN / Aadhaar'],
+        'MOBILE_NUM':  [v => !v || window.InputValidator.mobile('91' + v.replace(/^91/, '')), 'Invalid mobile number'],
+        'EMAIL':       [v => window.InputValidator.email(v),    'Invalid email address'],
+        'B2B_PINCODE': [v => window.InputValidator.pin(v),      'Invalid pincode (6 digits)'],
+        'BRANCH':      [v => window.InputValidator.branchCode(v.toUpperCase()), 'Branch must be 3 uppercase letters (e.g., DDN)'],
+        'GSTIN':       [v => window.InputValidator.gstin(v.toUpperCase()),  'Invalid GSTIN'],
+        'PAN':         [v => window.InputValidator.pan(v.toUpperCase()),    'Invalid PAN'],
+        'AADHAAR':     [v => window.InputValidator.aadhar(v),              'Aadhaar must be 12 digits'],
     };
 
     function _showFieldError(input, msg) {
@@ -743,7 +797,7 @@ const AdminClients = (() => {
         const form = document.getElementById('clientsForm');
         if (!_validateForm(form)) return;
         // uppercase required fields
-        ['CODE', 'BRANCH', 'B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE', 'ID_GST_PAN_ADHAR', 'CODE_STATE'].forEach(n => {
+        ['CODE', 'BRANCH', 'B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE', 'GSTIN', 'PAN', 'CODE_STATE'].forEach(n => {
             const el = form.querySelector(`[name="${n}"]`);
             if (el && el.value) el.value = el.value.toUpperCase();
         });
@@ -751,12 +805,15 @@ const AdminClients = (() => {
         new FormData(form).forEach((v, k) => {
             data[k] = PERCENT_FIELDS.includes(k) && v !== '' ? parseFloat(v) / 100 : (v || '');
         });
-        // combine country code + number into MOBILE_NUMBER
+        // combine country code + number into MOBILE_NUMBER — no hyphen
         const cc  = (data.MOBILE_CC  || '91').trim();
         const num = (data.MOBILE_NUM || '').trim();
-        data.MOBILE_NUMBER = num ? `${cc}-${num}` : '';
+        data.MOBILE_NUMBER = num ? `${cc}${num}` : '';
         delete data.MOBILE_CC;
         delete data.MOBILE_NUM;
+        // numeric admin fields
+        ['CREDIT_LIMIT'].forEach(f => { if (data[f] !== '') data[f] = parseFloat(data[f]) || 0; });
+        ['MAX_USERS_ALLOWED', 'MAX_LOGINS_PER_USER'].forEach(f => { if (data[f] !== '') data[f] = parseInt(data[f]) || null; });
         // WP_ALERTS: comma-string → array
         data.WP_ALERTS = data.WP_ALERTS
             ? data.WP_ALERTS.split(',').map(s => s.trim()).filter(Boolean)

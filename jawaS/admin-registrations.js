@@ -18,12 +18,13 @@ const AdminRegistrations = (() => {
 
     function _splitMobile(val) {
         if (!val) return { cc: '91', num: '' };
-        const idx = val.indexOf('-');
-        return idx === -1 ? { cc: '91', num: val } : { cc: val.slice(0, idx), num: val.slice(idx + 1) };
+        // handle both 91XXXXXXXXXX and legacy 91-XXXXXXXXXX
+        const clean = val.replace('-', '');
+        return { cc: '91', num: clean.replace(/^91/, '') };
     }
     function _joinMobile(cc, num) {
         cc = (cc || '91').trim(); num = (num || '').trim();
-        return num ? `${cc}-${num}` : '';
+        return num ? `${cc}${num}` : '';
     }
 
     async function load() {

@@ -72,8 +72,16 @@ const AdminB2B2C = (() => {
                                     <div id="b2b2cParentResults" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-48 overflow-y-auto hidden"></div>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">GST / PAN / Aadhaar</label>
-                                    <input name="GST_ID_PAN_ADHAR" class="form-input text-sm">
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">GSTIN</label>
+                                    <input name="GSTIN" class="form-input text-sm" maxlength="15" placeholder="22AAAAA0000A1Z5">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">PAN</label>
+                                    <input name="PAN" class="form-input text-sm" maxlength="10" placeholder="ABCDE1234F">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Aadhaar</label>
+                                    <input name="AADHAAR" class="form-input text-sm" maxlength="12" placeholder="12 digit number">
                                 </div>
                             </div>
                         </div>
