@@ -219,6 +219,91 @@ class AppDatabase {
     });
   }
 
+  /**
+   * Timestamp-guarded put — "Zombie Shield".
+   * Only writes if incoming TIME_STAMP is strictly greater than existing.
+   * Returns true if written, false if skipped.
+   */
+  async _checkAndPut(store, record, keyPath) {
+    return new Promise((resolve, reject) => {
+      const getReq = store.get(record[keyPath]);
+      getReq.onsuccess = () => {
+        const existing = getReq.result;
+        if (existing && Number(record.TIME_STAMP || 0) <= Number(existing.TIME_STAMP || 0)) {
+          resolve(false); // skip — incoming is not newer
+          return;
+        }
+        const putReq = store.put(record);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => {
+        // If get fails, still attempt put
+        const putReq = store.put(record);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => reject(putReq.error);
+      };
+    });
+  }
+
+  /**
+   * Atomic bulk merge across multiple stores in a single transaction.
+   * @param {Object} deltaMap - { collectionName: { [key]: record, ... }, ... }
+   * Each entry can also have a special __deletes array: [key1, key2, ...]
+   * Uses timestamp idempotency to prevent "zombie" overwrites.
+   */
+  async bulkMerge(deltaMap) {
+    if (!this.db || !deltaMap || typeof deltaMap !== 'object') return;
+    const storeNames = Object.keys(deltaMap);
+    if (!storeNames.length) return;
+
+    const transaction = this.db.transaction(storeNames, 'readwrite');
+
+    return new Promise((resolve, reject) => {
+      let pending = 0;
+      let errored = false;
+
+      function _completeCheck() {
+        if (pending <= 0 && !errored) resolve();
+      }
+
+      for (const [collection, data] of Object.entries(deltaMap)) {
+        if (!data || typeof data !== 'object') continue;
+        const store = transaction.objectStore(collection);
+        const keyPath = this.sheetKeys[collection] || 'id';
+
+        // Handle deletes — support __deletes array
+        if (data.__deletes && Array.isArray(data.__deletes)) {
+          for (const delKey of data.__deletes) {
+            pending++;
+            const req = store.delete(delKey);
+            req.onsuccess = () => { pending--; _completeCheck(); };
+            req.onerror = (e) => { if (!errored) { errored = true; reject(e.target.error); } };
+          }
+        }
+
+        // Handle upserts — object entries
+        for (const [key, record] of Object.entries(data)) {
+          if (key === '__deletes') continue;
+          if (!record || typeof record !== 'object') continue;
+          const recordToStore = { ...record };
+          if (!recordToStore[keyPath] || recordToStore[keyPath] === '' || recordToStore[keyPath] === null || recordToStore[keyPath] === undefined) {
+            recordToStore[keyPath] = key;
+          }
+          pending++;
+          this._checkAndPut(store, recordToStore, keyPath).then(written => {
+            pending--;
+            _completeCheck();
+          }).catch(err => {
+            if (!errored) { errored = true; reject(err); }
+          });
+        }
+      }
+
+      if (pending === 0) resolve();
+    });
+  }
+
   async clearAll() {
     const sheets = [
       'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',

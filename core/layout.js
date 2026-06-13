@@ -76,18 +76,29 @@ async function loadComponent(componentUrl, placeholderId) {
 const _ALLOWED_PAGES = ['tracking.html', 'services.html', 'dgr.html', 'awareness.html', 'Pincode.html', 'faqs.html',
                         'tracking', 'services', 'dgr', 'awareness', 'Pincode', 'faqs'];
 
+function _skeletonHTML() {
+    return `<div class="skeleton-loader">${[1,2,3,4,5,6].map(i =>
+        `<div class="skeleton-line ${i === 2 ? 'skeleton-line-w' : i === 5 ? 'skeleton-line-n' : ''}"></div>`
+    ).join('')}</div>`;
+}
+
 async function loadDynamicContent(url, targetElementId) {
     const el = document.getElementById(targetElementId);
     if (!el) return;
+
+    // Fade out current content
+    el.classList.add('page-transitioning', 'page-fade-out');
+    await new Promise(r => setTimeout(r, 150));
+
+    // Show skeleton loader
+    el.innerHTML = _skeletonHTML();
+    await new Promise(r => requestAnimationFrame(r)); // allow paint
+
     try {
-        el.innerHTML = `<div class="text-center p-4 text-gray-500">Loading Content...</div>`;
         const safeUrl = _ALLOWED_PAGES.find(p => p === url);
         if (!safeUrl) throw new Error(`Disallowed page: ${url}`);
         const cacheBuster = safeUrl.includes('?') ? '&' : '?';
-        const urlWithExt    = safeUrl;
-        const urlWithoutExt = safeUrl.replace(/\.html$/, '');
-        let res = await fetch(`${urlWithExt}${cacheBuster}v=${Date.now()}`);
-        if (!res.ok) res = await fetch(`${urlWithoutExt}${cacheBuster}v=${Date.now()}`);
+        const res = await fetch(`${safeUrl}${cacheBuster}v=${Date.now()}`);
         if (!res.ok) throw new Error('Load failed');
 
         const txt = await res.text();
@@ -104,9 +115,46 @@ async function loadDynamicContent(url, targetElementId) {
                 });
             }, 0);
         }
+
+        // Fade in new content
+        el.classList.remove('page-fade-out');
+        el.classList.add('page-fade-in');
+        setTimeout(() => el.classList.remove('page-transitioning', 'page-fade-in'), 300);
     } catch (e) {
         el.innerHTML = `<div class="text-red-500 text-center">Content unavailable.</div>`;
+        el.classList.remove('page-fade-out', 'page-transitioning');
     }
+}
+
+// Link prefetching — on hover > 200ms, fetch page in background
+function initLinkPrefetch() {
+    let _prefetchTimer = null;
+    let _prefetchAbort = null;
+
+    document.addEventListener('mouseover', (e) => {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+        const href = link.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('http')) return;
+        if (!_ALLOWED_PAGES.some(p => href.includes(p))) return;
+
+        clearTimeout(_prefetchTimer);
+        _prefetchTimer = setTimeout(async () => {
+            _prefetchAbort?.abort();
+            _prefetchAbort = new AbortController();
+            try {
+                await fetch(href, { signal: _prefetchAbort.signal, cache: 'force-cache' });
+            } catch (_) { /* ignore aborts */ }
+        }, 200);
+
+        // Cancel on mouseleave the link
+        const onLeave = () => {
+            clearTimeout(_prefetchTimer);
+            _prefetchAbort?.abort();
+            link.removeEventListener('mouseleave', onLeave);
+        };
+        link.addEventListener('mouseleave', onLeave, { once: true });
+    }, true);
 }
 
 const setActiveNavOnLoad = () => {
@@ -175,16 +223,37 @@ window._sseGapStart    = null;
 window._idbLastStamp   = 0;
 window._idbHasData     = false;
 
-let _sseWorker        = null;
-let _sseConnectedOnce = false;
-let _refreshTimer     = null;
+let _sseWorker              = null;
+let _sseConnectedOnce       = false;
+let _refreshTimer           = null;
+let _refreshInteractionTimer = null;
 
 function _scheduleRefresh() {
+    // Interaction guard: if user is typing in a field, defer until blur or 5s timeout
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        clearTimeout(_refreshInteractionTimer);
+        const deferredRefresh = () => {
+            clearTimeout(_refreshInteractionTimer);
+            _refreshInteractionTimer = null;
+            _doRefresh();
+        };
+        activeEl.addEventListener('blur', deferredRefresh, { once: true });
+        _refreshInteractionTimer = setTimeout(() => {
+            activeEl.removeEventListener('blur', deferredRefresh);
+            _doRefresh();
+        }, 5000);
+        return;
+    }
+    _doRefresh();
+}
+
+function _doRefresh() {
     clearTimeout(_refreshTimer);
     _refreshTimer = setTimeout(async () => {
         const fullData = await getAppData();
         window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
-    }, 100);
+    }, 300);
 }
 
 async function _handleSSEMessage(payload) {
@@ -439,6 +508,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkLoginStatus();
     setActiveNavOnLoad();
     initializeUI();
+    initLinkPrefetch();
 
     // Wait for IndexedDB to be ready (appDB is set immediately but db is null until init completes)
     await new Promise((resolve) => {

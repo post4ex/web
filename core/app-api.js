@@ -60,22 +60,47 @@ window._syncInProgress = false;
 window._sseBuffer      = [];
 
 async function _applyDelta({ collection, action, key, data, id }) {
-    if (action === 'upsert') await window.appDB.mergeSheet(collection, { [key]: data });
-    else if (action === 'delete') {
-        // try key first, then fall back to UUID (id) via secondary index
-        await window.appDB.deleteRecord(collection, key);
+    if (!window.appDB || !window.appDB.db) return;
+    const deltaMap = {};
+
+    if (action === 'upsert') {
+        deltaMap[collection] = { [key]: data };
+    } else if (action === 'delete') {
+        // Resolve deletes — try key first, fall back to UUID (id) via secondary index
+        const deletes = [key];
         if (id && id !== key) {
             const rec = await window.appDB.getByPbId(collection, id);
             if (rec) {
                 const keyPath = window.appDB.sheetKeys[collection] || 'id';
-                await window.appDB.deleteRecord(collection, rec[keyPath]);
+                if (!deletes.includes(rec[keyPath])) deletes.push(rec[keyPath]);
+            }
+        }
+        deltaMap[collection] = { __deletes: deletes };
+
+        // Cascaded deletes for ORDERS — remove child records (boxes, docs, uploads)
+        if (collection === 'ORDERS') {
+            const ref = key;
+            for (const childCol of ['MULTIBOX', 'PRODUCTS', 'UPLOADS']) {
+                try {
+                    const childKeyPath = window.appDB.sheetKeys[childCol] || 'id';
+                    const allChildren = await window.appDB.getSheet(childCol);
+                    const childDeletes = Object.values(allChildren)
+                        .filter(r => r.REFERENCE === ref)
+                        .map(r => r[childKeyPath]);
+                    if (childDeletes.length > 0) {
+                        deltaMap[childCol] = { __deletes: childDeletes };
+                    }
+                } catch (_) {}
             }
         }
     }
+
+    await window.appDB.bulkMerge(deltaMap);
 }
 window._applyDelta = _applyDelta;
 
-async function pullDeltaSince(since_ms) {
+async function pullDeltaSince(since_ms, retryCount) {
+    if (retryCount === undefined) retryCount = 0;
     if (since_ms === null || since_ms === undefined || !isLoggedIn() || !window.appDB || !window.appDB.db) {
         console.log('[pullDeltaSince] skipped — since_ms:', since_ms, 'loggedIn:', isLoggedIn());
         return;
@@ -88,7 +113,7 @@ async function pullDeltaSince(since_ms) {
         console.log('[pullDeltaSince] skipped — since_ms=0, full sync will cover this');
         return;
     }
-    console.log('[pullDeltaSince] since_ms:', since_ms);
+    console.log('[pullDeltaSince] since_ms:', since_ms, 'retry:', retryCount);
     try {
         const result = await callApi(`/api/fetchEvents?since_ms=${since_ms}`, {}, 'GET');
         if (result.status !== 'success') return;
@@ -109,9 +134,10 @@ async function pullDeltaSince(since_ms) {
         }
         console.log('[pullDeltaSince] upserts:', Object.keys(upserts), 'deletes:', Object.keys(deletes));
 
+        const deltaMap = {};
         let hasNewData = false;
 
-        // Upserts — all collections in parallel
+        // Upserts — all collections in parallel, then batch into deltaMap
         if (Object.keys(upserts).length) {
             const entries = Object.entries(upserts);
             const results = await Promise.all(
@@ -124,34 +150,76 @@ async function pullDeltaSince(since_ms) {
                 const n = Object.keys(res.data).length;
                 console.log('[pullDeltaSince] getRecords', col, ':', n, 'records merged');
                 if (n > 0) {
-                    await window.appDB.mergeSheet(col, res.data);
+                    deltaMap[col] = { ...(deltaMap[col] || {}), ...res.data };
                     hasNewData = true;
                 }
             }
         }
 
-        // Deletes — use getByPbId to resolve key, then delete
+        // Deletes — batch into deltaMap with __deletes
         for (const [col, pb_ids] of Object.entries(deletes)) {
             const keyPath = window.appDB.sheetKeys[col] || 'id';
+            if (!deltaMap[col]) deltaMap[col] = {};
+            if (!deltaMap[col].__deletes) deltaMap[col].__deletes = [];
+
             for (const pb_id of pb_ids) {
                 if (keyPath === 'id') {
-                    // UUID is the key — delete directly
-                    await window.appDB.deleteRecord(col, pb_id);
+                    deltaMap[col].__deletes.push(pb_id);
                 } else {
-                    // resolve via secondary id index
                     const rec = await window.appDB.getByPbId(col, pb_id);
-                    if (rec) await window.appDB.deleteRecord(col, rec[keyPath]);
-                    else await window.appDB.deleteRecord(col, pb_id); // best effort
+                    if (rec) deltaMap[col].__deletes.push(rec[keyPath]);
+                    else deltaMap[col].__deletes.push(pb_id); // best effort
                 }
                 hasNewData = true;
             }
+
+            // Cascaded deletes for ORDERS
+            if (col === 'ORDERS') {
+                for (const pb_id of pb_ids) {
+                    const rec = await window.appDB.getByPbId('ORDERS', pb_id);
+                    if (!rec) continue;
+                    const ref = rec.REFERENCE;
+                    if (!ref) continue;
+                    for (const childCol of ['MULTIBOX', 'PRODUCTS', 'UPLOADS']) {
+                        try {
+                            const childKeyPath = window.appDB.sheetKeys[childCol] || 'id';
+                            const allChildren = await window.appDB.getSheet(childCol);
+                            const childDeletes = Object.values(allChildren)
+                                .filter(r => r.REFERENCE === ref)
+                                .map(r => r[childKeyPath]);
+                            if (childDeletes.length > 0) {
+                                if (!deltaMap[childCol]) deltaMap[childCol] = { __deletes: [] };
+                                else if (!deltaMap[childCol].__deletes) deltaMap[childCol].__deletes = [];
+                                deltaMap[childCol].__deletes.push(...childDeletes);
+                            }
+                        } catch (_) {}
+                    }
+                }
+            }
+        }
+
+        // Batch everything into atomic bulkMerge
+        if (Object.keys(deltaMap).length) {
+            await window.appDB.bulkMerge(deltaMap);
         }
 
         window._lastDeltaSync = Date.now();
         const maxTs = Math.max(...events.map(e => Number(e.TIME_STAMP) || 0));
         if (maxTs > 0) await window.appDB.setMetadata('lastEventStamp', maxTs).catch(() => {});
         if (hasNewData) _scheduleRefresh();
-    } catch (e) { console.warn('[pullDeltaSince] error:', e.message); }
+    } catch (e) {
+        console.warn('[pullDeltaSince] error:', e.message);
+        // Exponential backoff: min(30s, 2^retry * 1s + jitter)
+        if (retryCount < 5) {
+            const delay = Math.min(30000, Math.pow(2, retryCount) * 1000 + Math.random() * 1000);
+            console.log('[pullDeltaSince] retrying in', Math.round(delay), 'ms (attempt', retryCount + 1, '/ 5)');
+            await new Promise(r => setTimeout(r, delay));
+            return pullDeltaSince(since_ms, retryCount + 1);
+        } else {
+            console.error('[pullDeltaSince] all 5 retries exhausted — sync stalled');
+            _showRetryBanner('Sync Stalled — tap to retry');
+        }
+    }
 }
 
 function _showRetryBanner(msg) {
