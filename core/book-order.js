@@ -5,45 +5,60 @@
 function buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, billCycle) {
     const code      = document.getElementById('display_code').textContent || '';
     const orderDate = toUnix(orderDateInput.value);
+
+    // Helper to convert "---" to appropriate values
+    const cleanValue = (val, type = 'string') => {
+        if (val === '---' || val === undefined || val === null) {
+            if (type === 'number') return 0;
+            if (type === 'float') return 0.0;
+            return '';
+        }
+        if (type === 'number' || type === 'float') {
+            const num = parseFloat(val);
+            return isNaN(num) ? 0 : num;
+        }
+        return val;
+    };
+
     const orderData = {
         INVOICE_ID:     generateInvoiceId(code, billCycle || '', orderDate, document.getElementById('payment_topay')?.checked),
         CODE:           code,
-        BRANCH:         document.getElementById('display_branch').textContent || '',
+        BRANCH:         cleanValue(document.getElementById('display_branch').textContent),
         ORDER_DATE:     orderDate,
-        CARRIER:        document.getElementById('display_carrier').textContent,
+        CARRIER:        cleanValue(document.getElementById('display_carrier').textContent),
         AWB_NUMBER:     document.getElementById('awb').value.trim(),
         TRANSIT_DATE:   toUnix(orderDateInput.value),
-        CONSIGNOR:      document.getElementById('display_consignor').textContent,
-        ORIGIN_CITY:    document.getElementById('display_origin_city').textContent,
-        ORIGIN_PINCODE: document.getElementById('display_origin_pincode').textContent,
-        CONSIGNEE:      document.getElementById('display_consignee').textContent,
-        DEST_CITY:      document.getElementById('display_dest_city').textContent,
-        DEST_PINCODE:   document.getElementById('display_dest_pincode').textContent,
-        TAT:            document.getElementById('display_tat').textContent,
-        ZONE:           document.getElementById('display_zone').textContent,
-        MODE:           document.getElementById('display_mode').textContent,
-        GLOBAL:         document.getElementById('display_global').textContent,
-        COD:            document.getElementById('display_cod').textContent,
-        TOPAY:          document.getElementById('display_topay').textContent,
-        FOV:            document.getElementById('display_fov').textContent,
-        WEIGHT:         document.getElementById('display_weight').textContent,
-        CHG_WT:         document.getElementById('display_chg_wt').textContent,
-        PIECS:          document.getElementById('display_pieces').textContent,
-        VALUE:          summaryTotals.totalAmount,
-        FRIGHT:         document.getElementById('display_fright').textContent,
-        FUEL_CHG:       document.getElementById('display_fuel_chg').textContent,
-        COD_CHG:        document.getElementById('display_cod_chg').textContent,
-        TOPAY_CHG:      document.getElementById('display_topay_chg').textContent,
-        FOV_CHG:        document.getElementById('display_fov_chg').textContent,
-        EWAY_CHG:       document.getElementById('display_eway_chg').textContent,
-        AWB_CHG:        document.getElementById('display_awb_chg').textContent,
-        PACK_CHG:       document.getElementById('display_pack_chg').textContent,
-        DEV_CHG:        document.getElementById('display_dev_chg').textContent,
-        TAXABLE:        document.getElementById('display_taxable').textContent,
-        SGST:           document.getElementById('display_sgst').textContent,
-        CGST:           document.getElementById('display_cgst').textContent,
-        IGST:           document.getElementById('display_igst').textContent,
-        TOTAL:          document.getElementById('display_total').textContent,
+        CONSIGNOR:      cleanValue(document.getElementById('display_consignor').textContent),
+        ORIGIN_CITY:    cleanValue(document.getElementById('display_origin_city').textContent),
+        ORIGIN_PINCODE: cleanValue(document.getElementById('display_origin_pincode').textContent),
+        CONSIGNEE:      cleanValue(document.getElementById('display_consignee').textContent),
+        DEST_CITY:      cleanValue(document.getElementById('display_dest_city').textContent),
+        DEST_PINCODE:   cleanValue(document.getElementById('display_dest_pincode').textContent),
+        TAT:            cleanValue(document.getElementById('display_tat').textContent),
+        ZONE:           cleanValue(document.getElementById('display_zone').textContent),
+        MODE:           cleanValue(document.getElementById('display_mode').textContent),
+        GLOBAL:         cleanValue(document.getElementById('display_global').textContent),
+        COD:            cleanValue(document.getElementById('display_cod').textContent),
+        TOPAY:          cleanValue(document.getElementById('display_topay').textContent),
+        FOV:            cleanValue(document.getElementById('display_fov').textContent),
+        WEIGHT:         cleanValue(document.getElementById('display_weight').textContent, 'float'),
+        CHG_WT:         cleanValue(document.getElementById('display_chg_wt').textContent, 'float'),
+        PIECS:          cleanValue(document.getElementById('display_pieces').textContent, 'number'),
+        VALUE:          summaryTotals.totalAmount || 0,
+        FRIGHT:         cleanValue(document.getElementById('display_fright').textContent, 'float'),
+        FUEL_CHG:       cleanValue(document.getElementById('display_fuel_chg').textContent, 'float'),
+        COD_CHG:        cleanValue(document.getElementById('display_cod_chg').textContent, 'float'),
+        TOPAY_CHG:      cleanValue(document.getElementById('display_topay_chg').textContent, 'float'),
+        FOV_CHG:        cleanValue(document.getElementById('display_fov_chg').textContent, 'float'),
+        EWAY_CHG:       cleanValue(document.getElementById('display_eway_chg').textContent, 'float'),
+        AWB_CHG:        cleanValue(document.getElementById('display_awb_chg').textContent, 'float'),
+        PACK_CHG:       cleanValue(document.getElementById('display_pack_chg').textContent, 'float'),
+        DEV_CHG:        cleanValue(document.getElementById('display_dev_chg').textContent, 'float'),
+        TAXABLE:        cleanValue(document.getElementById('display_taxable').textContent, 'float'),
+        SGST:           cleanValue(document.getElementById('display_sgst').textContent, 'float'),
+        CGST:           cleanValue(document.getElementById('display_cgst').textContent, 'float'),
+        IGST:           cleanValue(document.getElementById('display_igst').textContent, 'float'),
+        TOTAL:          cleanValue(document.getElementById('display_total').textContent, 'float'),
     };
 
     return {
