@@ -326,7 +326,7 @@ const VaultJournal = (() => {
                 const res = await callApi('/api/ledger/journal', body, 'POST');
                 if (res.status === 'success') {
                     alert('✅ Entry posted successfully! Balance: ₹' + (+res.balance).toFixed(2));
-                    _renderRecurringList();
+                    _loadRecurring();
                 }
             } catch (err) {
                 alert('❌ ' + (err.message || 'Failed'));
@@ -420,7 +420,7 @@ const VaultJournal = (() => {
             }
         });
 
-        document.getElementById('recFormCancel').onclick = () => _renderRecurringList();
+        document.getElementById('recFormCancel').onclick = () => _loadRecurring();
         document.getElementById('recurringForm').addEventListener('submit', e => {
             e.preventDefault();
             const fd = new FormData(e.target);
@@ -433,18 +433,71 @@ const VaultJournal = (() => {
                 _recurringTemplates.push({ ...data, created_at: new Date().toISOString() });
             }
             _saveRecurringTemplates();
-            _renderRecurringList();
+            _loadRecurring();
         });
     }
 
-    // ── Recurring load ────────────────────────────────────────────────────────
+    // ── Recurring load (list pane + detail) ───────────────────────────────────
     function _loadRecurring() {
-        document.getElementById('vaultListPane').style.display = 'none';
         document.getElementById('vaultAddBtn').classList.add('hidden');
-        document.getElementById('vaultDetailPane').style.display = 'block';
-        VaultPage.showDetail(true);
-        _renderRecurringList();
-        VaultPage.showDetailPane();
+        document.getElementById('vaultListMsg').textContent = '';
+
+        _loadRecurringTemplates();
+
+        // Render list pane
+        const ul = document.getElementById('vaultList');
+        ul.innerHTML = '';
+        if (!_recurringTemplates.length) {
+            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No recurring templates. Create one!</li>';
+            document.getElementById('vaultDetailView').innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-card-body text-center py-12">
+                        <div class="text-4xl mb-3">🔄</div>
+                        <p class="text-gray-500 text-sm mb-4">No recurring entry templates yet.</p>
+                        <p class="text-xs text-gray-400">Create a template for entries that repeat.</p>
+                    </div>
+                </div>`;
+            VaultPage.showDetail(true);
+            VaultPage.showDetailPane();
+            return;
+        }
+        const now = Date.now();
+        function _nextDate(template) {
+            if (!template.start_date) return 'N/A';
+            const start = new Date(template.start_date);
+            const freq = template.frequency || 'MONTHLY';
+            const interval = parseInt(template.interval) || 1;
+            let next = new Date(start);
+            if (freq === 'MONTHLY') { while (next.getTime() < now) next.setMonth(next.getMonth() + interval); }
+            else if (freq === 'WEEKLY') { while (next.getTime() < now) next.setDate(next.getDate() + 7 * interval); }
+            else if (freq === 'DAILY') { while (next.getTime() < now) next.setDate(next.getDate() + interval); }
+            else if (freq === 'QUARTERLY') { while (next.getTime() < now) next.setMonth(next.getMonth() + 3 * interval); }
+            else if (freq === 'YEARLY') { while (next.getTime() < now) next.setFullYear(next.getFullYear() + interval); }
+            return next;
+        }
+        ul.innerHTML = _recurringTemplates.map((t, i) => {
+            const next = _nextDate(t);
+            const overdue = next !== 'N/A' && next.getTime() < now;
+            const sideLabel = t.side === 'debit' ? 'Dr' : 'Cr';
+            return `<li data-index="${i}" class="p-3 rounded-lg cursor-pointer hover:bg-purple-50 border border-gray-200 transition-colors">
+                <strong class="text-purple-800 block text-sm">🔄 ${t.narration || 'Untitled'}</strong>
+                <span class="text-xs text-gray-500">${t.code || ''} · ${t.frequency || 'MONTHLY'} · ${sideLabel} ₹${(+t.amount||0).toFixed(2)}</span>
+                <div class="text-xs mt-1 ${overdue ? 'text-red-600 font-medium' : 'text-gray-400'}">${overdue ? '⚠️ OVERDUE' : (next !== 'N/A' ? 'Next: ' + fmtDate(next.getTime(), 'date') : '')}</div>
+            </li>`;
+        }).join('');
+        ul.querySelectorAll('li').forEach(li =>
+            li.addEventListener('click', () => {
+                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
+                li.classList.add('selected');
+                _showRecurringDetail(parseInt(li.dataset.index));
+            })
+        );
+
+        // Auto-select first
+        if (_recurringTemplates.length) {
+            ul.querySelector('li')?.classList.add('selected');
+            _showRecurringDetail(0);
+        }
     }
 
     function setType(type) { _activeJournalType = type; }

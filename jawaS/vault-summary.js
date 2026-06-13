@@ -271,62 +271,124 @@ const VaultSummary = (() => {
     }
 
     // ── Pending Approvals — ACCOUNTANT+ ────────────────────────────────────────
-    async function showPendingApprovals() {
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">Loading pending entries…</div>';
+    let _pendingEntries = [];
 
+    function _renderPendingList() {
+        const ul = document.getElementById('vaultList');
+        if (!ul) return;
+        if (!_pendingEntries.length) {
+            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No pending entries. 🎉</li>';
+            return;
+        }
+        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
+        ul.innerHTML = _pendingEntries.map(e => {
+            const icon = typeIcons[e.ENTRY_TYPE] || '📋';
+            const label = e.ENTRY_TYPE + (e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : '');
+            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
+                <strong class="text-yellow-800 block text-sm">${icon} ${e.CODE || '-'} — ${label}</strong>
+                <span class="text-xs text-gray-500">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : ''} · ${e.USER_NAME || e.STAFF_NAME || ''}</span>
+                <div class="text-xs mt-1">
+                    <span class="text-red-500">Dr: ₹${(+e.DEBIT||0).toFixed(2)}</span>
+                    <span class="text-green-500 ml-2">Cr: ₹${(+e.CREDIT||0).toFixed(2)}</span>
+                </div>
+            </li>`;
+        }).join('');
+        ul.querySelectorAll('li').forEach(li =>
+            li.addEventListener('click', () => {
+                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
+                li.classList.add('selected');
+                _renderPendingDetail(li.dataset.entry);
+            })
+        );
+        // Auto-select first
+        if (_pendingEntries.length) {
+            ul.querySelector('li')?.classList.add('selected');
+            _renderPendingDetail(_pendingEntries[0].ENTRY_ID);
+        }
+    }
+
+    function _renderPendingDetail(entryId) {
+        VaultPage.showDetail(true);
+        const e = _pendingEntries.find(x => x.ENTRY_ID === entryId);
+        if (!e) return;
+        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
+        const view = document.getElementById('vaultDetailView');
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-header flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">⏳ Pending — ${e.ENTRY_ID}</h3>
+                    <span class="flex gap-2">
+                        <button onclick="VaultSummary._approveEntry('${e.ENTRY_ID}', 'APPROVE')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Approve</button>
+                        <button onclick="VaultSummary._approveEntry('${e.ENTRY_ID}', 'REJECT')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">❌ Reject</button>
+                    </span>
+                </div>
+                <div class="detail-card-body">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                        <div><span class="text-gray-500">Entry ID:</span> <span class="font-mono">${e.ENTRY_ID}</span></div>
+                        <div><span class="text-gray-500">Date:</span> ${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE) : 'N/A'}</div>
+                        <div><span class="text-gray-500">Code:</span> ${e.CODE || 'N/A'}</div>
+                        <div><span class="text-gray-500">Type:</span> ${typeIcons[e.ENTRY_TYPE] || ''} ${e.ENTRY_TYPE}${e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : ''}</div>
+                        <div><span class="text-gray-500">Branch:</span> ${e.BRANCH || 'N/A'}</div>
+                        <div><span class="text-gray-500">Direction:</span> ${e.DIRECTION || 'N/A'}</div>
+                        <div><span class="text-gray-500">Debit:</span> <span class="text-red-600">₹${(+e.DEBIT||0).toFixed(2)}</span></div>
+                        <div><span class="text-gray-500">Credit:</span> <span class="text-green-600">₹${(+e.CREDIT||0).toFixed(2)}</span></div>
+                        <div><span class="text-gray-500">Created by:</span> ${e.USER_NAME || e.STAFF_NAME || 'N/A'}</div>
+                        ${e.PAYMENT_MODE ? `<div><span class="text-gray-500">Mode:</span> ${e.PAYMENT_MODE}</div>` : ''}
+                        ${e.EXPENSE_TYPE ? `<div><span class="text-gray-500">Expense Type:</span> ${e.EXPENSE_TYPE}</div>` : ''}
+                        ${e.CASH_ACCOUNT ? `<div><span class="text-gray-500">Cash Account:</span> ${e.CASH_ACCOUNT}</div>` : ''}
+                        ${e.NARRATION ? `<div class="col-span-3"><span class="text-gray-500">Narration:</span> ${e.NARRATION}</div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        VaultPage.showDetailPane();
+    }
+
+    async function showPendingApprovals() {
+        _injectListPane();
+        document.getElementById('vaultSearch').placeholder = 'Search code, type, narration…';
+        document.getElementById('vaultSearch').oninput = _approveEntrySearch;
+        document.getElementById('vaultListMsg').textContent = '';
         try {
             const res = await callApi('/api/ledger/pending', {}, 'GET');
-            const entries = res.data || [];
-            const pendingCount = entries.length;
-
-            view.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">⏳ Pending Approvals</h3>
-                    <span class="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">${pendingCount} pending</span>
-                </div>
-                <div class="detail-card">
-                    <div class="detail-card-body">
-                        ${pendingCount ? `<div class="overflow-x-auto">
-                            <table class="min-w-full text-xs">
-                                <thead class="bg-gray-50"><tr>
-                                    <th class="px-2 py-2">Entry ID</th>
-                                    <th class="px-2 py-2">Date</th>
-                                    <th class="px-2 py-2">Code</th>
-                                    <th class="px-2 py-2">Type</th>
-                                    <th class="px-2 py-2 text-right">Debit</th>
-                                    <th class="px-2 py-2 text-right">Credit</th>
-                                    <th class="px-2 py-2">Created By</th>
-                                    <th class="px-2 py-2">Narration</th>
-                                    <th class="px-2 py-2">Actions</th>
-                                </tr></thead>
-                                <tbody>${entries.map(e => {
-                                    const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
-                                    return `<tr class="border-b hover:bg-yellow-50" data-entry="${e.ENTRY_ID}">
-                                        <td class="px-2 py-2 font-mono text-xs">${e.ENTRY_ID}</td>
-                                        <td class="px-2 py-2 whitespace-nowrap">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : '-'}</td>
-                                        <td class="px-2 py-2 font-medium">${e.CODE || '-'}</td>
-                                        <td class="px-2 py-2">${typeIcons[e.ENTRY_TYPE] || ''} ${e.ENTRY_TYPE}${e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : ''}</td>
-                                        <td class="px-2 py-2 text-right">${(+e.DEBIT||0).toFixed(2)}</td>
-                                        <td class="px-2 py-2 text-right">${(+e.CREDIT||0).toFixed(2)}</td>
-                                        <td class="px-2 py-2 text-xs">${e.USER_NAME || e.STAFF_NAME || '-'}</td>
-                                        <td class="px-2 py-2 text-gray-500 max-w-[180px] truncate">${e.NARRATION || ''}</td>
-                                        <td class="px-2 py-2 whitespace-nowrap">
-                                            <button onclick="VaultSummary._approveEntry('${e.ENTRY_ID}', 'APPROVE')" class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200 mr-1">✅ Approve</button>
-                                            <button onclick="VaultSummary._approveEntry('${e.ENTRY_ID}', 'REJECT')" class="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">❌ Reject</button>
-                                        </td>
-                                    </tr>`;
-                                }).join('')}</tbody>
-                            </table>
-                        </div>` : '<p class="text-gray-400 text-sm text-center py-8">No pending entries awaiting approval. 🎉</p>'}
-                    </div>
-                </div>`;
-            VaultPage.showDetailPane();
+            _pendingEntries = res.data || [];
+            _renderPendingList();
         } catch (err) {
-            view.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load pending entries'}</div>`;
-            VaultPage.showDetailPane();
+            document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;
         }
+    }
+
+    function _approveEntrySearch() {
+        if (!_pendingEntries || !_pendingEntries.length) { _renderPendingList(); return; }
+        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
+        const filtered = _pendingEntries.filter(e =>
+            (e.CODE || '').toLowerCase().includes(q) ||
+            (e.ENTRY_TYPE || '').toLowerCase().includes(q) ||
+            (e.JOURNAL_TYPE || '').toLowerCase().includes(q) ||
+            (e.NARRATION || '').toLowerCase().includes(q) ||
+            (e.ENTRY_ID || '').toLowerCase().includes(q)
+        );
+        const ul = document.getElementById('vaultList');
+        if (filtered.length === _pendingEntries.length) { _renderPendingList(); return; }
+        if (!ul) return;
+        if (!filtered.length) {
+            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No matching entries.</li>';
+            return;
+        }
+        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
+        ul.innerHTML = filtered.map(e => {
+            const icon = typeIcons[e.ENTRY_TYPE] || '📋';
+            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
+                <strong class="text-yellow-800 block text-sm">${icon} ${e.CODE || '-'}</strong>
+                <span class="text-xs text-gray-500">${e.ENTRY_TYPE}${e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : ''}</span>
+            </li>`;
+        }).join('');
+        ul.querySelectorAll('li').forEach(li =>
+            li.addEventListener('click', () => {
+                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
+                li.classList.add('selected');
+                _renderPendingDetail(li.dataset.entry);
+            })
+        );
     }
 
     async function _approveEntry(entryId, action) {

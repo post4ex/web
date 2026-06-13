@@ -299,39 +299,94 @@ const VaultExpenses = (() => {
     }
 
     // ── Wallet (cash in hand) ──────────────────────────────────────────────────
-    async function showWallet() {
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">Loading wallet data…</div>';
+    let _cashHolders = [];
 
+    function _renderCashHoldersList() {
+        const ul = document.getElementById('vaultList');
+        if (!ul) return;
+        if (!_cashHolders.length) {
+            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No cash holders found.</li>';
+            return;
+        }
+        ul.innerHTML = _cashHolders.map(d => {
+            const balClass = d.balance >= 0 ? 'text-green-600' : 'text-red-600';
+            return `<li data-holder="${d.holder}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
+                <strong class="text-yellow-800 block text-sm">👛 ${d.holder}</strong>
+                <div class="text-xs mt-1 ${balClass} font-medium">₹${(+d.balance).toFixed(2)}</div>
+            </li>`;
+        }).join('');
+        ul.querySelectorAll('li').forEach(li =>
+            li.addEventListener('click', () => {
+                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
+                li.classList.add('selected');
+                _renderWalletHolderDetail(li.dataset.holder);
+            })
+        );
+        // Auto-select first
+        if (_cashHolders.length) {
+            ul.querySelector('li')?.classList.add('selected');
+            _renderWalletHolderDetail(_cashHolders[0].holder);
+        }
+    }
+
+    function _renderWalletHolderDetail(holder) {
+        VaultPage.showDetail(true);
+        const d = _cashHolders.find(h => h.holder === holder);
+        if (!d) return;
+        const view = document.getElementById('vaultDetailView');
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-header flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">👛 ${holder}</h3>
+                    <button onclick="VaultExpenses.openAddPane();" class="btn-ghost btn-sm">+ New Movement</button>
+                </div>
+                <div class="detail-card-body">
+                    <div class="text-center py-8">
+                        <div class="text-3xl font-bold ${d.balance >= 0 ? 'text-green-600' : 'text-red-600'}">₹${(+d.balance).toFixed(2)}</div>
+                        <div class="text-sm text-gray-500 mt-1">Current Balance</div>
+                    </div>
+                </div>
+            </div>`;
+        VaultPage.showDetailPane();
+    }
+
+    async function showWallet() {
+        _injectListPane();
+        document.getElementById('vaultSearch').placeholder = 'Search holder…';
+        document.getElementById('vaultSearch').oninput = function() {
+            const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
+            if (!q) { _renderCashHoldersList(); return; }
+            const filtered = _cashHolders.filter(d =>
+                (d.holder || '').toLowerCase().includes(q)
+            );
+            const ul = document.getElementById('vaultList');
+            if (!ul) return;
+            if (!filtered.length) {
+                ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No matching holders.</li>';
+                return;
+            }
+            ul.innerHTML = filtered.map(d => {
+                const balClass = d.balance >= 0 ? 'text-green-600' : 'text-red-600';
+                return `<li data-holder="${d.holder}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
+                    <strong class="text-yellow-800 block text-sm">👛 ${d.holder}</strong>
+                    <div class="text-xs mt-1 ${balClass} font-medium">₹${(+d.balance).toFixed(2)}</div>
+                </li>`;
+            }).join('');
+            ul.querySelectorAll('li').forEach(li =>
+                li.addEventListener('click', () => {
+                    ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
+                    li.classList.add('selected');
+                    _renderWalletHolderDetail(li.dataset.holder);
+                })
+            );
+        };
         try {
             const res = await callApi('/api/ledger/cash', {}, 'GET');
-            const data = res.data || [];
-            VaultPage.showDetail(true);
-            const rows = data.map(d => `<tr class="border-b border-gray-100 hover:bg-gray-50">
-                <td class="px-4 py-3 font-medium text-gray-700">${d.holder}</td>
-                <td class="px-4 py-3 text-right font-semibold ${d.balance >= 0 ? 'text-green-700' : 'text-red-700'}">₹${(+d.balance).toFixed(2)}</td>
-            </tr>`).join('') || '<tr><td colspan="2" class="text-center text-gray-400 py-4">No cash data yet.</td></tr>';
-
-            view.innerHTML = `
-                <div class="detail-card">
-                    <div class="detail-card-header flex justify-between items-center">
-                        <h3 class="font-semibold text-gray-700">👛 Cash in Hand</h3>
-                        <button onclick="VaultExpenses.openAddPane();" class="btn-ghost btn-sm">+ New Movement</button>
-                    </div>
-                    <div class="detail-card-body overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-xs uppercase text-gray-500">
-                                <tr><th class="px-4 py-2 text-left">Holder</th><th class="px-4 py-2 text-right">Balance</th></tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
-                </div>`;
+            _cashHolders = res.data || [];
+            _renderCashHoldersList();
         } catch (err) {
-            view.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load wallet'}</div>`;
+            document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;
         }
-        VaultPage.showDetailPane();
     }
 
     // ── Load ──────────────────────────────────────────────────────────────────

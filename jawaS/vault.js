@@ -163,7 +163,7 @@ const VaultPage = (() => {
         const expenseTiles    = ['expense-claims', 'petty-cash', 'staff-advances', 'branch-advances'];
         const gstTiles        = ['gstr1', 'gstr3b', 'gst-filing', 'gstr2b', 'tds', 'tcs', 'tds-certs', 'purchase-register'];
         const summaryTiles    = ['summary', 'reports', 'bank-recon', 'bulk-import'];
-        const directViewTiles = ['wallet', 'pending-approvals'];  // Tiles that show a detail pane directly (no list)
+        const directViewTiles = [];  // No tiles bypass list pane anymore
 
         // Show + Add button for roles that can record (not for billing or read-only tiles)
         const canRecord = _can(VAULT_PERMISSIONS.C) && name !== 'billing' && !directViewTiles.includes(name);
@@ -190,6 +190,10 @@ const VaultPage = (() => {
             document.getElementById('vaultAddBtn').onclick = () => VaultJournal.openAddPane();
             await VaultJournal.load();
         }
+        else if (name === 'suppliers') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultSuppliers.load();
+        }
         else if (purchasesTiles.includes(name)) {
             document.getElementById('vaultAddBtn').onclick = () => VaultPurchases.openAddPane();
             await VaultPurchases.load();
@@ -207,21 +211,35 @@ const VaultPage = (() => {
         }
         else if (name === 'wallet') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
-            document.getElementById('vaultListPane').style.display = 'none';
-            document.getElementById('vaultDetailPane').style.display = 'block';
             await VaultExpenses.showWallet();
         }
         else if (name === 'pending-approvals') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
-            document.getElementById('vaultListPane').style.display = 'none';
-            document.getElementById('vaultDetailPane').style.display = 'block';
             await VaultSummary.showPendingApprovals();
+        }
+        else if (name === 'sales-invoices') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultSalesInvoices.load();
+        }
+        else if (name === 'credit-notes') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultCreditNotes.load();
+        }
+        else if (name === 'customers') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultCustomers.load();
+        }
+        else if (name === 'quotations') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultQuotations.load();
+        }
+        else if (name === 'delivery-notes') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultDeliveryNotes.load();
         }
         else if (name === 'chart-of-accounts') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
-            document.getElementById('vaultListPane').style.display = 'none';
-            document.getElementById('vaultDetailPane').style.display = 'block';
-            await VaultSummary.showChartOfAccounts();
+            await VaultCOA.load();
         }
         else if (name === 'cheques') {
             VaultAccounts.setTile('cheques');
