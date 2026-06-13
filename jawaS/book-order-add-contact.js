@@ -41,28 +41,33 @@ const fields = {
 };
 
 const LOGISTICS_FIELDS = ['zone', 'oda', 'expressTat', 'airlineTat', 'surfaceTat', 'premiumTat'];
+const TAT_FIELDS = ['airlineTat', 'surfaceTat', 'premiumTat'];
 
 let addContactType = null; // 'sender' | 'receiver'
 
 // --- PINCODE HELPERS ---
 
 function clearDerivedFields() {
-    ['city', 'state', 'stateCode', 'gstCode', 'gst', 'pan', 'aadhaar', ...LOGISTICS_FIELDS].forEach(k => { if (fields[k]) fields[k].value = ''; });
+    ['city', 'state', 'stateCode', 'gstCode', 'gst', 'pan', 'aadhaar', 'zone', 'oda', 'expressTat', 'airlineTat', 'surfaceTat', 'premiumTat'].forEach(k => { if (fields[k]) fields[k].value = ''; });
 }
 
 function lockLogisticsFields() {
-    LOGISTICS_FIELDS.forEach(k => {
-        fields[k].readOnly = true;
-        fields[k].classList.add('bg-gray-50');
-        fields[k].classList.remove('bg-white');
+    ['zone', 'oda', 'expressTat', 'airlineTat', 'surfaceTat', 'premiumTat'].forEach(k => {
+        if (fields[k]) {
+            fields[k].readOnly = true;
+            fields[k].classList.add('bg-gray-50');
+            fields[k].classList.remove('bg-white');
+        }
     });
 }
 
 function unlockLogisticsFields() {
-    LOGISTICS_FIELDS.forEach(k => {
-        fields[k].readOnly = false;
-        fields[k].classList.remove('bg-gray-50');
-        fields[k].classList.add('bg-white');
+    ['zone', 'oda', 'expressTat', 'airlineTat', 'surfaceTat', 'premiumTat'].forEach(k => {
+        if (fields[k]) {
+            fields[k].readOnly = false;
+            fields[k].classList.remove('bg-gray-50');
+            fields[k].classList.add('bg-white');
+        }
     });
 }
 
