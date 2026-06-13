@@ -73,8 +73,8 @@ async function loadComponent(componentUrl, placeholderId) {
     }
 }
 
-const _ALLOWED_PAGES = ['tracking.html', 'services.html', 'dgr.html', 'awareness.html', 'Pincode.html', 'faqs.html',
-                        'tracking', 'services', 'dgr', 'awareness', 'Pincode', 'faqs'];
+const _ALLOWED_PAGES = ['services.html', 'dgr.html', 'awareness.html', 'Pincode.html', 'faqs.html',
+                        'services', 'dgr', 'awareness', 'Pincode', 'faqs'];
 
 function _skeletonHTML() {
     return `<div class="skeleton-loader">${[1,2,3,4,5,6].map(i =>

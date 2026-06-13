@@ -101,7 +101,6 @@ window.VAULT_PERMISSIONS = VAULT_PERMISSIONS;
 
 const PAGE_CONFIG = {
     'dashboard.html':    'CLIENT',
-    'tracking.html':     'CLIENT',
     'Calculator.html':   'CLIENT',
     'orders.html':       'CLIENT',
     'PickupRequest.html':'CLIENT',
