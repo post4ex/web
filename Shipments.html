@@ -38,6 +38,10 @@
         #uploadsTable th, #uploadsTable td,
         #trackingHistoryTable th, #trackingHistoryTable td { padding: 0.5rem; font-size: 0.8rem; }
 
+        /* Assign Carrier incomplete list items */
+        #ac-list li.incomplete { border-color: #fcd34d; background-color: #fffbeb; }
+        #ac-list li.incomplete:hover { background-color: #fef3c7; }
+
         /* Tiles view */
         #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;flex:1;padding:2rem 1rem;overflow-y:auto; }
         .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1rem;width:100%;max-width:900px; }
@@ -76,6 +80,26 @@
                 <div class="tile-count text-gray-700" id="cnt-all">…</div>
                 <div class="tile-label">Total</div>
             </div>
+            <div class="tile" data-tile="assign-carrier" style="border-color:#e0f2fe;">
+                <div class="tile-icon">🚚</div>
+                <div class="tile-count text-sky-700" id="cnt-assign-carrier">…</div>
+                <div class="tile-label">Assign Carrier</div>
+            </div>
+            <div class="tile" data-tile="overduetat" style="border-color:#fca5a5;">
+                <div class="tile-icon">🔥</div>
+                <div class="tile-count text-red-700" id="cnt-overduetat">…</div>
+                <div class="tile-label">Overdue TAT</div>
+            </div>
+            <div class="tile" data-tile="exceptions" style="border-color:#fee2e2;">
+                <div class="tile-icon">⚠️</div>
+                <div class="tile-count text-red-700" id="cnt-exceptions">…</div>
+                <div class="tile-label">Exceptions</div>
+            </div>
+            <div class="tile" data-tile="pending-pod" style="border-color:#f3e8ff;">
+                <div class="tile-icon">📝</div>
+                <div class="tile-count text-purple-700" id="cnt-pending-pod">…</div>
+                <div class="tile-label">Pending PODs</div>
+            </div>
             <div class="tile" data-tile="topay" style="border-color:#fef3c7;">
                 <div class="tile-icon">💰</div>
                 <div class="tile-count text-amber-600" id="cnt-topay">…</div>
@@ -86,25 +110,35 @@
                 <div class="tile-count text-purple-700" id="cnt-cod">…</div>
                 <div class="tile-label">COD</div>
             </div>
+            <div class="tile" data-tile="ofd" style="border-color:#dbeafe;">
+                <div class="tile-icon">🚐</div>
+                <div class="tile-count text-blue-700" id="cnt-ofd">…</div>
+                <div class="tile-label">Out for Delivery</div>
+            </div>
+            <div class="tile" data-tile="new-bookings" style="border-color:#fefce8;">
+                <div class="tile-icon">📅</div>
+                <div class="tile-count text-yellow-700" id="cnt-new-bookings">…</div>
+                <div class="tile-label">New Bookings</div>
+            </div>
             <div class="tile" data-tile="tat" style="border-color:#fee2e2;">
                 <div class="tile-icon">⏰</div>
                 <div class="tile-count text-red-600" id="cnt-tat">…</div>
                 <div class="tile-label">TAT Due (3 Days)</div>
             </div>
-            <div class="tile" data-tile="overduetat" style="border-color:#fca5a5;">
-                <div class="tile-icon">🔥</div>
-                <div class="tile-count text-red-700" id="cnt-overduetat">…</div>
-                <div class="tile-label">Overdue TAT</div>
-            </div>
             <div class="tile" data-tile="heavy" style="border-color:#d1fae5;">
                 <div class="tile-icon">🏋️</div>
                 <div class="tile-count text-emerald-700" id="cnt-heavy">…</div>
-                <div class="tile-label">Heavy (&gt;10 kg)</div>
+                <div class="tile-label">Heavy (&gt;25 kg)</div>
             </div>
             <div class="tile" data-tile="highvalue" style="border-color:#bfdbfe;">
                 <div class="tile-icon">💎</div>
                 <div class="tile-count text-blue-700" id="cnt-highvalue">…</div>
                 <div class="tile-label">High Value (&gt;1L)</div>
+            </div>
+            <div class="tile" data-tile="fov" style="border-color:#ccfbf1;">
+                <div class="tile-icon">📄</div>
+                <div class="tile-count text-teal-700" id="cnt-fov">…</div>
+                <div class="tile-label">FOV</div>
             </div>
         </div>
     </div>
@@ -167,6 +201,101 @@
         </main>
     </div><!-- /splitViewWrapper -->
 
+    <!-- Assign Carrier View -->
+    <div id="assignCarrierView" class="split-view" style="display:none;width:100%;">
+
+        <!-- Left Sidebar: Shipments List -->
+        <aside id="ac-list-pane">
+            <div class="sv-pane-header">
+                <div class="flex items-center gap-2 mb-3">
+                    <button id="ac-back-to-tiles-btn" class="text-gray-400 hover:text-gray-700 p-1 rounded" title="Back to tiles">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    </button>
+                    <h2 class="text-xl font-bold text-gray-800 flex-1">Assign Carrier</h2>
+                </div>
+                <input type="text" id="ac-search" placeholder="Search AWB, Ref, Client..." class="form-input text-sm">
+            </div>
+            <div class="sv-pane-body">
+                <p id="ac-placeholder" class="text-gray-600 p-4 text-center">Loading shipment data...</p>
+                <ul id="ac-list" class="hidden"></ul>
+            </div>
+        </aside>
+
+        <!-- Right Pane: Update Form -->
+        <main id="ac-form-pane" class="p-6 md:p-8 hidden md:block">
+
+            <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
+                <button type="button" id="ac-back-to-list" class="btn btn-sm flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Back to List
+                </button>
+            </div>
+
+            <div id="ac-empty-view" class="h-full flex items-center justify-center">
+                <p class="text-gray-500 text-lg">Select a shipment from the list to update.</p>
+            </div>
+
+            <div id="ac-form-view" class="hidden max-w-2xl mx-auto">
+                <div class="bg-white rounded-xl shadow-lg p-8 space-y-6">
+                    <div class="text-center">
+                        <h1 class="text-2xl font-bold text-gray-800">Assign Carrier</h1>
+                        <p class="mt-1 text-sm text-gray-500">Update carrier and shipment details below.</p>
+                    </div>
+
+                    <form id="ac-form" class="space-y-4">
+                        <fieldset class="border-t border-gray-200 pt-4">
+                            <legend class="text-sm font-semibold text-gray-700 mb-2">Order</legend>
+                            <div>
+                                <label for="ac-reference" class="text-sm font-medium text-gray-700">Reference ID</label>
+                                <input type="text" id="ac-reference" readonly
+                                    class="mt-1 form-input bg-gray-100" placeholder="Select a shipment">
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="border-t border-gray-200 pt-4">
+                            <legend class="text-sm font-semibold text-gray-700 mb-3">Fields to Update</legend>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="ac-carrier" class="text-sm font-medium text-gray-700">Carrier</label>
+                                    <select id="ac-carrier" class="mt-1 form-input bg-white">
+                                        <option value="">Select a carrier</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="ac-awb" class="text-sm font-medium text-gray-700">AWB Number</label>
+                                    <input type="text" id="ac-awb" class="mt-1 form-input" placeholder="AWB number">
+                                </div>
+                                <div>
+                                    <label for="ac-order-date" class="text-sm font-medium text-gray-700">Order Date</label>
+                                    <input type="date" id="ac-order-date" class="mt-1 form-input">
+                                </div>
+                                <div>
+                                    <label for="ac-transit-date" class="text-sm font-medium text-gray-700">Transit Date</label>
+                                    <input type="date" id="ac-transit-date" class="mt-1 form-input">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label for="ac-dyna-awb" class="text-sm font-medium text-gray-700">Dyna AWB</label>
+                                    <input type="text" id="ac-dyna-awb" class="mt-1 form-input" placeholder="Dyna AWB">
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <button type="submit" id="ac-submit-btn"
+                            class="btn w-full flex justify-center items-center disabled:opacity-45">
+                            <span id="ac-btn-text">Update Order</span>
+                            <svg id="ac-spinner" class="h-5 w-5 ml-3 text-white hidden animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                    </form>
+
+                    <div id="ac-response" class="mt-2 p-4 text-sm rounded-md hidden"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <!-- POD Image Popup -->
     <div id="podImagePopup" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70" onclick="document.getElementById('podImagePopup').classList.add('hidden')">
         <div class="relative max-w-3xl w-full mx-4" onclick="event.stopPropagation()">
@@ -223,8 +352,10 @@
     <script src="core/app-notify.js"></script>
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
+    <script src="core/assign-carrier-api.js"></script>
     <script src="core/layout.js"></script>
     <script src="jawaS/shipments.js"></script>
+    <script src="jawaS/shipments-assign-carrier-tile.js"></script>
     <script src="utils/docgen.js"></script>
 </body>
 </html>

@@ -38,7 +38,7 @@ const AdminStaff = (() => {
     let _selected    = null;
     let _initialized = false;
 
-    const STAFF_STATUSES  = ['Active', 'Resigned', 'On Leave'];
+    const STAFF_STATUSES  = ['Active', 'Inactive', 'Resigned', 'On Leave'];
     const STAFF_ROLES     = ['Delivery Executive', 'Manager', 'Admin', 'Operations'];
     const STAFF_DEPTS     = ['Operations', 'Sales', 'Human Resources', 'Finance'];
     const STAFF_GENDERS   = ['Male', 'Female', 'Other'];

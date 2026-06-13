@@ -361,9 +361,9 @@ const AdminBranches = (() => {
 
             try {
                 (async () => {
-                    const payload = { collection: 'BRANCHES', data };
+                    const payload = { data };
                     if (isEdit) payload.record_id = b.id;
-                    const res = await callApi('/api/write', payload);
+                    const res = await callApi('/api/writeBranch', payload, 'POST');
                     const rec = res.record;
                     if (isEdit) {
                         const idx = _branches.findIndex(x => x.BRANCH_CODE === b.BRANCH_CODE);
@@ -388,7 +388,7 @@ const AdminBranches = (() => {
                 if (!confirm(`Delete branch "${b.BRANCH_CODE}"? This cannot be undone.`)) return;
                 (async () => {
                     try {
-                        await callApi('/api/delete', { collection: 'BRANCHES', record_id: b.id });
+                        await callApi('/api/deleteBranch', { record_id: b.id }, 'POST');
                         _branches = _branches.filter(x => x.BRANCH_CODE !== b.BRANCH_CODE);
                         _selected = null;
                         renderList(_branches);

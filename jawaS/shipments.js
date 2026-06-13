@@ -44,7 +44,7 @@ function _uploadActionBtns(url, uploadUid) {
 }
 
 // --- TILES ---
-const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)', overduetat:'Overdue TAT', heavy:'Heavy (>10 kg)', highvalue:'High Value (>1L)' };
+const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)', overduetat:'Overdue TAT', heavy:'Heavy (>25 kg)', highvalue:'High Value (>1L)', exceptions:'Exception Shipments', 'pending-pod':'Pending PODs', ofd:'Out for Delivery', 'new-bookings':'New Bookings', fov:'FOV' };
 
 function _isTatDue(order) {
     const tat = parseInt(order.TAT);
@@ -64,19 +64,42 @@ function _isOverdueTat(order) {
     const today   = new Date(); today.setHours(0,0,0,0);
     const monthAgo = new Date(today); monthAgo.setDate(today.getDate() - 30);
     // Overdue = past due date, but not older than 1 month
-    return dueMs < today.getTime() && dueMs >= monthAgo.getTime();
+    if (!(dueMs < today.getTime() && dueMs >= monthAgo.getTime())) return false;
+    // Exclude delivered orders
+    const s = shipmentsDataMap.get(order.REFERENCE);
+    const state = s?.state || s?.STATE || null;
+    if (state === 'delivered') return false;
+    return true;
+}
+
+function _hasPODUpload(ref) {
+    const uploads = uploadsDataMap.get(ref) || [];
+    return uploads.some(u => (u.UPLOAD_TYPE || '').toUpperCase() === 'POD');
 }
 
 function updateTileCounts(orders) {
-    const counts = { all: orders.length, topay:0, cod:0, tat:0, overduetat:0, heavy:0, highvalue:0 };
+    const counts = { all: orders.length, topay:0, cod:0, tat:0, overduetat:0, heavy:0, highvalue:0, exceptions:0, 'pending-pod':0, ofd:0, 'new-bookings':0, fov:0 };
     orders.forEach(o => {
         if (o.TOPAY === 'Yes') counts.topay++;
         if (o.COD && parseFloat(o.COD) > 0) counts.cod++;
         if (_isTatDue(o)) counts.tat++;
         if (_isOverdueTat(o)) counts.overduetat++;
-        if (parseFloat(o.WEIGHT) > 10) counts.heavy++;
+        if (parseFloat(o.WEIGHT) > 25) counts.heavy++;
         if (parseFloat(o.VALUE) > 100000) counts.highvalue++;
+        // New tiles
+        const s = shipmentsDataMap.get(o.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        if (state === 'exception') counts.exceptions++;
+        if (state === 'outfordelivery') counts.ofd++;
+        if (!o.CARRIER || !o.AWB_NUMBER) counts['new-bookings']++;
+        if (o.FOV) counts.fov++;
+        if (state === 'delivered' && !_hasPODUpload(o.REFERENCE)) counts['pending-pod']++;
     });
+    // Assign Carrier count = new-bookings (incomplete orders)
+    const assignCnt = counts['new-bookings'];
+    const acEl = document.getElementById('cnt-assign-carrier');
+    if (acEl) acEl.textContent = assignCnt;
+
     Object.keys(counts).forEach(k => {
         const el = document.getElementById(`cnt-${k}`);
         if (el) el.textContent = counts[k];
@@ -86,6 +109,7 @@ function updateTileCounts(orders) {
 function showTilesView() {
     document.getElementById('tilesView').style.display = 'flex';
     document.getElementById('splitViewWrapper').style.display = 'none';
+    document.getElementById('assignCarrierView').style.display = 'none';
 }
 
 function showSplitView(label) {
@@ -95,7 +119,24 @@ function showSplitView(label) {
     if (titleEl) titleEl.textContent = label || 'Shipments';
 }
 
+function handleAssignCarrierTile() {
+    // Show assign carrier view, hide tiles and normal split view
+    document.getElementById('tilesView').style.display = 'none';
+    document.getElementById('splitViewWrapper').style.display = 'none';
+    document.getElementById('assignCarrierView').style.display = 'flex';
+    // Initialize if not already done
+    if (typeof initAssignCarrierTile === 'function') {
+        initAssignCarrierTile(window._acData || null);
+        window._acData = null; // clear so next data refresh sets it fresh
+    }
+}
+
 function handleTileClick(tile) {
+    // Special case: assign-carrier opens its own dedicated view
+    if (tile === 'assign-carrier') {
+        handleAssignCarrierTile();
+        return;
+    }
     activeTileFilter = tile;
     activeTatFilter  = null;
     tatTrackStatuses.clear();
@@ -123,7 +164,6 @@ function _tileFilterMatch(order) {
     }
     if (activeTileFilter === 'overduetat') {
         if (!_isOverdueTat(order)) return false;
-        // Exclude delivered orders after tracking fetch
         if (activeTatFilter) {
             const st = tatTrackStatuses.get(order.REFERENCE);
             if (activeTatFilter === 'intransit') return st && st !== 'delivered' && st !== 'outfordelivery';
@@ -131,8 +171,26 @@ function _tileFilterMatch(order) {
         }
         return true;
     }
-    if (activeTileFilter === 'heavy')      return parseFloat(order.WEIGHT) > 10;
+    if (activeTileFilter === 'heavy')      return parseFloat(order.WEIGHT) > 25;
     if (activeTileFilter === 'highvalue')  return parseFloat(order.VALUE)  > 100000;
+    // New tiles
+    if (activeTileFilter === 'exceptions') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return state === 'exception';
+    }
+    if (activeTileFilter === 'ofd') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return state === 'outfordelivery';
+    }
+    if (activeTileFilter === 'new-bookings') return !order.CARRIER || !order.AWB_NUMBER;
+    if (activeTileFilter === 'fov')          return !!order.FOV;
+    if (activeTileFilter === 'pending-pod') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return state === 'delivered' && !_hasPODUpload(order.REFERENCE);
+    }
     return true;
 }
 
@@ -192,6 +250,8 @@ function initializePageWithData(appData) {
         if (!inSplitView) showTilesView();
         applyFilters();
         ui.statusMessage.textContent = '';
+        // Store data for assign carrier tile (lazy init when tile is clicked)
+        window._acData = appData;
     } catch (err) {
         ui.statusMessage.textContent = 'Failed to process data.';
         console.error('Data processing error:', err);

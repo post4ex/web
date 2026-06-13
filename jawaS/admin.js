@@ -79,7 +79,7 @@ const AdminPage = (() => {
         branches:      'CLIENT',
         staff:         'ADMIN',
         attendance:    'STAFF',
-        pincodes:      'STAFF',
+        pincodes:      'CLIENT',
         clients:       'CLIENT',
         b2b2c:         'CLIENT',
         holidays:      'STAFF',

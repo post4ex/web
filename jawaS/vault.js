@@ -41,6 +41,7 @@ const VaultPage = (() => {
         'journal-entries':   'CLIENT',
         'recurring':         'ACCOUNTANT',
         'opening-balances':  'ACCOUNTANT',
+        'pending-approvals': 'ACCOUNTANT',
         'gstr1':             'ACCOUNTANT',
         'gstr3b':            'ACCOUNTANT',
         'gstr2b':            'ACCOUNTANT',
@@ -48,6 +49,7 @@ const VaultPage = (() => {
         'tcs':               'ACCOUNTANT',
         'tds-certs':         'ACCOUNTANT',
         'gst-filing':        'ACCOUNTANT',
+        'purchase-register': 'ACCOUNTANT',
         'summary':           'CLIENT',
         'reports':           'CLIENT',
         'bank-recon':        'ACCOUNTANT',
@@ -83,6 +85,7 @@ const VaultPage = (() => {
         'journal-entries':   'Journal Entries',
         'recurring':         'Recurring Entries',
         'opening-balances':  'Opening Balances',
+        'pending-approvals': 'Pending Approvals',
         'gstr1':             'GSTR-1',
         'gstr3b':            'GSTR-3B',
         'gstr2b':            'GSTR-2B Recon',
@@ -90,6 +93,7 @@ const VaultPage = (() => {
         'tcs':               'TCS',
         'tds-certs':         'TDS Certificates',
         'gst-filing':        'GST Filing',
+        'purchase-register': 'Purchase Register',
         'summary':           'Summary',
         'reports':           'Reports',
         'bank-recon':        'Bank Recon',
@@ -152,14 +156,111 @@ const VaultPage = (() => {
         _activeTile = name;
         _showSplit(TILE_LABELS[name] || name);
 
-        // Show + Add button for roles that can record (not for billing — has its own UnBilled toggle)
-        const canRecord = _can(VAULT_PERMISSIONS.C) && name !== 'billing';
+        // Determine which tile group this belongs to
+        const receiptsTiles   = ['receipts', 'payments'];
+        const journalTiles    = ['journal-entries', 'credit-notes', 'debit-notes', 'opening-balances'];
+        const purchasesTiles  = ['purchase-bills', 'suppliers'];
+        const expenseTiles    = ['expense-claims', 'petty-cash', 'staff-advances', 'branch-advances'];
+        const gstTiles        = ['gstr1', 'gstr3b', 'gst-filing', 'gstr2b', 'tds', 'tcs', 'tds-certs', 'purchase-register'];
+        const summaryTiles    = ['summary', 'reports', 'bank-recon', 'bulk-import'];
+        const directViewTiles = ['wallet', 'pending-approvals'];  // Tiles that show a detail pane directly (no list)
+
+        // Show + Add button for roles that can record (not for billing or read-only tiles)
+        const canRecord = _can(VAULT_PERMISSIONS.C) && name !== 'billing' && !directViewTiles.includes(name);
         document.getElementById('vaultAddBtn').classList.toggle('hidden', !canRecord);
 
+        // Wire the Add button for each module
+        document.getElementById('vaultAddBtn').onclick = null;
+
+        // ── Route to appropriate module ──
+        document.getElementById('vaultListMsg').textContent = '';
+
         if (name === 'billing') {
-            document.getElementById('vaultListMsg').textContent = '';
             await VaultBilling.load();
-        } else {
+        }
+        else if (receiptsTiles.includes(name)) {
+            const isPayments = name === 'payments';
+            VaultReceipts.setMode(isPayments ? 'payments' : 'receipts');
+            document.getElementById('vaultAddBtn').onclick = () => VaultReceipts.openAddPane();
+            await VaultReceipts.load();
+        }
+        else if (journalTiles.includes(name)) {
+            const jtMap = { 'journal-entries': 'JOURNAL', 'credit-notes': 'CREDIT_NOTE', 'debit-notes': 'DEBIT_NOTE', 'opening-balances': 'OPENING_BALANCE' };
+            VaultJournal.setType(jtMap[name] || 'JOURNAL');
+            document.getElementById('vaultAddBtn').onclick = () => VaultJournal.openAddPane();
+            await VaultJournal.load();
+        }
+        else if (purchasesTiles.includes(name)) {
+            document.getElementById('vaultAddBtn').onclick = () => VaultPurchases.openAddPane();
+            await VaultPurchases.load();
+        }
+        else if (expenseTiles.includes(name)) {
+            const isCash = name === 'petty-cash';
+            VaultExpenses.setType(isCash ? 'cash' : 'expense');
+            document.getElementById('vaultAddBtn').onclick = () => VaultExpenses.openAddPane();
+            await VaultExpenses.load();
+        }
+        else if (gstTiles.includes(name)) {
+            VaultGst.setTile(name);
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultGst.load();
+        }
+        else if (name === 'wallet') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultListPane').style.display = 'none';
+            document.getElementById('vaultDetailPane').style.display = 'block';
+            await VaultExpenses.showWallet();
+        }
+        else if (name === 'pending-approvals') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultListPane').style.display = 'none';
+            document.getElementById('vaultDetailPane').style.display = 'block';
+            await VaultSummary.showPendingApprovals();
+        }
+        else if (name === 'chart-of-accounts') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultListPane').style.display = 'none';
+            document.getElementById('vaultDetailPane').style.display = 'block';
+            await VaultSummary.showChartOfAccounts();
+        }
+        else if (name === 'cheques') {
+            VaultAccounts.setTile('cheques');
+            document.getElementById('vaultAddBtn').onclick = () => VaultAccounts._openChequeAddPane();
+            await VaultAccounts.load();
+        }
+        else if (name === 'bank-accounts') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            VaultAccounts.setTile('bank-accounts');
+            await VaultAccounts.load();
+        }
+        else if (name === 'employees') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            VaultPayroll.setTile('employees');
+            await VaultPayroll.load();
+        }
+        else if (name === 'payroll') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            VaultPayroll.setTile('payroll');
+            await VaultPayroll.load();
+        }
+        else if (name === 'recurring') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            VaultJournal._loadRecurring();
+        }
+        else if (summaryTiles.includes(name)) {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            if (name === 'summary') {
+                VaultSummary.setView('summary');
+                await VaultSummary.load();
+            } else if (name === 'reports') {
+                VaultSummary.showReports();
+            } else if (name === 'bank-recon') {
+                VaultSummary._showBankRecon();
+            } else if (name === 'bulk-import') {
+                VaultSummary.showBulkImport();
+            }
+        }
+        else {
             document.getElementById('vaultListMsg').textContent = 'Coming soon.';
         }
     }
@@ -180,7 +281,7 @@ const VaultPage = (() => {
 
     document.addEventListener('DOMContentLoaded', _init);
 
-    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, activeTile: () => _activeTile };
+    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile };
 })();
 
 window.VaultPage = VaultPage;

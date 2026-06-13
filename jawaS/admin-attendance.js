@@ -238,9 +238,9 @@ const AdminAttendance = (() => {
             const spn = view.querySelector('#attSpinner');
             btn.disabled = true; txt.textContent = 'Submitting…'; spn.classList.remove('hidden');
             try {
-                const payload = { collection: 'ATTENDANCE', data };
+                const payload = { data };
                 if (existing?.id) payload.record_id = existing.id;
-                const res = await callApi('/api/write', payload);
+                const res = await callApi('/api/writeAttendance', payload, 'POST');
                 _attendance[attId] = res.record || { ...existing, ...data };
                 _renderDetail(s);  // re-render to reflect new state
                 showNotification('✅ Attendance saved', 'success');
