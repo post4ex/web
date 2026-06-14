@@ -289,7 +289,7 @@ const VaultBilling = (() => {
             <div class="detail-card-body md:hidden space-y-2">${mobileCards}</div>`;
 
         document.getElementById('vbPrintBtn').onclick = () => _print(inv, shipments, b2b, branch);
-        document.getElementById('vbCloseInvBtn')?.addEventListener('click', () => _showCloseInvModal(inv));
+        document.getElementById('vbCloseInvBtn')?.addEventListener('click', () => _showCloseInvModal(inv, shipments));
 
         // Card 3 — Summary
         let fright=0, other=0, gst=0, total=0;
@@ -452,41 +452,162 @@ const VaultBilling = (() => {
         }
     }
 
-    // ── Close Invoice Modal ────────────────────────────────────────────────────
-    function _showCloseInvModal(inv) {
-        let modal = document.getElementById('vbCloseInvModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'vbCloseInvModal';
-            modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50';
-            modal.innerHTML = `
-                <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4 relative">
-                    <button onclick="document.getElementById('vbCloseInvModal').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                    <h3 class="text-base font-semibold text-gray-800">Close Invoice</h3>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number <span class="text-gray-400">(leave blank to auto-assign)</span></label>
-                            <input id="vbCloseInvNum" type="text" class="form-input w-full" placeholder="Auto">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date</label>
-                            <input id="vbCloseInvDate" type="date" class="form-input w-full">
-                        </div>
-                        <p id="vbCloseInvErr" class="text-xs text-red-600 hidden"></p>
-                    </div>
-                    <div class="flex gap-2 pt-1">
-                        <button id="vbCloseInvConfirm" class="flex-1 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm</button>
-                        <button id="vbCloseInvCancel" class="flex-1 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-            document.getElementById('vbCloseInvCancel').onclick = () => modal.remove();
+    // ── NEW: Invoice Generation Form ───────────────────────────────────────────
+    function _showCloseInvModal(inv, shipments) {
+        const b2b = _b2bMap.get(inv.CODE);
+        const branch = _branchMap.get(b2b?.BRANCH || inv.BRANCH);
+
+        // ── Compute all charges from shipments ────────────────────────────────
+        let tFright=0,tFuel=0,tCod=0,tTopay=0,tFov=0,tEway=0,tAwb=0,tPack=0,tDev=0,
+            tSgst=0,tCgst=0,tIgst=0,tTaxable=0,tTotal=0,tPiecs=0,tChgWt=0;
+        let minDate = Infinity, maxDate = 0;
+        shipments.forEach(s => {
+            tFright+=+s.FRIGHT||0; tFuel+=+s.FUEL_CHG||0; tCod+=+s.COD_CHG||0;
+            tTopay+=+s.TOPAY_CHG||0; tFov+=+s.FOV_CHG||0; tEway+=+s.EWAY_CHG||0;
+            tAwb+=+s.AWB_CHG||0; tPack+=+s.PACK_CHG||0; tDev+=+s.DEV_CHG||0;
+            tSgst+=+s.SGST||0; tCgst+=+s.CGST||0; tIgst+=+s.IGST||0;
+            tTaxable+=+s.TAXABLE||0; tTotal+=+s.TOTAL||0;
+            tPiecs+=parseInt(s.PIECS||0); tChgWt+=+s.CHG_WT||0;
+            const d = +s.ORDER_DATE||0;
+            if (d) { if (d < minDate) minDate = d; if (d > maxDate) maxDate = d; }
+        });
+        const otherCharges = tFuel + tCod + tTopay + tFov + tEway + tAwb + tPack + tDev;
+        const chargesSubtotal = tFright + otherCharges;
+        const totalTax = tSgst + tCgst + tIgst;
+        const grandTotal = inv.TOTAL || tTotal;
+
+        // Compute GST rate % from actual data
+        function _gstRate(taxable, sgst, cgst, igst) {
+            if (taxable <= 0) return { sgstRate: '---', cgstRate: '---', igstRate: '---', isInterState: false };
+            const totalGst = sgst + cgst + igst;
+            const ratePct = Math.round((totalGst / taxable) * 100);
+            if (ratePct <= 0) return { sgstRate: '---', cgstRate: '---', igstRate: '---', isInterState: false };
+            const half = ratePct / 2;
+            if (igst > 0) return { sgstRate: '', cgstRate: '', igstRate: `${ratePct}%`, isInterState: true };
+            return { sgstRate: `${half}%`, cgstRate: `${half}%`, igstRate: '', isInterState: false };
         }
+        const rates = _gstRate(tTaxable, tSgst, tCgst, tIgst);
+
+        const clientName = b2b?.B2B_NAME || inv.CODE;
+        const periodStr = (minDate < Infinity && maxDate > 0)
+            ? `${_fmt(minDate)} — ${_fmt(maxDate)}` : 'N/A';
+
+        // ── Build the form HTML ───────────────────────────────────────────────
+        function _row(label, val, bold, indent) {
+            return `<tr class="${bold ? 'font-bold bg-gray-50' : ''}">
+                <td class="px-3 py-1.5 text-sm ${indent ? 'pl-6' : ''}">${label}</td>
+                <td class="px-3 py-1.5 text-sm text-right ${bold ? 'text-indigo-700' : 'text-gray-800'}">&#8377;${val.toFixed(2)}</td>
+            </tr>`;
+        }
+        function _sep() {
+            return `<tr><td colspan="2" class="px-3 py-0"><hr class="border-gray-300"></td></tr>`;
+        }
+        function _sectionHdr(label) {
+            return `<tr><td colspan="2" class="px-3 pt-3 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">${label}</td></tr>`;
+        }
+
+        const chargeRows = [
+            _sectionHdr('Operating Charges'),
+            _row('Freight', tFright, false),
+            ...(tFuel > 0 ? [_row('Fuel Surcharge', tFuel, false, true)] : []),
+            ...(tCod > 0 ? [_row('COD Charges', tCod, false, true)] : []),
+            ...(tTopay > 0 ? [_row('ToPay Charges', tTopay, false, true)] : []),
+            ...(tFov > 0 ? [_row('Insurance (FOV)', tFov, false, true)] : []),
+            ...(tEway > 0 ? [_row('E-Way Charges', tEway, false, true)] : []),
+            ...(tAwb > 0 ? [_row('AWB Charges', tAwb, false, true)] : []),
+            ...(tPack > 0 ? [_row('Packaging', tPack, false, true)] : []),
+            ...(tDev > 0 ? [_row('Development', tDev, false, true)] : []),
+            _sep(),
+            _row('Charges Subtotal', chargesSubtotal, true),
+        ];
+
+        const taxRows = [
+            _sectionHdr('Tax Details'),
+            _row('Taxable Value', tTaxable, false),
+            ...(rates.sgstRate && tSgst > 0 ? [_row(`SGST @ ${rates.sgstRate}`, tSgst, false, true)] : []),
+            ...(rates.cgstRate && tCgst > 0 ? [_row(`CGST @ ${rates.cgstRate}`, tCgst, false, true)] : []),
+            ...(rates.igstRate && tIgst > 0 ? [_row(`IGST @ ${rates.igstRate}`, tIgst, false, true)] : []),
+            ...((tSgst + tCgst + tIgst) > 0 ? [_sep(), _row('Total Tax', totalTax, true)] : []),
+        ];
+
+        const allRows = [...chargeRows, ...taxRows, _sep(), _row('GRAND TOTAL', grandTotal, true)];
+
+        const tableHtml = `<table class="min-w-full">${allRows.join('')}</table>`;
+
+        const qrUrl = branch?.BRANCH_UPI
+            ? `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=upi://pay?pa=${encodeURIComponent(branch.BRANCH_UPI)}%26pn=${encodeURIComponent(branch.BRANCH_UPI_NAME||branch.BRANCH_NAME||'')}%26am=${grandTotal.toFixed(2)}%26cu=INR`
+            : '';
+
+        // ── Render modal ──────────────────────────────────────────────────────
+        document.getElementById('vbCloseInvModal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'vbCloseInvModal';
+        modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto';
+        modal.innerHTML = `
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto relative" style="max-height:90vh;overflow-y:auto;">
+                <!-- Close btn -->
+                <button onclick="document.getElementById('vbCloseInvModal').remove()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 z-10">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+
+                <!-- Header -->
+                <div class="px-6 pt-5 pb-3 border-b bg-gradient-to-r from-indigo-50 to-white">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Generate Invoice
+                    </h3>
+                    <div class="flex justify-between items-start mt-1">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">${clientName}</p>
+                            <p class="text-xs text-gray-500">ID: ${inv.INVOICE_ID || 'N/A'} &middot; Branch: ${branch?.BRANCH_NAME || inv.BRANCH || 'N/A'}</p>
+                        </div>
+                        <div class="text-right text-xs text-gray-500">
+                            <div>${shipments.length} shipment${shipments.length !== 1 ? 's' : ''}</div>
+                            <div>${tChgWt.toFixed(2)} kg</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Body: Charges + Tax Table -->
+                <div class="px-6 py-4 space-y-1">
+                    ${tableHtml}
+                </div>
+
+                <!-- Invoice Number + Date -->
+                <div class="px-6 py-4 border-t bg-gray-50 space-y-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
+                            <input id="vbCloseInvNum" type="text" class="form-input w-full text-sm" placeholder="Auto-generate">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
+                            <input id="vbCloseInvDate" type="date" class="form-input w-full text-sm">
+                        </div>
+                    </div>
+                    <p id="vbCloseInvErr" class="text-xs text-red-600 hidden"></p>
+
+                    <div class="flex gap-3 pt-1">
+                        <button id="vbCloseInvConfirm" class="flex-1 px-4 py-2.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Confirm &amp; Generate
+                        </button>
+                        <button id="vbCloseInvCancel" class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+                    </div>
+                    ${qrUrl ? `<div class="flex items-center gap-3 pt-2 border-t border-gray-200">
+                        <img src="${qrUrl}" style="width:60px;height:60px;border:1px solid #ddd;border-radius:4px;">
+                        <div class="text-xs text-gray-500">UPI QR for payment<br><span class="font-semibold text-gray-700">&#8377;${grandTotal.toFixed(2)}</span></div>
+                    </div>` : ''}
+                </div>
+            </div>`;
+
+        document.body.appendChild(modal);
+
+        // ── Wire up ───────────────────────────────────────────────────────────
         document.getElementById('vbCloseInvDate').value = fmtDate(Date.now(), 'input');
         document.getElementById('vbCloseInvNum').value = '';
         document.getElementById('vbCloseInvErr').classList.add('hidden');
+        document.getElementById('vbCloseInvCancel').onclick = () => modal.remove();
 
         document.getElementById('vbCloseInvConfirm').onclick = async () => {
             const invNum  = document.getElementById('vbCloseInvNum').value.trim() || null;
@@ -495,14 +616,15 @@ const VaultBilling = (() => {
             if (!invDate) { errEl.textContent = 'Invoice date is required.'; errEl.classList.remove('hidden'); return; }
 
             const btn = document.getElementById('vbCloseInvConfirm');
-            btn.disabled = true; btn.textContent = 'Saving...';
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9a9 9 0 0115.12-4.38M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 15a9 9 0 01-15.12 4.38"/></svg> Generating...';
+
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
                 const res = await callApi('/api/closeInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: toMs(invDate) });
                 if (res.status === 'success') {
                     modal.remove();
                     _showInvoiceBanner(res.inv_number, invDate, res.updated);
-                    // Force refresh so billing list reflects the new INV_NUMBER
                     const fresh = await getAppData().catch(() => null);
                     if (fresh) _initData(fresh);
                 } else {
@@ -511,7 +633,8 @@ const VaultBilling = (() => {
             } catch (e) {
                 errEl.textContent = e.message || 'Error closing invoice.'; errEl.classList.remove('hidden');
             } finally {
-                btn.disabled = false; btn.textContent = 'Confirm';
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Confirm &amp; Generate';
             }
         };
     }
