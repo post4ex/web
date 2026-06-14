@@ -1,21 +1,21 @@
 // ============================================================================
-// VAULT-JOURNAL.JS — Journal entries, credit/debit notes, opening balances, recurring
-// Tiles: journal-entries, credit-notes, debit-notes, opening-balances, recurring
-// API: POST /api/ledger/journal
+// VAULT-JOURNAL.JS — Journal entries with multi-line Dr/Cr support
+// Tiles: journal-entries, opening-balances, recurring
+// API: POST /api/ledger/journal, POST /api/ledger/journal/multi
 // ============================================================================
 
 const VaultJournal = (() => {
 
-    let _allLedger = [];
-    let _allB2B = [];
+    let _allLedger  = [];
+    let _allB2B     = [];
+    let _allCOA     = [];
     let _activeJournalType = 'JOURNAL';
+    let _coaMap     = {};
 
-    // ── Recurring templates (stored in LEDGER collection with ENTRY_TYPE='RECURRING') ─
+    // ── Recurring templates ───────────────────────────────────────────────
     let _recurringTemplates = [];
 
     function _loadRecurringTemplates() {
-        // Load from LEDGER entries where ENTRY_TYPE='JOURNAL' and JOURNAL_TYPE='RECURRING'
-        // (Backend ledger_journal hardcodes ENTRY_TYPE as 'JOURNAL')
         const templates = _allLedger.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING' && e.STATUS === 'ACTIVE');
         _recurringTemplates = templates.map(t => {
             try { return { ...JSON.parse(t.NARRATION || '{}'), entry_id: t.ENTRY_ID, code: t.CODE }; }
@@ -23,20 +23,27 @@ const VaultJournal = (() => {
         }).filter(Boolean);
     }
 
-    async function _saveRecurringTemplates() {
-        // Templates are already saved to LEDGER via API calls
-        // Reload from LEDGER
-        const data = await getAppData();
-        if (data?.LEDGER) {
-            _allLedger = Object.values(data.LEDGER);
-            _loadRecurringTemplates();
-        }
+    // ── COA cache ─────────────────────────────────────────────────────────
+    async function _loadCoaCache() {
+        try {
+            const res = await callApi('/api/coa', {}, 'GET');
+            if (res?.data) {
+                _allCOA = res.data;
+                res.data.forEach(a => _coaMap[a.code] = a);
+            }
+        } catch {}
     }
 
-    function _can(role) { return window.VaultPage?.can(role); }
+    function _coaName(code) {
+        if (!code) return '';
+        const a = _coaMap[code];
+        return a ? `${a.code} — ${a.name}` : code;
+    }
+
+
 
     function _label() {
-        const map = { 'JOURNAL': 'Journal Entries', 'CREDIT_NOTE': 'Credit Notes', 'DEBIT_NOTE': 'Debit Notes', 'OPENING_BALANCE': 'Opening Balances', 'RECURRING': 'Recurring Entries' };
+        const map = { 'JOURNAL': 'Journal Entries', 'OPENING_BALANCE': 'Opening Balances', 'RECURRING': 'Recurring Entries' };
         return map[_activeJournalType] || 'Journal';
     }
 
@@ -46,213 +53,247 @@ const VaultJournal = (() => {
         document.getElementById('vaultSearch').placeholder = 'Search by code, narration…';
     }
 
-    function _renderList(entries) {
+    // ── List ──────────────────────────────────────────────────────────────
+    function _getEntries() {
+        return _allLedger.filter(e => {
+            if (_activeJournalType === 'JOURNAL') return e.ENTRY_TYPE === 'JOURNAL' && (!e.JOURNAL_TYPE || e.JOURNAL_TYPE === 'JOURNAL' || e.JOURNAL_TYPE === 'ADJUSTMENT');
+            if (_activeJournalType === 'OPENING_BALANCE') return e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'OPENING_BALANCE';
+            if (_activeJournalType === 'RECURRING') return e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING';
+            return false;
+        });
+    }
+
+    function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const jtMap = { 'CREDIT_NOTE': 'credit-notes', 'DEBIT_NOTE': 'debit-notes', 'OPENING_BALANCE': 'opening-balances' };
-        const target = jtMap[_activeJournalType] || 'journal-entries';
-        const filtered = entries.filter(e => {
-            if (_activeJournalType === 'JOURNAL') return e.ENTRY_TYPE === 'JOURNAL';
-            return e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === _activeJournalType;
-        });
+        const entries = _getEntries();
+        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
+        const filtered = q
+            ? entries.filter(e =>
+                (e.CODE || '').toLowerCase().includes(q) ||
+                (e.NARRATION || '').toLowerCase().includes(q) ||
+                (e.JOURNAL_TYPE || '').toLowerCase().includes(q)
+              )
+            : entries;
         filtered.sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
         if (!filtered.length) {
             ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No ${_label()} found.</li>`;
             return;
         }
-        const typeIcons = { 'CREDIT_NOTE': '📝', 'DEBIT_NOTE': '📄', 'OPENING_BALANCE': '🗂️', 'ADJUSTMENT': '✏️' };
-        ul.innerHTML = filtered.slice(0, 50).map(e => {
+        // De-duplicate by TXN_ID — show only the first row per transaction
+        const seenTxn = new Set();
+        const unique = filtered.filter(e => {
+            const txn = e.TXN_ID || e.ENTRY_ID;
+            if (seenTxn.has(txn)) return false;
+            seenTxn.add(txn);
+            return true;
+        });
+        const typeIcons = { 'OPENING_BALANCE': '🗂️', 'ADJUSTMENT': '✏️', 'JOURNAL': '✏️', 'RECURRING': '🔄' };
+        ul.innerHTML = unique.slice(0, 50).map(e => {
             const icon = typeIcons[e.JOURNAL_TYPE] || '✏️';
-            const amt = (+e.DEBIT||0) > 0 ? `Dr ₹${(+e.DEBIT).toFixed(2)}` : `Cr ₹${(+e.CREDIT).toFixed(2)}`;
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-purple-50 border border-gray-200 transition-colors">
-                <strong class="text-purple-700 block text-sm">${icon} ${e.CODE || ''} — ${amt}</strong>
-                <span class="text-xs text-gray-500">${e.JOURNAL_TYPE || e.ENTRY_TYPE} · ${e.NARRATION || ''}</span>
-                <div class="text-xs text-gray-400 mt-1">${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''} · Status: ${e.STATUS || ''}</div>
+            const statusColor = e.STATUS === 'ACTIVE' ? 'text-green-700' :
+                                e.STATUS === 'PENDING' ? 'text-yellow-700' :
+                                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700';
+            const balance = (+e.DEBIT || 0) - (+e.CREDIT || 0);
+            const balClass = balance >= 0 ? 'text-green-600' : 'text-red-600';
+            return `<li data-txn="${e.TXN_ID || e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-purple-50 border border-gray-200 transition-colors">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <strong class="text-purple-700 block text-sm">${icon} ${e.CODE || ''}</strong>
+                        <span class="text-xs text-gray-500">${e.NARRATION ? (e.NARRATION.length > 60 ? e.NARRATION.slice(0, 60) + '…' : e.NARRATION) : ''}</span>
+                    </div>
+                    <span class="${statusColor} text-xs font-medium">${e.STATUS || ''}</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1 flex justify-between">
+                    <span>${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''} · ${e.JOURNAL_TYPE || 'JOURNAL'}</span>
+                    ${e.JOURNAL_TYPE === 'OPENING_BALANCE' ? `<span class="${balClass} font-medium">₹${Math.abs(balance).toFixed(2)} ${balance >= 0 ? 'Dr' : 'Cr'}</span>` : ''}
+                </div>
             </li>`;
         }).join('');
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                _renderDetail(_allLedger.find(e => e.ENTRY_ID === li.dataset.entry));
+                _renderDetail(li.dataset.txn);
             })
         );
     }
 
-    function search(q) {
-        const lq = q.toLowerCase();
-        _renderList(_allLedger.filter(e =>
-            (e.CODE || '').toLowerCase().includes(lq) ||
-            (e.NARRATION || '').toLowerCase().includes(lq) ||
-            (e.JOURNAL_TYPE || '').toLowerCase().includes(lq)
-        ));
+    function _printEntry(txnId) {
+        const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
+        if (rows.length) VaultPrint.printJournal(rows);
     }
 
-    async function _handleDelete(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (!entry || entry.STATUS === 'VOID') return;
-        if (!confirm(`Delete this ${entry.JOURNAL_TYPE || 'journal'} entry? This will void and recalculate balances.`)) return;
-        const reason = prompt('Reason (optional):', '') || '';
-        try {
-            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
-            const appData = await getAppData();
-            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(_allLedger); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Entry deleted (voided).</p></div></div>`;
-        } catch (err) { alert('Failed: ' + (err.message || err)); }
-    }
+    function search() { _renderList(); }
 
-    function _openEditForm(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (!entry) return;
-        const isDN = entry.JOURNAL_TYPE === 'DEBIT_NOTE';
+    // ── Detail (multi-line aware) ──────────────────────────────────────────
+    function _renderDetail(txnId) {
+        if (!txnId) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const entryDate = entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE, 'input') : new Date().toISOString().split('T')[0];
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit ${entry.JOURNAL_TYPE || 'Journal'} Entry</h3></div>
-                <div class="detail-card-body">
-                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-4">
-                        ⚠️ Editing will void the current entry and create a replacement.
-                    </p>
-                    <form id="jrEditForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                            <input name="code" required class="form-input text-sm uppercase" value="${entry.CODE || ''}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
-                            <input name="entry_date" type="date" required class="form-input text-sm" value="${entryDate}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
-                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${(+entry.DEBIT||+entry.CREDIT||0).toFixed(2)}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Side</label>
-                            <select name="side" class="form-input text-sm">
-                                <option value="debit" ${+entry.DEBIT > 0 ? 'selected' : ''}>Debit (client owes)</option>
-                                <option value="credit" ${+entry.CREDIT > 0 ? 'selected' : ''}>Credit (client credited)</option>
-                            </select>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration *</label>
-                            <input name="narration" required class="form-input text-sm" value="${entry.NARRATION || ''}">
-                        </div>
-                        <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
-                            <button type="button" onclick="VaultJournal._renderDetailById('${entry.ENTRY_ID}')" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="btn btn-sm">Save Changes</button>
-                        </div>
-                    </form>
-                    <div id="jrEditResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
-                </div>
-            </div>`;
-        document.getElementById('jrEditForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd);
-            const btn = e.target.querySelector('button[type=submit]');
-            const resp = document.getElementById('jrEditResponse');
-            btn.disabled = true;
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
-            const amount = parseFloat(data.amount);
-            try {
-                await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
-                const res = await callApi('/api/ledger/journal', {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    journal_type: entry.JOURNAL_TYPE || 'ADJUSTMENT',
-                    narration: data.narration,
-                    branch: entry.BRANCH || '',
-                    ...(data.side === 'debit' ? { debit: amount, credit: 0 } : { debit: 0, credit: amount }),
-                }, 'POST');
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = '✅ Updated successfully.';
-                resp.classList.remove('hidden');
-                const appData = await getAppData();
-                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(_allLedger); }
-            } catch (err) {
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
-                resp.textContent = '❌ ' + (err.message || 'Failed');
-                resp.classList.remove('hidden');
-            } finally { btn.disabled = false; }
-        });
-        VaultPage.showDetailPane();
-    }
-
-    function _renderDetail(entry) {
+        const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
+        const entry = rows[0];
         if (!entry) return;
-        VaultPage.showDetail(true);
         const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
         const isVoid = entry.STATUS === 'VOID';
-        const isDN = entry.JOURNAL_TYPE === 'DEBIT_NOTE';
-        const editBtn = isActive && isDN ? `<button onclick="VaultJournal._openEditForm('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit</button>` : '';
-        const delBtn = isActive ? `<button onclick="VaultJournal._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete</button>` : '';
-        document.getElementById('vaultDetailView').innerHTML = `
+        const isMulti = rows.length > 2;
+        const totalDr = rows.reduce((s, r) => s + (+r.DEBIT || 0), 0);
+        const totalCr = rows.reduce((s, r) => s + (+r.CREDIT || 0), 0);
+        const printBtn = isActive ? `<button onclick="VaultJournal._printEntry('${txnId}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>` : '';
+
+        view.innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">Journal Detail</h3>
-                    <div class="flex gap-2">${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : editBtn + delBtn}</div>
+                    <h3 class="font-semibold text-gray-700">Journal Detail ${isMulti ? '(Multi-line)' : ''}</h3>
+                    <div class="flex gap-2 items-center">
+                        ${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : ''}
+                        ${printBtn}
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">₹${totalDr.toFixed(2)}</span>
+                    </div>
                 </div>
                 <div class="detail-card-body">
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div><span class="text-gray-500">Entry ID:</span> ${entry.ENTRY_ID}</div>
+                    <!-- Header info -->
+                    <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg mb-3">
+                        <div><span class="text-gray-500">Code:</span> <span class="font-semibold">${entry.CODE || 'N/A'}</span></div>
                         <div><span class="text-gray-500">Date:</span> ${entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500">Code:</span> ${entry.CODE || 'N/A'}</div>
-                        <div><span class="text-gray-500">Type:</span> ${entry.JOURNAL_TYPE || entry.ENTRY_TYPE}</div>
-                        <div><span class="text-gray-500">Debit:</span> ₹${(+entry.DEBIT||0).toFixed(2)}</div>
-                        <div><span class="text-gray-500">Credit:</span> ₹${(+entry.CREDIT||0).toFixed(2)}</div>
-                        <div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>
-                        <div><span class="text-gray-500">Status:</span> ${entry.STATUS || 'N/A'}</div>
-                        ${entry.NARRATION ? `<div class="col-span-2"><span class="text-gray-500">Narration:</span> ${entry.NARRATION}</div>` : ''}
-                        ${entry.APPROVED_BY ? `<div><span class="text-gray-500">Approved By:</span> ${entry.APPROVED_BY}</div>` : ''}
-                        ${entry.APPROVED_AT ? `<div><span class="text-gray-500">Approved At:</span> ${fmtDate(entry.APPROVED_AT)}</div>` : ''}
+                        <div><span class="text-gray-500">Type:</span> ${entry.JOURNAL_TYPE || 'JOURNAL'}</div>
+                        <div><span class="text-gray-500">Status:</span> <span class="font-medium">${entry.STATUS || 'N/A'}</span></div>
+                        <div><span class="text-gray-500">Total Dr:</span> ₹${totalDr.toFixed(2)}</div>
+                        <div><span class="text-gray-500">Total Cr:</span> ₹${totalCr.toFixed(2)}</div>
+                        ${entry.BALANCE ? `<div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>` : ''}
+                        <div><span class="text-gray-500">Branch:</span> ${entry.BRANCH || 'N/A'}</div>
                     </div>
+
+                    <!-- Line items table -->
+                    <div class="text-xs mb-3">
+                        <div class="font-semibold text-gray-600 mb-2">Line Items (${rows.length})</div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-xs divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-1.5 text-left font-medium text-gray-500 uppercase">#</th>
+                                        <th class="px-3 py-1.5 text-left font-medium text-gray-500 uppercase">Account</th>
+                                        <th class="px-3 py-1.5 text-right font-medium text-gray-500 uppercase">Debit</th>
+                                        <th class="px-3 py-1.5 text-right font-medium text-gray-500 uppercase">Credit</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    ${rows.map((r, i) => {
+                                        const coa = r.COA_DR || r.COA_CR;
+                                        const coaName = coa ? _coaName(coa) : '';
+                                        return `<tr class="${r.STATUS === 'VOID' ? 'line-through text-gray-400' : ''}">
+                                            <td class="px-3 py-1.5 text-gray-400">${i + 1}</td>
+                                            <td class="px-3 py-1.5 font-medium text-gray-700">${coaName || '(auto)'}</td>
+                                            <td class="px-3 py-1.5 text-right font-medium text-red-600">${(+r.DEBIT||0) > 0 ? '₹' + (+r.DEBIT).toFixed(2) : ''}</td>
+                                            <td class="px-3 py-1.5 text-right font-medium text-green-600">${(+r.CREDIT||0) > 0 ? '₹' + (+r.CREDIT).toFixed(2) : ''}</td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                                <tfoot class="bg-gray-50 font-semibold">
+                                    <tr>
+                                        <td colspan="2" class="px-3 py-1.5 text-right text-gray-700">Total</td>
+                                        <td class="px-3 py-1.5 text-right text-red-700">₹${totalDr.toFixed(2)}</td>
+                                        <td class="px-3 py-1.5 text-right text-green-700">₹${totalCr.toFixed(2)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Narration -->
+                    ${entry.NARRATION ? `<div class="text-sm text-gray-700 bg-white border rounded-lg p-3 mb-3">📝 ${entry.NARRATION}</div>` : ''}
+
+                    <!-- Audit info -->
+                    <details class="mt-2">
+                        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Audit Info</summary>
+                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
+                            <div>TXN ID: <span class="font-mono">${entry.TXN_ID || 'N/A'}</span></div>
+                            <div>FY: ${entry.FY || 'N/A'}</div>
+                            <div>Created: ${entry.USER_NAME || 'N/A'}</div>
+                            <div>Rows: ${rows.length}</div>
+                            ${entry.APPROVED_BY ? `<div>Approved: ${entry.APPROVED_BY}</div>` : ''}
+                            ${entry.VOID_REASON ? `<div class="col-span-2 text-red-600">Void: ${entry.VOID_REASON}</div>` : ''}
+                        </div>
+                    </details>
                 </div>
             </div>`;
         VaultPage.showDetailPane();
     }
 
+    // ── Multi-line form ───────────────────────────────────────────────────
     function openAddPane() {
+        // Route to dedicated form for opening balances
+        if (_activeJournalType === 'OPENING_BALANCE') {
+            _openOpeningBalanceForm();
+            return;
+        }
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const isOpening = _activeJournalType === 'OPENING_BALANCE';
+
         view.innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">New ${_label()}</h3></div>
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">New ${_label()} — Multi-Line</h3></div>
                 <div class="detail-card-body">
-                    <form id="journalForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                            <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL">
+                    <form id="jrForm" class="space-y-4">
+                        <!-- Header fields -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
+                                <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="jrCodeList">
+                                <datalist id="jrCodeList"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+                                <input name="entry_date" type="date" required class="form-input text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+                                <input name="branch" class="form-input text-sm uppercase" placeholder="Optional" list="jrBranchList">
+                                <datalist id="jrBranchList"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                                <input class="form-input text-sm bg-gray-100" value="${_activeJournalType}" readonly>
+                            </div>
                         </div>
+
+                        <!-- Line items grid -->
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
-                            <input name="entry_date" type="date" required class="form-input text-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-xs font-medium text-gray-600">Line Items</label>
+                                <div class="flex gap-2">
+                                    <span id="jrBalanceMsg" class="text-xs font-medium text-gray-500 self-center">Dr: ₹0.00 / Cr: ₹0.00</span>
+                                    <button type="button" id="jrAddLine" class="px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200">+ Add Line</button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto border rounded-lg">
+                                <table class="min-w-full text-xs divide-y divide-gray-200" id="jrLinesTable">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-1.5 text-left font-medium text-gray-500 uppercase w-10">#</th>
+                                            <th class="px-3 py-1.5 text-left font-medium text-gray-500 uppercase">Account (COA Code)</th>
+                                            <th class="px-3 py-1.5 text-right font-medium text-gray-500 uppercase w-32">Debit (₹)</th>
+                                            <th class="px-3 py-1.5 text-right font-medium text-gray-500 uppercase w-32">Credit (₹)</th>
+                                            <th class="px-3 py-1.5 text-center w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-100" id="jrLinesBody">
+                                        <!-- Rows added dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+
+                        <!-- Narration -->
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                            <input name="journal_type" class="form-input text-sm bg-gray-100" value="${_activeJournalType}" readonly>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
-                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Side</label>
-                            <select name="side" class="form-input text-sm">
-                                <option value="debit" ${isOpening ? 'selected' : ''}>Debit (client owes)</option>
-                                <option value="credit" ${!isOpening ? 'selected' : ''}>Credit (client credited)</option>
-                            </select>
-                        </div>
-                        <div></div>
-                        <div class="sm:col-span-2">
                             <label class="block text-xs font-medium text-gray-600 mb-1">Narration *</label>
-                            <input name="narration" required class="form-input text-sm" placeholder="Required description">
+                            <textarea name="narration" required rows="2" class="form-input text-sm w-full" placeholder="Description of journal entry"></textarea>
                         </div>
-                        <div class="sm:col-span-2 flex justify-end pt-2 border-t">
+
+                        <!-- Submit -->
+                        <div class="flex justify-end pt-2 border-t">
                             <button type="submit" class="btn btn-sm flex items-center gap-2">
-                                <span id="jrBtnText">Save Journal</span>
+                                <span id="jrBtnText">Save ${_label()}</span>
                                 <div id="jrSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
                         </div>
@@ -261,271 +302,8 @@ const VaultJournal = (() => {
                 </div>
             </div>`;
 
-        document.getElementById('journalForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd);
-            const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('jrSpinner');
-            const resp = document.getElementById('jrResponse');
-            btn.disabled = true; sp.classList.remove('hidden');
-
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
-            const amount = parseFloat(data.amount);
-            try {
-                const body = {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    journal_type: _activeJournalType,
-                    narration: data.narration,
-                    branch: '',
-                    ...(data.side === 'debit' ? { debit: amount, credit: 0 } : { debit: 0, credit: amount }),
-                };
-                const res = await callApi('/api/ledger/journal', body, 'POST');
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ ${_label()} saved. Balance: ₹${(+res.balance).toFixed(2)}`;
-                resp.classList.remove('hidden');
-                e.target.reset();
-                const appData = await getAppData();
-                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
-                _renderList(_allLedger);
-            } catch (err) {
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
-                resp.textContent = '❌ ' + (err.message || 'Failed');
-                resp.classList.remove('hidden');
-            } finally {
-                btn.disabled = false; sp.classList.add('hidden');
-            }
-        });
-        const d = document.querySelector('[name="entry_date"]');
-        if (d) d.value = new Date().toISOString().split('T')[0];
-        VaultPage.showDetailPane();
-    }
-
-    async function load() {
-        _injectListPane();
-        const data = await getAppData();
-        if (data?.LEDGER) {
-            _allLedger = Object.values(data.LEDGER);
-            _renderList(_allLedger);
-        }
-    }
-
-    // ========================================================================
-    // RECURRING TILE
-    // ========================================================================
-
-    function _renderRecurringList() {
-        _loadRecurringTemplates();
-        const view = document.getElementById('vaultDetailView');
-        const now = Date.now();
-
-        function _nextDate(template) {
-            if (!template.start_date) return 'N/A';
-            const start = new Date(template.start_date);
-            const freq = template.frequency || 'MONTHLY';
-            const interval = parseInt(template.interval) || 1;
-            // Simple: if start + interval < now, it's overdue
-            let next = new Date(start);
-            if (freq === 'MONTHLY') {
-                while (next.getTime() < now) next.setMonth(next.getMonth() + interval);
-            } else if (freq === 'WEEKLY') {
-                while (next.getTime() < now) next.setDate(next.getDate() + 7 * interval);
-            } else if (freq === 'DAILY') {
-                while (next.getTime() < now) next.setDate(next.getDate() + interval);
-            } else if (freq === 'QUARTERLY') {
-                while (next.getTime() < now) next.setMonth(next.getMonth() + 3 * interval);
-            } else if (freq === 'YEARLY') {
-                while (next.getTime() < now) next.setFullYear(next.getFullYear() + interval);
-            }
-            return next;
-        }
-
-        view.innerHTML = `
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-800">🔄 Recurring Entries</h3>
-                    <p class="text-xs text-gray-500">${_recurringTemplates.length} templates</p>
-                </div>
-                <button id="recurringAddBtn" class="btn btn-sm">+ New Template</button>
-            </div>
-
-            ${_recurringTemplates.length ? `
-            <div class="space-y-3">
-                ${_recurringTemplates.map((t, i) => {
-                    const next = _nextDate(t);
-                    const overdue = next !== 'N/A' && next.getTime() < now;
-                    const dueStr = overdue ? `<span class="text-red-600 font-medium">OVERDUE</span>` :
-                        (next !== 'N/A' ? fmtDate(next.getTime()) : 'N/A');
-                    const sideLabel = t.side === 'debit' ? 'Dr' : 'Cr';
-                    return `<div class="detail-card hover:shadow-md transition-shadow cursor-pointer" onclick="VaultJournal._showRecurringDetail(${i})">
-                        <div class="detail-card-body flex items-center justify-between">
-                            <div>
-                                <strong class="text-gray-800 block text-sm">${t.narration || 'Untitled'}</strong>
-                                <span class="text-xs text-gray-500">${t.code || ''} · ${t.frequency || 'MONTHLY'} · ${sideLabel} ₹${(+t.amount||0).toFixed(2)}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-xs text-gray-400">Next Due</div>
-                                <div class="text-sm font-semibold ${overdue ? 'text-red-600' : 'text-gray-700'}">${dueStr}</div>
-                            </div>
-                        </div>
-                    </div>`;
-                }).join('')}
-            </div>` : `
-            <div class="detail-card">
-                <div class="detail-card-body text-center py-12">
-                    <div class="text-4xl mb-3">🔄</div>
-                    <p class="text-gray-500 text-sm mb-4">No recurring entry templates yet.</p>
-                    <p class="text-xs text-gray-400">Create a template for entries that repeat — rent, subscriptions, etc.</p>
-                </div>
-            </div>`}
-
-            <div class="detail-card mt-4">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">ℹ️ About Recurring Entries</h3></div>
-                <div class="detail-card-body text-xs text-gray-500 space-y-2">
-                    <p>Recurring entry templates are stored locally in your browser. When a recurring entry is due, you can create a journal entry from the template with one click.</p>
-                    <p><strong>Supported frequencies:</strong> Daily, Weekly, Monthly, Quarterly, Yearly</p>
-                </div>
-            </div>`;
-
-        document.getElementById('recurringAddBtn').addEventListener('click', _openRecurringForm);
-    }
-
-    function _showRecurringDetail(index) {
-        _loadRecurringTemplates();
-        const t = _recurringTemplates[index];
-        if (!t) return;
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        const sideLabel = t.side === 'debit' ? 'Debit (client owes)' : 'Credit (client credited)';
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">🔄 Recurring Template</h3>
-                    <div class="flex gap-2">
-                        <button id="recPostNow" class="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700">📤 Post Now</button>
-                        <button id="recEditBtn" class="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded hover:bg-blue-200">✏️ Edit</button>
-                        <button id="recDeleteBtn" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">🗑️ Delete</button>
-                    </div>
-                </div>
-                <div class="detail-card-body">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        <div><span class="text-gray-500">Narration:</span> <span class="font-medium">${t.narration || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Client Code:</span> ${t.code || 'N/A'}</div>
-                        <div><span class="text-gray-500">Amount:</span> ₹${(+t.amount||0).toFixed(2)}</div>
-                        <div><span class="text-gray-500">Side:</span> ${sideLabel}</div>
-                        <div><span class="text-gray-500">Frequency:</span> ${t.frequency || 'MONTHLY'}</div>
-                        <div><span class="text-gray-500">Interval:</span> Every ${t.interval || 1}</div>
-                        <div><span class="text-gray-500">Start Date:</span> ${t.start_date || 'N/A'}</div>
-                        <div><span class="text-gray-500">Journal Type:</span> ${t.journal_type || 'ADJUSTMENT'}</div>
-                    </div>
-                </div>
-            </div>`;
-
-        document.getElementById('recPostNow').addEventListener('click', async () => {
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : Date.now();
-            try {
-                const body = {
-                    code: t.code,
-                    entry_date: Date.now(),
-                    journal_type: t.journal_type || 'ADJUSTMENT',
-                    narration: t.narration + ' (Recurring)',
-                    branch: '',
-                    ...(t.side === 'debit' ? { debit: +t.amount, credit: 0 } : { debit: 0, credit: +t.amount }),
-                };
-                const res = await callApi('/api/ledger/journal', body, 'POST');
-                if (res.status === 'success') {
-                    alert('✅ Entry posted successfully! Balance: ₹' + (+res.balance).toFixed(2));
-                    _loadRecurring();
-                }
-            } catch (err) {
-                alert('❌ ' + (err.message || 'Failed'));
-            }
-        });
-
-        document.getElementById('recEditBtn').addEventListener('click', () => _openRecurringForm(index));
-        document.getElementById('recDeleteBtn').addEventListener('click', async () => {
-            if (!confirm('Delete this recurring template?')) return;
-            try {
-                const oldEntry = _allLedger.find(x => x.ENTRY_TYPE === 'JOURNAL' && x.JOURNAL_TYPE === 'RECURRING' && x.CODE === t.code && x.STATUS === 'ACTIVE');
-                if (oldEntry) {
-                    await callApi('/api/ledger/void', { entry_id: oldEntry.ENTRY_ID, void_reason: 'Recurring template deleted' }, 'POST');
-                }
-                await _saveRecurringTemplates();
-                _loadRecurring();
-            } catch (err) { alert('Failed: ' + (err.message || err)); }
-        });
-    }
-
-    function _openRecurringForm(editIndex) {
-        _loadRecurringTemplates();
-        const edit = editIndex !== undefined ? _recurringTemplates[editIndex] : null;
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">${edit ? '✏️ Edit' : '➕ New'} Recurring Template</h3></div>
-                <div class="detail-card-body">
-                    <form id="recurringForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration *</label>
-                            <input name="narration" required class="form-input text-sm" placeholder="e.g. Monthly Rent" value="${edit ? (edit.narration || '') : ''}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                            <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" value="${edit ? (edit.code || '') : ''}" list="recCodeList">
-                            <datalist id="recCodeList"></datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
-                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${edit ? edit.amount : ''}" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Side</label>
-                            <select name="side" class="form-input text-sm">
-                                <option value="debit" ${edit && edit.side === 'debit' ? 'selected' : ''}>Debit (client owes)</option>
-                                <option value="credit" ${edit && edit.side === 'credit' ? 'selected' : ''}>Credit (client credited)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
-                            <select name="frequency" class="form-input text-sm">
-                                <option value="DAILY" ${edit && edit.frequency === 'DAILY' ? 'selected' : ''}>Daily</option>
-                                <option value="WEEKLY" ${edit && edit.frequency === 'WEEKLY' ? 'selected' : ''}>Weekly</option>
-                                <option value="MONTHLY" ${!edit || edit.frequency === 'MONTHLY' ? 'selected' : ''}>Monthly</option>
-                                <option value="QUARTERLY" ${edit && edit.frequency === 'QUARTERLY' ? 'selected' : ''}>Quarterly</option>
-                                <option value="YEARLY" ${edit && edit.frequency === 'YEARLY' ? 'selected' : ''}>Yearly</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Journal Type</label>
-                            <select name="journal_type" class="form-input text-sm">
-                                <option value="ADJUSTMENT" ${!edit || edit.journal_type === 'ADJUSTMENT' ? 'selected' : ''}>Adjustment</option>
-                                <option value="CREDIT_NOTE" ${edit && edit.journal_type === 'CREDIT_NOTE' ? 'selected' : ''}>Credit Note</option>
-                                <option value="DEBIT_NOTE" ${edit && edit.journal_type === 'DEBIT_NOTE' ? 'selected' : ''}>Debit Note</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Interval</label>
-                            <select name="interval" class="form-input text-sm">
-                                ${[1,2,3,6].map(i => `<option value="${i}" ${edit && edit.interval == i ? 'selected' : ''}>Every ${i}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Start Date *</label>
-                            <input name="start_date" type="date" required class="form-input text-sm" value="${edit ? (edit.start_date || '') : new Date().toISOString().split('T')[0]}">
-                        </div>
-                        <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
-                            <button type="button" id="recFormCancel" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="btn btn-sm">${edit ? 'Update' : 'Create'} Template</button>
-                        </div>
-                    </form>
-                    <div id="recFormResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
-                </div>
-            </div>`;
-
         // Populate code datalist
-        const dl = document.getElementById('recCodeList');
+        const dl = document.getElementById('jrCodeList');
         _allB2B.forEach(c => {
             if (c.CODE) {
                 const opt = document.createElement('option');
@@ -534,111 +312,656 @@ const VaultJournal = (() => {
             }
         });
 
-        document.getElementById('recFormCancel').onclick = () => _loadRecurring();
-        document.getElementById('recurringForm').addEventListener('submit', async e => {
+        // Add first two default lines (Dr + Cr)
+        const tbody = document.getElementById('jrLinesBody');
+        _addLineRow(tbody);
+        _addLineRow(tbody);
+        _recalcLines();
+
+        // Add line button
+        document.getElementById('jrAddLine').addEventListener('click', () => {
+            _addLineRow(tbody);
+            _recalcLines();
+        });
+
+        // Submit
+        document.getElementById('jrForm').addEventListener('submit', async e => {
             e.preventDefault();
             const fd = new FormData(e.target);
             const data = Object.fromEntries(fd);
+            const lines = _collectLines();
+
             const btn = e.target.querySelector('button[type=submit]');
-            btn.disabled = true;
+            const sp = document.getElementById('jrSpinner');
+            const resp = document.getElementById('jrResponse');
+            btn.disabled = true; sp.classList.remove('hidden');
+
+            // Validate
+            if (lines.length < 2) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ At least 2 lines required.';
+                resp.classList.remove('hidden');
+                btn.disabled = false; sp.classList.add('hidden');
+                return;
+            }
+            const totalDr = lines.reduce((s, l) => s + l.debit, 0);
+            const totalCr = lines.reduce((s, l) => s + l.credit, 0);
+            if (Math.abs(totalDr - totalCr) > 0.001) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = `❌ Debit/Credit mismatch: Dr ₹${totalDr.toFixed(2)} ≠ Cr ₹${totalCr.toFixed(2)}`;
+                resp.classList.remove('hidden');
+                btn.disabled = false; sp.classList.add('hidden');
+                return;
+            }
+            if (lines.some(l => !l.coa_code)) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ All lines must have a COA account selected.';
+                resp.classList.remove('hidden');
+                btn.disabled = false; sp.classList.add('hidden');
+                return;
+            }
+            if (lines.some(l => l.debit > 0 && l.credit > 0)) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ Each line must be either Dr or Cr, not both.';
+                resp.classList.remove('hidden');
+                btn.disabled = false; sp.classList.add('hidden');
+                return;
+            }
+
+            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                if (editIndex !== undefined) {
-                    // Void the old LEDGER entry and create a new one
-                    const oldEntry = _allLedger.find(x => x.ENTRY_TYPE === 'JOURNAL' && x.JOURNAL_TYPE === 'RECURRING' && x.CODE === edit.code && x.STATUS === 'ACTIVE');
-                    if (oldEntry) {
-                        await callApi('/api/ledger/void', { entry_id: oldEntry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
-                    }
-                }
-                // Create/update the template in LEDGER as a RECURRING entry
-                const templateData = JSON.stringify({ frequency: data.frequency, interval: data.interval, side: data.side, amount: data.amount, journal_type: data.journal_type, start_date: data.start_date, narration: data.narration });
-                await callApi('/api/ledger/journal', {
+                const res = await callApi('/api/ledger/journal/multi', {
                     code: data.code,
-                    entry_date: Date.now(),
-                    journal_type: 'RECURRING',
-                    narration: templateData,
-                    branch: '',
-                    debit: 0.01,
-                    credit: 0,
+                    entry_date: toMs(data.entry_date),
+                    narration: data.narration,
+                    branch: data.branch || '',
+                    lines: lines.map(l => ({ coa_code: l.coa_code, debit: l.debit, credit: l.credit })),
                 }, 'POST');
-                await _saveRecurringTemplates();
-                _loadRecurring();
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
+                resp.textContent = `✅ ${_label()} saved (${res.line_count} lines). Balance: ₹${(+res.balance).toFixed(2)}`;
+                resp.classList.remove('hidden');
+                e.target.reset();
+                tbody.innerHTML = '';
+                _addLineRow(tbody);
+                _addLineRow(tbody);
+                _recalcLines();
+                const appData = await getAppData();
+                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
+                _renderList();
             } catch (err) {
-                alert('Failed: ' + (err.message || err));
-            } finally { btn.disabled = false; }
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ ' + (err.message || 'Failed');
+                resp.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; sp.classList.add('hidden');
+            }
+        });
+
+        document.querySelector('[name="entry_date"]').value = new Date().toISOString().split('T')[0];
+        VaultPage.showDetailPane();
+    }
+
+    // ── Opening Balance form (single-amount, auto Dr/Cr mapping) ──────────
+    function _openOpeningBalanceForm() {
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">New Opening Balance</h3></div>
+                <div class="detail-card-body">
+                    <!-- COA mapping info -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
+                        <strong>📒 Auto COA Mapping</strong>
+                        <div class="mt-1 grid grid-cols-2 gap-2">
+                            <div>Dr: <span class="font-mono font-semibold">1010</span> Accounts Receivable</div>
+                            <div>Cr: <span class="font-mono font-semibold">2095</span> Opening Bal Reserve</div>
+                        </div>
+                    </div>
+
+                    <!-- Existing balance warning -->
+                    <div id="obExistingWarning" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-xs text-yellow-800">
+                        ⚠️ <span id="obExistingMsg"></span>
+                    </div>
+
+                    <form id="jrForm" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
+                                <input name="code" id="obCodeInput" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="obCodeList">
+                                <datalist id="obCodeList"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+                                <input name="entry_date" type="date" required class="form-input text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Opening Balance ₹ *</label>
+                                <input name="amount" type="number" step="0.01" required class="form-input text-sm" placeholder="e.g. 50000.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Balance Type</label>
+                                <select name="balance_type" class="form-input text-xs">
+                                    <option value="DR">Dr (Receivable — client owes us)</option>
+                                    <option value="CR">Cr (Payable — we owe client)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+                                <input name="branch" class="form-input text-sm uppercase" placeholder="e.g. DDN" list="obBranchList">
+                                <datalist id="obBranchList"></datalist>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration *</label>
+                            <textarea name="narration" required rows="2" class="form-input text-sm w-full" placeholder="e.g. Opening balance brought forward"></textarea>
+                        </div>
+
+                        <div class="flex justify-end pt-2 border-t">
+                            <button type="submit" class="btn btn-sm flex items-center gap-2">
+                                <span id="jrBtnText">Save Opening Balance</span>
+                                <div id="jrSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </button>
+                        </div>
+                    </form>
+                    <div id="jrResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
+                </div>
+            </div>`;
+
+        // Populate code datalist
+        const dl = document.getElementById('obCodeList');
+        _allB2B.forEach(c => {
+            if (c.CODE) {
+                const opt = document.createElement('option');
+                opt.value = c.CODE; opt.label = `${c.CODE} - ${c.B2B_NAME || ''}`;
+                dl.appendChild(opt);
+            }
+        });
+
+        // Populate branch datalist
+        getAppData().then(data => {
+            const dl = document.getElementById('obBranchList');
+            if (data?.BRANCHES) Object.values(data.BRANCHES).forEach(b => {
+                if (b.BRANCH_CODE) { const o = document.createElement('option'); o.value = b.BRANCH_CODE; dl.appendChild(o); }
+            });
+        });
+
+        // Check for existing OB when code changes
+        document.getElementById('obCodeInput').addEventListener('change', function() {
+            const code = this.value.trim().toUpperCase();
+            this.value = code;
+            if (!code) return;
+            const existingOB = _allLedger.filter(e =>
+                e.CODE === code && e.JOURNAL_TYPE === 'OPENING_BALANCE' && e.STATUS === 'ACTIVE'
+            );
+            const warn = document.getElementById('obExistingWarning');
+            const msg = document.getElementById('obExistingMsg');
+            if (existingOB.length > 0) {
+                const e = existingOB[0];
+                const bal = (+e.DEBIT || 0) - (+e.CREDIT || 0);
+                warn.classList.remove('hidden');
+                msg.textContent = `An opening balance (₹${Math.abs(bal).toFixed(2)} ${bal >= 0 ? 'Dr' : 'Cr'}) already exists for "${code}". Saving will replace it (old entry will be voided).`;
+            } else {
+                warn.classList.add('hidden');
+            }
+        });
+
+        // Date default
+        document.querySelector('[name="entry_date"]').value = new Date().toISOString().split('T')[0];
+
+        // Submit
+        document.getElementById('jrForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd);
+
+            const btn = e.target.querySelector('button[type=submit]');
+            const sp = document.getElementById('jrSpinner');
+            const resp = document.getElementById('jrResponse');
+            btn.disabled = true; sp.classList.remove('hidden');
+
+            const amount = parseFloat(data.amount) || 0;
+            if (amount <= 0) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ Amount must be greater than 0.';
+                resp.classList.remove('hidden');
+                btn.disabled = false; sp.classList.add('hidden');
+                return;
+            }
+
+            const isCr = data.balance_type === 'CR';
+            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
+
+            try {
+                // Use replace-ob endpoint (atomically voids old OB + creates new one)
+                const res = await callApi('/api/ledger/journal/replace-ob', {
+                    code: data.code,
+                    entry_date: toMs(data.entry_date),
+                    amount: amount,
+                    is_credit: isCr,
+                    narration: data.narration || `Opening balance for ${data.code}`,
+                    branch: data.branch || '',
+                }, 'POST');
+
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
+                resp.textContent = `✅ Opening balance saved. Balance: ₹${(+res.balance).toFixed(2)}${res.voided_count > 0 ? ` (replaced ${res.voided_count} existing OB)` : ''}`;
+                resp.classList.remove('hidden');
+                e.target.reset();
+                document.querySelector('[name="entry_date"]').value = new Date().toISOString().split('T')[0];
+                const appData = await getAppData();
+                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
+                _renderList();
+            } catch (err) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ ' + (err.message || 'Failed');
+                resp.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; sp.classList.add('hidden');
+            }
+        });
+
+        VaultPage.showDetailPane();
+    }
+
+    function _addLineRow(tbody, lineData) {
+        const idx = tbody.children.length + 1;
+        const coaOptions = _allCOA.map(a =>
+            `<option value="${a.code}">${a.code} — ${a.name}</option>`
+        ).join('');
+
+        const tr = document.createElement('tr');
+        tr.className = 'line-row';
+        tr.innerHTML = `
+            <td class="px-3 py-1.5 text-gray-400 line-num text-center">${idx}</td>
+            <td class="px-3 py-1.5">
+                <select class="coa-select form-input text-xs w-full" required>
+                    <option value="">— Select COA —</option>
+                    ${coaOptions}
+                </select>
+            </td>
+            <td class="px-3 py-1.5">
+                <input type="number" step="0.01" min="0" class="line-dr form-input text-xs w-full text-right" placeholder="0.00" value="">
+            </td>
+            <td class="px-3 py-1.5">
+                <input type="number" step="0.01" min="0" class="line-cr form-input text-xs w-full text-right" placeholder="0.00" value="">
+            </td>
+            <td class="px-3 py-1.5 text-center">
+                <button type="button" class="line-remove px-1.5 py-0.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded" title="Remove line">&times;</button>
+            </td>`;
+
+        // Pre-fill if lineData provided (edit mode)
+        if (lineData) {
+            const sel = tr.querySelector('.coa-select');
+            if (sel) sel.value = lineData.coa_code || '';
+            const dr = tr.querySelector('.line-dr');
+            if (dr) dr.value = lineData.debit || '';
+            const cr = tr.querySelector('.line-cr');
+            if (cr) cr.value = lineData.credit || '';
+        }
+
+        // Wire events
+        tr.querySelector('.line-dr').addEventListener('input', _recalcLines);
+        tr.querySelector('.line-cr').addEventListener('input', _recalcLines);
+        tr.querySelector('.line-remove').addEventListener('click', () => {
+            const rows = tbody.querySelectorAll('.line-row');
+            if (rows.length <= 2) return; // Keep at least 2
+            tr.remove();
+            _renumberLines(tbody);
+            _recalcLines();
+        });
+
+        tbody.appendChild(tr);
+    }
+
+    function _renumberLines(tbody) {
+        tbody.querySelectorAll('.line-row').forEach((tr, i) => {
+            tr.querySelector('.line-num').textContent = i + 1;
         });
     }
 
-    // ── Recurring load (list pane + detail) ───────────────────────────────────
-    async function _loadRecurring() {
-        document.getElementById('vaultAddBtn').classList.add('hidden');
-        document.getElementById('vaultListMsg').textContent = '';
+    function _recalcLines() {
+        const drInputs = document.querySelectorAll('.line-dr');
+        const crInputs = document.querySelectorAll('.line-cr');
+        let totalDr = 0, totalCr = 0;
+        drInputs.forEach(inp => totalDr += parseFloat(inp.value || 0));
+        crInputs.forEach(inp => totalCr += parseFloat(inp.value || 0));
+        const msg = document.getElementById('jrBalanceMsg');
+        if (msg) {
+            const balanced = Math.abs(totalDr - totalCr) < 0.001;
+            const balClass = totalDr > 0 || totalCr > 0 ? (balanced ? 'text-green-600' : 'text-red-600') : 'text-gray-500';
+            msg.textContent = `Dr: ₹${totalDr.toFixed(2)} / Cr: ₹${totalCr.toFixed(2)}${totalDr > 0 || totalCr > 0 ? (balanced ? ' ✅' : ' ⚠️') : ''}`;
+            msg.className = `text-xs font-medium ${balClass} self-center`;
+        }
+    }
 
-        // Populate _allLedger from appData
+    function _collectLines() {
+        const lines = [];
+        document.querySelectorAll('.line-row').forEach(tr => {
+            const coaCode = tr.querySelector('.coa-select')?.value;
+            const debit = parseFloat(tr.querySelector('.line-dr')?.value || 0);
+            const credit = parseFloat(tr.querySelector('.line-cr')?.value || 0);
+            if (coaCode && (debit > 0 || credit > 0)) {
+                lines.push({ coa_code: coaCode, debit, credit });
+            }
+        });
+        return lines;
+    }
+
+    // ── Delete (void) ─────────────────────────────────────────────────────
+    async function _handleDelete(txnId) {
+        const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
+        const entry = rows[0];
+        if (!entry || entry.STATUS === 'VOID') return;
+        if (!confirm(`Delete this ${entry.JOURNAL_TYPE || 'journal'} entry? This will void all ${rows.length} rows.`)) return;
+        const reason = prompt('Reason (optional):', '') || '';
+        try {
+            // Void all rows in the transaction
+            for (const r of rows) {
+                await callApi('/api/ledger/void', { entry_id: r.ENTRY_ID, void_reason: reason }, 'POST');
+            }
+            const appData = await getAppData();
+            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
+            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Entry deleted (voided).</p></div></div>`;
+        } catch (err) { alert('Failed: ' + (err.message || err)); }
+    }
+
+    // ── Recurring form (with schedule config) ──────────────────────────
+    function _openRecurringForm(editTxnId) {
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+        const isEdit = !!editTxnId;
+
+        // Find existing config if editing
+        let existingConfig = null;
+        let existingLines = [];
+        let existingCode = '';
+        if (isEdit) {
+            const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === editTxnId);
+            const entry = rows[0];
+            if (entry) {
+                try { existingConfig = JSON.parse(entry.NARRATION || '{}'); } catch {}
+                existingCode = entry.CODE || '';
+                existingLines = rows.map(r => ({
+                    coa_code: r.COA_DR || r.COA_CR || '',
+                    debit: +r.DEBIT || 0,
+                    credit: +r.CREDIT || 0,
+                })).filter(l => l.coa_code && (l.debit > 0 || l.credit > 0));
+            }
+        }
+
+        const sch = existingConfig || {};
+
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">${isEdit ? 'Edit' : 'New'} Recurring Template</h3></div>
+                <div class="detail-card-body">
+                    <form id="jrForm" class="space-y-4">
+                        <!-- Header fields -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
+                                <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="jrCodeList" value="${isEdit ? existingCode : ''}">
+                                <datalist id="jrCodeList"></datalist>
+                            </div>
+                                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Schedule Name</label>
+                                <input name="schedule_name" class="form-input text-sm" placeholder="e.g. Monthly Rent" value="${sch.schedule_name || ''}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+                                <input name="branch" class="form-input text-sm uppercase" placeholder="e.g. DDN" list="rcrBranchList">
+                                <datalist id="rcrBranchList"></datalist>
+                            </div>
+                        </div>
+
+                        <!-- Schedule config -->
+                        <div class="bg-gray-50 p-3 rounded-lg border">
+                            <div class="font-semibold text-gray-700 text-xs mb-2">⏰ Schedule</div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                                    <select name="frequency" class="form-input text-xs">
+                                        ${['daily','weekly','monthly','yearly'].map(f =>
+                                            `<option value="${f}" ${(sch.frequency||'monthly') === f ? 'selected' : ''}>${f.charAt(0).toUpperCase() + f.slice(1)}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Every</label>
+                                    <input name="interval" type="number" min="1" class="form-input text-xs" value="${sch.interval || 1}">
+                                </div>
+                                <div id="rcrDayOfMonth">
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Day of Month</label>
+                                    <input name="day_of_month" type="number" min="1" max="28" class="form-input text-xs" value="${sch.day_of_month || 1}">
+                                </div>
+                                <div id="rcrDayOfWeek" class="hidden">
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Day of Week</label>
+                                    <select name="day_of_week" class="form-input text-xs">
+                                        ${['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((d, i) =>
+                                            `<option value="${i}" ${(sch.day_of_week||0) === i ? 'selected' : ''}>${d}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 mt-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Next Run</label>
+                                    <input name="next_run_date" type="date" class="form-input text-xs" value="${sch.next_run ? new Date(sch.next_run).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">End Date (optional)</label>
+                                    <input name="end_date" type="date" class="form-input text-xs" value="${sch.end_date ? new Date(sch.end_date).toISOString().split('T')[0] : ''}">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Max Executions (0=unlimited)</label>
+                                    <input name="max_executions" type="number" min="0" class="form-input text-xs" value="${sch.max_executions || 0}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Line items grid -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-xs font-medium text-gray-600">Line Items</label>
+                                <div class="flex gap-2">
+                                    <span id="jrBalanceMsg" class="text-xs font-medium text-gray-500 self-center">Dr: ₹0.00 / Cr: ₹0.00</span>
+                                    <button type="button" id="jrAddLine" class="px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200">+ Add Line</button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto border rounded-lg">
+                                <table class="min-w-full text-xs divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-1.5 text-left font-medium text-gray-500 uppercase w-10">#</th>
+                                            <th class="px-3 py-1.5 text-left font-medium text-gray-500 uppercase">Account (COA Code)</th>
+                                            <th class="px-3 py-1.5 text-right font-medium text-gray-500 uppercase w-32">Debit (₹)</th>
+                                            <th class="px-3 py-1.5 text-right font-medium text-gray-500 uppercase w-32">Credit (₹)</th>
+                                            <th class="px-3 py-1.5 text-center w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jrLinesBody" class="bg-white divide-y divide-gray-100">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Narration template -->
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration Template</label>
+                            <textarea name="narration_template" rows="2" class="form-input text-sm w-full" placeholder="Rent for {period}">${(sch.narration_template || '')}</textarea>
+                            <p class="text-xs text-gray-400 mt-1">Use {period} for month/year, {date} for full date</p>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="flex justify-end pt-2 border-t">
+                            <button type="submit" class="btn btn-sm flex items-center gap-2">
+                                <span id="jrBtnText">${isEdit ? 'Update' : 'Create'} Template</span>
+                                <div id="jrSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </button>
+                        </div>
+                    </form>
+                    <div id="jrResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
+                </div>
+            </div>`;
+
+        // Populate code datalist
+        const dl = document.getElementById('jrCodeList');
+        _allB2B.forEach(c => {
+            if (c.CODE) {
+                const opt = document.createElement('option');
+                opt.value = c.CODE; opt.label = `${c.CODE} - ${c.B2B_NAME || ''}`;
+                dl.appendChild(opt);
+            }
+        });
+
+        // Populate branch datalist
+        getAppData().then(data => {
+            const dl = document.getElementById('rcrBranchList');
+            if (data?.BRANCHES) Object.values(data.BRANCHES).forEach(b => {
+                if (b.BRANCH_CODE) { const o = document.createElement('option'); o.value = b.BRANCH_CODE; dl.appendChild(o); }
+            });
+        });
+
+        // Frequency toggle (day_of_month vs day_of_week)
+        document.querySelector('[name="frequency"]')?.addEventListener('change', function() {
+            const isWeekly = this.value === 'weekly';
+            document.getElementById('rcrDayOfMonth')?.classList.toggle('hidden', isWeekly);
+            document.getElementById('rcrDayOfWeek')?.classList.toggle('hidden', !isWeekly);
+        });
+        // Set initial state
+        const initFreq = document.querySelector('[name="frequency"]')?.value;
+        if (initFreq === 'weekly') {
+            document.getElementById('rcrDayOfMonth')?.classList.add('hidden');
+            document.getElementById('rcrDayOfWeek')?.classList.remove('hidden');
+        }
+
+        // Add line rows (from existing or defaults)
+        const tbody = document.getElementById('jrLinesBody');
+        if (existingLines.length >= 2) {
+            existingLines.forEach(l => _addLineRow(tbody, l));
+        } else {
+            _addLineRow(tbody);
+            _addLineRow(tbody);
+        }
+        _recalcLines();
+
+        // Add line button
+        document.getElementById('jrAddLine').addEventListener('click', () => {
+            _addLineRow(tbody);
+            _recalcLines();
+        });
+
+        // Submit
+        document.getElementById('jrForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd);
+            const lines = _collectLines();
+
+            const btn = e.target.querySelector('button[type=submit]');
+            const sp = document.getElementById('jrSpinner');
+            const resp = document.getElementById('jrResponse');
+            btn.disabled = true; sp.classList.remove('hidden');
+
+            if (lines.length < 2 || lines.some(l => !l.coa_code)) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ At least 2 lines with COA accounts required.';
+                resp.classList.remove('hidden');
+                btn.disabled = false; sp.classList.add('hidden');
+                return;
+            }
+
+            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
+            const nextRunMs = toMs(data.next_run_date);
+            const endMs = data.end_date ? toMs(data.end_date) : 0;
+
+            try {
+                if (isEdit) {
+                    await callApi(`/api/ledger/journal/recurring/${editTxnId}`, {
+                        schedule_name: data.schedule_name || '',
+                        narration: '',
+                        narration_template: data.narration_template || '',
+                        lines: lines.map(l => ({ coa_code: l.coa_code, debit: l.debit, credit: l.credit })),
+                        frequency: data.frequency || 'monthly',
+                        interval: parseInt(data.interval) || 1,
+                        day_of_month: parseInt(data.day_of_month) || 1,
+                        day_of_week: parseInt(data.day_of_week) || 0,
+                        next_run: nextRunMs,
+                        end_date: endMs,
+                        max_executions: parseInt(data.max_executions) || 0,
+                        status: 'ACTIVE',
+                    }, 'PUT');
+                    resp.textContent = '✅ Template updated.';
+                } else {
+                    await callApi('/api/ledger/journal/recurring', {
+                        code: data.code,
+                        branch: data.branch || '',
+                        schedule_name: data.schedule_name || '',
+                        narration: '',
+                        narration_template: data.narration_template || '',
+                        lines: lines.map(l => ({ coa_code: l.coa_code, debit: l.debit, credit: l.credit })),
+                        frequency: data.frequency || 'monthly',
+                        interval: parseInt(data.interval) || 1,
+                        day_of_month: parseInt(data.day_of_month) || 1,
+                        day_of_week: parseInt(data.day_of_week) || 0,
+                        next_run: nextRunMs,
+                        end_date: endMs,
+                        max_executions: parseInt(data.max_executions) || 0,
+                    }, 'POST');
+                    resp.textContent = '✅ Template created.';
+                }
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
+                resp.classList.remove('hidden');
+                e.target.reset();
+                const appData = await getAppData();
+                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
+                _renderList();
+            } catch (err) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ ' + (err.message || 'Failed');
+                resp.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; sp.classList.add('hidden');
+            }
+        });
+
+        VaultPage.showDetailPane();
+    }
+
+    // ── Recurring ─────────────────────────────────────────────────────────
+    async function _loadRecurring() {
+        _activeJournalType = 'RECURRING';
+        _injectListPane();
+        await _loadCoaCache();
         const data = await getAppData();
         if (data?.LEDGER) {
             _allLedger = Object.values(data.LEDGER);
+            if (data.B2B) _allB2B = Object.values(data.B2B);
+            _renderList();
         }
-        _loadRecurringTemplates();
+        document.getElementById('vaultSearch').placeholder = 'Search recurring entries…';
+        const searchInput = document.getElementById('vaultSearch');
+        if (searchInput) searchInput.oninput = () => search();
+    }
 
-        // Render list pane
-        const ul = document.getElementById('vaultList');
-        ul.innerHTML = '';
-        if (!_recurringTemplates.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No recurring templates. Create one!</li>';
-            document.getElementById('vaultDetailView').innerHTML = `
-                <div class="detail-card">
-                    <div class="detail-card-body text-center py-12">
-                        <div class="text-4xl mb-3">🔄</div>
-                        <p class="text-gray-500 text-sm mb-4">No recurring entry templates yet.</p>
-                        <p class="text-xs text-gray-400">Create a template for entries that repeat.</p>
-                    </div>
-                </div>`;
-            VaultPage.showDetail(true);
-            VaultPage.showDetailPane();
-            return;
+    // ── Load ──────────────────────────────────────────────────────────────
+    async function load() {
+        _injectListPane();
+        await _loadCoaCache();
+        const data = await getAppData();
+        if (data?.LEDGER) {
+            _allLedger = Object.values(data.LEDGER);
+            if (data.B2B) _allB2B = Object.values(data.B2B);
+            _renderList();
         }
-        const now = Date.now();
-        function _nextDate(template) {
-            if (!template.start_date) return 'N/A';
-            const start = new Date(template.start_date);
-            const freq = template.frequency || 'MONTHLY';
-            const interval = parseInt(template.interval) || 1;
-            let next = new Date(start);
-            if (freq === 'MONTHLY') { while (next.getTime() < now) next.setMonth(next.getMonth() + interval); }
-            else if (freq === 'WEEKLY') { while (next.getTime() < now) next.setDate(next.getDate() + 7 * interval); }
-            else if (freq === 'DAILY') { while (next.getTime() < now) next.setDate(next.getDate() + interval); }
-            else if (freq === 'QUARTERLY') { while (next.getTime() < now) next.setMonth(next.getMonth() + 3 * interval); }
-            else if (freq === 'YEARLY') { while (next.getTime() < now) next.setFullYear(next.getFullYear() + interval); }
-            return next;
-        }
-        ul.innerHTML = _recurringTemplates.map((t, i) => {
-            const next = _nextDate(t);
-            const overdue = next !== 'N/A' && next.getTime() < now;
-            const sideLabel = t.side === 'debit' ? 'Dr' : 'Cr';
-            return `<li data-index="${i}" class="p-3 rounded-lg cursor-pointer hover:bg-purple-50 border border-gray-200 transition-colors">
-                <strong class="text-purple-800 block text-sm">🔄 ${t.narration || 'Untitled'}</strong>
-                <span class="text-xs text-gray-500">${t.code || ''} · ${t.frequency || 'MONTHLY'} · ${sideLabel} ₹${(+t.amount||0).toFixed(2)}</span>
-                <div class="text-xs mt-1 ${overdue ? 'text-red-600 font-medium' : 'text-gray-400'}">${overdue ? '⚠️ OVERDUE' : (next !== 'N/A' ? 'Next: ' + fmtDate(next.getTime(), 'date') : '')}</div>
-            </li>`;
-        }).join('');
-        ul.querySelectorAll('li').forEach(li =>
-            li.addEventListener('click', () => {
-                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                _showRecurringDetail(parseInt(li.dataset.index));
-            })
-        );
-
-        // Auto-select first
-        if (_recurringTemplates.length) {
-            ul.querySelector('li')?.classList.add('selected');
-            _showRecurringDetail(0);
-        }
+        const searchInput = document.getElementById('vaultSearch');
+        if (searchInput) searchInput.oninput = () => search();
     }
 
     function setType(type) { _activeJournalType = type; }
 
-    return { load, search, openAddPane, setType, _showRecurringDetail, _loadRecurring, _handleDelete };
+    return { load, search, openAddPane, setType, _handleDelete, _loadRecurring, _openRecurringForm, _renderDetailById: (txnId) => _renderDetail(txnId), _printEntry };
 })();
 
 window.VaultJournal = VaultJournal;

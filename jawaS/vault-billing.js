@@ -621,7 +621,7 @@ const VaultBilling = (() => {
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                const res = await callApi('/api/closeInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: toMs(invDate) });
+                const res = await callApi('/api/issueInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: toMs(invDate) });
                 if (res.status === 'success') {
                     modal.remove();
                     _showInvoiceBanner(res.inv_number, invDate, res.updated);

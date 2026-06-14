@@ -1,7 +1,8 @@
 // ============================================================================
-// VAULT-SUMMARY.JS — Client outstanding, account statement, reports
+// VAULT-SUMMARY.JS — Dashboard, Reports, Bank Recon, Bulk Import
 // Tiles: summary, reports, bank-recon, bulk-import
-// API: GET /api/ledger/summary, GET /api/ledger/statement, GET /api/ledger/inward/summary
+// API: GET /api/ledger/summary, /profit-loss, /balance-sheet, /aging
+//      POST /api/ledger/bulk-import
 // ============================================================================
 
 const VaultSummary = (() => {
@@ -18,16 +19,15 @@ const VaultSummary = (() => {
         catch { return String(v); }
     }
 
-    function _injectListPane() {
+    function _injectListPane(placeholder = 'Search client code or name…') {
         document.getElementById('vaultListMsg').textContent = '';
         document.getElementById('vaultList').innerHTML = '';
-        document.getElementById('vaultSearch').placeholder = 'Search client code or name…';
+        document.getElementById('vaultSearch').placeholder = placeholder;
     }
 
     function _renderSummaryList(entries) {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        // Build latest outstanding per code from LEDGER
         const latest = {};
         const sorted = [...(entries || [])].sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
         sorted.forEach(e => {
@@ -35,7 +35,6 @@ const VaultSummary = (() => {
                 if (!latest[e.CODE]) latest[e.CODE] = e;
             }
         });
-
         const codes = Object.values(latest).sort((a, b) => (b.BALANCE || 0) - (a.BALANCE || 0));
         if (!codes.length) {
             ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No outstanding balances.</li>';
@@ -47,10 +46,9 @@ const VaultSummary = (() => {
             return `<li data-code="${e.CODE}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
                 <strong class="text-gray-800 block text-sm">${e.CODE}</strong>
                 <span class="text-xs text-gray-500">${name}</span>
-                <div class="text-xs font-semibold mt-1 ${bal >= 0 ? 'text-red-600' : 'text-green-600'}">₹${bal.toFixed(2)}</div>
+                <div class="text-xs font-semibold mt-1 ${bal >= 0 ? 'text-red-600' : 'text-green-600'}">₹${Math.abs(bal).toFixed(2)} ${bal >= 0 ? 'Dr' : 'Cr'}</div>
             </li>`;
         }).join('');
-
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
@@ -98,7 +96,6 @@ const VaultSummary = (() => {
                     <div class="text-lg font-bold ${(+data.closing_balance) >= 0 ? 'text-red-600' : 'text-green-600'}">₹${(+data.closing_balance).toFixed(2)}</div>
                 </div>
             </div>
-
             <div class="detail-card">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Ledger Entries (${entries.length})</h3></div>
                 <div class="detail-card-body overflow-x-auto">
@@ -125,7 +122,6 @@ const VaultSummary = (() => {
                 </div>
             </div>`;
 
-        // Mobile-friendly cards fallback
         if (window.innerWidth < 768 && entries.length) {
             const cards = entries.map(e => `
                 <div class="border border-gray-200 rounded-lg p-3 text-xs space-y-1">
@@ -142,49 +138,134 @@ const VaultSummary = (() => {
                 </div>`).join('');
             view.innerHTML += `<div class="md:hidden space-y-2 mt-4">${cards}</div>`;
         }
-
         VaultPage.showDetailPane();
     }
 
-    // ── Dashboard summary ─────────────────────────────────────────────────────
+    // ── Period picker helper ──────────────────────────────────────────────────
+    function _periodOptions(currentFY, selectedPeriod) {
+        const months = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+        const [fyStart] = currentFY.split('-');
+        const startYear = parseInt(fyStart);
+        const options = [];
+        // Quarterly
+        options.push({ value: `Q1-${currentFY}`, label: `Q1 (Apr-Jun ${currentFY})` });
+        options.push({ value: `Q2-${currentFY}`, label: `Q2 (Jul-Sep ${currentFY})` });
+        options.push({ value: `Q3-${currentFY}`, label: `Q3 (Oct-Dec ${currentFY})` });
+        options.push({ value: `Q4-${currentFY}`, label: `Q4 (Jan-Mar ${startYear + 1})` });
+        // Monthly
+        for (let i = 0; i < 12; i++) {
+            const m = (3 + i) % 12; // Apr=index 3 in calendar, index 0 here
+            const year = m < 3 ? startYear + 1 : startYear;
+            options.push({ value: `${m + 1}-${year}`, label: `${months[m]} ${year}` });
+        }
+        return options.map(o =>
+            `<option value="${o.value}" ${o.value === selectedPeriod ? 'selected' : ''}>${o.label}</option>`
+        ).join('');
+    }
+
+    function _periodToDates(period) {
+        // Q1-2025-26 or 4-2025 (month-year)
+        const now = new Date();
+        if (period && period.startsWith('Q')) {
+            const parts = period.split('-');
+            const q = parseInt(parts[0][1]);
+            const fy = parts.slice(1).join('-');
+            const [fyStart] = fy.split('-');
+            const sy = parseInt(fyStart);
+            const qMonths = { 1: [4, 6], 2: [7, 9], 3: [10, 12], 4: [1, 3] };
+            const [sm, em] = qMonths[q] || [4, 6];
+            const syr = q === 4 ? sy + 1 : sy;
+            const eyr = q === 4 ? sy + 1 : sy;
+            return {
+                from: new Date(syr, sm - 1, 1).getTime(),
+                to: new Date(eyr, em, 0, 23, 59, 59).getTime()
+            };
+        }
+        if (period) {
+            const [m, y] = period.split('-');
+            return {
+                from: new Date(parseInt(y), parseInt(m) - 1, 1).getTime(),
+                to: new Date(parseInt(y), parseInt(m), 0, 23, 59, 59).getTime()
+            };
+        }
+        // Default: current month
+        return {
+            from: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
+            to: now.getTime()
+        };
+    }
+
+    // ── TILE: Summary Dashboard ──────────────────────────────────────────────
     async function showDashboard() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         view.innerHTML = '<div class="text-center text-gray-400 py-8">Loading summary…</div>';
 
         try {
-            const [outRes, inRes, cashRes] = await Promise.all([
+            const [outRes, inRes, cashRes, agingRes] = await Promise.all([
                 callApi('/api/ledger/summary', {}, 'GET').catch(() => ({ data: [] })),
                 callApi('/api/ledger/inward/summary', {}, 'GET').catch(() => ({ data: [] })),
                 callApi('/api/ledger/cash', {}, 'GET').catch(() => ({ data: [] })),
+                callApi('/api/ledger/aging', {}, 'GET').catch(() => ({ buckets: {}, total_outstanding: 0 })),
             ]);
 
             const outData = outRes.data || [];
             const inData = inRes.data || [];
             const cashData = cashRes.data || [];
+            const aging = agingRes.buckets || {};
+            const agingKeys = ['0-30', '31-60', '61-90', '91+'];
 
             const totalOutstanding = outData.reduce((s, d) => s + (+d.balance || 0), 0);
             const totalInward = inData.reduce((s, d) => s + (+d.balance || 0), 0);
             const totalCash = cashData.reduce((s, d) => s + Math.max(0, +d.balance || 0), 0);
             const topDebtors = [...outData].sort((a, b) => (+b.balance || 0) - (+a.balance || 0)).slice(0, 5);
+            const agingTotal = agingKeys.reduce((s, k) => s + (aging[k]?.total || 0), 0);
 
             view.innerHTML = `
-                <!-- KPI cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                         <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Outstanding</div>
-                        <div class="text-2xl font-bold text-red-600 mt-1">₹${totalOutstanding.toFixed(2)}</div>
+                        <div class="text-xl font-bold text-red-600 mt-1">₹${totalOutstanding.toFixed(2)}</div>
                         <div class="text-xs text-gray-400 mt-1">${outData.length} clients</div>
                     </div>
-                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                         <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Vendor Dues</div>
-                        <div class="text-2xl font-bold text-orange-600 mt-1">₹${totalInward.toFixed(2)}</div>
+                        <div class="text-xl font-bold text-orange-600 mt-1">₹${totalInward.toFixed(2)}</div>
                         <div class="text-xs text-gray-400 mt-1">${inData.length} vendors</div>
                     </div>
-                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                         <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Cash in Hand</div>
-                        <div class="text-2xl font-bold text-green-600 mt-1">₹${totalCash.toFixed(2)}</div>
+                        <div class="text-xl font-bold text-green-600 mt-1">₹${totalCash.toFixed(2)}</div>
                         <div class="text-xs text-gray-400 mt-1">${cashData.length} holders</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                        <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Overdue Total</div>
+                        <div class="text-xl font-bold text-purple-600 mt-1">₹${agingTotal.toFixed(2)}</div>
+                        <div class="text-xs text-gray-400 mt-1">Aging report</div>
+                    </div>
+                </div>
+
+                <!-- Aging Summary -->
+                <div class="detail-card mb-4">
+                    <div class="detail-card-header">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700">📅 Aging Summary</h3>
+                            <span class="text-xs text-gray-500">Total overdue: ₹${agingTotal.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="detail-card-body">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            ${agingKeys.map(k => {
+                                const bucket = aging[k] || { total: 0, count: 0 };
+                                const colors = { '0-30': 'bg-green-50 border-green-200 text-green-700', '31-60': 'bg-yellow-50 border-yellow-200 text-yellow-700', '61-90': 'bg-orange-50 border-orange-200 text-orange-700', '91+': 'bg-red-50 border-red-200 text-red-700' };
+                                return `<div class="rounded-lg border p-3 ${colors[k] || ''}">
+                                    <div class="text-xs font-semibold uppercase">${k} days</div>
+                                    <div class="text-lg font-bold mt-1">₹${bucket.total.toFixed(2)}</div>
+                                    <div class="text-xs opacity-75">${bucket.count} codes</div>
+                                </div>`;
+                            }).join('')}
+                        </div>
                     </div>
                 </div>
 
@@ -205,7 +286,7 @@ const VaultSummary = (() => {
                     </div>
                 </div>
 
-                <!-- Cash in Hand -->
+                <!-- Cash Holders -->
                 <div class="detail-card">
                     <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Cash Holders</h3></div>
                     <div class="detail-card-body overflow-x-auto">
@@ -227,269 +308,407 @@ const VaultSummary = (() => {
         }
     }
 
-    // ── Reports placeholder ──────────────────────────────────────────────────
+    // ── TILE: Reports Hub (P&L, Balance Sheet, Aging) ────────────────────────
     function showReports() {
         VaultPage.showDetail(true);
-        document.getElementById('vaultDetailView').innerHTML = `
-            <div class="detail-card">
+        const view = document.getElementById('vaultDetailView');
+        const now = new Date();
+        const currentFY = now.getMonth() >= 3 ? `${now.getFullYear()}-${String(now.getFullYear() + 1).slice(2)}` : `${now.getFullYear() - 1}-${String(now.getFullYear()).slice(2)}`;
+
+        view.innerHTML = `
+            <div class="detail-card mb-4">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">📊 Reports</h3></div>
-                <div class="detail-card-body space-y-4">
-                    <p class="text-gray-500 text-sm">Generate periodic reports.</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button onclick="window.VaultGst?.setTile('gstr1');window.VaultPage?.activateTile('gstr1')" class="p-4 bg-green-50 border border-green-200 rounded-lg text-left hover:bg-green-100 transition-colors">
-                            <div class="font-semibold text-green-700">🇮🇳 GSTR-1 Report</div>
-                            <div class="text-xs text-gray-500">Monthly outward supply report</div>
-                        </button>
-                        <button onclick="window.VaultGst?.setTile('gstr3b');window.VaultPage?.activateTile('gstr3b')" class="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left hover:bg-blue-100 transition-colors">
-                            <div class="font-semibold text-blue-700">📊 GSTR-3B Report</div>
-                            <div class="text-xs text-gray-500">Monthly summary return</div>
-                        </button>
-                        <button onclick="window.VaultSummary.showDashboard();" class="p-4 bg-purple-50 border border-purple-200 rounded-lg text-left hover:bg-purple-100 transition-colors">
-                            <div class="font-semibold text-purple-700">📈 Outstanding Summary</div>
-                            <div class="text-xs text-gray-500">Client-wise balance overview</div>
-                        </button>
-                        <button onclick="window.VaultSummary._showBankRecon();" class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left hover:bg-yellow-100 transition-colors">
-                            <div class="font-semibold text-yellow-700">🏦 Bank Reconciliation</div>
-                            <div class="text-xs text-gray-500">Reconcile bank statements</div>
-                        </button>
+                <div class="detail-card-body">
+                    <div class="flex gap-2 mb-4 flex-wrap">
+                        <button data-report="pl" class="report-tab px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">📈 P&L</button>
+                        <button data-report="bs" class="report-tab px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors">📋 Balance Sheet</button>
+                        <button data-report="aging" class="report-tab px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors">📅 Aging</button>
+                    </div>
+                    <div id="reportContent">
+                        <p class="text-gray-400 text-sm text-center py-8">Select a report above to generate.</p>
                     </div>
                 </div>
             </div>`;
+
+        // Period selector for P&L
+        view.querySelectorAll('.report-tab').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                view.querySelectorAll('.report-tab').forEach(b => {
+                    b.className = b.className.replace('bg-indigo-600 text-white', 'bg-gray-200 text-gray-700');
+                });
+                btn.className = btn.className.replace('bg-gray-200 text-gray-700', 'bg-indigo-600 text-white');
+                const report = btn.dataset.report;
+                if (report === 'pl') await _showPL(currentFY);
+                else if (report === 'bs') await _showBalanceSheet();
+                else if (report === 'aging') await _showAgingReport();
+            });
+        });
         VaultPage.showDetailPane();
     }
 
+    async function _showPL(currentFY) {
+        const rc = document.getElementById('reportContent');
+        const now = new Date();
+        const currentPeriod = `${now.getMonth() + 1}-${now.getFullYear()}`;
+        rc.innerHTML = `
+            <div class="flex items-center gap-3 mb-4">
+                <select id="plPeriod" class="form-input text-sm w-auto">${_periodOptions(currentFY, currentPeriod)}</select>
+                <button id="plLoadBtn" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors">Load</button>
+            </div>
+            <div id="plResult"><p class="text-gray-400 text-sm text-center py-8">Select a period and click Load.</p></div>`;
+        document.getElementById('plLoadBtn').addEventListener('click', async () => {
+            const period = document.getElementById('plPeriod').value;
+            const dates = _periodToDates(period);
+            const result = document.getElementById('plResult');
+            result.innerHTML = '<div class="text-center text-gray-400 py-8">Loading…</div>';
+            try {
+                const res = await callApi(`/api/ledger/profit-loss?from_date=${dates.from}&to_date=${dates.to}`, {}, 'GET');
+                result.innerHTML = `
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="p-3 bg-green-50 rounded-lg border border-green-200 text-center">
+                            <div class="text-xs text-gray-500 uppercase">Income</div>
+                            <div class="text-lg font-bold text-green-700">₹${res.income_total.toFixed(2)}</div>
+                        </div>
+                        <div class="p-3 bg-red-50 rounded-lg border border-red-200 text-center">
+                            <div class="text-xs text-gray-500 uppercase">Expenses</div>
+                            <div class="text-lg font-bold text-red-700">₹${res.expense_total.toFixed(2)}</div>
+                        </div>
+                        <div class="p-3 ${res.net_profit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} rounded-lg border text-center">
+                            <div class="text-xs text-gray-500 uppercase">Net ${res.net_profit >= 0 ? 'Profit' : 'Loss'}</div>
+                            <div class="text-lg font-bold ${res.net_profit >= 0 ? 'text-green-700' : 'text-red-700'}">₹${Math.abs(res.net_profit).toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="detail-card">
+                            <div class="detail-card-header"><h4 class="font-semibold text-green-700 text-sm">Income</h4></div>
+                            <div class="detail-card-body max-h-60 overflow-y-auto">
+                                ${res.income_lines.length ? res.income_lines.map(l =>
+                                    `<div class="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                        <span><span class="text-gray-500 font-mono text-xs">${l.code}</span> ${l.name}</span>
+                                        <span class="font-semibold text-green-700">₹${l.amount.toFixed(2)}</span>
+                                    </div>`
+                                ).join('') : '<p class="text-gray-400 text-sm text-center py-4">No income entries</p>'}
+                            </div>
+                        </div>
+                        <div class="detail-card">
+                            <div class="detail-card-header"><h4 class="font-semibold text-red-700 text-sm">Expenses</h4></div>
+                            <div class="detail-card-body max-h-60 overflow-y-auto">
+                                ${res.expense_lines.length ? res.expense_lines.map(l =>
+                                    `<div class="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                        <span><span class="text-gray-500 font-mono text-xs">${l.code}</span> ${l.name}</span>
+                                        <span class="font-semibold text-red-700">₹${l.amount.toFixed(2)}</span>
+                                    </div>`
+                                ).join('') : '<p class="text-gray-400 text-sm text-center py-4">No expense entries</p>'}
+                            </div>
+                        </div>
+                    </div>`;
+            } catch (err) {
+                result.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load P&L'}</div>`;
+            }
+        });
+    }
+
+    async function _showBalanceSheet() {
+        const rc = document.getElementById('reportContent');
+        rc.innerHTML = '<div class="text-center text-gray-400 py-8">Loading…</div>';
+        try {
+            const res = await callApi('/api/ledger/balance-sheet', {}, 'GET');
+            rc.innerHTML = `
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="p-3 bg-blue-50 rounded-lg border border-blue-200 text-center">
+                        <div class="text-xs text-gray-500 uppercase">Total Assets</div>
+                        <div class="text-lg font-bold text-blue-700">₹${res.total_assets.toFixed(2)}</div>
+                    </div>
+                    <div class="p-3 bg-orange-50 rounded-lg border border-orange-200 text-center">
+                        <div class="text-xs text-gray-500 uppercase">Liabilities</div>
+                        <div class="text-lg font-bold text-orange-700">₹${res.total_liabilities.toFixed(2)}</div>
+                    </div>
+                    <div class="p-3 bg-purple-50 rounded-lg border border-purple-200 text-center">
+                        <div class="text-xs text-gray-500 uppercase">Equity</div>
+                        <div class="text-lg font-bold text-purple-700">₹${res.total_equity.toFixed(2)}</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="detail-card">
+                        <div class="detail-card-header"><h4 class="font-semibold text-blue-700 text-sm">Assets</h4></div>
+                        <div class="detail-card-body max-h-80 overflow-y-auto">
+                            ${res.assets.length ? res.assets.map(a =>
+                                `<div class="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                    <span class="text-gray-700">${a.code ? `<span class="font-mono text-xs text-gray-500">${a.code}</span> ` : ''}${a.name || a.code}</span>
+                                    <span class="font-semibold">₹${a.balance.toFixed(2)}</span>
+                                </div>`
+                            ).join('') : '<p class="text-gray-400 text-sm text-center py-4">No assets</p>'}
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-header"><h4 class="font-semibold text-orange-700 text-sm">Liabilities</h4></div>
+                        <div class="detail-card-body max-h-80 overflow-y-auto">
+                            ${res.liabilities.length ? res.liabilities.map(l =>
+                                `<div class="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                    <span class="text-gray-700">${l.code ? `<span class="font-mono text-xs text-gray-500">${l.code}</span> ` : ''}${l.name || l.code}</span>
+                                    <span class="font-semibold">₹${l.balance.toFixed(2)}</span>
+                                </div>`
+                            ).join('') : '<p class="text-gray-400 text-sm text-center py-4">No liabilities</p>'}
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-header"><h4 class="font-semibold text-purple-700 text-sm">Equity</h4></div>
+                        <div class="detail-card-body max-h-80 overflow-y-auto">
+                            ${res.equity.length ? res.equity.map(e =>
+                                `<div class="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                    <span class="text-gray-700">${e.code ? `<span class="font-mono text-xs text-gray-500">${e.code}</span> ` : ''}${e.name || e.code}</span>
+                                    <span class="font-semibold">₹${e.balance.toFixed(2)}</span>
+                                </div>`
+                            ).join('') : '<p class="text-gray-400 text-sm text-center py-4">No equity</p>'}
+                        </div>
+                    </div>
+                </div>`;
+        } catch (err) {
+            rc.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load balance sheet'}</div>`;
+        }
+    }
+
+    async function _showAgingReport() {
+        const rc = document.getElementById('reportContent');
+        rc.innerHTML = '<div class="text-center text-gray-400 py-8">Loading…</div>';
+        try {
+            const res = await callApi('/api/ledger/aging', {}, 'GET');
+            const buckets = res.buckets || {};
+            const colors = ['green', 'yellow', 'orange', 'red'];
+            const bucketKeys = ['0-30', '31-60', '61-90', '91+'];
+            rc.innerHTML = `
+                <div class="grid grid-cols-4 gap-3 mb-4">
+                    ${bucketKeys.map((k, i) => {
+                        const b = buckets[k] || { total: 0, count: 0 };
+                        const color = colors[i];
+                        return `<div class="p-3 bg-${color}-50 rounded-lg border border-${color}-200 text-center">
+                            <div class="text-xs text-gray-500 uppercase">${k} days</div>
+                            <div class="text-lg font-bold text-${color}-700">₹${b.total.toFixed(2)}</div>
+                            <div class="text-xs text-gray-400">${b.count} clients</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+                ${bucketKeys.filter(k => (buckets[k]?.items || []).length).map(k => {
+                    const color = colors[bucketKeys.indexOf(k)];
+                    const items = buckets[k].items || [];
+                    return `<div class="detail-card mb-3">
+                        <div class="detail-card-header"><h4 class="font-semibold text-${color}-700 text-sm">${k} Days — ₹${buckets[k].total.toFixed(2)}</h4></div>
+                        <div class="detail-card-body overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 text-xs uppercase text-gray-500">
+                                    <tr><th class="px-3 py-2">Code</th><th class="px-3 py-2">Name</th><th class="px-3 py-2 text-right">Balance</th><th class="px-3 py-2 text-right">Days</th></tr>
+                                </thead>
+                                <tbody>${items.map(item => `<tr class="border-b cursor-pointer hover:bg-gray-50" onclick="VaultSummary._showStatement('${item.code}')">
+                                    <td class="px-3 py-2 font-medium">${item.code}</td>
+                                    <td class="px-3 py-2 text-gray-600">${item.client_name || ''}</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-red-600">₹${item.balance.toFixed(2)}</td>
+                                    <td class="px-3 py-2 text-right">${item.days_overdue}d</td>
+                                </tr>`).join('')}</tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                }).join('') || '<p class="text-center text-gray-400 py-8">No outstanding entries.</p>'}`;
+        } catch (err) {
+            rc.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load aging'}</div>`;
+        }
+    }
+
+    // ── TILE: Bank Reconciliation ─────────────────────────────────────────────
     function _showBankRecon() {
         VaultPage.showDetail(true);
-        document.getElementById('vaultDetailView').innerHTML = `
-            <div class="detail-card">
+        const view = document.getElementById('vaultDetailView');
+        view.innerHTML = `
+            <div class="detail-card mb-4">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">🏦 Bank Reconciliation</h3></div>
                 <div class="detail-card-body">
-                    <p class="text-gray-400 text-sm py-8 text-center">Bank reconciliation module — Coming soon.</p>
+                    <p class="text-sm text-gray-600 mb-4">Paste bank statement transactions (TSV format: <code>date\\tref\\tdebit\\tcredit\\tnarration</code> per line, or JSON array).</p>
+                    <textarea id="bankStmtInput" rows="8" class="form-input text-xs font-mono mb-3" placeholder="2026-04-01\tNEFT123\t0\t50000\tPayment received&#10;2026-04-02\tCHQ001\t25000\t0\tCheque payment"></textarea>
+                    <div class="flex gap-2 mb-4">
+                        <button id="bankParseBtn" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">Parse & Match</button>
+                    </div>
+                    <div id="bankReconResult"></div>
                 </div>
             </div>`;
+
+        document.getElementById('bankParseBtn').addEventListener('click', () => _parseBankStmt());
         VaultPage.showDetailPane();
     }
 
-    // ── Pending Approvals — ACCOUNTANT+ ────────────────────────────────────────
-    let _pendingEntries = [];
+    async function _parseBankStmt() {
+        const result = document.getElementById('bankReconResult');
+        const raw = document.getElementById('bankStmtInput').value.trim();
+        if (!raw) { result.innerHTML = '<p class="text-red-500 text-sm">Paste bank statement data first.</p>'; return; }
 
-    function _renderPendingList() {
-        const ul = document.getElementById('vaultList');
-        if (!ul) return;
-        if (!_pendingEntries.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No pending entries. 🎉</li>';
+        let transactions = [];
+        // Try parsing as JSON first
+        try {
+            transactions = JSON.parse(raw);
+            if (!Array.isArray(transactions)) throw new Error('Not an array');
+        } catch {
+            // Parse as TSV
+            transactions = raw.split('\n').filter(l => l.trim()).map((line, i) => {
+                const parts = line.split('\t');
+                return {
+                    date: parts[0]?.trim() || '',
+                    ref: parts[1]?.trim() || '',
+                    debit: parseFloat(parts[2]) || 0,
+                    credit: parseFloat(parts[3]) || 0,
+                    narration: parts.slice(4).join(' ').trim() || ''
+                };
+            });
+        }
+
+        if (!transactions.length) {
+            result.innerHTML = '<p class="text-red-500 text-sm">No transactions parsed.</p>';
             return;
         }
-        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
-        ul.innerHTML = _pendingEntries.map(e => {
-            const icon = typeIcons[e.ENTRY_TYPE] || '📋';
-            const label = e.ENTRY_TYPE + (e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : '');
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
-                <strong class="text-yellow-800 block text-sm">${icon} ${e.CODE || '-'} — ${label}</strong>
-                <span class="text-xs text-gray-500">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : ''} · ${e.USER_NAME || e.STAFF_NAME || ''}</span>
-                <div class="text-xs mt-1">
-                    <span class="text-red-500">Dr: ₹${(+e.DEBIT||0).toFixed(2)}</span>
-                    <span class="text-green-500 ml-2">Cr: ₹${(+e.CREDIT||0).toFixed(2)}</span>
-                </div>
-            </li>`;
-        }).join('');
-        ul.querySelectorAll('li').forEach(li =>
-            li.addEventListener('click', () => {
-                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                _renderPendingDetail(li.dataset.entry);
-            })
+
+        // Fetch all ACTIVE PAYMENT entries from LEDGER to match against
+        const allLedger = await getAppData().then(d => d?.LEDGER ? Object.values(d.LEDGER) : []);
+        const payments = allLedger.filter(e =>
+            e.STATUS === 'ACTIVE' &&
+            e.ENTRY_TYPE === 'PAYMENT' &&
+            (e.PAYMENT_MODE === 'CHEQUE' || e.PAYMENT_MODE === 'NEFT' || e.PAYMENT_MODE === 'UPI')
         );
-        // Auto-select first
-        if (_pendingEntries.length) {
-            ul.querySelector('li')?.classList.add('selected');
-            _renderPendingDetail(_pendingEntries[0].ENTRY_ID);
+
+        // Match by amount + date proximity
+        const matched = [];
+        const unmatched = [];
+
+        for (const txn of transactions) {
+            const txnDate = new Date(txn.date).getTime();
+            const txnAmount = txn.credit || txn.debit;
+            const isCredit = txn.credit > 0;
+
+            // Find matching ledger entry
+            const match = payments.find(p => {
+                const pAmount = isCredit ? (+p.CREDIT || 0) : (+p.DEBIT || 0);
+                const pDate = +p.ENTRY_DATE || 0;
+                const dateDiff = Math.abs(pDate - txnDate);
+                const amountDiff = Math.abs(pAmount - txnAmount);
+                return amountDiff < 1 && (dateDiff < 7 * 24 * 60 * 60 * 1000); // 7 days window
+            });
+
+            if (match) {
+                matched.push({ txn, entry: match });
+            } else {
+                unmatched.push(txn);
+            }
         }
+
+        result.innerHTML = `
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="p-3 bg-green-50 rounded-lg border border-green-200 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Total Transactions</div>
+                    <div class="text-lg font-bold">${transactions.length}</div>
+                </div>
+                <div class="p-3 bg-blue-50 rounded-lg border border-blue-200 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Matched</div>
+                    <div class="text-lg font-bold text-blue-700">${matched.length}</div>
+                </div>
+                <div class="p-3 bg-red-50 rounded-lg border border-red-200 text-center">
+                    <div class="text-xs text-gray-500 uppercase">Unmatched</div>
+                    <div class="text-lg font-bold text-red-700">${unmatched.length}</div>
+                </div>
+            </div>
+            ${matched.length ? `<div class="detail-card mb-3">
+                <div class="detail-card-header"><h4 class="text-sm font-semibold text-blue-700">✅ Matched (${matched.length})</h4></div>
+                <div class="detail-card-body overflow-x-auto max-h-48 overflow-y-auto">
+                    <table class="min-w-full text-xs">
+                        <thead class="bg-gray-50"><tr>
+                            <th class="px-2 py-1">Date</th><th class="px-2 py-1">Ref</th><th class="px-2 py-1 text-right">Amount</th>
+                            <th class="px-2 py-1">Ledger</th><th class="px-2 py-1">Code</th>
+                        </tr></thead>
+                        <tbody>${matched.map(m => `<tr class="border-b">
+                            <td class="px-2 py-1">${m.txn.date}</td>
+                            <td class="px-2 py-1">${m.txn.ref}</td>
+                            <td class="px-2 py-1 text-right">₹${(m.txn.credit || m.txn.debit).toFixed(2)}</td>
+                            <td class="px-2 py-1">${m.entry.PAYMENT_MODE} ${m.entry.CHEQUE_NUMBER || m.entry.TXN_REF || ''}</td>
+                            <td class="px-2 py-1">${m.entry.CODE || ''}</td>
+                        </tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+            ${unmatched.length ? `<div class="detail-card">
+                <div class="detail-card-header"><h4 class="text-sm font-semibold text-red-700">❌ Unmatched (${unmatched.length})</h4></div>
+                <div class="detail-card-body overflow-x-auto max-h-48 overflow-y-auto">
+                    <table class="min-w-full text-xs">
+                        <thead class="bg-gray-50"><tr>
+                            <th class="px-2 py-1">Date</th><th class="px-2 py-1">Ref</th><th class="px-2 py-1 text-right">Amount</th>
+                            <th class="px-2 py-1">Narration</th>
+                        </tr></thead>
+                        <tbody>${unmatched.map(u => `<tr class="border-b">
+                            <td class="px-2 py-1">${u.date}</td>
+                            <td class="px-2 py-1">${u.ref}</td>
+                            <td class="px-2 py-1 text-right">₹${(u.credit || u.debit).toFixed(2)}</td>
+                            <td class="px-2 py-1 text-gray-500 truncate max-w-[200px]">${u.narration}</td>
+                        </tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>` : ''}`;
     }
 
-    function _renderPendingDetail(entryId) {
+    // ── TILE: Bulk Import ────────────────────────────────────────────────────
+    function showBulkImport() {
         VaultPage.showDetail(true);
-        const e = _pendingEntries.find(x => x.ENTRY_ID === entryId);
-        if (!e) return;
-        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
         const view = document.getElementById('vaultDetailView');
         view.innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">⏳ Pending — ${e.ENTRY_ID}</h3>
-                    <span class="flex gap-2">
-                        <button onclick="VaultSummary._approveEntry('${e.ENTRY_ID}', 'APPROVE')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Approve</button>
-                        <button onclick="VaultSummary._approveEntry('${e.ENTRY_ID}', 'REJECT')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">❌ Reject</button>
-                    </span>
-                </div>
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">📥 Bulk Import</h3></div>
                 <div class="detail-card-body">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                        <div><span class="text-gray-500">Entry ID:</span> <span class="font-mono">${e.ENTRY_ID}</span></div>
-                        <div><span class="text-gray-500">Date:</span> ${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500">Code:</span> ${e.CODE || 'N/A'}</div>
-                        <div><span class="text-gray-500">Type:</span> ${typeIcons[e.ENTRY_TYPE] || ''} ${e.ENTRY_TYPE}${e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : ''}</div>
-                        <div><span class="text-gray-500">Branch:</span> ${e.BRANCH || 'N/A'}</div>
-                        <div><span class="text-gray-500">Direction:</span> ${e.DIRECTION || 'N/A'}</div>
-                        <div><span class="text-gray-500">Debit:</span> <span class="text-red-600">₹${(+e.DEBIT||0).toFixed(2)}</span></div>
-                        <div><span class="text-gray-500">Credit:</span> <span class="text-green-600">₹${(+e.CREDIT||0).toFixed(2)}</span></div>
-                        <div><span class="text-gray-500">Created by:</span> ${e.USER_NAME || e.STAFF_NAME || 'N/A'}</div>
-                        ${e.PAYMENT_MODE ? `<div><span class="text-gray-500">Mode:</span> ${e.PAYMENT_MODE}</div>` : ''}
-                        ${e.EXPENSE_TYPE ? `<div><span class="text-gray-500">Expense Type:</span> ${e.EXPENSE_TYPE}</div>` : ''}
-                        ${e.CASH_ACCOUNT ? `<div><span class="text-gray-500">Cash Account:</span> ${e.CASH_ACCOUNT}</div>` : ''}
-                        ${e.NARRATION ? `<div class="col-span-3"><span class="text-gray-500">Narration:</span> ${e.NARRATION}</div>` : ''}
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Import Data (JSON array)</label>
+                        <textarea id="bulkImportInput" rows="10" class="form-input text-xs font-mono" placeholder='[
+        {"entry_type": "INVOICE", "entry_date": 1743465600000, "code": "ACME01", "amount": 50000, "direction": "OUTWARD", "branch": "DEL", "narration": "Bulk import invoice"}
+    ]'></textarea>
                     </div>
+                    <div class="flex gap-2 mb-4">
+                        <button id="bulkImportBtn" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            Import
+                        </button>
+                        <button id="bulkImportSample" class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors">Load Sample</button>
+                    </div>
+                    <div id="bulkImportResult"></div>
                 </div>
             </div>`;
-        VaultPage.showDetailPane();
-    }
 
-    // ── Bulk approve/reject ───────────────────────────────────────────────────
-    let _selectedForBulk = new Set();
+        document.getElementById('bulkImportBtn').addEventListener('click', async () => {
+            const result = document.getElementById('bulkImportResult');
+            const raw = document.getElementById('bulkImportInput').value.trim();
+            if (!raw) { result.innerHTML = '<p class="text-red-500 text-sm">Enter data first.</p>'; return; }
+            let rows;
+            try { rows = JSON.parse(raw); if (!Array.isArray(rows)) throw new Error('Not an array'); }
+            catch (e) { result.innerHTML = `<p class="text-red-500 text-sm">Invalid JSON: ${e.message}</p>`; return; }
+            if (!rows.length) { result.innerHTML = '<p class="text-red-500 text-sm">Empty array.</p>'; return; }
 
-    function _toggleBulkSelect(entryId) {
-        if (_selectedForBulk.has(entryId)) _selectedForBulk.delete(entryId);
-        else _selectedForBulk.add(entryId);
-        // Update checkbox visuals
-        document.querySelectorAll('#vaultList li[data-entry]').forEach(li => {
-            const cb = li.querySelector('input[type="checkbox"]');
-            if (cb) cb.checked = _selectedForBulk.has(li.dataset.entry);
-        });
-        const count = _selectedForBulk.size;
-        const bulkBar = document.getElementById('bulkActionBar');
-        if (bulkBar) {
-            bulkBar.classList.toggle('hidden', count === 0);
-            bulkBar.querySelector('.bulk-count').textContent = count;
-        }
-    }
-
-    async function _bulkApprove(action) {
-        if (!_selectedForBulk.size) return;
-        const reason = action === 'REJECT' ? prompt('Rejection reason (optional):') || '' : '';
-        const ids = [..._selectedForBulk];
-        if (!confirm(`${action === 'APPROVE' ? 'Approve' : 'Reject'} ${ids.length} entries?`)) return;
-        let success = 0, failed = 0;
-        for (const entryId of ids) {
+            result.innerHTML = '<div class="text-center text-gray-400 py-4">Importing…</div>';
             try {
-                await callApi('/api/ledger/approve', { entry_id: entryId, action, reason }, 'POST');
-                success++;
-            } catch { failed++; }
-        }
-        alert(`${action === 'APPROVE' ? 'Approved' : 'Rejected'} ${success}, failed ${failed}`);
-        _selectedForBulk.clear();
-        showPendingApprovals();
-    }
-
-    function _renderPendingList() {
-        const ul = document.getElementById('vaultList');
-        if (!ul) return;
-        if (!_pendingEntries.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No pending entries. 🎉</li>';
-            return;
-        }
-        // Add bulk action bar if not present
-        if (!document.getElementById('bulkActionBar')) {
-            const bulkBar = document.createElement('div');
-            bulkBar.id = 'bulkActionBar';
-            bulkBar.className = 'hidden flex items-center justify-between px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg mb-3';
-            bulkBar.innerHTML = `
-                <span class="text-sm text-yellow-800"><span class="bulk-count font-bold">0</span> selected</span>
-                <span class="flex gap-2">
-                    <button onclick="VaultSummary._bulkApprove('APPROVE')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Approve All</button>
-                    <button onclick="VaultSummary._bulkApprove('REJECT')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">❌ Reject All</button>
-                </span>`;
-            ul.parentElement.insertBefore(bulkBar, ul);
-        }
-        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
-        ul.innerHTML = _pendingEntries.map(e => {
-            const icon = typeIcons[e.ENTRY_TYPE] || '📋';
-            const label = e.ENTRY_TYPE + (e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : '');
-            const checked = _selectedForBulk.has(e.ENTRY_ID) ? 'checked' : '';
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" class="mt-1 flex-shrink-0" ${checked} onclick="event.stopPropagation();VaultSummary._toggleBulkSelect('${e.ENTRY_ID}')">
-                    <div class="flex-1" onclick="VaultSummary._showPendingDetail('${e.ENTRY_ID}')">
-                        <strong class="text-yellow-800 block text-sm">${icon} ${e.CODE || '-'} — ${label}</strong>
-                        <span class="text-xs text-gray-500">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : ''} · ${e.USER_NAME || e.STAFF_NAME || ''}</span>
-                        <div class="text-xs mt-1">
-                            <span class="text-red-500">Dr: ₹${(+e.DEBIT||0).toFixed(2)}</span>
-                            <span class="text-green-500 ml-2">Cr: ₹${(+e.CREDIT||0).toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-            </li>`;
-        }).join('');
-        ul.querySelectorAll('li input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('click', e => e.stopPropagation());
+                const res = await callApi('/api/ledger/bulk-import', { rows }, 'POST');
+                result.innerHTML = `
+                    <div class="p-3 ${res.failed > 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'} rounded-lg border text-sm">
+                        <strong>${res.created} entries created</strong>
+                        ${res.failed > 0 ? `, <span class="text-red-600">${res.failed} failed</span>` : ''}
+                        ${res.entries?.length ? `<details class="mt-2"><summary class="cursor-pointer text-xs font-medium text-gray-600">View detail</summary>
+                            <div class="mt-1 max-h-40 overflow-y-auto text-xs space-y-1">
+                                ${res.entries.map(e => `<div>#${e.row}: ${e.type} ${e.code} — ₹${e.amount.toFixed(2)} → ${e.entry_id}</div>`).join('')}
+                            </div>
+                        </details>` : ''}
+                        ${res.errors?.length ? `<div class="mt-2 text-xs text-red-600">${res.errors.map(e => `<div>#${e.row}: ${e.error}</div>`).join('')}</div>` : ''}
+                    </div>`;
+            } catch (err) {
+                result.innerHTML = `<div class="text-red-500 text-sm">❌ ${err.message || 'Import failed'}</div>`;
+            }
         });
-    }
 
-    function _showPendingDetail(entryId) {
-        _renderPendingDetail(entryId);
-    }
-
-    async function showPendingApprovals() {
-        _injectListPane();
-        document.getElementById('vaultSearch').placeholder = 'Search code, type, narration…';
-        document.getElementById('vaultSearch').oninput = _approveEntrySearch;
-        document.getElementById('vaultListMsg').textContent = '';
-        _selectedForBulk.clear();
-        try {
-            const res = await callApi('/api/ledger/pending', {}, 'GET');
-            _pendingEntries = res.data || [];
-            _renderPendingList();
-            // Auto-select first entry's detail
-            if (_pendingEntries.length) {
-                _showPendingDetail(_pendingEntries[0].ENTRY_ID);
-            }
-        } catch (err) {
-            document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;
-        }
-    }
-
-    function _approveEntrySearch() {
-        if (!_pendingEntries || !_pendingEntries.length) { _renderPendingList(); return; }
-        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        const filtered = _pendingEntries.filter(e =>
-            (e.CODE || '').toLowerCase().includes(q) ||
-            (e.ENTRY_TYPE || '').toLowerCase().includes(q) ||
-            (e.JOURNAL_TYPE || '').toLowerCase().includes(q) ||
-            (e.NARRATION || '').toLowerCase().includes(q) ||
-            (e.ENTRY_ID || '').toLowerCase().includes(q)
-        );
-        const ul = document.getElementById('vaultList');
-        if (filtered.length === _pendingEntries.length) { _renderPendingList(); return; }
-        if (!ul) return;
-        if (!filtered.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No matching entries.</li>';
-            return;
-        }
-        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
-        ul.innerHTML = filtered.map(e => {
-            const icon = typeIcons[e.ENTRY_TYPE] || '📋';
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
-                <strong class="text-yellow-800 block text-sm">${icon} ${e.CODE || '-'}</strong>
-                <span class="text-xs text-gray-500">${e.ENTRY_TYPE}${e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : ''}</span>
-            </li>`;
-        }).join('');
-        ul.querySelectorAll('li').forEach(li =>
-            li.addEventListener('click', () => {
-                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                _renderPendingDetail(li.dataset.entry);
-            })
-        );
-    }
-
-    async function _approveEntry(entryId, action) {
-        const reason = action === 'REJECT' ? prompt('Rejection reason (optional):') || '' : '';
-        try {
-            const res = await callApi('/api/ledger/approve', { entry_id: entryId, action, reason }, 'POST');
-            if (res.status === 'success') {
-                showPendingApprovals();
-            }
-        } catch (err) {
-            alert('Failed: ' + (err.message || err));
-        }
+        document.getElementById('bulkImportSample').addEventListener('click', () => {
+            const now = Date.now();
+            document.getElementById('bulkImportInput').value = JSON.stringify([
+                { entry_type: 'INVOICE', entry_date: now, code: 'SMPL01', amount: 25000, direction: 'OUTWARD', branch: 'DEL', narration: 'Sample bulk invoice', service_code: 'FRT' },
+                { entry_type: 'PAYMENT', entry_date: now, code: 'SMPL01', amount: 10000, direction: 'OUTWARD', branch: 'DEL', narration: 'Sample payment', payment_mode: 'NEFT', txn_ref: 'BULK001' },
+            ], null, 2);
+        });
+        VaultPage.showDetailPane();
     }
 
     // ── Chart of Accounts — hardcoded reference ──────────────────────────────
@@ -501,20 +720,16 @@ const VaultSummary = (() => {
         try {
             const res = await callApi('/api/coa', {}, 'GET');
             const accounts = res.data || [];
-
-            // Group by account type
             const groups = {};
             accounts.forEach(a => {
                 if (!groups[a.group]) groups[a.group] = [];
                 groups[a.group].push(a);
             });
-
             const groupOrder = ['Current Assets', 'Fixed Assets', 'Current Liabilities', 'Equity',
                 'Direct Income', 'Operating Income', 'Other Income',
                 'Direct Expenses', 'Employee Costs', 'Office Expenses',
                 'Vehicle Expenses', 'Administrative', 'Financial', 'Tax Expenses',
                 'Non-Cash Expenses', 'Other Expenses'];
-
             const total = accounts.length;
 
             function _renderAccounts(groups, groupOrder) {
@@ -527,12 +742,10 @@ const VaultSummary = (() => {
                     const isExpense = accs[0].type === 'Expense';
                     const bgColor = isAsset ? 'bg-blue-50 border-blue-200' :
                                     isLiability ? 'bg-orange-50 border-orange-200' :
-                                    isIncome ? 'bg-green-50 border-green-200' :
-                                    'bg-rose-50 border-rose-200';
+                                    isIncome ? 'bg-green-50 border-green-200' : 'bg-rose-50 border-rose-200';
                     const headerColor = isAsset ? 'text-blue-800' :
                                         isLiability ? 'text-orange-800' :
-                                        isIncome ? 'text-green-800' :
-                                        'text-rose-800';
+                                        isIncome ? 'text-green-800' : 'text-rose-800';
                     return `<div class="${bgColor} rounded-lg border p-3 mb-3">
                         <h4 class="${headerColor} text-xs font-bold uppercase tracking-wider mb-2">${grp}</h4>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
@@ -553,17 +766,13 @@ const VaultSummary = (() => {
                         <p class="text-xs text-gray-500">${total} accounts — hardcoded reference list</p>
                     </div>
                     <div class="relative">
-                        <input id="coaSearch" type="text" placeholder="Search code, name, group…"
-                            class="form-input text-sm w-64 pl-8">
+                        <input id="coaSearch" type="text" placeholder="Search code, name, group…" class="form-input text-sm w-64 pl-8">
                         <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
                 </div>
-                <div id="coaContainer">
-                    ${_renderAccounts(groups, groupOrder)}
-                </div>`;
+                <div id="coaContainer">${_renderAccounts(groups, groupOrder)}</div>`;
             VaultPage.showDetailPane();
 
-            // Live search
             document.getElementById('coaSearch').addEventListener('input', e => {
                 const q = e.target.value.toLowerCase();
                 const filtered = accounts.filter(a =>
@@ -575,27 +784,12 @@ const VaultSummary = (() => {
                     fGroups[a.group].push(a);
                 });
                 document.getElementById('coaContainer').innerHTML =
-                    filtered.length
-                        ? _renderAccounts(fGroups, groupOrder)
-                        : '<p class="text-center text-gray-400 py-8">No matching accounts.</p>';
+                    filtered.length ? _renderAccounts(fGroups, groupOrder) : '<p class="text-center text-gray-400 py-8">No matching accounts.</p>';
             });
         } catch (err) {
             view.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load'}</div>`;
             VaultPage.showDetailPane();
         }
-    }
-
-    // ── Bulk Import ──────────────────────────────────────────────────────────
-    function showBulkImport() {
-        VaultPage.showDetail(true);
-        document.getElementById('vaultDetailView').innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">📥 Bulk Import</h3></div>
-                <div class="detail-card-body">
-                    <p class="text-gray-400 text-sm py-8 text-center">Bulk import of ledger entries — Coming soon.</p>
-                </div>
-            </div>`;
-        VaultPage.showDetailPane();
     }
 
     // ── Load ──────────────────────────────────────────────────────────────────
@@ -609,12 +803,18 @@ const VaultSummary = (() => {
         if (_activeView === 'summary') {
             _renderSummaryList(_allLEDGER);
             showDashboard();
+        } else if (_activeView === 'reports') {
+            showReports();
+        } else if (_activeView === 'bank-recon') {
+            _showBankRecon();
+        } else if (_activeView === 'bulk-import') {
+            showBulkImport();
         }
     }
 
     function setView(view) { _activeView = view; }
 
-    return { load, search, showDashboard, showReports, showPendingApprovals, showChartOfAccounts, showBulkImport, _showStatement, _showBankRecon, _approveEntry, _toggleBulkSelect, _bulkApprove, _showPendingDetail, setView };
+    return { load, search, showDashboard, showReports, showChartOfAccounts, showBulkImport, _showStatement, _showBankRecon, setView };
 })();
 
 window.VaultSummary = VaultSummary;

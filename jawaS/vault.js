@@ -13,32 +13,32 @@ const VaultPage = (() => {
 
     // Minimum role to see each tile
     const TILE_MIN_ROLE = {
-        'sales-invoices':    'CLIENT',
+        'sales-invoices':    'MANAGER',
         'quotations':        'CLIENT',
-        'credit-notes':      'CLIENT',
+        'credit-notes':      'MANAGER',
         'delivery-notes':    'CLIENT',
         'customers':         'CLIENT',
         'service-items':     'MANAGER',
         'product-items':     'MANAGER',
         'billing':           'CLIENT',
-        'purchase-bills':    'CLIENT',
-        'debit-notes':       'CLIENT',
+        'purchase-bills':    'MANAGER',
+        'debit-notes':       'MANAGER',
         'suppliers':         'CLIENT',
         'inventory':         'MANAGER',
         'stock-transfers':   'MANAGER',
-        'receipts':          'CLIENT',
-        'payments':          'CLIENT',
-        'cheques':           'CLIENT',
+        'receipts':          'MANAGER',
+        'payments':          'MANAGER',
+        'cheques':           'ACCOUNTANT',
         'bank-accounts':     'ACCOUNTANT',
         'wallet':            'CLIENT',
-        'employees':         'CLIENT',
+        'employees':         'MANAGER',
         'payroll':           'MANAGER',
-        'expense-claims':    'CLIENT',
+        'expense-claims':    'MANAGER',
         'petty-cash':        'MANAGER',
         'staff-advances':    'MANAGER',
         'branch-advances':   'MANAGER',
         'chart-of-accounts': 'CLIENT',
-        'journal-entries':   'CLIENT',
+        'journal-entries':   'MANAGER',
         'recurring':         'ACCOUNTANT',
         'opening-balances':  'ACCOUNTANT',
         'pending-approvals': 'ACCOUNTANT',
@@ -50,8 +50,8 @@ const VaultPage = (() => {
         'tds-certs':         'ACCOUNTANT',
         'gst-filing':        'ACCOUNTANT',
         'purchase-register': 'ACCOUNTANT',
-        'summary':           'CLIENT',
-        'reports':           'CLIENT',
+        'summary':           'MANAGER',
+        'reports':           'ACCOUNTANT',
         'close-fy':          'ACCOUNTANT',
         'bank-recon':        'ACCOUNTANT',
         'bulk-import':       'ACCOUNTANT',
@@ -160,7 +160,7 @@ const VaultPage = (() => {
 
         // Determine which tile group this belongs to
         const receiptsTiles   = ['receipts', 'payments'];
-        const journalTiles    = ['journal-entries', 'credit-notes', 'debit-notes', 'opening-balances'];
+        const journalTiles    = ['journal-entries', 'credit-notes', 'opening-balances'];
         const purchasesTiles  = ['purchase-bills', 'suppliers'];
         const expenseTiles    = ['expense-claims', 'petty-cash', 'staff-advances', 'branch-advances'];
         const gstTiles        = ['gstr1', 'gstr3b', 'gst-filing', 'gstr2b', 'tds', 'tcs', 'tds-certs', 'purchase-register'];
@@ -217,7 +217,7 @@ const VaultPage = (() => {
         }
         else if (name === 'pending-approvals') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
-            await VaultSummary.showPendingApprovals();
+            await VaultPendingApprovals.load();
         }
         else if (name === 'sales-invoices') {
             document.getElementById('vaultAddBtn').onclick = () => VaultSalesInvoices.openAddPane();
@@ -226,6 +226,10 @@ const VaultPage = (() => {
         else if (name === 'credit-notes') {
             document.getElementById('vaultAddBtn').onclick = () => VaultCreditNotes.openAddPane();
             await VaultCreditNotes.load();
+        }
+        else if (name === 'debit-notes') {
+            document.getElementById('vaultAddBtn').onclick = () => VaultDebitNotes.openAddPane();
+            await VaultDebitNotes.load();
         }
         else if (name === 'customers') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
@@ -272,8 +276,8 @@ const VaultPage = (() => {
             await VaultPayroll.load();
         }
         else if (name === 'recurring') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
             VaultJournal._loadRecurring();
+            document.getElementById('vaultAddBtn').onclick = () => VaultJournal._openRecurringForm();
         }
         else if (name === 'close-fy') {
             document.getElementById('vaultAddBtn').classList.add('hidden');

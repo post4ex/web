@@ -7,6 +7,7 @@
 const VaultCOA = (() => {
 
     let _allAccounts = [];
+    let _allLedger   = [];
     let _currentGroup = null;
 
     // Group display order
@@ -33,6 +34,17 @@ const VaultCOA = (() => {
         if (type === 'Income')     return 'bg-green-50 border-green-200';
         if (type === 'Expense')    return 'bg-rose-50 border-rose-200';
         return 'bg-gray-50 border-gray-200';
+    }
+
+    function _computeBalance(code, normalBalance) {
+        let drTotal = 0, crTotal = 0;
+        _allLedger.filter(e => e.STATUS === 'ACTIVE').forEach(e => {
+            if (e.COA_DR === code) drTotal += (+e.DEBIT || 0);
+            if (e.COA_CR === code) crTotal += (+e.CREDIT || 0);
+        });
+        // Dr-normal (assets/expenses): balance = debits - credits
+        // Cr-normal (liabilities/income): balance = credits - debits
+        return normalBalance === 'Dr' ? drTotal - crTotal : crTotal - drTotal;
     }
 
     function _injectListPane() {
@@ -126,6 +138,7 @@ const VaultCOA = (() => {
                                     <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase text-xs w-20">Code</th>
                                     <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase text-xs">Account Name</th>
                                     <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase text-xs">Type</th>
+                                    <th class="px-4 py-2 text-right font-medium text-gray-500 uppercase text-xs w-24">Balance</th>
                                     <th class="px-4 py-2 text-center font-medium text-gray-500 uppercase text-xs w-16">Normal Bal</th>
                                 </tr>
                             </thead>
@@ -135,6 +148,14 @@ const VaultCOA = (() => {
                                         <td class="px-4 py-2 font-mono text-xs font-medium text-gray-500">${a.code}</td>
                                         <td class="px-4 py-2 font-medium text-gray-800">${a.name}</td>
                                         <td class="px-4 py-2 text-xs text-gray-500">${a.type}</td>
+                                        <td class="px-4 py-2 text-right text-xs">
+                                            ${(() => {
+                                                const bal = _computeBalance(a.code, a.normal_balance);
+                                                if (bal === 0) return '<span class="text-gray-400">—</span>';
+                                                const cls = bal > 0 ? 'text-green-600' : 'text-red-600';
+                                                return `<span class="font-medium ${cls}">₹${Math.abs(bal).toFixed(2)}</span>`;
+                                            })()}
+                                        </td>
                                         <td class="px-4 py-2 text-center">
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${a.normal_balance === 'Dr' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${a.normal_balance}</span>
                                         </td>
@@ -176,7 +197,7 @@ const VaultCOA = (() => {
         const detailRow = document.createElement('tr');
         detailRow.id = `coa-detail-${code}`;
         detailRow.innerHTML = `
-            <td colspan="4" class="px-6 py-4 bg-gray-50">
+            <td colspan="5" class="px-6 py-4 bg-gray-50">
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div><span class="text-xs text-gray-400 block">Code</span><span class="font-mono font-medium">${acc.code}</span></div>
                     <div><span class="text-xs text-gray-400 block">Name</span><span class="font-medium">${acc.name}</span></div>
@@ -184,6 +205,14 @@ const VaultCOA = (() => {
                     <div><span class="text-xs text-gray-400 block">Type</span><span class="${_typeColor(acc.type)} font-medium">${acc.type}</span></div>
                     <div><span class="text-xs text-gray-400 block">Normal Balance</span>
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${acc.normal_balance === 'Dr' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${acc.normal_balance}</span>
+                    </div>
+                    <div><span class="text-xs text-gray-400 block">Balance</span>
+                        ${(() => {
+                            const bal = _computeBalance(acc.code, acc.normal_balance);
+                            if (bal === 0) return '<span class="text-gray-400">₹0.00</span>';
+                            const cls = bal > 0 ? 'text-green-600' : 'text-red-600';
+                            return `<span class="font-medium ${cls}">₹${Math.abs(bal).toFixed(2)}</span>`;
+                        })()}
                     </div>
                 </div>
             </td>`;
@@ -194,8 +223,12 @@ const VaultCOA = (() => {
     async function load() {
         _injectListPane();
         try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            _allAccounts = res.data || [];
+            const [coaRes, appData] = await Promise.all([
+                callApi('/api/coa', {}, 'GET'),
+                getAppData(),
+            ]);
+            _allAccounts = coaRes.data || [];
+            _allLedger = Object.values(appData?.LEDGER || {});
             _renderList();
         } catch (err) {
             document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;

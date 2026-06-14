@@ -43,19 +43,37 @@ const VaultPayroll = (() => {
     // EMPLOYEES TILE
     // ========================================================================
 
-    function _renderEmployeesList(staff) {
+    function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const sorted = [...staff].sort((a, b) => (a.STAFF_NAME || '').localeCompare(b.STAFF_NAME || ''));
+        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
+        const filtered = q
+            ? _allStaff.filter(s =>
+                (s.STAFF_NAME || '').toLowerCase().includes(q) ||
+                (s.STAFF_CODE || '').toLowerCase().includes(q) ||
+                (s.BRANCH || '').toLowerCase().includes(q) ||
+                (s.DEPARTMENT || '').toLowerCase().includes(q) ||
+                (s.MOBILE || '').includes(q)
+              )
+            : _allStaff;
+        const sorted = [...filtered].sort((a, b) => (a.STAFF_NAME || '').localeCompare(b.STAFF_NAME || ''));
         if (!sorted.length) {
             ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No employees found.</li>';
             return;
         }
         ul.innerHTML = sorted.map(s => `
             <li data-code="${s.STAFF_CODE}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
-                <strong class="text-gray-800 block text-sm">${s.STAFF_NAME || 'N/A'}</strong>
-                <span class="text-xs text-gray-500">${s.STAFF_CODE || ''} · ${s.BRANCH || ''} · ${s.DEPARTMENT || ''}</span>
-                <div class="flex gap-1 mt-1">${_statusBadge(s.STATUS)} ${_roleBadge(s.ROLE)}</div>
+                <div class="flex items-start justify-between">
+                    <div>
+                        <strong class="text-gray-800 block text-sm">${s.STAFF_NAME || 'N/A'}</strong>
+                        <span class="text-xs text-gray-500">${s.STAFF_CODE || ''} · ${s.BRANCH || ''} · ${s.DEPARTMENT || ''}</span>
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                        ${_statusBadge(s.STATUS)}
+                    </div>
+                </div>
+                <div class="mt-1">${_roleBadge(s.ROLE)}</div>
+                ${s.MOBILE ? `<div class="text-xs text-gray-400 mt-1">📞 ${s.MOBILE}</div>` : ''}
             </li>`).join('');
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => {
@@ -75,7 +93,10 @@ const VaultPayroll = (() => {
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <h3 class="font-semibold text-gray-700">👤 Employee Detail</h3>
-                    ${_statusBadge(staff.STATUS)}
+                    <div class="flex gap-2 items-center">
+                        ${_statusBadge(staff.STATUS)}
+                        <button onclick="VaultPayroll._printEmployee('${staff.STAFF_CODE}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>
+                    </div>
                 </div>
                 <div class="detail-card-body">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -113,16 +134,7 @@ const VaultPayroll = (() => {
         VaultPage.showDetailPane();
     }
 
-    function _searchEmployees(q) {
-        const lq = q.toLowerCase();
-        _renderEmployeesList(_allStaff.filter(s =>
-            (s.STAFF_NAME || '').toLowerCase().includes(lq) ||
-            (s.STAFF_CODE || '').toLowerCase().includes(lq) ||
-            (s.BRANCH || '').toLowerCase().includes(lq) ||
-            (s.DEPARTMENT || '').toLowerCase().includes(lq) ||
-            (s.MOBILE || '').includes(lq)
-        ));
-    }
+
 
     // ========================================================================
     // SALARY STRUCTURE (stored in LEDGER as JOURNAL entries with JOURNAL_TYPE='SALARY_STRUCTURE')
@@ -386,6 +398,78 @@ const VaultPayroll = (() => {
     // PAYROLL TILE
     // ========================================================================
 
+    function _renderSalaryHistory() {
+        const salaryEntries = _allLedger
+            .filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY' && e.STATUS === 'ACTIVE')
+            .sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
+
+        if (!salaryEntries.length) {
+            return `
+                <div class="detail-card mb-4">
+                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">📤 Salary Payment History</h3></div>
+                    <div class="detail-card-body text-center text-gray-400 text-sm py-6">No salary payments processed yet.</div>
+                </div>`;
+        }
+
+        // Group by month for summary
+        const monthMap = {};
+        salaryEntries.forEach(e => {
+            const d = e.ENTRY_DATE ? new Date(e.ENTRY_DATE) : new Date();
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthMap[key]) monthMap[key] = { total: 0, count: 0 };
+            monthMap[key].total += (+e.DEBIT || 0);
+            monthMap[key].count += 1;
+        });
+
+        const recentMonths = Object.entries(monthMap).sort().reverse().slice(0, 6);
+
+        // Extract staff name from narration (format: "Salary YYYY-MM - Name - ₹amount")
+        function _extractName(narration) {
+            const m = (narration || '').match(/Salary \d{4}-\d{2} - (.+?) - ₹/);
+            return m ? m[1] : narration;
+        }
+
+        return `
+            <div class="detail-card mb-4">
+                <div class="detail-card-header flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">📤 Salary Payment History</h3>
+                    <span class="text-xs text-gray-500">${salaryEntries.length} payments</span>
+                </div>
+                <div class="detail-card-body">
+                    <!-- Monthly summary -->
+                    <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+                        ${recentMonths.map(([month, data]) => `
+                            <div class="border rounded-lg p-2 text-center bg-green-50">
+                                <div class="text-xs text-gray-500">${month}</div>
+                                <div class="text-sm font-bold text-green-700">₹${data.total.toFixed(2)}</div>
+                                <div class="text-xs text-gray-400">${data.count} emp</div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <!-- Recent payments list -->
+                    <div class="text-xs">
+                        <div class="font-semibold text-gray-600 mb-2">Recent Payments</div>
+                        <div class="space-y-1 max-h-64 overflow-y-auto">
+                            ${salaryEntries.slice(0, 20).map(e => {
+                                const staffName = _extractName(e.NARRATION);
+                                return `<div class="flex justify-between items-center py-1.5 border-b border-gray-100 last:border-0">
+                                    <div>
+                                        <span class="font-medium text-gray-700">${staffName}</span>
+                                        <span class="text-gray-400 ml-1">${e.CODE || ''}</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="font-medium text-green-700">₹${(+e.DEBIT||0).toFixed(2)}</span>
+                                        <span class="text-gray-400 ml-2">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : ''}</span>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
     function _renderPayrollDashboard() {
         const view = document.getElementById('vaultDetailView');
         const activeStaff = _allStaff.filter(s => s.STATUS === 'Active');
@@ -470,6 +554,9 @@ const VaultPayroll = (() => {
                 </div>
             </div>
 
+            <!-- Recent Salary Payments -->
+            ${_renderSalaryHistory()}
+
             <!-- Branch-wise Staff Count -->
             <div class="detail-card mb-4">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Branch-wise Strength</h3></div>
@@ -531,8 +618,13 @@ const VaultPayroll = (() => {
     // LOAD
     // ========================================================================
 
-    function search(q) {
-        if (_activeTile === 'employees') _searchEmployees(q);
+    function _printEmployee(staffCode) {
+        const staff = _allStaff.find(s => s.STAFF_CODE === staffCode);
+        if (staff) VaultPrint.printEmployee(staff);
+    }
+
+    function search() {
+        if (_activeTile === 'employees') _renderList();
     }
 
     async function load() {
@@ -547,8 +639,12 @@ const VaultPayroll = (() => {
 
         _injectListPane('Search name, code, department…');
 
+        // Wire search input
+        const searchInput = document.getElementById('vaultSearch');
+        if (searchInput) searchInput.oninput = () => search();
+
         if (_activeTile === 'employees') {
-            _renderEmployeesList(_allStaff);
+            _renderList();
             document.getElementById('vaultAddBtn').classList.add('hidden');
         } else if (_activeTile === 'payroll') {
             document.getElementById('vaultListPane').style.display = 'none';
@@ -562,7 +658,7 @@ const VaultPayroll = (() => {
 
     function setTile(tile) { _activeTile = tile; }
 
-    return { load, search, setTile, _openSalaryForm, _calcNet, _processMonthlySalary, _showSalaryListView };
+    return { load, search, setTile, _openSalaryForm, _calcNet, _processMonthlySalary, _showSalaryListView, _printEmployee };
 })();
 
 window.VaultPayroll = VaultPayroll;

@@ -1,15 +1,18 @@
 // ============================================================================
-// VAULT-DELIVERY-NOTES.JS — Delivery Notes (LEDGER-based, full charge breakdown)
-// Tile: delivery-notes
-// API: POST /api/ledger/journal with journal_type='DELIVERY_NOTE'
-// Data: LEDGER entries with ENTRY_TYPE='JOURNAL' && JOURNAL_TYPE='DELIVERY_NOTE'
+// VAULT-DEBIT-NOTES.JS — Debit Notes (inward, vendor-facing)
+// Tile: debit-notes
+// API: POST /api/ledger/inward/journal with journal_type='DEBIT_NOTE'
+// Data: LEDGER entries with DIRECTION='INWARD', ENTRY_TYPE='JOURNAL', JOURNAL_TYPE='DEBIT_NOTE'
 // Breakdown stored as JSON in NARRATION field.
 // ============================================================================
 
-const VaultDeliveryNotes = (() => {
+const VaultDebitNotes = (() => {
 
-    let _allLedger = [];
-    let _b2bMap    = new Map();
+    let _allLedger   = [];
+    let _b2bMap      = new Map();
+    let _carrierMap  = new Map();
+    let _branchMap   = new Map();
+    let _coaMap      = {};
 
     // ── Parse NARRATION ───────────────────────────────────────────────────────
     function _parseNarration(entry) {
@@ -22,27 +25,27 @@ const VaultDeliveryNotes = (() => {
 
     // ── Charge recalc ─────────────────────────────────────────────────────────
     function _recalc() {
-        function get(id) { return parseFloat(document.getElementById('dn_'+id)?.value || 0); }
+        function get(id) { return parseFloat(document.getElementById('db_'+id)?.value || 0); }
         const fright = get('fright'), fuel = get('fuel'), cod = get('cod'),
               topay = get('topay'), fov = get('fov'), eway = get('eway'),
               awb = get('awb'), pack = get('pack'), dev = get('dev');
         const subtotal = fright + fuel + cod + topay + fov + eway + awb + pack + dev;
         const taxable = subtotal;
-        const taxRate = parseFloat(document.getElementById('dn_tax_rate')?.value || 18);
-        const isInter = document.getElementById('dn_is_inter')?.checked || false;
+        const taxRate = parseFloat(document.getElementById('db_tax_rate')?.value || 18);
+        const isInter = document.getElementById('db_is_inter')?.checked || false;
         let sgst = 0, cgst = 0, igst = 0;
         if (isInter) { igst = taxable * (taxRate / 100); }
         else { sgst = taxable * (taxRate / 200); cgst = taxable * (taxRate / 200); }
         const grandTotal = taxable + sgst + cgst + igst;
 
-        document.getElementById('dn_subtotal').textContent = subtotal.toFixed(2);
-        document.getElementById('dn_taxable').textContent = taxable.toFixed(2);
-        document.getElementById('dn_sgst_val').textContent = sgst.toFixed(2);
-        document.getElementById('dn_cgst_val').textContent = cgst.toFixed(2);
-        document.getElementById('dn_igst_val').textContent = igst.toFixed(2);
-        document.getElementById('dn_grand_total').textContent = grandTotal.toFixed(2);
+        document.getElementById('db_subtotal').textContent = subtotal.toFixed(2);
+        document.getElementById('db_taxable').textContent = taxable.toFixed(2);
+        document.getElementById('db_sgst_val').textContent = sgst.toFixed(2);
+        document.getElementById('db_cgst_val').textContent = cgst.toFixed(2);
+        document.getElementById('db_igst_val').textContent = igst.toFixed(2);
+        document.getElementById('db_grand_total').textContent = grandTotal.toFixed(2);
 
-        const cd = document.getElementById('dn_computed');
+        const cd = document.getElementById('db_computed');
         cd.dataset.subtotal = subtotal;
         cd.dataset.taxable = taxable;
         cd.dataset.sgst = sgst;
@@ -52,9 +55,9 @@ const VaultDeliveryNotes = (() => {
         cd.dataset.isInter = isInter;
         cd.dataset.grandTotal = grandTotal;
 
-        document.getElementById('dn_sgst_row').classList.toggle('hidden', isInter);
-        document.getElementById('dn_cgst_row').classList.toggle('hidden', isInter);
-        document.getElementById('dn_igst_row').classList.toggle('hidden', !isInter);
+        document.getElementById('db_sgst_row').classList.toggle('hidden', isInter);
+        document.getElementById('db_cgst_row').classList.toggle('hidden', isInter);
+        document.getElementById('db_igst_row').classList.toggle('hidden', !isInter);
     }
 
     function _buildNarrationJson(d) {
@@ -74,9 +77,33 @@ const VaultDeliveryNotes = (() => {
         });
     }
 
+    // ── COA cache ─────────────────────────────────────────────────────────────
+    async function _loadCoaCache() {
+        try {
+            const res = await callApi('/api/coa', {}, 'GET');
+            if (res?.data) { res.data.forEach(a => _coaMap[a.code] = a); }
+        } catch {}
+    }
+
+    function _coaName(code) {
+        if (!code) return '';
+        const a = _coaMap[code];
+        return a ? `${a.code} — ${a.name}` : code;
+    }
+
     // ── List ──────────────────────────────────────────────────────────────────
     function _getEntries() {
-        return _allLedger.filter(e => e.JOURNAL_TYPE === 'DELIVERY_NOTE');
+        return _allLedger.filter(e =>
+            e.DIRECTION === 'INWARD' &&
+            e.ENTRY_TYPE === 'JOURNAL' &&
+            e.JOURNAL_TYPE === 'DEBIT_NOTE'
+        );
+    }
+
+    function _injectListPane() {
+        document.getElementById('vaultListMsg').textContent = '';
+        document.getElementById('vaultList').innerHTML = '';
+        document.getElementById('vaultSearch').placeholder = 'Search by code, vendor, narration…';
     }
 
     function _renderList() {
@@ -89,21 +116,25 @@ const VaultDeliveryNotes = (() => {
                 (e.CODE || '').toLowerCase().includes(q) ||
                 (e.CLIENT_NAME || '').toLowerCase().includes(q) ||
                 (e.NARRATION || '').toLowerCase().includes(q) ||
-                (e.ENTRY_ID || '').toLowerCase().includes(q)
+                (e.INV_NUMBER || '').toLowerCase().includes(q)
               )
             : entries;
         filtered.sort((a, b) => (b.ENTRY_DATE || 0) - (a.ENTRY_DATE || 0));
 
         if (!filtered.length) {
-            ul.innerHTML = `<li class=\"text-center text-gray-400 text-sm py-6\">No delivery notes found.</li>`;
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No debit notes found.</li>`;
             return;
         }
         ul.innerHTML = filtered.map(e => {
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-orange-50 border border-gray-200 transition-colors">
-                <strong class="text-orange-700 block text-sm">🚚 DC-${e.ENTRY_ID ? e.ENTRY_ID.substring(0, 8) : ''} — ${e.CLIENT_NAME || e.CODE || '—'}</strong>
-                <span class="text-xs text-gray-500">${_parseNarration(e)?.description || e.NARRATION ? e.NARRATION.substring(0, 60) : ''}</span>
+            const amt = (+e.DEBIT || 0).toFixed(2);
+            const statusColor = e.STATUS === 'ACTIVE' ? 'text-green-700' :
+                                e.STATUS === 'PENDING' ? 'text-yellow-700' :
+                                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700';
+            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-red-50 border border-gray-200 transition-colors">
+                <strong class="text-red-700 block text-sm">📄 ${e.CLIENT_NAME || e.CODE || ''} — Dr ₹${amt}</strong>
+                <span class="text-xs text-gray-500">${e.B2B_TYPE || e.VENDOR_TYPE || ''} · ${_parseNarration(e)?.description || ''}</span>
                 <div class="text-xs mt-1">
-                    <span class="font-medium ${e.STATUS === 'ACTIVE' ? 'text-green-700' : e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-500'}">${e.STATUS || ''}</span>
+                    <span class="${statusColor} font-medium">${e.STATUS || ''}</span>
                     <span class="text-gray-400"> · ${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''}</span>
                 </div>
             </li>`;
@@ -119,50 +150,22 @@ const VaultDeliveryNotes = (() => {
 
     function _printEntry(entryId) {
         const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (entry) VaultPrint.printDeliveryNote(entry);
+        if (entry) VaultPrint.printDebitNote(entry);
     }
 
-    function search(q) {
-        const lq = q.toLowerCase();
-        const ul = document.getElementById('vaultList');
-        if (!ul) return;
-        const entries = _getEntries();
-        const filtered = lq
-            ? entries.filter(e =>
-                (e.CODE || '').toLowerCase().includes(lq) ||
-                (e.CLIENT_NAME || '').toLowerCase().includes(lq) ||
-                (e.NARRATION || '').toLowerCase().includes(lq) ||
-                (e.ENTRY_ID || '').toLowerCase().includes(lq)
-              )
-            : entries;
-        filtered.sort((a, b) => (b.ENTRY_DATE || 0) - (a.ENTRY_DATE || 0));
-        if (!filtered.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No delivery notes found.</li>';
-            return;
-        }
-        ul.innerHTML = filtered.map(e => {
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-orange-50 border border-gray-200 transition-colors">
-                <strong class="text-orange-700 block text-sm">🚚 DC-${e.ENTRY_ID ? e.ENTRY_ID.substring(0, 8) : ''} — ${e.CLIENT_NAME || e.CODE || '—'}</strong>
-                <span class="text-xs text-gray-500">${_parseNarration(e)?.description || ''}</span>
-                <div class="text-xs mt-1">
-                    <span class="font-medium ${e.STATUS === 'ACTIVE' ? 'text-green-700' : e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-500'}">${e.STATUS || ''}</span>
-                    <span class="text-gray-400"> · ${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''}</span>
-                </div>
-            </li>`;
-        }).join('');
-    }
+    function search() { _renderList(); }
 
     // ── Delete ────────────────────────────────────────────────────────────────
     async function _handleDelete(entryId) {
         const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
         if (!entry || entry.STATUS === 'VOID') return;
-        if (!confirm('Delete this delivery note?')) return;
+        if (!confirm(`Delete this debit note? Dr ₹${(+entry.DEBIT||0).toFixed(2)}. This will void and recalculate balances.`)) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
             await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
             const appData = await getAppData();
             if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Delivery note voided.</p></div></div>`;
+            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Debit note deleted (voided).</p></div></div>`;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -173,8 +176,8 @@ const VaultDeliveryNotes = (() => {
         const view = document.getElementById('vaultDetailView');
         const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
         const isVoid = entry.STATUS === 'VOID';
-        const delBtn = isActive ? `<button onclick="VaultDeliveryNotes._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete</button>` : '';
-        const printBtn = isActive ? `<button onclick="VaultDeliveryNotes._printEntry('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>` : '';
+        const printBtn = isActive ? `<button onclick="VaultDebitNotes._printEntry('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>` : '';
+        const delBtn = isActive ? `<button onclick="VaultDebitNotes._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16\"/></svg> Delete</button>` : '';
 
         const parsed = _parseNarration(entry);
         const charges = parsed?.charges || {};
@@ -190,7 +193,7 @@ const VaultDeliveryNotes = (() => {
         const cgst = (parsed?.cgst || 0);
         const igst = (parsed?.igst || 0);
         const totalTax = sgst + cgst + igst;
-        const grandTotal = (parsed?.grand_total || 0);
+        const grandTotal = (parsed?.grand_total || +entry.DEBIT || 0);
         const taxRate = (parsed?.tax_percent || 0);
         const isInter = parsed?.is_inter_state || false;
         const description = parsed?.description || '';
@@ -214,30 +217,48 @@ const VaultDeliveryNotes = (() => {
                 <hr class="border-gray-200 my-1.5">
                 <div class="flex justify-between text-sm font-semibold"><span>Total Tax</span><span>₹${totalTax.toFixed(2)}</span></div>
             </div>` : ''}
-            <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 flex justify-between items-center mt-2">
-                <span class="text-sm font-bold text-orange-800">TOTAL VALUE</span>
-                <span class="text-lg font-bold text-orange-700">₹${grandTotal.toFixed(2)}</span>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3 flex justify-between items-center mt-2">
+                <span class="text-sm font-bold text-red-800">DEBIT AMOUNT</span>
+                <span class="text-lg font-bold text-red-700">₹${grandTotal.toFixed(2)}</span>
             </div>` : '';
+
+        const coaDr = _coaName(entry.COA_DR);
+        const coaCr = _coaName(entry.COA_CR);
+        const productCode = entry.PRODUCT_CODE || '';
+        const serviceCode = entry.SERVICE_CODE || '';
 
         view.innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">Delivery Note</h3>
+                    <h3 class="font-semibold text-gray-700">Debit Note</h3>
                     <div class="flex gap-2 items-center">
                         ${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : ''}
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">Dr ₹${grandTotal.toFixed(2)}</span>
                         ${printBtn}${delBtn}
                     </div>
                 </div>
                 <div class="detail-card-body">
                     <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg">
-                        <div><span class="text-gray-500">Client:</span> ${entry.CLIENT_NAME || entry.CODE || 'N/A'}</div>
+                        <div><span class="text-gray-500">Vendor:</span> <span class="font-semibold">${entry.CLIENT_NAME || entry.CODE || 'N/A'}</span></div>
                         <div><span class="text-gray-500">Status:</span> <span class="font-medium">${entry.STATUS || 'N/A'}</span></div>
                         <div><span class="text-gray-500">Date:</span> ${entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE) : 'N/A'}</div>
+                        <div><span class="text-gray-500">Type:</span> ${entry.B2B_TYPE || entry.VENDOR_TYPE || 'N/A'}</div>
                         <div><span class="text-gray-500">Branch:</span> ${entry.BRANCH_NAME || entry.BRANCH || 'N/A'}</div>
-                        <div><span class="text-gray-500">GST:</span> ${entry.CLIENT_GST || 'N/A'}</div>
+                        <div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>
+                        ${productCode ? `<div><span class="text-gray-500">Product:</span> <span class="font-medium text-red-700">${productCode}</span></div>` : ''}
+                        ${serviceCode ? `<div><span class="text-gray-500">Service:</span> <span class="font-medium">${serviceCode}</span></div>` : ''}
                     </div>
+
+                    <!-- COA mapping -->
+                    <div class="text-xs text-gray-400 mt-2 flex gap-4">
+                        <span>Dr: ${coaDr}</span>
+                        <span>Cr: ${coaCr}</span>
+                    </div>
+
                     ${description ? `<div class="text-sm text-gray-700 mt-2">📝 ${description}</div>` : ''}
+
                     ${breakdownHtml}
+
                     <details class="mt-4">
                         <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Audit Info</summary>
                         <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
@@ -251,50 +272,71 @@ const VaultDeliveryNotes = (() => {
         VaultPage.showDetailPane();
     }
 
-    // ── New Delivery Note Form (full breakdown) ─────────────────────────────
+    // ── New Debit Note Form (full charge breakdown) ──────────────────────────
     function openAddPane() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         view.innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">🚚 New Delivery Note</h3></div>
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">📄 New Debit Note</h3></div>
                 <div class="detail-card-body space-y-4">
-                    <form id="dnForm" class="space-y-4">
-                        <!-- Row 1: Client + Branch + Date -->
+                    <form id="dbForm" class="space-y-4">
+                        <!-- Row 1: Vendor + Type + Branch -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                                <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="dnCodeList" autocomplete="off">
-                                <datalist id="dnCodeList"></datalist>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Vendor Code *</label>
+                                <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. DELHIVERY" list="dbCodeList" autocomplete="off">
+                                <datalist id="dbCodeList"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Vendor Type *</label>
+                                <select name="vendor_type" class="form-input text-sm">
+                                    <option value="CARRIER">Carrier</option>
+                                    <option value="B2B">B2B (Vendor)</option>
+                                    <option value="SUPPLIER">Supplier</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                                <input name="branch" class="form-input text-sm uppercase" placeholder="Optional" list="dnBranchList">
-                                <datalist id="dnBranchList"></datalist>
+                                <select name="branch" class="form-input text-sm">
+                                    <option value="">All Branches</option>
+                                </select>
                             </div>
+                        </div>
+                        <!-- Row 2: Date + Products -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
                                 <input name="entry_date" type="date" required class="form-input text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
+                                <input name="inv_number" class="form-input text-sm" placeholder="Vendor invoice #">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Product Code</label>
+                                <input id="dbProductCode" class="form-input text-sm uppercase" placeholder="e.g. BOX-M" list="dbProductList" autocomplete="off">
+                                <datalist id="dbProductList"></datalist>
                             </div>
                         </div>
 
                         <!-- Charges -->
                         <div class="border rounded-lg p-3 bg-gray-50">
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operating Charges</div>
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operating Charges (Debit)</div>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                <div><label class="block text-xs text-gray-500">Freight</label><input id="dn_fright" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()" placeholder="0"></div>
-                                <div><label class="block text-xs text-gray-500">Fuel Surcharge</label><input id="dn_fuel" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">COD Charges</label><input id="dn_cod" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">ToPay Charges</label><input id="dn_topay" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">Insurance (FOV)</label><input id="dn_fov" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">E-Way Charges</label><input id="dn_eway" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">AWB Charges</label><input id="dn_awb" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">Packaging</label><input id="dn_pack" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">Development</label><input id="dn_dev" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDeliveryNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">Freight</label><input id="db_fright" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()" placeholder="0"></div>
+                                <div><label class="block text-xs text-gray-500">Fuel Surcharge</label><input id="db_fuel" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">COD Charges</label><input id="db_cod" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">ToPay Charges</label><input id="db_topay" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">Insurance (FOV)</label><input id="db_fov" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">E-Way Charges</label><input id="db_eway" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">AWB Charges</label><input id="db_awb" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">Packaging</label><input id="db_pack" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
+                                <div><label class="block text-xs text-gray-500">Development</label><input id="db_dev" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultDebitNotes._recalc()"></div>
                             </div>
                             <div class="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-gray-200">
                                 <span>Charges Subtotal</span>
-                                <span id="dn_subtotal" class="text-orange-700">0.00</span>
+                                <span id="db_subtotal" class="text-red-700">0.00</span>
                             </div>
                         </div>
 
@@ -304,7 +346,7 @@ const VaultDeliveryNotes = (() => {
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
                                 <div>
                                     <label class="block text-xs text-gray-500">GST Rate</label>
-                                    <select id="dn_tax_rate" class="form-input text-sm" onchange="VaultDeliveryNotes._recalc()">
+                                    <select id="db_tax_rate" class="form-input text-sm" onchange="VaultDebitNotes._recalc()">
                                         <option value="0">0% (No Tax)</option>
                                         <option value="5">5%</option>
                                         <option value="12">12%</option>
@@ -313,62 +355,72 @@ const VaultDeliveryNotes = (() => {
                                     </select>
                                 </div>
                                 <div class="flex items-center gap-2 pt-5">
-                                    <input id="dn_is_inter" type="checkbox" class="rounded border-gray-300" onchange="VaultDeliveryNotes._recalc()">
-                                    <label for="dn_is_inter" class="text-xs text-gray-600">Inter-State (IGST)</label>
+                                    <input id="db_is_inter" type="checkbox" class="rounded border-gray-300" onchange="VaultDebitNotes._recalc()">
+                                    <label for="db_is_inter" class="text-xs text-gray-600">Inter-State (IGST)</label>
                                 </div>
                             </div>
                             <div class="grid grid-cols-3 gap-3 mt-2 pt-2 border-t border-gray-200 text-sm">
-                                <div><span class="text-gray-500">Taxable:</span> <span id="dn_taxable" class="font-semibold">0.00</span></div>
-                                <div id="dn_sgst_row"><span class="text-gray-500">SGST:</span> <span id="dn_sgst_val" class="font-semibold">0.00</span></div>
-                                <div id="dn_cgst_row"><span class="text-gray-500">CGST:</span> <span id="dn_cgst_val" class="font-semibold">0.00</span></div>
-                                <div id="dn_igst_row" class="hidden"><span class="text-gray-500">IGST:</span> <span id="dn_igst_val" class="font-semibold">0.00</span></div>
+                                <div><span class="text-gray-500">Taxable:</span> <span id="db_taxable" class="font-semibold">0.00</span></div>
+                                <div id="db_sgst_row"><span class="text-gray-500">SGST:</span> <span id="db_sgst_val" class="font-semibold">0.00</span></div>
+                                <div id="db_cgst_row"><span class="text-gray-500">CGST:</span> <span id="db_cgst_val" class="font-semibold">0.00</span></div>
+                                <div id="db_igst_row" class="hidden"><span class="text-gray-500">IGST:</span> <span id="db_igst_val" class="font-semibold">0.00</span></div>
                             </div>
                         </div>
 
-                        <!-- Total -->
-                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 flex justify-between items-center">
-                            <span class="font-bold text-orange-800">TOTAL VALUE</span>
-                            <span id="dn_grand_total" class="text-xl font-bold text-orange-700">0.00</span>
+                        <!-- Grand Total -->
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 flex justify-between items-center">
+                            <span class="font-bold text-red-800">DEBIT AMOUNT</span>
+                            <span id="db_grand_total" class="text-xl font-bold text-red-700">0.00</span>
                         </div>
 
-                        <!-- Remarks -->
+                        <!-- Narration -->
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Details / Remarks *</label>
-                            <textarea name="narration" required class="form-input text-sm" rows="2" placeholder="Describe the delivery items / quantities"></textarea>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Reason / Narration *</label>
+                            <textarea name="narration" required class="form-input text-sm" rows="2" placeholder="Reason for debit note"></textarea>
                         </div>
 
                         <div class="flex justify-between items-center pt-2 border-t">
                             <div id="dnResponse" class="hidden text-sm"></div>
                             <button type="submit" class="btn btn-sm flex items-center gap-2 ml-auto">
-                                <span id="dnBtnText">Save Delivery Note</span>
+                                <span id="dbBtnText">Save Debit Note</span>
                                 <div id="dnSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
                         </div>
                     </form>
-                    <div id="dn_computed" data-subtotal="0" data-taxable="0" data-sgst="0" data-cgst="0" data-igst="0" data-taxPercent="18" data-isInter="false" data-grandTotal="0"></div>
+                    <div id="db_computed" data-subtotal="0" data-taxable="0" data-sgst="0" data-cgst="0" data-igst="0" data-taxPercent="18" data-isInter="false" data-grandTotal="0"></div>
                 </div>
             </div>`;
 
-        // Populate datalists
+        // Populate vendor + branch datalists
         getAppData().then(data => {
+            const dl = document.getElementById('dbCodeList');
             if (data?.B2B) Object.values(data.B2B).forEach(c => {
-                if (c.CODE) {
-                    const dl = document.getElementById('dnCodeList');
-                    const o = document.createElement('option');
-                    o.value = c.CODE; o.textContent = `${c.CODE} - ${c.B2B_NAME || ''}`;
-                    dl.appendChild(o);
-                }
+                if (c.CODE) { const o = document.createElement('option'); o.value = c.CODE; o.label = `${c.CODE} - ${c.B2B_NAME || ''}`; dl.appendChild(o); }
             });
+            if (data?.CARRIERS) Object.values(data.CARRIERS).forEach(c => {
+                if (c.COMPANY_CODE) { const o = document.createElement('option'); o.value = c.COMPANY_CODE; o.label = `${c.COMPANY_CODE} - ${c.COMPANY_NAME || ''}`; dl.appendChild(o); }
+            });
+            // Populate branch select
             if (data?.BRANCHES) Object.values(data.BRANCHES).forEach(b => {
                 if (b.BRANCH_CODE) {
-                    const dl = document.getElementById('dnBranchList');
-                    const o = document.createElement('option');
-                    o.value = b.BRANCH_CODE; o.textContent = b.BRANCH_NAME || b.BRANCH_CODE;
-                    dl.appendChild(o);
+                    const opt = document.createElement('option');
+                    opt.value = b.BRANCH_CODE;
+                    opt.textContent = b.BRANCH_NAME || b.BRANCH_CODE;
+                    document.querySelector('select[name="branch"]').appendChild(opt);
                 }
             });
             if (data?.B2B) Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
         });
+
+        // Populate product datalist
+        callApi('/api/product-items', {}, 'GET').then(res => {
+            if (res?.data) {
+                const pdl = document.getElementById('dbProductList');
+                res.data.forEach(p => {
+                    if (p.code) { const o = document.createElement('option'); o.value = p.code; o.label = `${p.code} — ${p.name} (${p.group})`; pdl.appendChild(o); }
+                });
+            }
+        }).catch(() => {});
 
         _recalc();
 
@@ -376,20 +428,20 @@ const VaultDeliveryNotes = (() => {
         if (d) d.value = new Date().toISOString().split('T')[0];
 
         // Submit
-        document.getElementById('dnForm').addEventListener('submit', async e => {
+        document.getElementById('dbForm').addEventListener('submit', async e => {
             e.preventDefault();
             const fd = new FormData(e.target);
             const raw = Object.fromEntries(fd);
-            const comp = document.getElementById('dn_computed').dataset;
+            const comp = document.getElementById('db_computed').dataset;
             const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('dnSpinner');
-            const resp = document.getElementById('dnResponse');
+            const sp = document.getElementById('dbSpinner');
+            const resp = document.getElementById('dbResponse');
             btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             const grandTotal = parseFloat(comp.grandTotal);
 
-            const getQ = (id) => parseFloat(document.getElementById('dn_'+id)?.value || 0);
+            const getQ = (id) => parseFloat(document.getElementById('db_'+id)?.value || 0);
             const chargeData = {
                 fright: getQ('fright'), fuel_chg: getQ('fuel'), cod_chg: getQ('cod'),
                 topay_chg: getQ('topay'), fov_chg: getQ('fov'), eway_chg: getQ('eway'),
@@ -397,10 +449,11 @@ const VaultDeliveryNotes = (() => {
             };
 
             try {
-                const res = await callApi('/api/ledger/journal', {
+                const res = await callApi('/api/ledger/inward/journal', {
                     code: raw.code,
+                    vendor_type: raw.vendor_type.toUpperCase(),
                     entry_date: toMs(raw.entry_date),
-                    journal_type: 'DELIVERY_NOTE',
+                    journal_type: 'DEBIT_NOTE',
                     narration: _buildNarrationJson({
                         description: raw.narration || '',
                         ...chargeData,
@@ -414,20 +467,12 @@ const VaultDeliveryNotes = (() => {
                         grand_total: grandTotal,
                     }),
                     branch: raw.branch || '',
-                    debit: 0.01,
+                    debit: grandTotal,
                     credit: 0,
-                    taxable_amt: parseFloat(comp.taxable),
-                    cgst: parseFloat(comp.cgst),
-                    sgst: parseFloat(comp.sgst),
-                    igst: parseFloat(comp.igst),
-                    total_amount: grandTotal,
-                    tax_type: 'GST',
-                    tax_schema: comp.isInter === 'true' ? 'REVERSE' : 'FORWARD',
-                    tax_percent: parseFloat(comp.taxPercent),
-                    service_code: '',
+                    product_code: (document.getElementById('dbProductCode')?.value || '').toUpperCase(),
                 }, 'POST');
                 resp.className = 'mt-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded';
-                resp.textContent = `✅ Delivery note saved. Value: ₹${grandTotal.toFixed(2)}`;
+                resp.textContent = `✅ Debit Note saved. Dr ₹${grandTotal.toFixed(2)}`;
                 resp.classList.remove('hidden');
                 e.target.reset();
                 if (d) d.value = new Date().toISOString().split('T')[0];
@@ -445,16 +490,21 @@ const VaultDeliveryNotes = (() => {
         VaultPage.showDetailPane();
     }
 
+    // ── Load ──────────────────────────────────────────────────────────────────
     async function load() {
-        document.getElementById('vaultListMsg').textContent = '';
-        document.getElementById('vaultList').innerHTML = '';
-        document.getElementById('vaultSearch').placeholder = 'Search by code, client, narration…';
-        document.getElementById('vaultSearch').oninput = (e) => search(e.target ? e.target.value : '');
+        _injectListPane();
+        const searchInput = document.getElementById('vaultSearch');
+        if (searchInput) searchInput.oninput = () => search();
+        await _loadCoaCache();
         const data = await getAppData();
         if (data?.LEDGER) {
             _allLedger = Object.values(data.LEDGER);
             _b2bMap.clear();
             if (data.B2B) Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
+            _carrierMap.clear();
+            if (data.CARRIERS) Object.values(data.CARRIERS).forEach(c => c.COMPANY_CODE && _carrierMap.set(c.COMPANY_CODE, c));
+            _branchMap.clear();
+            if (data.BRANCHES) Object.values(data.BRANCHES).forEach(b => b.BRANCH_CODE && _branchMap.set(b.BRANCH_CODE, b));
             _renderList();
         }
     }
@@ -462,4 +512,4 @@ const VaultDeliveryNotes = (() => {
     return { load, search, openAddPane, _handleDelete, _recalc, _printEntry };
 })();
 
-window.VaultDeliveryNotes = VaultDeliveryNotes;
+window.VaultDebitNotes = VaultDebitNotes;
