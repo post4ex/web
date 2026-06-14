@@ -9,6 +9,7 @@ const VaultPurchases = (() => {
     let _allLedger = [];
     let _b2bMap = new Map();
     let _carrierMap = new Map();
+    let _branchMap = new Map();
 
     function _can(role) { return window.VaultPage?.can(role); }
 
@@ -53,12 +54,31 @@ const VaultPurchases = (() => {
         ));
     }
 
+    async function _handleDelete(entryId) {
+        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
+        if (!entry || entry.STATUS === 'VOID') return;
+        if (!confirm(`Delete this purchase bill? ₹${(+entry.CREDIT||0).toFixed(2)}. This will void and recalculate balances.`)) return;
+        const reason = prompt('Reason (optional):', '') || '';
+        try {
+            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
+            const appData = await getAppData();
+            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(_allLedger); }
+            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Purchase bill deleted (voided).</p></div></div>`;
+        } catch (err) { alert('Failed: ' + (err.message || err)); }
+    }
+
     function _renderDetail(entry) {
         if (!entry) return;
         VaultPage.showDetail(true);
+        const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
+        const isVoid = entry.STATUS === 'VOID';
+        const delBtn = isActive ? `<button onclick="VaultPurchases._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete</button>` : '';
         document.getElementById('vaultDetailView').innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Purchase Bill Detail</h3></div>
+                <div class="detail-card-header flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">Purchase Bill Detail</h3>
+                    <div class="flex gap-2">${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : delBtn}</div>
+                </div>
                 <div class="detail-card-body">
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div><span class="text-gray-500">Entry ID:</span> ${entry.ENTRY_ID}</div>
@@ -106,6 +126,12 @@ const VaultPurchases = (() => {
                             </select>
                         </div>
                         <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+                            <select name="branch" class="form-input text-sm">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
                             <input name="entry_date" type="date" required class="form-input text-sm">
                         </div>
@@ -143,6 +169,17 @@ const VaultPurchases = (() => {
                 </div>
             </div>`;
 
+        // Populate branch dropdown right after form is injected
+        const branchSelect = document.querySelector('select[name="branch"]');
+        if (branchSelect) {
+            _branchMap.forEach((v, k) => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = v.BRANCH_NAME || k;
+                branchSelect.appendChild(opt);
+            });
+        }
+
         document.getElementById('purchaseForm').addEventListener('submit', async e => {
             e.preventDefault();
             const fd = new FormData(e.target);
@@ -161,7 +198,7 @@ const VaultPurchases = (() => {
                     amount: parseFloat(data.amount),
                     narration: data.narration || '',
                     inv_number: data.inv_number || '',
-                    branch: '',
+                    branch: data.branch || '',
                     vendor_taxable: parseFloat(data.vendor_taxable) || 0,
                     vendor_cgst: parseFloat(data.vendor_cgst) || 0,
                     vendor_sgst: parseFloat(data.vendor_sgst) || 0,
@@ -197,11 +234,13 @@ const VaultPurchases = (() => {
             if (data.B2B) Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
             _carrierMap.clear();
             if (data.CARRIERS) Object.values(data.CARRIERS).forEach(c => c.COMPANY_CODE && _carrierMap.set(c.COMPANY_CODE, c));
+            _branchMap.clear();
+            if (data.BRANCHES) Object.values(data.BRANCHES).forEach(b => b.BRANCH_CODE && _branchMap.set(b.BRANCH_CODE, b));
             _renderList(_allLedger);
         }
     }
 
-    return { load, search, openAddPane };
+    return { load, search, openAddPane, _handleDelete };
 })();
 
 window.VaultPurchases = VaultPurchases;

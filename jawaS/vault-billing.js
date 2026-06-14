@@ -49,9 +49,9 @@ const VaultBilling = (() => {
             <td>${s.AWB_NUMBER||'N/A'}: ${s.CARRIER||'N/A'}</td>
             <td class="tc">${s.MODE||'N/A'}</td><td class="tc">${String(s.PIECS||1).padStart(2,'0')}</td>
             <td>${s.DEST_PINCODE||''}: ${s.DEST_CITY||'N/A'}</td>
-            <td class="tr">${(+s.CHG_WT||0).toFixed(2)}</td>
-            <td class="tr">&#8377;${(+s.FRIGHT||0).toFixed(2)}</td></tr>`).join('');
+            <td class="tr">${(+s.CHG_WT||0).toFixed(2)}</td>                            <td class="tr">&#8377;${(+s.FRIGHT||0).toFixed(2)}</td></tr>`).join('');
 
+        // Use pre-calculated totals from consolidated invoice object (authoritative)
         const chargeRows = [
             ['Fright',tFright,true],['Fuel Charge',tFuel,false],['COD Charge',tCod,false],
             ['Topay Charge',tTopay,false],['Insurance',tFov,false],['Eway Handle',tEway,false],
@@ -59,7 +59,10 @@ const VaultBilling = (() => {
             ['Taxable Amount',tTaxable,true],['SGST',tSgst,false],['CGST',tCgst,false],['IGST',tIgst,false],
         ].filter(([,v,a])=>a||v>0).map(([l,v])=>`<tr><td>${l}</td><td class="tr">${v.toFixed(2)}</td></tr>`).join('');
 
-        const qrUrl = branchUpi ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${tTotal.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent('INV-'+invNum)}` : '';
+        // Use consolidated grand total from the invoice totals (not re-summed)
+        const grandTotal = inv.TOTAL || tTotal;
+
+        const qrUrl = branchUpi ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${grandTotal.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent('INV-'+invNum)}` : '';
 
         const css = `body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0;padding:20px;background:#f5f5f5}
         .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15)}
@@ -89,8 +92,8 @@ const VaultBilling = (() => {
             <tbody>${rows}</tbody>
             <tfoot><tr style="font-weight:bold"><td colspan="4" class="tr">Totals</td><td class="tc">${tPiecs}</td><td></td><td class="tr">${tChgWt.toFixed(2)}</td><td class="tr">${tFright.toFixed(2)}</td></tr></tfoot></table>
             <div class="tot">
-                <div class="pay">${branchUpi?`<p><b>Pay via UPI:</b></p><img src="${qrUrl}" style="width:120px;height:120px;margin:10px 0;border:1px solid #ddd"><p>Name: ${branchUpiName}<br>UPI ID: ${branchUpi}<br><b>Note:</b> INV-${invNum}</p>`:''}<p><b>Amount in words:</b><br>Rupees ${numToWords(Math.round(tTotal))} Only</p></div>
-                <div class="chg"><table><thead><tr><th>Charge</th><th class="tr">Amount</th></tr></thead><tbody>${chargeRows}<tr style="font-weight:bold"><td>Total Amount</td><td class="tr">${tTotal.toFixed(2)}</td></tr></tbody></table></div>
+                <div class="pay">${branchUpi?`<p><b>Pay via UPI:</b></p><img src="${qrUrl}" style="width:120px;height:120px;margin:10px 0;border:1px solid #ddd"><p>Name: ${branchUpiName}<br>UPI ID: ${branchUpi}<br><b>Note:</b> INV-${invNum}</p>`:''}<p><b>Amount in words:</b><br>Rupees ${numToWords(Math.round(grandTotal))} Only</p></div>
+                <div class="chg"><table><thead><tr><th>Charge</th><th class="tr">Amount</th></tr></thead><tbody>${chargeRows}<tr style="font-weight:bold"><td>Total Amount</td><td class="tr">${grandTotal.toFixed(2)}</td></tr></tbody></table></div>
             </div>
             <div class="terms"><b>Terms &amp; Conditions:</b><ol><li>All disputes subject to ${branchCity} Jurisdiction.</li><li>Payment due on receipt.</li><li>Computer-generated bill; no signature required.</li><li>Dev. charges of 5% waived if paid within 10 days.</li><li>SAC Code 996812 (Courier Services).</li></ol></div>
             <div class="sig"><div class="sigbox"><p style="margin-bottom:40px">Authorized Signatory</p><p>for ${branchName}</p></div></div>
@@ -493,8 +496,9 @@ const VaultBilling = (() => {
 
             const btn = document.getElementById('vbCloseInvConfirm');
             btn.disabled = true; btn.textContent = 'Saving...';
+            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                const res = await callApi('/api/closeInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: invDate });
+                const res = await callApi('/api/closeInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: toMs(invDate) });
                 if (res.status === 'success') {
                     modal.remove();
                     _showInvoiceBanner(res.inv_number, invDate, res.updated);

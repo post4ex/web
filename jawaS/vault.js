@@ -52,6 +52,7 @@ const VaultPage = (() => {
         'purchase-register': 'ACCOUNTANT',
         'summary':           'CLIENT',
         'reports':           'CLIENT',
+        'close-fy':          'ACCOUNTANT',
         'bank-recon':        'ACCOUNTANT',
         'bulk-import':       'ACCOUNTANT',
     };
@@ -96,6 +97,7 @@ const VaultPage = (() => {
         'purchase-register': 'Purchase Register',
         'summary':           'Summary',
         'reports':           'Reports',
+        'close-fy':          'Close FY',
         'bank-recon':        'Bank Recon',
         'bulk-import':       'Bulk Import',
     };
@@ -218,11 +220,11 @@ const VaultPage = (() => {
             await VaultSummary.showPendingApprovals();
         }
         else if (name === 'sales-invoices') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultAddBtn').onclick = () => VaultSalesInvoices.openAddPane();
             await VaultSalesInvoices.load();
         }
         else if (name === 'credit-notes') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultAddBtn').onclick = () => VaultCreditNotes.openAddPane();
             await VaultCreditNotes.load();
         }
         else if (name === 'customers') {
@@ -230,12 +232,20 @@ const VaultPage = (() => {
             await VaultCustomers.load();
         }
         else if (name === 'quotations') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultAddBtn').onclick = () => VaultQuotations.openAddPane();
             await VaultQuotations.load();
         }
         else if (name === 'delivery-notes') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            document.getElementById('vaultAddBtn').onclick = () => VaultDeliveryNotes.openAddPane();
             await VaultDeliveryNotes.load();
+        }
+        else if (name === 'service-items') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultServiceItems.load();
+        }
+        else if (name === 'product-items') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultProductItems.load();
         }
         else if (name === 'chart-of-accounts') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
@@ -264,6 +274,10 @@ const VaultPage = (() => {
         else if (name === 'recurring') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             VaultJournal._loadRecurring();
+        }
+        else if (name === 'close-fy') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultCloseFY.load();
         }
         else if (summaryTiles.includes(name)) {
             document.getElementById('vaultAddBtn').classList.add('hidden');

@@ -61,27 +61,53 @@ const VaultAccounts = (() => {
         );
     }
 
+    async function _updateChequeStatus(entryId, newStatus) {
+        const note = newStatus === 'BOUNCED' ? (prompt('Reason for bounce:') || '') : '';
+        try {
+            const res = await callApi('/api/ledger/cheque-status', { entry_id: entryId, cheque_status: newStatus, note }, 'PATCH');
+            if (res.status === 'success') {
+                const appData = await getAppData();
+                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
+                _renderChequesList(_allLedger);
+                _renderChequeDetail(_allLedger.find(e => e.ENTRY_ID === entryId));
+            }
+        } catch (err) { alert('Failed: ' + (err.message || err)); }
+    }
+
     function _renderChequeDetail(entry) {
         if (!entry) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         const amt = (+entry.CREDIT || +entry.DEBIT || 0);
         const dir = entry.DIRECTION === 'INWARD' ? 'Payment to vendor' : 'Receipt from client';
+        const isActive = entry.STATUS === 'ACTIVE';
+        const chqStatus = entry.CHEQUE_STATUS || 'PENDING';
+        const chqStatusBadge = chqStatus === 'CLEARED' ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ CLEARED</span>' :
+            chqStatus === 'BOUNCED' ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">💥 BOUNCED</span>' :
+            '<span class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ PENDING</span>';
+        const actionBtns = isActive && chqStatus === 'PENDING' ? `
+            <span class="flex gap-2 mt-3">
+                <button onclick="VaultAccounts._updateChequeStatus('${entry.ENTRY_ID}', 'CLEARED')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Mark Cleared</button>
+                <button onclick="VaultAccounts._updateChequeStatus('${entry.ENTRY_ID}', 'BOUNCED')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">💥 Mark Bounced</button>
+            </span>` : '';
         view.innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">🏦 Cheque Detail</h3></div>
                 <div class="detail-card-body">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div class="sm:col-span-2 bg-blue-50 rounded-lg p-4 border border-blue-200">
-                            <div class="text-lg font-bold text-blue-800">₹${amt.toFixed(2)}</div>
-                            <div class="text-xs text-blue-600">${dir}</div>
+                            <div class="flex items-center justify-between">
+                                <div><div class="text-lg font-bold text-blue-800">₹${amt.toFixed(2)}</div><div class="text-xs text-blue-600">${dir}</div></div>
+                                <div>${chqStatusBadge}</div>
+                            </div>
+                            ${actionBtns}
                         </div>
                         <div><span class="text-gray-500">Cheque No:</span> <span class="font-semibold">${entry.CHEQUE_NUMBER || 'N/A'}</span></div>
                         <div><span class="text-gray-500">Cheque Date:</span> ${entry.CHEQUE_DATE ? _fmt(entry.CHEQUE_DATE) : 'N/A'}</div>
                         <div><span class="text-gray-500">Bank:</span> ${entry.BANK_NAME || 'N/A'}</div>
                         <div><span class="text-gray-500">Client/Vendor:</span> ${entry.CODE || 'N/A'}</div>
                         <div><span class="text-gray-500">Direction:</span> ${entry.DIRECTION || 'N/A'}</div>
-                        <div><span class="text-gray-500">Status:</span> ${entry.STATUS || 'N/A'}</div>
+                        <div><span class="text-gray-500">Ledger Status:</span> ${entry.STATUS || 'N/A'}</div>
                         <div><span class="text-gray-500">Entry ID:</span> <span class="font-mono text-xs">${entry.ENTRY_ID || 'N/A'}</span></div>
                         <div><span class="text-gray-500">Entry Date:</span> ${entry.ENTRY_DATE ? _fmt(entry.ENTRY_DATE) : 'N/A'}</div>
                         ${entry.AGAINST_ENTRY ? `<div><span class="text-gray-500">Against:</span> ${entry.AGAINST_ENTRY}</div>` : ''}
@@ -231,6 +257,16 @@ const VaultAccounts = (() => {
     // BANK ACCOUNTS TILE
     // ========================================================================
 
+    function _computeBankBalance(code) {
+        let balance = 0;
+        const entries = _allLedger.filter(e => e.STATUS === 'ACTIVE' && e.CODE === code);
+        entries.forEach(e => {
+            if (e.DIRECTION === 'OUTWARD') balance += (+e.DEBIT||0) - (+e.CREDIT||0);
+            else balance += (+e.CREDIT||0) - (+e.DEBIT||0);
+        });
+        return balance;
+    }
+
     function _renderBankAccounts() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
@@ -245,6 +281,7 @@ const VaultAccounts = (() => {
             ifsc: b.BRANCH_IFSC || '',
             upi: b.BRANCH_UPI || '',
             upiName: b.BRANCH_UPI_NAME || '',
+            balance: _computeBankBalance(b.BRANCH_CODE),
         }));
 
         // Collect bank accounts from carriers
@@ -257,33 +294,37 @@ const VaultAccounts = (() => {
             ifsc: c.IFSC || '',
             upi: c.UPI || '',
             upiName: '',
+            balance: _computeBankBalance(c.COMPANY_CODE),
         }));
 
         const allAccounts = [...branchAccounts, ...carrierAccounts];
         const total = allAccounts.length;
+        const totalBalance = allAccounts.reduce((s, a) => s + a.balance, 0);
 
         view.innerHTML = `
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h3 class="text-lg font-bold text-gray-800">🏛️ Bank Accounts</h3>
-                    <p class="text-xs text-gray-500">${total} accounts from branches &amp; carriers</p>
+                    <p class="text-xs text-gray-500">${total} accounts · Total: ₹${totalBalance.toFixed(2)}</p>
                 </div>
             </div>
             ${total ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                ${allAccounts.map(a => `
-                    <div class="detail-card hover:shadow-md transition-shadow">
+                ${allAccounts.map(a => {
+                    const balClass = a.balance >= 0 ? 'text-green-600' : 'text-red-600';
+                    return `<div class="detail-card hover:shadow-md transition-shadow">
                         <div class="detail-card-header flex items-center justify-between">
                             <h3 class="font-semibold text-gray-700 text-sm">${a.bank || 'N/A'}</h3>
                             <span class="text-xs px-2 py-0.5 rounded-full ${a.type === 'Branch' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">${a.type}</span>
                         </div>
                         <div class="detail-card-body space-y-2 text-sm">
-                            <div class="flex justify-between"><span class="text-gray-500">Entity:</span><span class="font-medium">${a.name}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-gray-500">Entity:</span><span class="font-medium">${a.name}</span></div>
+                            <div class="flex justify-between items-center"><span class="text-gray-500">Ledger Balance:</span><span class="font-semibold ${balClass}">₹${a.balance.toFixed(2)}</span></div>
                             ${a.account ? `<div class="flex justify-between"><span class="text-gray-500">A/C No:</span><span class="font-mono text-xs">${a.account}</span></div>` : ''}
                             ${a.ifsc ? `<div class="flex justify-between"><span class="text-gray-500">IFSC:</span><span class="font-mono text-xs">${a.ifsc}</span></div>` : ''}
                             ${a.upi ? `<div class="flex justify-between"><span class="text-gray-500">UPI:</span><span class="font-mono text-xs">${a.upi}</span></div>` : ''}
                         </div>
-                    </div>
-                `).join('')}
+                    </div>`;
+                }).join('')}
             </div>` : '<div class="detail-card"><div class="detail-card-body text-center text-gray-400 py-8">No bank accounts found.</div></div>'}`;
 
         VaultPage.showDetailPane();
@@ -320,7 +361,7 @@ const VaultAccounts = (() => {
 
     function setTile(tile) { _activeTile = tile; }
 
-    return { load, search, setTile, _openChequeAddPane };
+    return { load, search, setTile, _openChequeAddPane, _updateChequeStatus };
 })();
 
 window.VaultAccounts = VaultAccounts;

@@ -10,17 +10,27 @@ const VaultJournal = (() => {
     let _allB2B = [];
     let _activeJournalType = 'JOURNAL';
 
-    // ── Local recurring templates (stored in localStorage) ────────────────────
+    // ── Recurring templates (stored in LEDGER collection with ENTRY_TYPE='RECURRING') ─
     let _recurringTemplates = [];
 
     function _loadRecurringTemplates() {
-        try {
-            _recurringTemplates = JSON.parse(localStorage.getItem('vault_recurring') || '[]');
-        } catch { _recurringTemplates = []; }
+        // Load from LEDGER entries where ENTRY_TYPE='JOURNAL' and JOURNAL_TYPE='RECURRING'
+        // (Backend ledger_journal hardcodes ENTRY_TYPE as 'JOURNAL')
+        const templates = _allLedger.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING' && e.STATUS === 'ACTIVE');
+        _recurringTemplates = templates.map(t => {
+            try { return { ...JSON.parse(t.NARRATION || '{}'), entry_id: t.ENTRY_ID, code: t.CODE }; }
+            catch { return null; }
+        }).filter(Boolean);
     }
 
-    function _saveRecurringTemplates() {
-        localStorage.setItem('vault_recurring', JSON.stringify(_recurringTemplates));
+    async function _saveRecurringTemplates() {
+        // Templates are already saved to LEDGER via API calls
+        // Reload from LEDGER
+        const data = await getAppData();
+        if (data?.LEDGER) {
+            _allLedger = Object.values(data.LEDGER);
+            _loadRecurringTemplates();
+        }
     }
 
     function _can(role) { return window.VaultPage?.can(role); }
@@ -78,12 +88,112 @@ const VaultJournal = (() => {
         ));
     }
 
+    async function _handleDelete(entryId) {
+        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
+        if (!entry || entry.STATUS === 'VOID') return;
+        if (!confirm(`Delete this ${entry.JOURNAL_TYPE || 'journal'} entry? This will void and recalculate balances.`)) return;
+        const reason = prompt('Reason (optional):', '') || '';
+        try {
+            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
+            const appData = await getAppData();
+            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(_allLedger); }
+            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Entry deleted (voided).</p></div></div>`;
+        } catch (err) { alert('Failed: ' + (err.message || err)); }
+    }
+
+    function _openEditForm(entryId) {
+        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
+        if (!entry) return;
+        const isDN = entry.JOURNAL_TYPE === 'DEBIT_NOTE';
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+        const entryDate = entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE, 'input') : new Date().toISOString().split('T')[0];
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit ${entry.JOURNAL_TYPE || 'Journal'} Entry</h3></div>
+                <div class="detail-card-body">
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-4">
+                        ⚠️ Editing will void the current entry and create a replacement.
+                    </p>
+                    <form id="jrEditForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
+                            <input name="code" required class="form-input text-sm uppercase" value="${entry.CODE || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+                            <input name="entry_date" type="date" required class="form-input text-sm" value="${entryDate}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
+                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${(+entry.DEBIT||+entry.CREDIT||0).toFixed(2)}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Side</label>
+                            <select name="side" class="form-input text-sm">
+                                <option value="debit" ${+entry.DEBIT > 0 ? 'selected' : ''}>Debit (client owes)</option>
+                                <option value="credit" ${+entry.CREDIT > 0 ? 'selected' : ''}>Credit (client credited)</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration *</label>
+                            <input name="narration" required class="form-input text-sm" value="${entry.NARRATION || ''}">
+                        </div>
+                        <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
+                            <button type="button" onclick="VaultJournal._renderDetailById('${entry.ENTRY_ID}')" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                            <button type="submit" class="btn btn-sm">Save Changes</button>
+                        </div>
+                    </form>
+                    <div id="jrEditResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
+                </div>
+            </div>`;
+        document.getElementById('jrEditForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd);
+            const btn = e.target.querySelector('button[type=submit]');
+            const resp = document.getElementById('jrEditResponse');
+            btn.disabled = true;
+            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
+            const amount = parseFloat(data.amount);
+            try {
+                await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
+                const res = await callApi('/api/ledger/journal', {
+                    code: data.code,
+                    entry_date: toMs(data.entry_date),
+                    journal_type: entry.JOURNAL_TYPE || 'ADJUSTMENT',
+                    narration: data.narration,
+                    branch: entry.BRANCH || '',
+                    ...(data.side === 'debit' ? { debit: amount, credit: 0 } : { debit: 0, credit: amount }),
+                }, 'POST');
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
+                resp.textContent = '✅ Updated successfully.';
+                resp.classList.remove('hidden');
+                const appData = await getAppData();
+                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(_allLedger); }
+            } catch (err) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ ' + (err.message || 'Failed');
+                resp.classList.remove('hidden');
+            } finally { btn.disabled = false; }
+        });
+        VaultPage.showDetailPane();
+    }
+
     function _renderDetail(entry) {
         if (!entry) return;
         VaultPage.showDetail(true);
+        const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
+        const isVoid = entry.STATUS === 'VOID';
+        const isDN = entry.JOURNAL_TYPE === 'DEBIT_NOTE';
+        const editBtn = isActive && isDN ? `<button onclick="VaultJournal._openEditForm('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit</button>` : '';
+        const delBtn = isActive ? `<button onclick="VaultJournal._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete</button>` : '';
         document.getElementById('vaultDetailView').innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Journal Detail</h3></div>
+                <div class="detail-card-header flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">Journal Detail</h3>
+                    <div class="flex gap-2">${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : editBtn + delBtn}</div>
+                </div>
                 <div class="detail-card-body">
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div><span class="text-gray-500">Entry ID:</span> ${entry.ENTRY_ID}</div>
@@ -334,12 +444,16 @@ const VaultJournal = (() => {
         });
 
         document.getElementById('recEditBtn').addEventListener('click', () => _openRecurringForm(index));
-        document.getElementById('recDeleteBtn').addEventListener('click', () => {
-            if (confirm('Delete this recurring template?')) {
-                _recurringTemplates.splice(index, 1);
-                _saveRecurringTemplates();
-                _renderRecurringList();
-            }
+        document.getElementById('recDeleteBtn').addEventListener('click', async () => {
+            if (!confirm('Delete this recurring template?')) return;
+            try {
+                const oldEntry = _allLedger.find(x => x.ENTRY_TYPE === 'JOURNAL' && x.JOURNAL_TYPE === 'RECURRING' && x.CODE === t.code && x.STATUS === 'ACTIVE');
+                if (oldEntry) {
+                    await callApi('/api/ledger/void', { entry_id: oldEntry.ENTRY_ID, void_reason: 'Recurring template deleted' }, 'POST');
+                }
+                await _saveRecurringTemplates();
+                _loadRecurring();
+            } catch (err) { alert('Failed: ' + (err.message || err)); }
         });
     }
 
@@ -421,27 +535,49 @@ const VaultJournal = (() => {
         });
 
         document.getElementById('recFormCancel').onclick = () => _loadRecurring();
-        document.getElementById('recurringForm').addEventListener('submit', e => {
+        document.getElementById('recurringForm').addEventListener('submit', async e => {
             e.preventDefault();
             const fd = new FormData(e.target);
             const data = Object.fromEntries(fd);
-            _loadRecurringTemplates();
-
-            if (editIndex !== undefined) {
-                _recurringTemplates[editIndex] = { ..._recurringTemplates[editIndex], ...data };
-            } else {
-                _recurringTemplates.push({ ...data, created_at: new Date().toISOString() });
-            }
-            _saveRecurringTemplates();
-            _loadRecurring();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true;
+            try {
+                if (editIndex !== undefined) {
+                    // Void the old LEDGER entry and create a new one
+                    const oldEntry = _allLedger.find(x => x.ENTRY_TYPE === 'JOURNAL' && x.JOURNAL_TYPE === 'RECURRING' && x.CODE === edit.code && x.STATUS === 'ACTIVE');
+                    if (oldEntry) {
+                        await callApi('/api/ledger/void', { entry_id: oldEntry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
+                    }
+                }
+                // Create/update the template in LEDGER as a RECURRING entry
+                const templateData = JSON.stringify({ frequency: data.frequency, interval: data.interval, side: data.side, amount: data.amount, journal_type: data.journal_type, start_date: data.start_date, narration: data.narration });
+                await callApi('/api/ledger/journal', {
+                    code: data.code,
+                    entry_date: Date.now(),
+                    journal_type: 'RECURRING',
+                    narration: templateData,
+                    branch: '',
+                    debit: 0.01,
+                    credit: 0,
+                }, 'POST');
+                await _saveRecurringTemplates();
+                _loadRecurring();
+            } catch (err) {
+                alert('Failed: ' + (err.message || err));
+            } finally { btn.disabled = false; }
         });
     }
 
     // ── Recurring load (list pane + detail) ───────────────────────────────────
-    function _loadRecurring() {
+    async function _loadRecurring() {
         document.getElementById('vaultAddBtn').classList.add('hidden');
         document.getElementById('vaultListMsg').textContent = '';
 
+        // Populate _allLedger from appData
+        const data = await getAppData();
+        if (data?.LEDGER) {
+            _allLedger = Object.values(data.LEDGER);
+        }
         _loadRecurringTemplates();
 
         // Render list pane
@@ -502,7 +638,7 @@ const VaultJournal = (() => {
 
     function setType(type) { _activeJournalType = type; }
 
-    return { load, search, openAddPane, setType, _showRecurringDetail, _loadRecurring };
+    return { load, search, openAddPane, setType, _showRecurringDetail, _loadRecurring, _handleDelete };
 })();
 
 window.VaultJournal = VaultJournal;

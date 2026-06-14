@@ -93,7 +93,7 @@ window.ROLE_LEVELS = ROLE_LEVELS;
 
 const VAULT_PERMISSIONS = {
     R: 'CLIENT',    // read / view
-    C: 'MANAGER',   // record / create
+    C: 'STAFF',     // record / create (lowered from MANAGER to STAFF so STAFF/CLIENT can create invoices)
     U: 'ACCOUNTANT',// edit
     D: 'ADMIN',     // delete
 };

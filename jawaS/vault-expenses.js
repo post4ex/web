@@ -85,15 +85,147 @@ const VaultExpenses = (() => {
 
     let _activeType = 'expense';
 
+    // ── Edit form (void-then-recreate) ───────────────────────────────────────
+    function _openEditForm(entryId) {
+        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
+        if (!entry) return;
+        const isExpense = entry.ENTRY_TYPE === 'EXPENSE';
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+        const entryDate = entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE, 'input') : new Date().toISOString().split('T')[0];
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit ${isExpense ? 'Expense' : 'Cash Movement'}</h3></div>
+                <div class="detail-card-body">
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-4">
+                        ⚠️ Editing will void the current entry and create a replacement.
+                    </p>
+                    <form id="expEditForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        ${isExpense ? `
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Branch *</label>
+                            <input name="branch" required class="form-input text-sm uppercase" value="${entry.BRANCH || ''}" list="editExpBranchList">
+                            <datalist id="editExpBranchList"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Expense Type *</label>
+                            <select name="expense_type" required class="form-input text-sm">
+                                <option value="FUEL" ${entry.EXPENSE_TYPE === 'FUEL' ? 'selected' : ''}>Fuel</option>
+                                <option value="OFFICE" ${entry.EXPENSE_TYPE === 'OFFICE' ? 'selected' : ''}>Office</option>
+                                <option value="SALARY" ${entry.EXPENSE_TYPE === 'SALARY' ? 'selected' : ''}>Salary</option>
+                                <option value="OTHER" ${!['FUEL','OFFICE','SALARY'].includes(entry.EXPENSE_TYPE) ? 'selected' : ''}>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
+                            <input name="debit" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${(+entry.DEBIT||0).toFixed(2)}">
+                        </div>` : `
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">From *</label>
+                            <input name="cash_from" required class="form-input text-sm uppercase" value="${entry.CASH_FROM || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">To *</label>
+                            <input name="cash_to" required class="form-input text-sm uppercase" value="${entry.CASH_TO || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
+                            <input name="cash_amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${(+entry.CASH_AMOUNT||0).toFixed(2)}">
+                        </div>`}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
+                            <input name="entry_date" type="date" required class="form-input text-sm" value="${entryDate}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration *</label>
+                            <input name="narration" required class="form-input text-sm" value="${entry.NARRATION || ''}">
+                        </div>
+                        <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
+                            <button type="button" onclick="VaultExpenses._renderDetailById('${entry.ENTRY_ID}')" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                            <button type="submit" class="btn btn-sm">Save Changes</button>
+                        </div>
+                    </form>
+                    <div id="expEditResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
+                </div>
+            </div>`;
+
+        // Populate branch datalist
+        getAppData().then(data => {
+            const dl = document.getElementById('editExpBranchList');
+            if (data?.BRANCHES) Object.values(data.BRANCHES).forEach(b => {
+                if (b.BRANCH_CODE) { const o = document.createElement('option'); o.value = b.BRANCH_CODE; dl.appendChild(o); }
+            });
+        });
+
+        document.getElementById('expEditForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd);
+            const btn = e.target.querySelector('button[type=submit]');
+            const resp = document.getElementById('expEditResponse');
+            btn.disabled = true;
+            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
+            try {
+                await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
+                const endpoint = isExpense ? '/api/ledger/expense' : '/api/ledger/cash_movement';
+                const body = isExpense ? {
+                    branch: data.branch,
+                    entry_date: toMs(data.entry_date),
+                    expense_type: data.expense_type,
+                    debit: parseFloat(data.debit),
+                    narration: data.narration,
+                } : {
+                    cash_from: data.cash_from,
+                    cash_to: data.cash_to,
+                    cash_amount: parseFloat(data.cash_amount),
+                    entry_date: toMs(data.entry_date),
+                    narration: data.narration,
+                };
+                await callApi(endpoint, body, 'POST');
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
+                resp.textContent = '✅ Updated successfully.';
+                resp.classList.remove('hidden');
+                const appData = await getAppData();
+                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _activeType === 'expense' ? _renderExpenseList(_allLedger) : _renderCashList(_allLedger); }
+            } catch (err) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ ' + (err.message || 'Failed');
+                resp.classList.remove('hidden');
+            } finally { btn.disabled = false; }
+        });
+        VaultPage.showDetailPane();
+    }
+
     // ── Detail pane ───────────────────────────────────────────────────────────
+    async function _handleDelete(entryId) {
+        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
+        if (!entry || entry.STATUS === 'VOID') return;
+        const label = entry.ENTRY_TYPE === 'EXPENSE' ? 'expense' : 'cash movement';
+        if (!confirm(`Delete this ${label}? This will void and recalculate balances.`)) return;
+        const reason = prompt('Reason (optional):', '') || '';
+        try {
+            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
+            const appData = await getAppData();
+            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _activeType === 'expense' ? _renderExpenseList(_allLedger) : _renderCashList(_allLedger); }
+            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">${label.charAt(0).toUpperCase() + label.slice(1)} deleted (voided).</p></div></div>`;
+        } catch (err) { alert('Failed: ' + (err.message || err)); }
+    }
+
     function _renderDetail(entry) {
         if (!entry) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
+        const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
+        const isVoid = entry.STATUS === 'VOID';
+        const delBtn = isActive ? `<button onclick="VaultExpenses._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete</button>` : '';
+        const editBtn = isActive ? `<button onclick="VaultExpenses._openEditForm('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit</button>` : '';
         if (entry.ENTRY_TYPE === 'EXPENSE') {
             view.innerHTML = `
                 <div class="detail-card">
-                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Expense Detail</h3></div>
+                    <div class="detail-card-header flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-700">Expense Detail</h3>
+                        <div class="flex gap-2">${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : editBtn + delBtn}</div>
+                    </div>
                     <div class="detail-card-body">
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div><span class="text-gray-500">Entry ID:</span> ${entry.ENTRY_ID}</div>
@@ -109,7 +241,10 @@ const VaultExpenses = (() => {
         } else if (entry.ENTRY_TYPE === 'CASH_MOVEMENT') {
             view.innerHTML = `
                 <div class="detail-card">
-                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Cash Movement Detail</h3></div>
+                    <div class="detail-card-header flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-700">Cash Movement Detail</h3>
+                        <div class="flex gap-2">${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : editBtn + delBtn}</div>
+                    </div>
                     <div class="detail-card-body">
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div><span class="text-gray-500">Entry ID:</span> ${entry.ENTRY_ID}</div>
@@ -409,7 +544,12 @@ const VaultExpenses = (() => {
         }
     }
 
-    return { load, search, openAddPane, showWallet, setType };
+    function _renderDetailById(entryId) {
+        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
+        if (entry) _renderDetail(entry);
+    }
+
+    return { load, search, openAddPane, showWallet, setType, _handleDelete, _openEditForm, _renderDetailById };
 })();
 
 window.VaultExpenses = VaultExpenses;

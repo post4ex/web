@@ -15,15 +15,26 @@ const VaultSuppliers = (() => {
         document.getElementById('vaultSearch').placeholder = 'Search by code, name, mobile…';
     }
 
+    let _balanceCache = null;
+
+    function _precomputeBalances() {
+        const cache = {};
+        // Build sorted per-code list of ACTIVE+PENDING entries (most recent first)
+        const sorted = [..._allLedger]
+            .filter(e => e.DIRECTION === 'INWARD' && (e.STATUS === 'ACTIVE' || e.STATUS === 'PENDING'))
+            .sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
+        for (const e of sorted) {
+            const code = e.CODE;
+            if (code && !(code in cache)) {
+                cache[code] = +e.BALANCE || 0;
+            }
+        }
+        _balanceCache = cache;
+    }
+
     function _getLatestBalance(code) {
-        const entries = _allLedger.filter(e =>
-            e.CODE === code &&
-            e.DIRECTION === 'INWARD' &&
-            e.STATUS === 'ACTIVE'
-        );
-        if (!entries.length) return 0;
-        entries.sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
-        return +entries[0].BALANCE || 0;
+        if (_balanceCache && code in _balanceCache) return _balanceCache[code];
+        return 0;
     }
 
     function _getStatementEntries(code) {
@@ -169,6 +180,7 @@ const VaultSuppliers = (() => {
         if (data) {
             _allB2B    = Object.values(data.B2B    || {});
             _allLedger = Object.values(data.LEDGER || {});
+            _precomputeBalances();
             _renderList();
         }
     }

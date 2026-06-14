@@ -343,15 +343,104 @@ const VaultSummary = (() => {
         VaultPage.showDetailPane();
     }
 
+    // ── Bulk approve/reject ───────────────────────────────────────────────────
+    let _selectedForBulk = new Set();
+
+    function _toggleBulkSelect(entryId) {
+        if (_selectedForBulk.has(entryId)) _selectedForBulk.delete(entryId);
+        else _selectedForBulk.add(entryId);
+        // Update checkbox visuals
+        document.querySelectorAll('#vaultList li[data-entry]').forEach(li => {
+            const cb = li.querySelector('input[type="checkbox"]');
+            if (cb) cb.checked = _selectedForBulk.has(li.dataset.entry);
+        });
+        const count = _selectedForBulk.size;
+        const bulkBar = document.getElementById('bulkActionBar');
+        if (bulkBar) {
+            bulkBar.classList.toggle('hidden', count === 0);
+            bulkBar.querySelector('.bulk-count').textContent = count;
+        }
+    }
+
+    async function _bulkApprove(action) {
+        if (!_selectedForBulk.size) return;
+        const reason = action === 'REJECT' ? prompt('Rejection reason (optional):') || '' : '';
+        const ids = [..._selectedForBulk];
+        if (!confirm(`${action === 'APPROVE' ? 'Approve' : 'Reject'} ${ids.length} entries?`)) return;
+        let success = 0, failed = 0;
+        for (const entryId of ids) {
+            try {
+                await callApi('/api/ledger/approve', { entry_id: entryId, action, reason }, 'POST');
+                success++;
+            } catch { failed++; }
+        }
+        alert(`${action === 'APPROVE' ? 'Approved' : 'Rejected'} ${success}, failed ${failed}`);
+        _selectedForBulk.clear();
+        showPendingApprovals();
+    }
+
+    function _renderPendingList() {
+        const ul = document.getElementById('vaultList');
+        if (!ul) return;
+        if (!_pendingEntries.length) {
+            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No pending entries. 🎉</li>';
+            return;
+        }
+        // Add bulk action bar if not present
+        if (!document.getElementById('bulkActionBar')) {
+            const bulkBar = document.createElement('div');
+            bulkBar.id = 'bulkActionBar';
+            bulkBar.className = 'hidden flex items-center justify-between px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg mb-3';
+            bulkBar.innerHTML = `
+                <span class="text-sm text-yellow-800"><span class="bulk-count font-bold">0</span> selected</span>
+                <span class="flex gap-2">
+                    <button onclick="VaultSummary._bulkApprove('APPROVE')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Approve All</button>
+                    <button onclick="VaultSummary._bulkApprove('REJECT')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">❌ Reject All</button>
+                </span>`;
+            ul.parentElement.insertBefore(bulkBar, ul);
+        }
+        const typeIcons = { 'INVOICE': '🧾', 'PAYMENT': '💰', 'JOURNAL': '✏️', 'EXPENSE': '💸', 'CASH_MOVEMENT': '🪙' };
+        ul.innerHTML = _pendingEntries.map(e => {
+            const icon = typeIcons[e.ENTRY_TYPE] || '📋';
+            const label = e.ENTRY_TYPE + (e.JOURNAL_TYPE ? ' (' + e.JOURNAL_TYPE + ')' : '');
+            const checked = _selectedForBulk.has(e.ENTRY_ID) ? 'checked' : '';
+            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-yellow-50 border border-gray-200 transition-colors">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" class="mt-1 flex-shrink-0" ${checked} onclick="event.stopPropagation();VaultSummary._toggleBulkSelect('${e.ENTRY_ID}')">
+                    <div class="flex-1" onclick="VaultSummary._showPendingDetail('${e.ENTRY_ID}')">
+                        <strong class="text-yellow-800 block text-sm">${icon} ${e.CODE || '-'} — ${label}</strong>
+                        <span class="text-xs text-gray-500">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : ''} · ${e.USER_NAME || e.STAFF_NAME || ''}</span>
+                        <div class="text-xs mt-1">
+                            <span class="text-red-500">Dr: ₹${(+e.DEBIT||0).toFixed(2)}</span>
+                            <span class="text-green-500 ml-2">Cr: ₹${(+e.CREDIT||0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            </li>`;
+        }).join('');
+        ul.querySelectorAll('li input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('click', e => e.stopPropagation());
+        });
+    }
+
+    function _showPendingDetail(entryId) {
+        _renderPendingDetail(entryId);
+    }
+
     async function showPendingApprovals() {
         _injectListPane();
         document.getElementById('vaultSearch').placeholder = 'Search code, type, narration…';
         document.getElementById('vaultSearch').oninput = _approveEntrySearch;
         document.getElementById('vaultListMsg').textContent = '';
+        _selectedForBulk.clear();
         try {
             const res = await callApi('/api/ledger/pending', {}, 'GET');
             _pendingEntries = res.data || [];
             _renderPendingList();
+            // Auto-select first entry's detail
+            if (_pendingEntries.length) {
+                _showPendingDetail(_pendingEntries[0].ENTRY_ID);
+            }
         } catch (err) {
             document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;
         }
@@ -525,7 +614,7 @@ const VaultSummary = (() => {
 
     function setView(view) { _activeView = view; }
 
-    return { load, search, showDashboard, showReports, showPendingApprovals, showChartOfAccounts, showBulkImport, _showStatement, _showBankRecon, _approveEntry, setView };
+    return { load, search, showDashboard, showReports, showPendingApprovals, showChartOfAccounts, showBulkImport, _showStatement, _showBankRecon, _approveEntry, _toggleBulkSelect, _bulkApprove, _showPendingDetail, setView };
 })();
 
 window.VaultSummary = VaultSummary;
