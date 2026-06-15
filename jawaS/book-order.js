@@ -287,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fov: document.getElementById('payment_fov')
             },
             consignmentProducts,
-            parseFloat(document.getElementById('display_chg_wt').textContent) || 0
+            parseFloat(document.getElementById('display_chg_wt').textContent) || 0,
+            appData.BRANCHES
         );
         for (const key in charges) {
             const element = document.getElementById(`display_${key}`);

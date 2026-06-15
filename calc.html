@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calc</title>
+    <link href="style.css" rel="stylesheet">
+    <link href="assets/css/inter-font.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Comfortaa', sans-serif; color: #1f2937; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .form-input { border-radius:0.375rem; border:1px solid #d1d5db; padding:0.5rem 0.75rem; font-size:0.875rem; width:100%; }
+        .detail-card { background:#fff; border-radius:0.5rem; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+        .detail-card-header { padding:0.75rem 1rem; border-bottom:1px solid #e5e7eb; background:#f9fafb; border-radius:0.5rem 0.5rem 0 0; }
+        .detail-card-body { padding:1rem; }
+        .bo-li-wrap { display:flex; flex-direction:column; gap:6px; }
+        .bo-li-main { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+        .bo-li-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px 8px; font-size:0.7rem; margin-top:4px; color:#374151; }
+        @media(min-width:640px)  { .bo-li-grid { grid-template-columns:repeat(3,1fr); } }
+        @media(min-width:1024px) { .bo-li-grid { grid-template-columns:repeat(4,1fr); } }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+
+    <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
+
+    <main class="flex-grow p-1">
+        <div class="container mx-auto bg-white flex flex-col border border-gray-400">
+            <div class="flex flex-col md:flex-row border-b border-gray-400">
+                <!-- Left: Form -->
+                <div class="w-full md:w-1/2 border-r border-gray-400">
+                    <form id="calcForm" class="">
+                        <input type="text" id="timestamp" name="timestamp" readonly class="hidden">
+
+                        <!-- Customer -->
+                        <div class="border border-gray-400 p-2">
+                            <div class="p-2">
+                                <select id="customer_name" name="customer_name" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                   <option value="">Loading Customers...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Origin & Destination Pincodes -->
+                        <div class="flex flex-col md:flex-row gap-0 border border-gray-400">
+                            <div class="w-full md:w-1/2 p-2 border-r border-gray-400">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">From Pincode *</label>
+                                <input type="tel" id="origin_pincode" name="origin_pincode" pattern="[0-9]{6}" maxlength="6" placeholder="Enter origin pincode" class="w-full p-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md text-sm">
+                                <div id="originDetailsDisplay" class="p-1 mt-1 min-h-[24px] text-xs text-gray-500 italic">Enter pincode to auto-fill city.</div>
+                            </div>
+                            <div class="w-full md:w-1/2 border-t md:border-t-0 md:border-l border-gray-400 p-2">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">To Pincode *</label>
+                                <input type="tel" id="dest_pincode" name="dest_pincode" pattern="[0-9]{6}" maxlength="6" placeholder="Enter destination pincode" class="w-full p-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md text-sm">
+                                <div id="destDetailsDisplay" class="p-1 mt-1 min-h-[24px] text-xs text-gray-500 italic">Enter pincode to auto-fill city & zone.</div>
+                            </div>
+                        </div>
+
+                        <!-- Mode & Carrier -->
+                        <div class="border border-gray-400">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-0 p-2">
+                                <div class="p-2 border-r border-gray-400">
+                                    <select id="transport_type" name="transport_type" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Loading Modes...</option>
+                                    </select>
+                                </div>
+                                <div class="p-2">
+                                     <select id="carrier_select" name="carrier_select" class="w-full p-1 border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Loading Carriers...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="modeChangeMessage" class="text-xs text-blue-600 px-4 pb-2"></div>
+                        </div>
+
+                        <!-- Payment Types -->
+                        <div class="flex border border-gray-400 p-2">
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_global" type="checkbox" name="payment_type" value="global" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Dox</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_pcs" type="checkbox" name="payment_type" value="pcs" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Pcs</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_topay" type="checkbox" name="payment_type" value="topay" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Topay</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_cod" type="checkbox" name="payment_type" value="cod" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">COD</span>
+                            </label>
+                            <label class="flex flex-1 items-center gap-1 cursor-pointer">
+                                <input id="payment_fov" type="checkbox" name="payment_type" value="fov" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">FOV</span>
+                            </label>
+                        </div>
+
+                        <!-- Consignment Dimensions -->
+                        <div id="multiboxErrorMessage" class="text-xs text-red-500 px-2 pt-2"></div>
+                        <div id="desktopBoxRow" class="hidden md:grid grid-cols-4 border border-gray-400">
+                            <div class="flex border-r border-gray-300">
+                                <input type="number" id="actual_weight" name="actual_weight" placeholder="Wgt (kg)" class="w-0 flex-1 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                                <input type="number" id="pcs_count" placeholder="Pcs" min="1" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0" style="display:none">
+                            </div>
+                            <input type="number" id="length" name="length" placeholder="L (cm)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="number" id="breadth" name="breadth" placeholder="B (cm)" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="flex border-r border-gray-300">
+                                <input type="number" id="height" name="height" placeholder="H (cm)" class="w-full p-1 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <!-- Dox envelope row -->
+                        <div id="doxEnvelopeRow" class="hidden border border-gray-400" style="display:none">
+                            <input type="number" id="dox_weight" placeholder="Wgt (kg)" max="2" step="0.1" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <label class="flex items-center justify-center gap-1 p-1 border-r border-gray-300 cursor-pointer">
+                                <input type="checkbox" id="dox_dl" class="h-4 w-4"> <span class="text-sm font-medium">DL</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-1 p-1 border-r border-gray-300 cursor-pointer">
+                                <input type="checkbox" id="dox_a4" class="h-4 w-4"> <span class="text-sm font-medium">A4</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-1 p-1 cursor-pointer">
+                                <input type="checkbox" id="dox_bg" class="h-4 w-4"> <span class="text-sm font-medium">BG</span>
+                            </label>
+                        </div>
+
+                        <!-- Product Details -->
+                        <div id="desktopProductRow" class="hidden md:grid grid-cols-4 border border-gray-400">
+                            <input type="text" id="product_name" name="product_name" placeholder="Prod" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="flex border-r border-gray-300">
+                                <input type="text" id="doc_no" name="doc_no" placeholder="DocNo" class="w-0 flex-1 p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                                <select id="product_type" name="product_type" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                                    <option value="INV">INV</option>
+                                    <option value="CLN">CLN</option>
+                                    <option value="DEC">DEC</option>
+                                    <option value="ADH">ADH</option>
+                                    <option value="DOX">DOX</option>
+                                </select>
+                            </div>
+                            <input type="text" id="eway_bill" name="eway_bill" placeholder="EWay" class="w-full p-1 border-r border-gray-300 focus:ring-blue-500 focus:border-blue-500 pr-6">
+                            <div class="flex">
+                                <input type="number" id="amount" name="amount" placeholder="Amt" class="w-0 flex-1 p-1 focus:ring-blue-500 focus:border-blue-500 min-w-0">
+                            </div>
+                        </div>
+                        <div id="ewayStatusMessage" class="text-xs text-red-500 mt-1 px-2"></div>
+
+                        <!-- Mobile Add Buttons -->
+                        <div class="md:hidden grid grid-cols-2 border border-gray-400">
+                            <button type="button" id="mobileAddBoxBtn" onclick="document.getElementById('mobileBoxPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500 border-r border-gray-500">+ Add Box</button>
+                            <button type="button" id="mobileAddProdBtn" onclick="document.getElementById('mobileProdPopup').classList.remove('hidden')" class="py-3 bg-gray-700 text-white text-sm font-semibold active:bg-gray-500">+ Add Product</button>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-2 border border-gray-400 p-2">
+                            <button id="cancel_button" type="button" class="btn-ghost flex-grow">Reset</button>
+                            <button id="calc_button" type="button" class="btn flex-grow">Estimate</button>
+                        </div>
+                        <div id="calcMessage" class="p-2 text-sm text-center rounded-md mt-2"></div>
+
+                        <!-- Summary Display -->
+                        <div id="summarySection" class="p-4 bg-white border-t border-gray-400">
+                            <div class="grid grid-cols-4 gap-4 text-center">
+                                <div><p class="text-sm text-gray-500">WEIGHT</p><p id="display_weight" class="text-lg font-bold text-gray-800">---</p></div>
+                                <div><p class="text-sm text-gray-500">CHG_WT</p><p id="display_chg_wt" class="text-lg font-bold text-gray-800">---</p></div>
+                                <div><p class="text-sm text-gray-500">PIECES</p><p id="display_pieces" class="text-lg font-bold text-gray-800">---</p></div>
+                                <div><p class="text-sm text-gray-500">VALUE</p><p id="display_value" class="text-lg font-bold text-gray-800">---</p></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right: Multibox, Products, Charges -->
+                <div class="w-full md:w-1/2">
+                    <!-- Multibox -->
+                    <div id="multiboxSection" class="p-4 bg-white">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse border border-gray-400">
+                                <thead>
+                                    <tr class="bg-gray-200 text-gray-700 text-sm">
+                                        <th class="p-2 border border-gray-400 text-left">BoxNum</th>
+                                        <th class="p-2 border border-gray-400 text-left">Wgt</th>
+                                        <th class="p-2 border border-gray-400 text-left">L</th>
+                                        <th class="p-2 border border-gray-400 text-left">B</th>
+                                        <th class="p-2 border border-gray-400 text-left">H</th>
+                                        <th class="p-2 border border-gray-400 text-left">Vol.Wt</th>
+                                        <th class="p-2 border border-gray-400 text-left">Chg.Wt</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiboxTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Products -->
+                    <div id="productSection" class="p-4 bg-white border-t border-gray-400">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse border border-gray-400">
+                                <thead>
+                                    <tr class="bg-gray-200 text-gray-700 text-sm">
+                                        <th class="p-2 border border-gray-400 text-left">SrNo</th>
+                                        <th class="p-2 border border-gray-400 text-left">Product</th>
+                                        <th class="p-2 border border-gray-400 text-left">DocNo</th>
+                                        <th class="p-2 border border-gray-400 text-left">EWay</th>
+                                        <th class="p-2 border border-gray-400 text-left">Type</th>
+                                        <th class="p-2 border border-gray-400 text-left">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="flex justify-end items-center mt-2 space-x-2">
+                            <button id="clearMultiboxButton" class="btn btn-sm">Clear Multibox</button>
+                            <button id="clearProductsButton" class="btn-danger btn-sm">Clear Product</button>
+                            <button id="clearAllButton" class="btn-ghost btn-sm">Clear All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charges & Helper table row -->
+            <div class="flex flex-col md:flex-row border-b border-gray-400">
+                <div class="w-full md:w-1/2 border-r border-gray-400">
+                    <!-- Helper Table -->                        <!-- Route Info Strip -->
+                        <div class="px-4 py-2 bg-gray-50 border-t border-gray-400 text-xs text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
+                            <span>From: <b id="display_origin_city">---</b> (<span id="display_origin_pincode">---</span>)</span>
+                            <span>→ To: <b id="display_dest_city">---</b> (<span id="display_dest_pincode">---</span>)</span>
+                            <span>Zone: <b id="display_zone">---</b></span>
+                            <span>TAT: <b id="display_tat">---</b></span>
+                            <span>Mode: <b id="display_mode">---</b></span>
+                            <span>Carrier: <b id="display_carrier">---</b></span>
+                            <span class="hidden"><span id="display_code"></span><span id="display_user_name"></span><span id="display_branch"></span></span>
+                        </div>
+                        <div id="helperTableSection" class="p-4 bg-white border-t border-gray-400">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border-collapse border border-gray-400 text-sm">
+                                <thead>
+                                    <tr class="bg-gray-100 text-gray-600">
+                                        <th class="p-2 border border-gray-400 text-left">WEIGHT_CEILING</th>
+                                        <th class="p-2 border border-gray-400 text-left">WEIGHT_ZONE</th>
+                                        <th class="p-2 border border-gray-400 text-left">RATE_UID</th>
+                                        <th class="p-2 border border-gray-400 text-left">RATE</th>
+                                        <th class="p-2 border border-gray-400 text-left">ADD_RATE</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="helperTableBody">
+                                    <tr>
+                                        <td class="p-2 border border-gray-400" id="display_weight_ceiling">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_weight_zone">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_rate_uid">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_rate">---</td>
+                                        <td class="p-2 border border-gray-400" id="display_add_rate">---</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/2">
+                    <div id="chargesSection" class="p-4 bg-white">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm border-collapse">
+                                <tbody>
+                                    <!-- Freight (always visible) -->
+                                    <tr class="border-b border-dashed border-gray-200">
+                                        <td class="px-3 py-1.5 text-gray-500 text-xs uppercase tracking-wide">Freight</td>
+                                        <td id="display_fright" class="px-3 py-1.5 text-right font-medium text-gray-800">0.00</td>
+                                    </tr>
+                                    <!-- Fuel -->
+                                    <tr data-charge="fuel_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">Fuel Surcharge</td>
+                                        <td id="display_fuel_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- COD -->
+                                    <tr data-charge="cod_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">COD Charge</td>
+                                        <td id="display_cod_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- ToPay -->
+                                    <tr data-charge="topay_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">ToPay Charge</td>
+                                        <td id="display_topay_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- FOV -->
+                                    <tr data-charge="fov_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">FOV Charge</td>
+                                        <td id="display_fov_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- AWB -->
+                                    <tr data-charge="awb_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">AWB Charge</td>
+                                        <td id="display_awb_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- Packing -->
+                                    <tr data-charge="pack_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">Packing Charge</td>
+                                        <td id="display_pack_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- Delivery -->
+                                    <tr data-charge="dev_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">Delivery Charge</td>
+                                        <td id="display_dev_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- eWay -->
+                                    <tr data-charge="eway_chg" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">eWay Bill</td>
+                                        <td id="display_eway_chg" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+
+                                    <!-- Taxable (always visible) -->
+                                    <tr class="border-b border-dashed border-gray-200">
+                                        <td class="px-3 py-1.5 text-gray-600">Taxable Amount</td>
+                                        <td id="display_taxable" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+
+                                    <!-- SGST -->
+                                    <tr data-charge="sgst" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">SGST</td>
+                                        <td id="display_sgst" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- CGST -->
+                                    <tr data-charge="cgst" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">CGST</td>
+                                        <td id="display_cgst" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+                                    <!-- IGST -->
+                                    <tr data-charge="igst" class="border-b border-dashed border-gray-200 hidden">
+                                        <td class="px-3 py-1.5 text-gray-600">IGST</td>
+                                        <td id="display_igst" class="px-3 py-1.5 text-right text-gray-700">0.00</td>
+                                    </tr>
+
+                                    <!-- Grand total (always visible) -->
+                                    <tr class="bg-blue-50">
+                                        <td class="px-3 py-2 font-bold text-blue-800 text-base">TOTAL</td>
+                                        <td id="display_total" class="px-3 py-2 text-right font-bold text-blue-800 text-base">0.00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
+
+    <!-- Mobile Add Box Popup -->
+    <div id="mobileBoxPopup" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50">
+        <div class="bg-white w-full rounded-t-2xl p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-semibold text-gray-800">Add Box</h3>
+                <label class="flex items-center gap-1 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" id="m_payment_pcs" class="h-4 w-4 text-blue-600 border-gray-300"> Pcs
+                </label>
+                <button onclick="document.getElementById('mobileBoxPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="mobileBoxError" class="text-xs text-red-500 hidden"></div>
+            <div id="mobileNormalBoxFields" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs text-gray-500">Weight (kg)</label><input type="number" id="m_actual_weight" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div id="m_pcs_wrap" style="display:none"><label class="text-xs text-gray-500">Pcs</label><input type="number" id="m_pcs_count" placeholder="1" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div><label class="text-xs text-gray-500">L (cm)</label><input type="number" id="m_length" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label class="text-xs text-gray-500">B (cm)</label><input type="number" id="m_breadth" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label class="text-xs text-gray-500">H (cm)</label><input type="number" id="m_height" placeholder="0" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                </div>
+            </div>
+            <div id="mobileDoxFields" class="hidden space-y-3">
+                <div><label class="text-xs text-gray-500">Weight (kg, max 2)</label><input type="number" id="m_dox_weight" placeholder="0.0" max="2" step="0.1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer"><input type="checkbox" id="m_dox_dl" class="h-4 w-4"> <span class="text-sm font-semibold">DL</span></label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer"><input type="checkbox" id="m_dox_a4" class="h-4 w-4"> <span class="text-sm font-semibold">A4</span></label>
+                    <label class="flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer"><input type="checkbox" id="m_dox_bg" class="h-4 w-4"> <span class="text-sm font-semibold">BG</span></label>
+                </div>
+            </div>
+            <button type="button" onclick="mobileAddBox()" class="btn w-full py-3">Add Box</button>
+        </div>
+    </div>
+
+    <!-- Mobile Add Product Popup -->
+    <div id="mobileProdPopup" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50">
+        <div class="bg-white w-full rounded-t-2xl p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-semibold text-gray-800">Add Product</h3>
+                <button onclick="document.getElementById('mobileProdPopup').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="mobileProdError" class="text-xs text-red-500 hidden"></div>
+            <div class="space-y-3">
+                <div><label class="text-xs text-gray-500">Product Name</label><input type="text" id="m_product_name" placeholder="Product" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs text-gray-500">Doc No</label><input type="text" id="m_doc_no" placeholder="DocNo" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label class="text-xs text-gray-500">Type</label><select id="m_product_type" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"><option value="INV">INV</option><option value="CLN">CLN</option><option value="DEC">DEC</option><option value="ADH">ADH</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs text-gray-500">EWay Bill</label><input type="text" id="m_eway_bill" placeholder="12-digit" maxlength="12" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label class="text-xs text-gray-500">Amount (&#8377;)</label><input type="number" id="m_amount" placeholder="0.00" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                </div>
+            </div>
+            <button type="button" onclick="mobileAddProduct()" class="btn w-full py-3">Add Product</button>
+        </div>
+    </div>
+
+    <script src="indexeddb.js"></script>
+    <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
+    <script src="core/app-notify.js"></script>
+    <script src="core/app-api.js"></script>
+    <script src="core/app-auth.js"></script>
+    <script src="core/b2b2c-api.js"></script>
+    <script src="core/searchpinweb.js"></script>
+    <script src="core/layout.js"></script>
+    <script src="utils/calculations.js"></script>
+    <script src="utils/invoice-utils.js"></script>
+    <script src="core/calc.js"></script>
+    <script src="jawaS/calc.js"></script>
+    <script type="module">
+        import { searchPin } from './utils/searchpin.js';
+        window.searchPin = searchPin;
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const doxCb   = document.getElementById('payment_global');
+            const pcsCb   = document.getElementById('payment_pcs');
+            const topayCb = document.getElementById('payment_topay');
+            const codCb   = document.getElementById('payment_cod');
+            const fovCb   = document.getElementById('payment_fov');
+            const modeSelect = document.getElementById('transport_type');
+
+            doxCb.addEventListener('change', () => {
+                if (doxCb.checked) {
+                    pcsCb.checked   = false; topayCb.checked = false;
+                    codCb.checked   = false; fovCb.checked   = false;
+                    enableDoxMode();
+                } else { disableDoxMode(); }
+            });
+
+            pcsCb.addEventListener('change', () => {
+                if (pcsCb.checked) doxCb.checked = false;
+                const show = pcsCb.checked;
+                document.getElementById('pcs_count').style.display = show ? '' : 'none';
+                if (!show) document.getElementById('pcs_count').value = '';
+                document.getElementById('m_pcs_wrap').style.display = show ? '' : 'none';
+                if (!show) document.getElementById('m_pcs_count').value = '';
+                const mPcs = document.getElementById('m_payment_pcs');
+                if (mPcs) mPcs.checked = show;
+            });
+
+            document.addEventListener('change', e => {
+                if (e.target.id === 'm_payment_pcs') {
+                    document.getElementById('payment_pcs').checked = e.target.checked;
+                    document.getElementById('payment_pcs').dispatchEvent(new Event('change'));
+                }
+            });
+            [topayCb, codCb, fovCb].forEach(cb => cb.addEventListener('change', () => {
+                if (cb.checked) doxCb.checked = false;
+            }));
+
+            const DOX_SIZES = { DL: { l: 22, b: 11 }, A4: { l: 32, b: 25 }, BG: { l: 40, b: 30 } };
+            function doxCalcH(wgt) {
+                if (wgt <= 0.1) return 0.5; if (wgt <= 0.5) return 1; if (wgt <= 1.0) return 2; return 3;
+            }
+            function enableDoxMode() {
+                document.getElementById('desktopBoxRow').style.display = 'none';
+                document.getElementById('doxEnvelopeRow').style.display = 'grid';
+                document.getElementById('dox_weight').value = '0.1';
+                document.getElementById('desktopProductRow').style.display = 'none';
+                document.getElementById('ewayStatusMessage').classList.add('hidden');
+                document.getElementById('mobileAddBoxBtn').classList.add('hidden');
+                document.getElementById('mobileAddProdBtn').classList.add('hidden');
+                document.getElementById('mobileNormalBoxFields').classList.add('hidden');
+                document.getElementById('mobileDoxFields').classList.remove('hidden');
+                document.getElementById('m_dox_weight').value = '0.1';
+            }
+            function disableDoxMode() {
+                document.getElementById('desktopBoxRow').style.display = '';
+                document.getElementById('doxEnvelopeRow').style.display = 'none';
+                document.getElementById('desktopProductRow').style.display = '';
+                document.getElementById('ewayStatusMessage').classList.remove('hidden');
+                document.getElementById('mobileAddBoxBtn').classList.remove('hidden');
+                document.getElementById('mobileAddProdBtn').classList.remove('hidden');
+                document.getElementById('mobileNormalBoxFields').classList.remove('hidden');
+                document.getElementById('mobileDoxFields').classList.add('hidden');
+            }
+            function renderDoxEntry(type) {
+                const wgt = parseFloat(document.getElementById('dox_weight').value);
+                if (!wgt || wgt <= 0) { document.getElementById('multiboxErrorMessage').textContent = 'Enter weight first.'; document.getElementById('dox_' + type.toLowerCase()).checked = false; return; }
+                if (wgt > 2) { document.getElementById('multiboxErrorMessage').textContent = 'Dox weight cannot exceed 2 kg.'; document.getElementById('dox_' + type.toLowerCase()).checked = false; return; }
+                document.getElementById('multiboxErrorMessage').textContent = '';
+                const size = DOX_SIZES[type]; const h = doxCalcH(wgt);
+                if (typeof window._doxRenderEntry === 'function') window._doxRenderEntry(wgt, size.l, size.b, h, type);
+                document.getElementById('dox_weight').value = '';
+                ['dox_dl','dox_a4','dox_bg'].forEach(id => document.getElementById(id).checked = false);
+            }
+            ['dl','a4','bg'].forEach(type => {
+                document.getElementById('dox_' + type).addEventListener('change', function() {
+                    if (!this.checked) return;
+                    ['dl','a4','bg'].forEach(t => { if (t !== type) document.getElementById('dox_' + t).checked = false; });
+                    renderDoxEntry(type.toUpperCase());
+                });
+            });
+        });
+    </script>
+    <!-- Mobile box popup dox mode toggle (injected) -->
+    <script>
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'payment_global') {
+                const isDox = e.target.checked;
+                document.getElementById('mobileNormalBoxFields').style.display = isDox ? 'none' : '';
+                document.getElementById('mobileDoxFields').style.display = isDox ? '' : 'none';
+            }
+        });
+    </script>
+</body>
+</html>

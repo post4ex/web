@@ -287,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fov: document.getElementById('payment_fov')
             },
             consignmentProducts,
-            parseFloat(document.getElementById('display_chg_wt').textContent) || 0
+            parseFloat(document.getElementById('display_chg_wt').textContent) || 0,
+            appData.BRANCHES
         );
         for (const key in charges) {
             const element = document.getElementById(`display_${key}`);
@@ -1390,11 +1391,25 @@ document.addEventListener('DOMContentLoaded', () => {
     window.recalcTotalsFromCharges = (frightVal, otherCharges) => {
         const subtotal = frightVal + otherCharges;
         let sgst = 0, cgst = 0, igst = 0;
+        // Determine within-state vs inter-state by comparing B2B.GST_CODE with Branch.GST_CODE
+        let isWithinState = false;
+        const customerGstCode = selectedCustomerDetails.GST_CODE;
+        const branchesData = appData.BRANCHES;
+        if (customerGstCode && branchesData) {
+            const branchCode = selectedCustomerDetails.BRANCH;
+            if (branchCode) {
+                const branch = Object.values(branchesData).find(b => b.BRANCH_CODE === branchCode);
+                const branchGstCode = branch?.GST_CODE;
+                if (branchGstCode && branchGstCode === customerGstCode) {
+                    isWithinState = true;
+                }
+            }
+        }
         if (selectedCustomerDetails.GST_INC === 'Y') {
-            if (selectedCustomerDetails.B2B_STATE === 'Uttarakhand-05') { const t = subtotal / 1.18 * 0.18; sgst = cgst = t / 2; }
+            if (isWithinState) { const t = subtotal / 1.18 * 0.18; sgst = cgst = t / 2; }
             else igst = subtotal / 1.18 * 0.18;
         } else {
-            if (selectedCustomerDetails.B2B_STATE === 'Uttarakhand-05') sgst = cgst = subtotal * 0.09;
+            if (isWithinState) sgst = cgst = subtotal * 0.09;
             else igst = subtotal * 0.18;
         }
         const total = selectedCustomerDetails.GST_INC === 'Y' ? subtotal : subtotal + sgst + cgst + igst;

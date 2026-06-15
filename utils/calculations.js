@@ -61,7 +61,7 @@ function getHelperTableData(chgWt, selectedCustomerDetails, transportType, recei
     };
 }
 
-function calculateAllCharges(frightValue, summaryTotals, selectedCustomerDetails, paymentCheckboxes, consignmentProducts, chgWt) {
+function calculateAllCharges(frightValue, summaryTotals, selectedCustomerDetails, paymentCheckboxes, consignmentProducts, chgWt, branchesData) {
     const totalValue    = summaryTotals.totalAmount;
     const codCheckbox   = paymentCheckboxes.cod;
     const topayCheckbox = paymentCheckboxes.topay;
@@ -89,9 +89,23 @@ function calculateAllCharges(frightValue, summaryTotals, selectedCustomerDetails
     const subtotal      = frightValue + otherCharges;
     let taxableAmount = 0, sgst = 0, cgst = 0, igst = 0, total = 0;
 
+    // Determine within-state vs inter-state by comparing B2B.GST_CODE with Branch.GST_CODE
+    let isWithinState = false;
+    const customerGstCode = selectedCustomerDetails.GST_CODE;
+    if (customerGstCode && branchesData) {
+        const branchCode = selectedCustomerDetails.BRANCH;
+        if (branchCode) {
+            const branch = Object.values(branchesData).find(b => b.BRANCH_CODE === branchCode);
+            const branchGstCode = branch?.GST_CODE;
+            if (branchGstCode && branchGstCode === customerGstCode) {
+                isWithinState = true;
+            }
+        }
+    }
+
     if (selectedCustomerDetails.GST_INC === 'Y') {
         taxableAmount = subtotal;
-        if (selectedCustomerDetails.B2B_STATE === 'Uttarakhand-05') {
+        if (isWithinState) {
             const totalTax = taxableAmount / 1.18 * 0.18;
             sgst = cgst = totalTax / 2;
         } else {
@@ -100,7 +114,7 @@ function calculateAllCharges(frightValue, summaryTotals, selectedCustomerDetails
         total = taxableAmount;
     } else {
         taxableAmount = subtotal;
-        if (selectedCustomerDetails.B2B_STATE === 'Uttarakhand-05') {
+        if (isWithinState) {
             sgst = cgst = taxableAmount * 0.09;
         } else {
             igst = taxableAmount * 0.18;

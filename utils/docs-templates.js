@@ -733,7 +733,10 @@ function generateDomesticInvoicePrintView(data) {
     const totalAmount = products.reduce((sum, p) => sum + (p.amount || 0), 0);
     const cgstAmount = totalAmount * 0.09;
     const sgstAmount = totalAmount * 0.09;
-    const grandTotal = totalAmount + cgstAmount + sgstAmount;
+    const igstAmount = totalAmount * 0.18;
+    const grandTotal = totalAmount + cgstAmount + sgstAmount;    const supplierStateCode = data.supplier_gst_code || (data.supplier_gstin || '').substring(0, 2);
+    const buyerStateCode = data.receiver_gst_code || (data.buyer_gstin || '').substring(0, 2);
+    const isInterState = !!(supplierStateCode && buyerStateCode && supplierStateCode !== buyerStateCode);
 
     const html = `
     <!DOCTYPE html>
@@ -807,14 +810,10 @@ function generateDomesticInvoicePrintView(data) {
                         <td colspan="5" class="text-right">Subtotal</td>
                         <td class="text-right">₹${totalAmount.toFixed(2)}</td>
                     </tr>
-                    <tr>
-                        <td colspan="5" class="text-right">CGST @ 9%</td>
-                        <td class="text-right">₹${cgstAmount.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="5" class="text-right">SGST @ 9%</td>
-                        <td class="text-right">₹${sgstAmount.toFixed(2)}</td>
-                    </tr>
+                    ${!isInterState
+                      ? `<tr><td colspan="5" class="text-right">CGST @ 9%</td><td class="text-right">₹${cgstAmount.toFixed(2)}</td></tr>
+                    <tr><td colspan="5" class="text-right">SGST @ 9%</td><td class="text-right">₹${sgstAmount.toFixed(2)}</td></tr>`
+                      : `<tr><td colspan="5" class="text-right">IGST @ 18%</td><td class="text-right">₹${igstAmount.toFixed(2)}</td></tr>`}
                     <tr class="total-row">
                         <td colspan="5" class="text-right">Grand Total</td>
                         <td class="text-right">₹${grandTotal.toFixed(2)}</td>
@@ -829,8 +828,7 @@ function generateDomesticInvoicePrintView(data) {
                 </div>
             </div>
         </div>
-    </body>
-    </html>`;
+    </body></html>`;
 
     printWindow.document.write(html);
     printWindow.document.close();
@@ -1267,19 +1265,23 @@ function generateTaxChallanPrintView(data, designId = 1) {
     const sgstRate = 9; // 9% SGST
     const cgstAmount = subtotal * (cgstRate / 100);
     const sgstAmount = subtotal * (sgstRate / 100);
+    const igstAmount = subtotal * 0.18;
     const grandTotal = subtotal + cgstAmount + sgstAmount;
+    const supplierStateCode = data.supplier_gst_code || (data.supplier_gstin || '').substring(0, 2);
+    const receiverStateCode = data.receiver_gst_code || (data.receiver_gstin || '').substring(0, 2);
+    const isInterState = !!(supplierStateCode && receiverStateCode && supplierStateCode !== receiverStateCode);
 
     const designs = {
-        1: generateTaxChallanDesign1(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        2: generateTaxChallanDesign2(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        3: generateTaxChallanDesign3(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        4: generateTaxChallanDesign4(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        5: generateTaxChallanDesign5(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        6: generateTaxChallanDesign6(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        7: generateTaxChallanDesign7(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        8: generateTaxChallanDesign8(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        9: generateTaxChallanDesign9(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal),
-        10: generateTaxChallanDesign10(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal)
+        1: generateTaxChallanDesign1(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        2: generateTaxChallanDesign2(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        3: generateTaxChallanDesign3(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        4: generateTaxChallanDesign4(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        5: generateTaxChallanDesign5(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        6: generateTaxChallanDesign6(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        7: generateTaxChallanDesign7(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        8: generateTaxChallanDesign8(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        9: generateTaxChallanDesign9(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState),
+        10: generateTaxChallanDesign10(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState)
     };
 
     const html = designs[designId] || designs[1];
@@ -1384,7 +1386,7 @@ function generateGenericPrintView(docId, data) {
 // TAX CHALLAN DESIGN VARIANTS (10 Different Styles)
 // ============================================================================
 
-function generateTaxChallanDesign1(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign1(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1420,8 +1422,10 @@ function generateTaxChallanDesign1(data, val, products, subtotal, cgstAmount, sg
             <tbody>
                 ${products.map((p, i) => `<tr><td>${i + 1}</td><td>${p.desc || ''}</td><td>${p.hsn || ''}</td><td>${p.qty || 0}</td><td class="text-right">₹${(p.rate || 0).toFixed(2)}</td><td class="text-right">₹${(p.amount || 0).toFixed(2)}</td></tr>`).join('')}
                 <tr class="total-row"><td colspan="5" class="text-right">Subtotal</td><td class="text-right">₹${subtotal.toFixed(2)}</td></tr>
-                <tr><td colspan="5" class="text-right">CGST @ 9%</td><td class="text-right">₹${cgstAmount.toFixed(2)}</td></tr>
-                <tr><td colspan="5" class="text-right">SGST @ 9%</td><td class="text-right">₹${sgstAmount.toFixed(2)}</td></tr>
+                ${!isInterState
+                  ? `<tr><td colspan="5" class="text-right">CGST @ 9%</td><td class="text-right">₹${cgstAmount.toFixed(2)}</td></tr>
+                <tr><td colspan="5" class="text-right">SGST @ 9%</td><td class="text-right">₹${sgstAmount.toFixed(2)}</td></tr>`
+                  : `<tr><td colspan="5" class="text-right">IGST @ 18%</td><td class="text-right">₹${igstAmount.toFixed(2)}</td></tr>`}
                 <tr class="total-row"><td colspan="5" class="text-right">Grand Total</td><td class="text-right">₹${grandTotal.toFixed(2)}</td></tr>
             </tbody>
         </table>
@@ -1432,7 +1436,7 @@ function generateTaxChallanDesign1(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign2(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign2(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1496,8 +1500,10 @@ function generateTaxChallanDesign2(data, val, products, subtotal, cgstAmount, sg
                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;">
                     <div>
                         <div><strong>Subtotal:</strong> ₹${subtotal.toFixed(2)}</div>
-                        <div><strong>CGST @ 9%:</strong> ₹${cgstAmount.toFixed(2)}</div>
-                        <div><strong>SGST @ 9%:</strong> ₹${sgstAmount.toFixed(2)}</div>
+                        ${!isInterState
+                          ? `<div><strong>CGST @ 9%:</strong> ₹${cgstAmount.toFixed(2)}</div>
+                        <div><strong>SGST @ 9%:</strong> ₹${sgstAmount.toFixed(2)}</div>`
+                          : `<div><strong>IGST @ 18%:</strong> ₹${igstAmount.toFixed(2)}</div>`}
                     </div>
                     <div style="font-size: 18px; font-weight: bold;">
                         <div>Grand Total: ₹${grandTotal.toFixed(2)}</div>
@@ -1514,7 +1520,7 @@ function generateTaxChallanDesign2(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign3(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign3(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1564,8 +1570,10 @@ function generateTaxChallanDesign3(data, val, products, subtotal, cgstAmount, sg
                     <tbody>
                         ${products.map((p, i) => `<tr><td>${i + 1}</td><td>${p.desc || ''}</td><td>${p.hsn || ''}</td><td>${p.qty || 0}</td><td>₹${(p.rate || 0).toFixed(2)}</td><td>₹${(p.amount || 0).toFixed(2)}</td></tr>`).join('')}
                         <tr><td colspan="5">SUBTOTAL</td><td>₹${subtotal.toFixed(2)}</td></tr>
-                        <tr><td colspan="5">CGST @ 9%</td><td>₹${cgstAmount.toFixed(2)}</td></tr>
-                        <tr><td colspan="5">SGST @ 9%</td><td>₹${sgstAmount.toFixed(2)}</td></tr>
+                        ${!isInterState
+                          ? `<tr><td colspan="5">CGST @ 9%</td><td>₹${cgstAmount.toFixed(2)}</td></tr>
+                        <tr><td colspan="5">SGST @ 9%</td><td>₹${sgstAmount.toFixed(2)}</td></tr>`
+                          : `<tr><td colspan="5">IGST @ 18%</td><td>₹${igstAmount.toFixed(2)}</td></tr>`}
                         <tr class="total"><td colspan="5">GRAND TOTAL</td><td>₹${grandTotal.toFixed(2)}</td></tr>
                     </tbody>
                 </table>
@@ -1580,7 +1588,7 @@ function generateTaxChallanDesign3(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign4(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign4(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1647,8 +1655,10 @@ function generateTaxChallanDesign4(data, val, products, subtotal, cgstAmount, sg
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px;">
                         <div>
                             <div>Subtotal: ₹${subtotal.toFixed(2)}</div>
-                            <div>CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
-                            <div>SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>
+                            ${!isInterState
+                              ? `<div>CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
+                            <div>SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>`
+                              : `<div>IGST @ 18%: ₹${igstAmount.toFixed(2)}</div>`}
                         </div>
                         <div style="font-size: 20px; font-weight: bold;">
                             Grand Total: ₹${grandTotal.toFixed(2)}
@@ -1666,7 +1676,7 @@ function generateTaxChallanDesign4(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign5(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign5(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1734,8 +1744,10 @@ function generateTaxChallanDesign5(data, val, products, subtotal, cgstAmount, sg
                     <tbody>
                         ${products.map((p, i) => `<tr><td>${i + 1}</td><td>${p.desc || ''}</td><td>${p.hsn || ''}</td><td>${p.qty || 0}</td><td style="text-align:right;">${(p.rate || 0).toFixed(2)}</td><td style="text-align:right;">${(p.amount || 0).toFixed(2)}</td></tr>`).join('')}
                         <tr><td colspan="5" style="text-align:right;"><strong>Subtotal</strong></td><td style="text-align:right;"><strong>₹${subtotal.toFixed(2)}</strong></td></tr>
-                        <tr><td colspan="5" style="text-align:right;">CGST @ 9%</td><td style="text-align:right;">₹${cgstAmount.toFixed(2)}</td></tr>
-                        <tr><td colspan="5" style="text-align:right;">SGST @ 9%</td><td style="text-align:right;">₹${sgstAmount.toFixed(2)}</td></tr>
+                        ${!isInterState
+                          ? `<tr><td colspan="5" style="text-align:right;">CGST @ 9%</td><td style="text-align:right;">₹${cgstAmount.toFixed(2)}</td></tr>
+                        <tr><td colspan="5" style="text-align:right;">SGST @ 9%</td><td style="text-align:right;">₹${sgstAmount.toFixed(2)}</td></tr>`
+                          : `<tr><td colspan="5" style="text-align:right;">IGST @ 18%</td><td style="text-align:right;">₹${igstAmount.toFixed(2)}</td></tr>`}
                         <tr class="total-row"><td colspan="5" style="text-align:right;"><strong>Grand Total</strong></td><td style="text-align:right;"><strong>₹${grandTotal.toFixed(2)}</strong></td></tr>
                     </tbody>
                 </table>
@@ -1755,7 +1767,7 @@ function generateTaxChallanDesign5(data, val, products, subtotal, cgstAmount, sg
         </div>
     </body></html>`;
 }
-function generateTaxChallanDesign6(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign6(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1829,8 +1841,10 @@ function generateTaxChallanDesign6(data, val, products, subtotal, cgstAmount, sg
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: center;">
                         <div style="line-height: 1.8;">
                             <div>Subtotal: ₹${subtotal.toFixed(2)}</div>
-                            <div>CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
-                            <div>SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>
+                            ${!isInterState
+                              ? `<div>CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
+                            <div>SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>`
+                              : `<div>IGST @ 18%: ₹${igstAmount.toFixed(2)}</div>`}
                         </div>
                         <div style="text-align: right;">
                             <div style="font-size: 14px;">Grand Total</div>
@@ -1849,7 +1863,7 @@ function generateTaxChallanDesign6(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign7(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign7(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -1919,8 +1933,10 @@ function generateTaxChallanDesign7(data, val, products, subtotal, cgstAmount, sg
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: center;">
                         <div>
                             <div style="margin: 5px 0;">SUBTOTAL: ₹${subtotal.toFixed(2)}</div>
-                            <div style="margin: 5px 0;">CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
-                            <div style="margin: 5px 0;">SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>
+                            ${!isInterState
+                              ? `<div style="margin: 5px 0;">CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
+                            <div style="margin: 5px 0;">SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>`
+                              : `<div style="margin: 5px 0;">IGST @ 18%: ₹${igstAmount.toFixed(2)}</div>`}
                         </div>
                         <div style="text-align: right;">
                             <div style="font-size: 16px;">GRAND TOTAL</div>
@@ -1939,7 +1955,7 @@ function generateTaxChallanDesign7(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign8(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign8(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -2011,8 +2027,10 @@ function generateTaxChallanDesign8(data, val, products, subtotal, cgstAmount, sg
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: center;">
                         <div style="line-height: 1.8;">
                             <div>💰 Subtotal: ₹${subtotal.toFixed(2)}</div>
-                            <div>🏛️ CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
-                            <div>🏛️ SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>
+                            ${!isInterState
+                              ? `<div>🏛️ CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
+                            <div>🏛️ SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>`
+                              : `<div>🏛️ IGST @ 18%: ₹${igstAmount.toFixed(2)}</div>`}
                         </div>
                         <div style="text-align: right;">
                             <div style="font-size: 16px; opacity: 0.9;">Grand Total</div>
@@ -2031,7 +2049,7 @@ function generateTaxChallanDesign8(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign9(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign9(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -2125,8 +2143,10 @@ function generateTaxChallanDesign9(data, val, products, subtotal, cgstAmount, sg
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center;">
                         <div style="line-height: 2;">
                             <div style="font-size: 16px;">💰 Subtotal: ₹${subtotal.toFixed(2)}</div>
-                            <div style="font-size: 16px;">🏛️ CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
-                            <div style="font-size: 16px;">🏛️ SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>
+                            ${!isInterState
+                              ? `<div style="font-size: 16px;">🏛️ CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
+                            <div style="font-size: 16px;">🏛️ SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>`
+                              : `<div style="font-size: 16px;">🏛️ IGST @ 18%: ₹${igstAmount.toFixed(2)}</div>`}
                         </div>
                         <div style="text-align: right;">
                             <div style="font-size: 18px; opacity: 0.9;">Grand Total</div>
@@ -2145,7 +2165,7 @@ function generateTaxChallanDesign9(data, val, products, subtotal, cgstAmount, sg
     </body></html>`;
 }
 
-function generateTaxChallanDesign10(data, val, products, subtotal, cgstAmount, sgstAmount, grandTotal) {
+function generateTaxChallanDesign10(data, val, products, subtotal, cgstAmount, sgstAmount, igstAmount, grandTotal, isInterState) {
     return `
     <!DOCTYPE html>
     <html><head><meta charset="UTF-8"><title>Tax Invoice - ${val('challan_no')}</title>
@@ -2227,8 +2247,10 @@ function generateTaxChallanDesign10(data, val, products, subtotal, cgstAmount, s
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: center;">
                         <div style="line-height: 2; font-size: 16px;">
                             <div>💰 Subtotal: ₹${subtotal.toFixed(2)}</div>
-                            <div>🏛️ CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
-                            <div>🏛️ SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>
+                            ${!isInterState
+                              ? `<div>🏛️ CGST @ 9%: ₹${cgstAmount.toFixed(2)}</div>
+                            <div>🏛️ SGST @ 9%: ₹${sgstAmount.toFixed(2)}</div>`
+                              : `<div>🏛️ IGST @ 18%: ₹${igstAmount.toFixed(2)}</div>`}
                         </div>
                         <div style="text-align: right;">
                             <div style="font-size: 20px;">🎯 GRAND TOTAL</div>
