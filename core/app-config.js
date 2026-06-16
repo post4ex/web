@@ -33,9 +33,9 @@
 })();
 
 const CONSTANTS = {
-    APP_NAME:       'Post4Ex',
-    SUPPORT_EMAIL:  'post4ex@gmail.com',
-    COMPANY_NAME:   'Post4Ex',
+    APP_NAME:       'Genie',
+    SUPPORT_EMAIL:  'genieassists@gmail.com',
+    COMPANY_NAME:   'Genie',
     COPYRIGHT_YEAR: '2025',
     APP_THEME:      'maroon',
 

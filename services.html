@@ -3,221 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Our Services</title>
+    <title>Platform Capabilities – Genie</title>
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
     <style>
-        body { font-family: 'Comfortaa', sans-serif; }
+        body { font-family: 'Inter', sans-serif; }
+
+        .capability-card {
+            transition: all 0.3s ease;
+        }
+        .capability-card:hover {
+            transform: translateY(-4px);
+        }
+        .feature-badge {
+            transition: all 0.2s ease;
+        }
+        .feature-badge:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <main class="w-full flex-grow p-4 sm:p-8">
+    <!-- Hero -->
+    <section class="bg-gradient-to-br from-[#022c5a] to-[#011735] text-white py-16 sm:py-24">
+        <div class="container mx-auto max-w-6xl px-4 text-center">
+            <h1 class="text-4xl sm:text-5xl font-black mb-4 tracking-tight">The Operations OS for<br/>Courier &amp; Logistics</h1>
+            <p class="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto leading-relaxed">
+                Genie is a unified platform that handles your entire logistics operations —
+                from order booking and carrier allocation to billing, documents, and compliance.
+                Built for Indian courier &amp; freight businesses.
+            </p>
+        </div>
+    </section>
+
+    <main class="w-full flex-grow p-4 sm:p-8 -mt-8">
         <div class="container mx-auto max-w-7xl">
-            <section id="services-section" class="bg-white rounded-lg shadow-md p-8 space-y-8">
-                <h2 class="text-3xl font-bold text-center text-gray-800 mb-8">Our Services</h2>
-                <p class="text-center text-gray-500 mb-8 -mt-6">Comprehensive solutions tailored to your logistics needs.</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
-        
-                    <!-- Service 1: AirLine Services -->
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 group h-full">
-                        <div class="w-16 h-16 mb-4 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-plane-departure text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">AirLine Services</h3>
-                        <p class="text-gray-600 mb-4">Our AirLine Services offer the fastest way to get your consignments to their destination, ensuring timely and secure delivery across the globe.</p>
-                        
-                        <!-- PERMANENT DETAILS -->
-                        <div class="details-container text-left w-full mt-4 border-t border-gray-200 pt-4 flex-grow">
-                            <div class="space-y-4 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside">
-                                        <li>24-48 Hour Global Delivery</li>
-                                        <li>Door-to-Airport & Door-to-Door</li>
-                                        <li>Real-time GPS Flight Tracking</li>
-                                        <li>Customs Clearance Support</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="text-blue-800 bg-blue-50 p-2 rounded">High-value electronics, medical supplies, legal documents.</p>
-                                </div>
-                                <div class="pt-2 text-center mt-auto">
-                                    <!-- TODO: Redirect to specific service page when ready -->
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-bold uppercase tracking-wider">Book Now</a>
-                                </div>
-                            </div>
-                        </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+
+                <!-- 1. Order & Shipment Management -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-box-open text-2xl"></i>
                     </div>
-        
-                    <!-- Service 2: Surface Services -->
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 group h-full">
-                        <div class="w-16 h-16 mb-4 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-truck-fast text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Surface Services</h3>
-                        <p class="text-gray-600 mb-4">For cost-effective and reliable transportation, our Surface Services are the ideal choice. We handle large and heavy shipments with care.</p>
-                        
-                        <div class="details-container text-left w-full mt-4 border-t border-gray-200 pt-4 flex-grow">
-                            <div class="space-y-4 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside">
-                                        <li>Pan-India Coverage (19,000+ Pincodes)</li>
-                                        <li>FTL (Full Truck Load) & PTL Options</li>
-                                        <li>GPS-Enabled Fleet</li>
-                                        <li>Cost-Effective Pricing Models</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="text-emerald-800 bg-emerald-50 p-2 rounded">Bulk raw materials, furniture, machinery, textiles.</p>
-                                </div>
-                                <div class="pt-2 text-center mt-auto">
-                                    <!-- TODO: Redirect to specific service page when ready -->
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors text-sm font-bold uppercase tracking-wider">Check Rates</a>
-                                </div>
-                            </div>
-                        </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Order &amp; Shipment Management</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single dashboard.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">Multi-carrier assignment</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">AWB stock management</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">Bulk operations</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">Edit &amp; amend orders</span>
                     </div>
-        
-                    <!-- Service 3: Premium Services -->
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 group h-full">
-                        <div class="w-16 h-16 mb-4 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-crown text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Premium Services</h3>
-                        <p class="text-gray-600 mb-4">Experience the highest standard of service. Enjoy priority handling, real-time tracking, and dedicated support for your most valuable shipments.</p>
-                        
-                        <div class="details-container text-left w-full mt-4 border-t border-gray-200 pt-4 flex-grow">
-                            <div class="space-y-4 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside">
-                                        <li>Dedicated Account Manager</li>
-                                        <li>Money-Back Guarantee on Timing</li>
-                                        <li>Enhanced Insurance Coverage</li>
-                                        <li>24/7 Priority Support Line</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="text-purple-800 bg-purple-50 p-2 rounded">Artworks, jewelry, sensitive prototypes, critical spare parts.</p>
-                                </div>
-                                <div class="pt-2 text-center mt-auto">
-                                    <!-- TODO: Redirect to specific service page when ready -->
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm font-bold uppercase tracking-wider">Get Premium</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-        
-                    <!-- Service 4: E-Commerce Services -->
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 group h-full">
-                        <div class="w-16 h-16 mb-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-shop text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">E-Commerce Services</h3>
-                        <p class="text-gray-600 mb-4">Tailored solutions for your online business. We handle everything from last-mile delivery to cash-on-delivery and returns.</p>
-                        
-                        <div class="details-container text-left w-full mt-4 border-t border-gray-200 pt-4 flex-grow">
-                            <div class="space-y-4 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside">
-                                        <li>API Integration & Webhooks</li>
-                                        <li>Cash on Delivery (COD) Management</li>
-                                        <li>Automated Return (RTO) Handling</li>
-                                        <li>Branded Tracking Pages</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="text-orange-800 bg-orange-50 p-2 rounded">D2C brands, online marketplaces, subscription box services.</p>
-                                </div>
-                                <div class="pt-2 text-center mt-auto">
-                                    <!-- TODO: Redirect to specific service page when ready -->
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors text-sm font-bold uppercase tracking-wider">Integrate Now</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-        
-                    <!-- Service 5: LTL Services -->
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 group h-full">
-                        <div class="w-16 h-16 mb-4 bg-cyan-100 text-cyan-700 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-boxes-stacked text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">LTL Services</h3>
-                        <p class="text-gray-600 mb-4">Our Less-than-Truckload (LTL) Services are perfect for shipments that don't require a full truck. Flexible and economical.</p>
-                        
-                        <div class="details-container text-left w-full mt-4 border-t border-gray-200 pt-4 flex-grow">
-                            <div class="space-y-4 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside">
-                                        <li>Pay only for space occupied</li>
-                                        <li>Palletized Handling</li>
-                                        <li>Hub-and-Spoke Distribution</li>
-                                        <li>Barcode Tracking per Pallet</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="text-cyan-800 bg-cyan-50 p-2 rounded">Small manufacturers, distributors, businesses with fluctuating loads.</p>
-                                </div>
-                                <div class="pt-2 text-center mt-auto">
-                                    <!-- TODO: Redirect to specific service page when ready -->
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors text-sm font-bold uppercase tracking-wider">Request LTL</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-        
-                    <!-- Service 6: VAS Services -->
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 group h-full">
-                        <div class="w-16 h-16 mb-4 bg-slate-200 text-slate-700 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-hand-holding-dollar text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">VAS Services</h3>
-                        <p class="text-gray-600 mb-4">Enhance your logistics with our Value-Added Services (VAS), including special handling, packaging, and customizable solutions.</p>
-                        
-                        <div class="details-container text-left w-full mt-4 border-t border-gray-200 pt-4 flex-grow">
-                            <div class="space-y-4 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside">
-                                        <li>Professional Packaging & Crating</li>
-                                        <li>Warehousing & Storage</li>
-                                        <li>Labeling & Kitting</li>
-                                        <li>Document Collection on Delivery</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="text-slate-800 bg-slate-200 p-2 rounded">Fragile items, promotional kits, regulated chemical shipments.</p>
-                                </div>
-                                <div class="pt-2 text-center mt-auto">
-                                    <!-- TODO: Redirect to specific service page when ready -->
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800 transition-colors text-sm font-bold uppercase tracking-wider">Explore VAS</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-        
                 </div>
-            </section>
+
+                <!-- 2. Multi-Carrier Integration -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-truck-fast text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Multi-Carrier Integration</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage all providers from one place.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Rate comparison</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Auto-allocation logic</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Carrier-specific configs</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">API-based integration</span>
+                    </div>
+                </div>
+
+                <!-- 3. Rate Calculator & Estimation -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-calculator text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Rate Calculator &amp; Estimation</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">GST-aware pricing</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">Fuel surcharge</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">Live rate tables</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">Volume &amp; weight calc</span>
+                    </div>
+                </div>
+
+                <!-- 4. Real-time Tracking -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-purple-50 text-purple-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-satellite-dish text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Real-time Tracking</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">SSE live updates</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">Milestone mapping</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">Public tracking page</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">Carrier scan sync</span>
+                    </div>
+                </div>
+
+                <!-- 5. Document Suite -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-rose-50 text-rose-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-file-invoice text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Document Suite</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, ARE-1, and 20+ more templates.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">20+ document templates</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">Auto-fill from order data</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">Barcode &amp; QR support</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">Print-ready exports</span>
+                    </div>
+                </div>
+
+                <!-- 6. Financial Management (Vault) -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-teal-50 text-teal-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-vault text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Financial Management (Vault)</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">Chart of accounts</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">GST reconciliation</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">Payroll processing</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">Journal entries</span>
+                    </div>
+                </div>
+
+                <!-- 7. B2B / B2C Client Portal -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-users text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">B2B &amp; B2C Client Management</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements — all in one directory.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Client onboarding</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Contract &amp; rate mgmt</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Credit tracking</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Service agreements</span>
+                    </div>
+                </div>
+
+                <!-- 8. Branch & Staff Management -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-cyan-50 text-cyan-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-building text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Branch &amp; Staff Management</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Multi-branch operations with role-based access control, shift management, attendance tracking, and staff performance views.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Multi-branch setup</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Role-based access</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Shift scheduling</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Attendance system</span>
+                    </div>
+                </div>
+
+                <!-- 9. Admin, Compliance & Config -->
+                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
+                    <div class="w-14 h-14 mb-4 bg-slate-50 text-slate-700 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Admin, Compliance &amp; Configuration</h3>
+                    <p class="text-gray-500 text-sm mb-4 flex-grow">Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.</p>
+                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Pincode DB (19k+)</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Holiday calendar</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Service modes config</span>
+                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Audit &amp; activity logs</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CTA -->
+            <div class="text-center mt-12 mb-8">
+                <a href="login.html" class="btn text-lg px-10 py-4">
+                    <i class="fa-solid fa-rocket mr-2"></i> Get Started with Genie
+                </a>
+            </div>
+
         </div>
     </main>
-    
+
     <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
-    
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>

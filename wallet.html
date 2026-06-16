@@ -307,7 +307,7 @@
 
             // Generate UPI string and QR code
             const upiId = '7088551155@upi';
-            const payeeName = window.CONSTANTS?.APP_NAME ? `${window.CONSTANTS.APP_NAME} Wallet` : 'Post4Ex Wallet';
+            const payeeName = window.CONSTANTS?.APP_NAME ? `${window.CONSTANTS.APP_NAME} Wallet` : 'Genie Wallet';
             const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}.00&cu=INR`;
             
             qrCodeContainer.innerHTML = ''; // Clear previous QR code

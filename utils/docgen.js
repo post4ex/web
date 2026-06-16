@@ -16,10 +16,10 @@ function getLogoSrc() {
     const scripts = document.querySelectorAll('script[src]');
     for (const s of scripts) {
         if (s.src.includes('docgen.js')) {
-            return new URL('/assets/images/post4ex-logo.svg', s.src).href;
+            return new URL('/assets/images/genie-logo.svg', s.src).href;
         }
     }
-    return window.location.origin + '/assets/images/post4ex-logo.svg';
+    return window.location.origin + '/assets/images/genie-logo.svg';
 }
 
 function getCarrierLogoSrc(carrier) {
@@ -38,7 +38,7 @@ function getCarrierLogoSrc(carrier) {
     if (c.includes('xpressbees') || c.includes('expressbees')) return base + 'xpressbees-logo.webp';
     if (c.includes('maruti'))      return base + 'shreemaruti-logo.png';
     if (c.includes('postoffice') || c.includes('indiapost')) return base + 'indiapost-logo.png';
-    return base + 'post4ex-logo.svg';
+    return base + 'genie-logo.svg';
 }
 
 function getCarrierLogoBg(carrier) {
@@ -404,7 +404,7 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType, branch) {
     return `${getReceiptStyles()}
     <div class="receipt-wrapper">
         <div class="receipt-header">
-            <div class="receipt-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:36px;width:auto;"></div>
+            <div class="receipt-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:36px;width:auto;"></div>
             <div class="receipt-copy-type">${copyType}<div style="font-size:10px;font-weight:normal;color:#555;margin-top:2px;">Informational Copy</div></div>
         </div>
         <div class="receipt-meta">
@@ -525,7 +525,7 @@ function buildDocs(order, cnor, cnee, products) {
     return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:32px;width:auto;"></div>
+            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:32px;width:auto;"></div>
             <div class="ps-title">PRODUCT PACKING SLIP</div>
         </div>
         <div class="ps-meta">
@@ -619,7 +619,7 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
     return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:32px;width:auto;"></div>
+            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:32px;width:auto;"></div>
             <div class="ps-title">PACKING SLIP</div>
         </div>
         <div class="ps-meta">
@@ -905,7 +905,7 @@ function buildDocsAndBox(order, cnor, cnee, products, multiboxItems) {
     const combined = `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Post4Ex" style="height:32px;width:auto;"></div>
+            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:32px;width:auto;"></div>
             <div class="ps-title">${isDec ? 'PACKAGING LIST CUM DECLARATION' : 'PACKING SLIP'}</div>
         </div>
         <div class="ps-meta">

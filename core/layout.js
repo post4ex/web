@@ -402,8 +402,8 @@ function openSSE() {
 // clear sync lock on page unload/navigation — prevents stuck state if sync was mid-flight
 window.addEventListener('pagehide', () => {
     if (_syncLeader) {
-        localStorage.removeItem('post4ex-sync-active');
-        localStorage.removeItem('post4ex-sync-active-ts');
+        localStorage.removeItem('genie-sync-active');
+        localStorage.removeItem('genie-sync-active-ts');
     }
 });
 
@@ -436,16 +436,16 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 // multi-tab sync coordination (#10)
-const _syncChannel = new BroadcastChannel('post4ex-sync');
+const _syncChannel = new BroadcastChannel('genie-sync');
 let _syncLeader = false;
 _syncChannel.addEventListener('message', async (e) => {
     if (e.data === 'sync-started') {
-        localStorage.setItem('post4ex-sync-active', '1');
-        localStorage.setItem('post4ex-sync-active-ts', Date.now().toString());
+        localStorage.setItem('genie-sync-active', '1');
+        localStorage.setItem('genie-sync-active-ts', Date.now().toString());
     }
     if (e.data === 'sync-complete') {
-        localStorage.removeItem('post4ex-sync-active');
-        localStorage.removeItem('post4ex-sync-active-ts');
+        localStorage.removeItem('genie-sync-active');
+        localStorage.removeItem('genie-sync-active-ts');
         const fullData = await getAppData();
         window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
         window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
@@ -453,13 +453,13 @@ _syncChannel.addEventListener('message', async (e) => {
 });
 
 function _isSyncActive() {
-    const active = localStorage.getItem('post4ex-sync-active');
+    const active = localStorage.getItem('genie-sync-active');
     if (!active) return false;
     // stale guard — if flag is older than 30s, treat as dead
-    const ts = parseInt(localStorage.getItem('post4ex-sync-active-ts') || '0');
+    const ts = parseInt(localStorage.getItem('genie-sync-active-ts') || '0');
     if (Date.now() - ts > 10000) {
-        localStorage.removeItem('post4ex-sync-active');
-        localStorage.removeItem('post4ex-sync-active-ts');
+        localStorage.removeItem('genie-sync-active');
+        localStorage.removeItem('genie-sync-active-ts');
         return false;
     }
     return true;
@@ -534,12 +534,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!hasData && !_isSyncActive()) {
             console.log('[Layout] No data — running full verifyAndFetchAppData');
             _syncLeader = true;
-            localStorage.setItem('post4ex-sync-active', '1');
-            localStorage.setItem('post4ex-sync-active-ts', Date.now().toString());
+            localStorage.setItem('genie-sync-active', '1');
+            localStorage.setItem('genie-sync-active-ts', Date.now().toString());
             _syncChannel.postMessage('sync-started');
             await verifyAndFetchAppData();
-            localStorage.removeItem('post4ex-sync-active');
-            localStorage.removeItem('post4ex-sync-active-ts');
+            localStorage.removeItem('genie-sync-active');
+            localStorage.removeItem('genie-sync-active-ts');
             _syncChannel.postMessage('sync-complete');
         } else if (!_isSyncActive()) {
             console.log('[Layout] Has data — firing events, pullDeltaSince:', window._idbLastStamp);

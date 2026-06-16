@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us</title>
+    <title>About Us – Genie</title>
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
     <style>
-        body { font-family: 'Comfortaa', sans-serif; }
-        .hero-gradient { background: linear-gradient(135deg, #d87e2f 0%, #e96721 100%); }
+        body { font-family: 'Inter', sans-serif; }
         .stat-card:hover { transform: translateY(-5px); }
+        .value-card { transition: all 0.3s ease; }
+        .value-card:hover { transform: translateY(-3px); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
@@ -18,151 +19,88 @@
 
     <main class="flex-grow">
         <!-- Hero Section -->
-        <section class="hero-gradient text-white py-16">
+        <section class="bg-gradient-to-br from-amber-50 to-amber-100/60 text-[#022c5a] py-16 sm:py-24">
             <div class="container mx-auto px-4 text-center max-w-4xl">
-                <h1 class="text-5xl font-bold mb-6" id="about-title"></h1>
-                <p class="text-xl mb-8 opacity-90">India's trusted logistics partner, connecting businesses and communities across the nation with reliable, efficient, and innovative delivery solutions.</p>
-                <div class="flex flex-wrap justify-center gap-8 text-center">
-                    <div class="stat-card bg-white bg-opacity-20 rounded-lg p-6 transition-transform">
-                        <div class="text-3xl font-bold">2+</div>
-                        <div class="text-sm opacity-80">Years of Excellence</div>
+                <h1 class="text-4xl sm:text-5xl font-black mb-6 tracking-tight" id="about-title"></h1>
+                <p class="text-lg sm:text-xl mb-8 text-[#022c5a]/70 max-w-3xl mx-auto leading-relaxed">The operations platform built for Indian courier &amp; logistics businesses — unifying orders, carriers, billing, documents, and compliance in one powerful system.</p>
+                <div class="flex flex-wrap justify-center gap-6 text-center">
+                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
+                        <div class="text-3xl font-black text-[#022c5a]">2+</div>
+                        <div class="text-sm text-[#022c5a]/60 mt-1">Years in Production</div>
                     </div>
-                    <div class="stat-card bg-white bg-opacity-20 rounded-lg p-6 transition-transform">
-                        <div class="text-3xl font-bold">500+</div>
-                        <div class="text-sm opacity-80">Cities Covered</div>
+                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
+                        <div class="text-3xl font-black text-[#022c5a]">19K+</div>
+                        <div class="text-sm text-[#022c5a]/60 mt-1">Pincodes Covered</div>
                     </div>
-                    <div class="stat-card bg-white bg-opacity-20 rounded-lg p-6 transition-transform">
-                        <div class="text-3xl font-bold">10M+</div>
-                        <div class="text-sm opacity-80">Deliveries Made</div>
+                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
+                        <div class="text-3xl font-black text-[#022c5a]">10+</div>
+                        <div class="text-sm text-[#022c5a]/60 mt-1">Carriers Integrated</div>
                     </div>
-                    <div class="stat-card bg-white bg-opacity-20 rounded-lg p-6 transition-transform">
-                        <div class="text-3xl font-bold">50K+</div>
-                        <div class="text-sm opacity-80">Happy Customers</div>
+                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
+                        <div class="text-3xl font-black text-[#022c5a]">20+</div>
+                        <div class="text-sm text-[#022c5a]/60 mt-1">Document Templates</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Company Story -->
+        <!-- Our Story -->
         <section class="py-16 bg-white">
             <div class="container mx-auto px-4 max-w-6xl">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                     <div>
                         <h2 class="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-                        <p class="text-gray-600 mb-4">Founded in 2022, <span id="company-name-1"></span> began as a modern logistics platform with a simple mission: to connect people and businesses across India through reliable logistics solutions.</p>
-                        <p class="text-gray-600 mb-4">In just two years, we've established partnerships with leading courier companies and built a comprehensive network that handles everything from documents to e-commerce packages, international shipments, and specialized cargo.</p>
-                        <p class="text-gray-600">Today, we continue to innovate with technology-driven solutions while maintaining our commitment to personal service and reliability that our customers have come to expect.</p>
+                        <p class="text-gray-600 mb-4 leading-relaxed"><span id="company-name-1"></span> was built from the ground up to solve a simple problem: Indian logistics businesses deserved better software. Off-the-shelf tools were either too generic or too expensive, and most couldn't handle the complexity of multi-carrier operations, GST compliance, and the sheer variety of shipping documents required.</p>
+                        <p class="text-gray-600 mb-4 leading-relaxed">What started as an internal tool to streamline carrier assignment and rate calculation grew into a full-fledged operations platform. We added real-time tracking via SSE, a comprehensive document suite with 20+ templates, a complete financial module (Vault), and deep carrier integrations — all while keeping the interface fast and familiar.</p>
+                        <p class="text-gray-600 leading-relaxed">Today, <span id="company-name-3"></span> powers logistics operations across India — from order booking to final delivery — helping businesses focus on what they do best: shipping.</p>
                     </div>
                     <div class="text-center">
-                        <div class="bg-blue-50 rounded-lg p-8">
-                            <i class="fa-solid fa-truck text-6xl text-blue-600 mb-4"></i>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Nationwide Network</h3>
-                            <p class="text-gray-600">Comprehensive coverage across urban and rural India</p>
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
+                            <i class="fa-solid fa-cubes text-6xl text-blue-600 mb-4"></i>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">Built for Logistics,<br/>by Logistics People</h3>
+                            <p class="text-gray-600">Every feature was shaped by real operational needs</p>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Partners Section -->
-        <section class="py-16 bg-white">
-            <div class="container mx-auto px-4 max-w-6xl">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Delivery Partners</h2>
-                    <p class="text-gray-600 max-w-2xl mx-auto">Associated with India's leading courier and logistics companies to provide comprehensive delivery solutions nationwide.</p>
-                </div>
-                
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-truck text-3xl text-blue-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Blue Dart</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-shipping-fast text-3xl text-red-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">DTDC</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-plane text-3xl text-yellow-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">DHL Express</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-box text-3xl text-brown-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">FedEx</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-dolly text-3xl text-green-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Ecom Express</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-truck-fast text-3xl text-purple-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Delhivery</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-route text-3xl text-orange-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Xpressbees</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-motorcycle text-3xl text-indigo-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Shadowfax</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-map-marked-alt text-3xl text-teal-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Ekart Logistics</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-warehouse text-3xl text-pink-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">Shiprocket</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-globe text-3xl text-cyan-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">India Post</h4>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                        <i class="fa-solid fa-handshake text-3xl text-gray-600 mb-2"></i>
-                        <h4 class="font-semibold text-gray-800">& Many More</h4>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Services Overview -->
+        <!-- What Makes Genie Different -->
         <section class="py-16 bg-gray-50">
             <div class="container mx-auto px-4 max-w-6xl">
                 <div class="text-center mb-12">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Services</h2>
-                    <p class="text-gray-600 max-w-2xl mx-auto">We offer comprehensive logistics solutions tailored to meet diverse business and personal shipping needs.</p>
+                    <h2 class="text-3xl font-bold text-gray-900 mb-4">What Makes <span id="company-name-4"></span> Different</h2>
+                    <p class="text-gray-600 max-w-2xl mx-auto">Not just another dashboard — a purpose-built operating system for courier and freight operations.</p>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <div class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                        <i class="fa-solid fa-box text-4xl text-blue-600 mb-4"></i>
-                        <h3 class="text-xl font-semibold mb-3">Domestic Shipping</h3>
-                        <p class="text-gray-600">Fast and reliable delivery across all Indian cities and towns</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-puzzle-piece text-2xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Modular by Design</h4>
+                        <p class="text-gray-600 text-sm leading-relaxed">Use what you need — orders, tracking, billing, or documents. Each module works standalone or together.</p>
                     </div>
-                    <div class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                        <i class="fa-solid fa-globe text-4xl text-blue-600 mb-4"></i>
-                        <h3 class="text-xl font-semibold mb-3">International Express</h3>
-                        <p class="text-gray-600">Global shipping solutions with customs clearance support</p>
+                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-link text-2xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Carrier Agnostic</h4>
+                        <p class="text-gray-600 text-sm leading-relaxed">Compare and assign across multiple carriers from one interface. No vendor lock-in.</p>
                     </div>
-                    <div class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                        <i class="fa-solid fa-shopping-cart text-4xl text-blue-600 mb-4"></i>
-                        <h3 class="text-xl font-semibold mb-3">E-commerce Solutions</h3>
-                        <p class="text-gray-600">Specialized services for online retailers and marketplaces</p>
+                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-file-shield text-2xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">GST-Ready</h4>
+                        <p class="text-gray-600 text-sm leading-relaxed">Auto-detects intra-state vs inter-state for correct IGST/SGST+CGST. Built-in GST reconciliation.</p>
                     </div>
-                    <div class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                        <i class="fa-solid fa-file-contract text-4xl text-blue-600 mb-4"></i>
-                        <h3 class="text-xl font-semibold mb-3">Document Services</h3>
-                        <p class="text-gray-600">Secure handling of important documents and certificates</p>
-                    </div>
-                    <div class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                        <i class="fa-solid fa-warehouse text-4xl text-blue-600 mb-4"></i>
-                        <h3 class="text-xl font-semibold mb-3">Warehousing</h3>
-                        <p class="text-gray-600">Storage and distribution solutions for businesses</p>
-                    </div>
-                    <div class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transition-shadow">
-                        <i class="fa-solid fa-headset text-4xl text-blue-600 mb-4"></i>
-                        <h3 class="text-xl font-semibold mb-3">24/7 Support</h3>
-                        <p class="text-gray-600">Round-the-clock customer service and tracking support</p>
+                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-bolt text-2xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Real-Time by Default</h4>
+                        <p class="text-gray-600 text-sm leading-relaxed">SSE-powered live tracking, instant rate calculations, and auto-refreshing dashboards.</p>
                     </div>
                 </div>
             </div>
@@ -171,20 +109,24 @@
         <!-- Mission & Vision -->
         <section class="py-16 bg-white">
             <div class="container mx-auto px-4 max-w-6xl">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <div class="bg-blue-50 rounded-lg p-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-8 border border-amber-100">
                         <div class="flex items-center mb-4">
-                            <i class="fa-solid fa-bullseye text-3xl text-blue-600 mr-4"></i>
+                            <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fa-solid fa-bullseye text-xl"></i>
+                            </div>
                             <h3 class="text-2xl font-bold text-gray-900">Our Mission</h3>
                         </div>
-                        <p class="text-gray-700">To provide reliable, efficient, and innovative logistics solutions that connect businesses and individuals across India and beyond, enabling growth and prosperity for our customers and communities.</p>
+                        <p class="text-gray-700 leading-relaxed">To empower every courier and logistics business in India with a unified operations platform that simplifies complexity, reduces manual effort, and enables them to scale with confidence.</p>
                     </div>
-                    <div class="bg-green-50 rounded-lg p-8">
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
                         <div class="flex items-center mb-4">
-                            <i class="fa-solid fa-eye text-3xl text-green-600 mr-4"></i>
+                            <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fa-solid fa-eye text-xl"></i>
+                            </div>
                             <h3 class="text-2xl font-bold text-gray-900">Our Vision</h3>
                         </div>
-                        <p class="text-gray-700">To be India's most trusted and preferred logistics partner, known for excellence in service delivery, technological innovation, and sustainable business practices that benefit all stakeholders.</p>
+                        <p class="text-gray-700 leading-relaxed">To become the backbone of India's logistics operations — the platform that logistics companies trust to run their business, from the first mile to the last.</p>
                     </div>
                 </div>
             </div>
@@ -195,54 +137,54 @@
             <div class="container mx-auto px-4 max-w-6xl">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Values</h2>
-                    <p class="text-gray-600">The principles that guide everything we do</p>
+                    <p class="text-gray-600">The principles that guide how we build</p>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="text-center">
-                        <div class="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-md">
-                            <i class="fa-solid fa-handshake text-2xl text-blue-600"></i>
+                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                            <i class="fa-solid fa-gear text-xl"></i>
                         </div>
-                        <h4 class="text-lg font-semibold mb-2">Reliability</h4>
-                        <p class="text-gray-600 text-sm">Consistent, dependable service you can count on</p>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Practical First</h4>
+                        <p class="text-gray-600 text-sm">Every feature solves a real operational problem — no fluff.</p>
                     </div>
-                    <div class="text-center">
-                        <div class="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-md">
-                            <i class="fa-solid fa-rocket text-2xl text-blue-600"></i>
+                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shadow-sm">
+                            <i class="fa-solid fa-arrow-trend-up text-xl"></i>
                         </div>
-                        <h4 class="text-lg font-semibold mb-2">Innovation</h4>
-                        <p class="text-gray-600 text-sm">Embracing technology to improve our services</p>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Continuous Improvement</h4>
+                        <p class="text-gray-600 text-sm">We ship often, listen to users, and iterate relentlessly.</p>
                     </div>
-                    <div class="text-center">
-                        <div class="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-md">
-                            <i class="fa-solid fa-users text-2xl text-blue-600"></i>
+                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center shadow-sm">
+                            <i class="fa-solid fa-handshake text-xl"></i>
                         </div>
-                        <h4 class="text-lg font-semibold mb-2">Customer Focus</h4>
-                        <p class="text-gray-600 text-sm">Your success is our priority</p>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Partner Mentality</h4>
+                        <p class="text-gray-600 text-sm">Your logistics business is our business. We succeed when you do.</p>
                     </div>
-                    <div class="text-center">
-                        <div class="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-md">
-                            <i class="fa-solid fa-leaf text-2xl text-blue-600"></i>
+                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
+                        <div class="w-14 h-14 mx-auto mb-4 bg-cyan-50 text-cyan-600 rounded-full flex items-center justify-center shadow-sm">
+                            <i class="fa-solid fa-mobile-screen text-xl"></i>
                         </div>
-                        <h4 class="text-lg font-semibold mb-2">Sustainability</h4>
-                        <p class="text-gray-600 text-sm">Responsible business practices for a better future</p>
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">Fast &amp; Familiar</h4>
+                        <p class="text-gray-600 text-sm">UI that doesn't get in the way. Speed is a feature.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Contact CTA -->
-        <section class="py-16 bg-blue-600 text-white">
+        <!-- CTA -->
+        <section class="py-16 bg-gradient-to-br from-amber-50 to-amber-100/60 text-[#022c5a]">
             <div class="container mx-auto px-4 text-center max-w-4xl">
-                <h2 class="text-3xl font-bold mb-4">Ready to Ship with Us?</h2>
-                <p class="text-xl mb-8 opacity-90">Join thousands of satisfied customers who trust <span id="company-name-2"></span> for their logistics needs.</p>
+                <h2 class="text-3xl font-bold mb-4">Ready to Streamline Your Operations?</h2>
+                <p class="text-lg mb-8 text-[#022c5a]/70">Join logistics teams that trust <span id="company-name-2"></span> to handle their operations every day.</p>
                 <div class="flex flex-wrap justify-center gap-4">
-                    <a href="main.html" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                        <i class="fa-solid fa-home mr-2"></i>Get Started
+                    <a href="login.html" class="btn btn-lg">
+                        <i class="fa-solid fa-rocket mr-2"></i>Get Started
                     </a>
-                    <button onclick="window.openContactModal()" class="btn-ghost-white px-8 py-3">
-                        <i class="fa-solid fa-phone mr-2"></i>Contact Us
-                    </button>
+                    <a href="services.html" class="btn-danger px-8 py-3 text-lg">
+                        <i class="fa-solid fa-grid-2 mr-2"></i>View Capabilities
+                    </a>
                 </div>
             </div>
         </section>
@@ -250,7 +192,6 @@
 
     <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
-    
     <script src="indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
@@ -262,9 +203,8 @@
         window.addEventListener('footerLoaded', function() {
             const n = window.CONSTANTS.APP_NAME;
             document.title = `About Us - ${n}`;
-            document.getElementById('about-title').textContent = `About ${n}`;
-            document.getElementById('company-name-1').textContent = n;
-            document.getElementById('company-name-2').textContent = n;
+            const els = document.querySelectorAll('#about-title, #company-name-1, #company-name-2, #company-name-3, #company-name-4');
+            els.forEach(el => { if (el) el.textContent = n; });
         });
     </script>
 </body>

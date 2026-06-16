@@ -81,7 +81,7 @@ const VaultBilling = (() => {
 
         const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tax Invoice ${invNum}</title><style>${css}</style></head><body>
         <div class="box">
-            <div class="hdr"><img src="assets/images/post4ex-logo.svg" class="logo"><div style="text-align:right"><h1 style="margin:0;font-size:28px;text-transform:uppercase">Tax Invoice</h1><p><b>Invoice Date:</b> ${invDate}</p><p><b>Invoice No:</b> ${invNum}</p></div></div>
+            <div class="hdr"><img src="assets/images/genie-logo.svg" class="logo"><div style="text-align:right"><h1 style="margin:0;font-size:28px;text-transform:uppercase">Tax Invoice</h1><p><b>Invoice Date:</b> ${invDate}</p><p><b>Invoice No:</b> ${invNum}</p></div></div>
             <div class="info">
                 <div class="col"><h3>Billed By: ${branchName}</h3><p><b>Address:</b> ${branch?.BRANCH_ADDRESS||''}</p><p><b>City:</b> ${branchCity}, ${branch?.BRANCH_STATE||''}</p><p><b>Phone:</b> ${branch?.BRANCH_MOBILE||''}</p><p><b>Email:</b> ${branch?.BRANCH_EMAIL||''}</p><p><b>PAN/GST:</b> ${branch?.BRANCH_PAN||''} / ${branch?.BRANCH_GSTIN||''}</p></div>
                 <div class="div"></div>

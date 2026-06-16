@@ -290,7 +290,7 @@
             </button>
             <div class="space-y-4 text-gray-700">
                 <div><h3 class="font-medium">Address:</h3><p class="text-gray-600">Shivlok Colony, Haripur, Dehradun - 248001</p></div>
-                <div><h3 class="font-medium">Email:</h3><p class="text-gray-600" id="contact-email">Post4Ex@gmail.com</p></div>
+                <div><h3 class="font-medium">Email:</h3><p class="text-gray-600" id="contact-email">genieassists@gmail.com</p></div>
             </div>
         </div>
     </div>
@@ -558,46 +558,67 @@
             if (tray) tray.style.display = 'block';
             const services = [
                 {
-                    icon: 'fa-plane-departure', iconBg: 'bg-blue-100', iconColor: 'text-blue-700',
-                    name: 'AirLine Services', desc: 'Our AirLine Services offer the fastest way to get your consignments to their destination, ensuring timely and secure delivery across the globe.',
-                    features: ['24-48 Hour Global Delivery', 'Door-to-Airport & Door-to-Door', 'Real-time GPS Flight Tracking', 'Customs Clearance Support'],
-                    idealColor: 'text-blue-800 bg-blue-50', ideal: 'High-value electronics, medical supplies, legal documents.',
-                    ctaBg: 'bg-blue-600 hover:bg-blue-700', cta: 'Book Now'
+                    icon: 'fa-box-open', iconBg: 'bg-blue-50', iconColor: 'text-blue-700',
+                    name: 'Order & Shipment Management', desc: 'End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single dashboard.',
+                    features: ['Multi-carrier assignment', 'AWB stock management', 'Bulk operations', 'Edit & amend orders'],
+                    idealColor: 'text-blue-800 bg-blue-50', ideal: 'Streamline your entire shipment workflow.',
+                    ctaBg: 'bg-blue-600 hover:bg-blue-700', cta: 'Manage Orders'
                 },
                 {
-                    icon: 'fa-truck-fast', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-700',
-                    name: 'Surface Services', desc: 'For cost-effective and reliable transportation, our Surface Services are the ideal choice. We handle large and heavy shipments with care.',
-                    features: ['Pan-India Coverage (19,000+ Pincodes)', 'FTL & PTL Options', 'GPS-Enabled Fleet', 'Cost-Effective Pricing Models'],
-                    idealColor: 'text-emerald-800 bg-emerald-50', ideal: 'Bulk raw materials, furniture, machinery, textiles.',
-                    ctaBg: 'bg-emerald-600 hover:bg-emerald-700', cta: 'Check Rates'
+                    icon: 'fa-truck-fast', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-700',
+                    name: 'Multi-Carrier Integration', desc: 'Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage providers from one place.',
+                    features: ['Rate comparison', 'Auto-allocation logic', 'Carrier-specific configs', 'API-based integration'],
+                    idealColor: 'text-emerald-800 bg-emerald-50', ideal: 'No vendor lock-in. Choose what works.',
+                    ctaBg: 'bg-emerald-600 hover:bg-emerald-700', cta: 'View Carriers'
                 },
                 {
-                    icon: 'fa-crown', iconBg: 'bg-purple-100', iconColor: 'text-purple-700',
-                    name: 'Premium Services', desc: 'Experience the highest standard of service. Enjoy priority handling, real-time tracking, and dedicated support for your most valuable shipments.',
-                    features: ['Dedicated Account Manager', 'Money-Back Guarantee on Timing', 'Enhanced Insurance Coverage', '24/7 Priority Support Line'],
-                    idealColor: 'text-purple-800 bg-purple-50', ideal: 'Artworks, jewelry, sensitive prototypes, critical spare parts.',
-                    ctaBg: 'bg-purple-600 hover:bg-purple-700', cta: 'Get Premium'
+                    icon: 'fa-calculator', iconBg: 'bg-amber-50', iconColor: 'text-amber-700',
+                    name: 'Rate Calculator & Estimation', desc: 'Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.',
+                    features: ['GST-aware pricing', 'Fuel surcharge', 'Live rate tables', 'Volume & weight calc'],
+                    idealColor: 'text-amber-800 bg-amber-50', ideal: 'Know your costs before you ship.',
+                    ctaBg: 'bg-amber-600 hover:bg-amber-700', cta: 'Calculate'
                 },
                 {
-                    icon: 'fa-shop', iconBg: 'bg-orange-100', iconColor: 'text-orange-700',
-                    name: 'E-Commerce Services', desc: 'Tailored solutions for your online business. We handle everything from last-mile delivery to cash-on-delivery and returns.',
-                    features: ['API Integration & Webhooks', 'Cash on Delivery (COD) Management', 'Automated Return (RTO) Handling', 'Branded Tracking Pages'],
-                    idealColor: 'text-orange-800 bg-orange-50', ideal: 'D2C brands, online marketplaces, subscription box services.',
-                    ctaBg: 'bg-orange-600 hover:bg-orange-700', cta: 'Integrate Now'
+                    icon: 'fa-satellite-dish', iconBg: 'bg-purple-50', iconColor: 'text-purple-700',
+                    name: 'Real-time Tracking', desc: 'SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.',
+                    features: ['SSE live updates', 'Milestone mapping', 'Public tracking page', 'Carrier scan sync'],
+                    idealColor: 'text-purple-800 bg-purple-50', ideal: 'Keep customers informed in real time.',
+                    ctaBg: 'bg-purple-600 hover:bg-purple-700', cta: 'Track Now'
                 },
                 {
-                    icon: 'fa-boxes-stacked', iconBg: 'bg-cyan-100', iconColor: 'text-cyan-700',
-                    name: 'LTL Services', desc: "Our Less-than-Truckload (LTL) Services are perfect for shipments that don't require a full truck. Flexible and economical.",
-                    features: ['Pay only for space occupied', 'Palletized Handling', 'Hub-and-Spoke Distribution', 'Barcode Tracking per Pallet'],
-                    idealColor: 'text-cyan-800 bg-cyan-50', ideal: 'Small manufacturers, distributors, businesses with fluctuating loads.',
-                    ctaBg: 'bg-cyan-600 hover:bg-cyan-700', cta: 'Request LTL'
+                    icon: 'fa-file-invoice', iconBg: 'bg-rose-50', iconColor: 'text-rose-700',
+                    name: 'Document Suite', desc: 'Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, ARE-1, and 20+ more templates.',
+                    features: ['20+ document templates', 'Auto-fill from order data', 'Barcode & QR support', 'Print-ready exports'],
+                    idealColor: 'text-rose-800 bg-rose-50', ideal: 'No more manual paperwork.',
+                    ctaBg: 'bg-rose-600 hover:bg-rose-700', cta: 'Create Document'
                 },
                 {
-                    icon: 'fa-hand-holding-dollar', iconBg: 'bg-slate-200', iconColor: 'text-slate-700',
-                    name: 'VAS Services', desc: 'Enhance your logistics with our Value-Added Services (VAS), including special handling, packaging, and customizable solutions.',
-                    features: ['Professional Packaging & Crating', 'Warehousing & Storage', 'Labeling & Kitting', 'Document Collection on Delivery'],
-                    idealColor: 'text-slate-800 bg-slate-200', ideal: 'Fragile items, promotional kits, regulated chemical shipments.',
-                    ctaBg: 'bg-slate-700 hover:bg-slate-800', cta: 'Explore VAS'
+                    icon: 'fa-vault', iconBg: 'bg-teal-50', iconColor: 'text-teal-700',
+                    name: 'Financial Management (Vault)', desc: 'Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.',
+                    features: ['Chart of accounts', 'GST reconciliation', 'Payroll processing', 'Journal entries'],
+                    idealColor: 'text-teal-800 bg-teal-50', ideal: 'Complete financial control.',
+                    ctaBg: 'bg-teal-600 hover:bg-teal-700', cta: 'Open Vault'
+                },
+                {
+                    icon: 'fa-users', iconBg: 'bg-indigo-50', iconColor: 'text-indigo-700',
+                    name: 'B2B & B2C Management', desc: 'Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements in one directory.',
+                    features: ['Client onboarding', 'Contract & rate mgmt', 'Credit tracking', 'Service agreements'],
+                    idealColor: 'text-indigo-800 bg-indigo-50', ideal: 'Organize your customer base.',
+                    ctaBg: 'bg-indigo-600 hover:bg-indigo-700', cta: 'View Clients'
+                },
+                {
+                    icon: 'fa-building', iconBg: 'bg-cyan-50', iconColor: 'text-cyan-700',
+                    name: 'Branch & Staff Management', desc: 'Multi-branch operations with role-based access control, shift management, attendance tracking, and staff views.',
+                    features: ['Multi-branch setup', 'Role-based access', 'Shift scheduling', 'Attendance system'],
+                    idealColor: 'text-cyan-800 bg-cyan-50', ideal: 'Run multiple locations seamlessly.',
+                    ctaBg: 'bg-cyan-600 hover:bg-cyan-700', cta: 'Manage Branches'
+                },
+                {
+                    icon: 'fa-shield-halved', iconBg: 'bg-slate-50', iconColor: 'text-slate-700',
+                    name: 'Admin & Compliance', desc: 'Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.',
+                    features: ['Pincode DB (19k+)', 'Holiday calendar', 'Service modes config', 'Audit & activity logs'],
+                    idealColor: 'text-slate-800 bg-slate-50', ideal: 'Stay compliant and in control.',
+                    ctaBg: 'bg-slate-700 hover:bg-slate-800', cta: 'Admin Panel'
                 }
             ];
             const slides = services.map(s => `
@@ -619,7 +640,7 @@
                                     <p class="${s.idealColor} p-2 rounded text-xs">${s.ideal}</p>
                                 </div>
                                 <div class="pt-1">
-                                    <a href="login.html" class="inline-block w-full px-4 py-2 ${s.ctaBg} text-white rounded transition-colors text-sm font-bold uppercase tracking-wider">${s.cta}</a>
+                                    <a href="${typeof isLoggedIn === 'function' && isLoggedIn() ? 'dashboard.html' : 'login.html'}" class="inline-block w-full px-4 py-2 ${s.ctaBg} text-white rounded transition-colors text-sm font-bold uppercase tracking-wider">${s.cta}</a>
                                 </div>
                             </div>
                         </div>

@@ -137,7 +137,7 @@ function generateInvoicePrint(invoice, shipments, b2b, branch) {
     <style>${css}</style></head><body>
     <div class="invoice-box">
         <div class="header">
-            <div><img src="assets/images/post4ex-logo.svg" alt="Logo" class="logo"></div>
+            <div><img src="assets/images/genie-logo.svg" alt="Logo" class="logo"></div>
             <div class="title-section">
                 <h1>Tax Invoice</h1>
                 <p><strong>Invoice Date:</strong> ${invDate}</p>

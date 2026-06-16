@@ -6,7 +6,7 @@ const AdminServices = (() => {
 
     // ── Service definitions ──────────────────────────────────────────────────
     const SERVICES = [
-        { id: 'app',        name: 'App',         icon: '🖥️',  desc: 'Post4Ex backend (FastAPI)' },
+        { id: 'app',        name: 'App',         icon: '🖥️',  desc: 'Genie backend (FastAPI)' },
         { id: 'pocketbase', name: 'PocketBase',  icon: '🗄️',  desc: 'Primary database' },
         { id: 'tracking',   name: 'Tracking',    icon: '📦',  desc: 'Carrier tracking service' },
         { id: 'whatsapp',   name: 'WhatsApp',    icon: '💬',  desc: 'WA messaging (Render)' },

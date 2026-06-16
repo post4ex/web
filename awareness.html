@@ -381,7 +381,7 @@
         }
         
         function shareAwareness() {
-            const appName = window.CONSTANTS?.APP_NAME || 'Post4Ex';
+            const appName = window.CONSTANTS?.APP_NAME || 'Genie';
             const shareText = `Stay safe from fraud! Learn about common scams and how to protect yourself on ${appName}'s Security Awareness page.`;
             const shareUrl = window.location.href;
             
@@ -399,7 +399,7 @@
         }
         
         function downloadChecklist() {
-            const appName = window.CONSTANTS?.APP_NAME || 'Post4Ex';
+            const appName = window.CONSTANTS?.APP_NAME || 'Genie';
             const checklistContent = `
                 ${appName} SECURITY CHECKLIST
                 ==========================
@@ -436,7 +436,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${appName}-Security-Checklist.txt`;
+            a.download = `Genie-Security-Checklist.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -451,7 +451,7 @@
         });
 
         window.addEventListener('footerLoaded', () => {
-            const n = window.CONSTANTS?.APP_NAME || 'Post4Ex';
+            const n = window.CONSTANTS?.APP_NAME || 'Genie';
             document.querySelectorAll('.app-name').forEach(el => el.textContent = n);
         });
     </script>
