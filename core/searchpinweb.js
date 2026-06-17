@@ -178,7 +178,10 @@ function _bindPincodeEvents() {
 // ============================================================================
 async function _doPincodeSearch() {
     const pincode = document.getElementById('pm-input').value.trim();
-    if (!InputValidator.pin(pincode) || !pincode) { _pmShowMsg('Enter a valid 6-digit pincode.', 'error'); return; }
+    const _pinValid = typeof InputValidator !== 'undefined'
+        ? InputValidator.pin
+        : v => !v || /^[0-9]{6}$/.test(v);
+    if (!pincode || !_pinValid(pincode)) { _pmShowMsg('Enter a valid 6-digit pincode.', 'error'); return; }
     const token = typeof getSessionId === 'function' ? getSessionId() : '';
     if (!token) { _pmShowMsg('Session expired. Please log in again.', 'error'); return; }
     const base = (window.CONSTANTS || {}).OPERATIONS_URL || '';
