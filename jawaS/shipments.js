@@ -19,6 +19,9 @@ let tatTrackStatuses = new Map(); // REFERENCE → state string (read from shipm
 
 let ui = {};
 
+// Track whether a sync refresh is in progress (for partial refresh)
+let _syncRefreshInProgress = false;
+
 // --- SHARED DOC ACTION BUTTONS ---
 const _docIco = {
     print:    `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>`,
@@ -44,7 +47,7 @@ function _uploadActionBtns(url, uploadUid) {
 }
 
 // --- TILES ---
-const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)', overduetat:'Overdue TAT', heavy:'Heavy (>25 kg)', highvalue:'High Value (>1L)', exceptions:'Exception Shipments', 'pending-pod':'Pending PODs', ofd:'Out for Delivery', 'new-bookings':'New Bookings', fov:'FOV' };
+const _tileLabels = { all:'All Shipments', topay:'To Pay', cod:'COD', tat:'TAT Due (Next 3 Days)', overduetat:'Overdue TAT', heavy:'Heavy (>25 kg)', highvalue:'High Value (>1L)', exceptions:'Exception Shipments', 'pending-pod':'Pending PODs', ofd:'Out for Delivery', 'new-bookings':'New Bookings', fov:'FOV', delivered:'Delivered' };
 
 function _isTatDue(order) {
     const tat = parseInt(order.TAT);
@@ -72,31 +75,51 @@ function _isOverdueTat(order) {
     return true;
 }
 
+function _isNewBooking(order) {
+    // New Bookings = no carrier/awb AND order date within 24 hours
+    if (order.CARRIER && order.AWB_NUMBER) return false;
+    if (!order.ORDER_DATE) return false;
+    const orderMs = parseFloat(order.ORDER_DATE) > 1e10 ? parseFloat(order.ORDER_DATE) : parseFloat(order.ORDER_DATE) * 1000;
+    const now = Date.now();
+    const msSince = now - orderMs;
+    return msSince >= 0 && msSince <= 86400000; // within 24 hours
+}
+
 function _hasPODUpload(ref) {
     const uploads = uploadsDataMap.get(ref) || [];
     return uploads.some(u => (u.UPLOAD_TYPE || '').toUpperCase() === 'POD');
 }
 
 function updateTileCounts(orders) {
-    const counts = { all: orders.length, topay:0, cod:0, tat:0, overduetat:0, heavy:0, highvalue:0, exceptions:0, 'pending-pod':0, ofd:0, 'new-bookings':0, fov:0 };
+    const counts = { all: orders.length, topay:0, cod:0, tat:0, overduetat:0, heavy:0, highvalue:0, exceptions:0, 'pending-pod':0, ofd:0, 'new-bookings':0, fov:0, delivered:0 };
     orders.forEach(o => {
-        if (o.TOPAY === 'Yes') counts.topay++;
-        if (o.COD && parseFloat(o.COD) > 0) counts.cod++;
-        if (_isTatDue(o)) counts.tat++;
-        if (_isOverdueTat(o)) counts.overduetat++;
-        if (parseFloat(o.WEIGHT) > 25) counts.heavy++;
-        if (parseFloat(o.VALUE) > 100000) counts.highvalue++;
-        // New tiles
         const s = shipmentsDataMap.get(o.REFERENCE);
         const state = s?.state || s?.STATE || null;
+
+        // Exclude delivered from: To Pay, COD, FOV, Heavy, High Value
+        const isDelivered = state === 'delivered';
+
+        if (o.TOPAY === 'Yes' && !isDelivered) counts.topay++;
+        if (o.COD && parseFloat(o.COD) > 0 && !isDelivered) counts.cod++;
+        if (_isTatDue(o)) counts.tat++;
+        if (_isOverdueTat(o)) counts.overduetat++;
+        if (parseFloat(o.WEIGHT) > 25 && !isDelivered) counts.heavy++;
+        if (parseFloat(o.VALUE) > 100000 && !isDelivered) counts.highvalue++;
+        // New tiles
         if (state === 'exception') counts.exceptions++;
         if (state === 'outfordelivery') counts.ofd++;
-        if (!o.CARRIER || !o.AWB_NUMBER) counts['new-bookings']++;
-        if (o.FOV) counts.fov++;
+        if (state === 'delivered') counts.delivered++;
+        if (_isNewBooking(o)) counts['new-bookings']++;
+        if (o.FOV === 'Yes' && !isDelivered) counts.fov++;
         if (state === 'delivered' && !_hasPODUpload(o.REFERENCE)) counts['pending-pod']++;
     });
-    // Assign Carrier count = new-bookings (incomplete orders)
-    const assignCnt = counts['new-bookings'];
+    // Assign Carrier count = shipments where !CARRIER || !AWB_NUMBER (within 30 days, matching tile view)
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const assignCnt = orders.filter(o => {
+        if (o.CARRIER && o.AWB_NUMBER) return false;
+        const orderTs = parseDate(o.ORDER_DATE)?.getTime() || 0;
+        return orderTs >= cutoff;
+    }).length;
     const acEl = document.getElementById('cnt-assign-carrier');
     if (acEl) acEl.textContent = assignCnt;
 
@@ -151,8 +174,16 @@ function handleTileClick(tile) {
 
 function _tileFilterMatch(order) {
     if (activeTileFilter === 'all')   return true;
-    if (activeTileFilter === 'topay') return order.TOPAY === 'Yes';
-    if (activeTileFilter === 'cod')   return order.COD && parseFloat(order.COD) > 0;
+    if (activeTileFilter === 'topay') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return order.TOPAY === 'Yes' && state !== 'delivered';
+    }
+    if (activeTileFilter === 'cod') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return order.COD && parseFloat(order.COD) > 0 && state !== 'delivered';
+    }
     if (activeTileFilter === 'tat') {
         if (!_isTatDue(order)) return false;
         if (activeTatFilter) {
@@ -171,8 +202,16 @@ function _tileFilterMatch(order) {
         }
         return true;
     }
-    if (activeTileFilter === 'heavy')      return parseFloat(order.WEIGHT) > 25;
-    if (activeTileFilter === 'highvalue')  return parseFloat(order.VALUE)  > 100000;
+    if (activeTileFilter === 'heavy') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return parseFloat(order.WEIGHT) > 25 && state !== 'delivered';
+    }
+    if (activeTileFilter === 'highvalue') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return parseFloat(order.VALUE)  > 100000 && state !== 'delivered';
+    }
     // New tiles
     if (activeTileFilter === 'exceptions') {
         const s = shipmentsDataMap.get(order.REFERENCE);
@@ -184,8 +223,17 @@ function _tileFilterMatch(order) {
         const state = s?.state || s?.STATE || null;
         return state === 'outfordelivery';
     }
-    if (activeTileFilter === 'new-bookings') return !order.CARRIER || !order.AWB_NUMBER;
-    if (activeTileFilter === 'fov')          return !!order.FOV;
+    if (activeTileFilter === 'delivered') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return state === 'delivered';
+    }
+    if (activeTileFilter === 'new-bookings') return _isNewBooking(order);
+    if (activeTileFilter === 'fov') {
+        const s = shipmentsDataMap.get(order.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        return order.FOV === 'Yes' && state !== 'delivered';
+    }
     if (activeTileFilter === 'pending-pod') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
@@ -201,57 +249,111 @@ function initializePageWithData(appData) {
         return;
     }
     try {
-        allOrders = Object.values(appData.ORDERS);
-        allOrders.sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
+        // Detect if this is a sync refresh (appDataRefreshed) vs initial load
+        const isSyncRefresh = !!_syncRefreshInProgress;
+        if (!isSyncRefresh) {
+            // Full reinit on initial load
+            allOrders = Object.values(appData.ORDERS);
+            allOrders.sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
 
-        b2b2cDataMap.clear(); productDataMap.clear(); multiboxDataMap.clear();
-        uploadsDataMap.clear(); modesDataMap.clear(); carriersDataMap.clear(); branchDataMap.clear();
+            b2b2cDataMap.clear(); productDataMap.clear(); multiboxDataMap.clear();
+            uploadsDataMap.clear(); modesDataMap.clear(); carriersDataMap.clear(); branchDataMap.clear();
 
-        if (appData.B2B2C)
-            Object.values(appData.B2B2C).forEach(c => b2b2cDataMap.set(c.UID, c));
+            if (appData.B2B2C)
+                Object.values(appData.B2B2C).forEach(c => b2b2cDataMap.set(c.UID, c));
 
-        if (appData.PRODUCTS)
-            Object.values(appData.PRODUCTS).forEach(p => {
-                const r = p.REFERENCE; if (!r) return;
-                if (!productDataMap.has(r)) productDataMap.set(r, []);
-                productDataMap.get(r).push(p);
-            });
+            if (appData.PRODUCTS)
+                Object.values(appData.PRODUCTS).forEach(p => {
+                    const r = p.REFERENCE; if (!r) return;
+                    if (!productDataMap.has(r)) productDataMap.set(r, []);
+                    productDataMap.get(r).push(p);
+                });
 
-        if (appData.MULTIBOX)
-            Object.values(appData.MULTIBOX).forEach(b => {
-                const r = b.REFERENCE; if (!r) return;
-                if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []);
-                multiboxDataMap.get(r).push(b);
-            });
+            if (appData.MULTIBOX)
+                Object.values(appData.MULTIBOX).forEach(b => {
+                    const r = b.REFERENCE; if (!r) return;
+                    if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []);
+                    multiboxDataMap.get(r).push(b);
+                });
 
-        if (appData.UPLOADS)
-            Object.values(appData.UPLOADS).forEach(u => {
-                const r = u.REFERENCE; if (!r) return;
-                if (!uploadsDataMap.has(r)) uploadsDataMap.set(r, []);
-                uploadsDataMap.get(r).push(u);
-            });
+            if (appData.UPLOADS)
+                Object.values(appData.UPLOADS).forEach(u => {
+                    const r = u.REFERENCE; if (!r) return;
+                    if (!uploadsDataMap.has(r)) uploadsDataMap.set(r, []);
+                    uploadsDataMap.get(r).push(u);
+                });
 
-        if (appData.MODES)
-            Object.values(appData.MODES).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
+            if (appData.MODES)
+                Object.values(appData.MODES).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
 
-        if (appData.CARRIERS)
-            Object.values(appData.CARRIERS).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
+            if (appData.CARRIERS)
+                Object.values(appData.CARRIERS).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
 
-        if (appData.BRANCHES)
-            Object.values(appData.BRANCHES).forEach(b => { if (b.BRANCH_CODE) branchDataMap.set(b.BRANCH_CODE, b); });
+            if (appData.BRANCHES)
+                Object.values(appData.BRANCHES).forEach(b => { if (b.BRANCH_CODE) branchDataMap.set(b.BRANCH_CODE, b); });
 
-        if (appData.SHIPMENTS)
-            Object.values(appData.SHIPMENTS).forEach(s => { if (s.REFERENCE) shipmentsDataMap.set(s.REFERENCE, s); });
+            if (appData.SHIPMENTS)
+                Object.values(appData.SHIPMENTS).forEach(s => { if (s.REFERENCE) shipmentsDataMap.set(s.REFERENCE, s); });
 
-        populateFilters(allOrders);
-        setupFilterListeners();
-        updateTileCounts(allOrders);
-        const inSplitView = document.getElementById('splitViewWrapper')?.style.display === 'flex';
-        if (!inSplitView) showTilesView();
+            populateFilters(allOrders);
+            setupFilterListeners();
+            updateTileCounts(allOrders);
+            const inSplitView = document.getElementById('splitViewWrapper')?.style.display === 'flex';
+            if (!inSplitView) showTilesView();
+            // Store data for assign carrier tile (lazy init when tile is clicked)
+            window._acData = appData;
+        } else {
+            // Sync refresh: rebuild allOrders from fresh data so deletes, updates,
+            // and new orders are immediately reflected without a page reload
+            allOrders = Object.values(appData.ORDERS);
+            allOrders.sort((a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0));
+
+            // Clear accumulating maps to prevent duplicate entries on each sync
+            productDataMap.clear();
+            multiboxDataMap.clear();
+            uploadsDataMap.clear();
+
+            if (appData.B2B2C)
+                Object.values(appData.B2B2C).forEach(c => b2b2cDataMap.set(c.UID, c));
+
+            if (appData.PRODUCTS)
+                Object.values(appData.PRODUCTS).forEach(p => {
+                    const r = p.REFERENCE; if (!r) return;
+                    if (!productDataMap.has(r)) productDataMap.set(r, []);
+                    productDataMap.get(r).push(p);
+                });
+
+            if (appData.MULTIBOX)
+                Object.values(appData.MULTIBOX).forEach(b => {
+                    const r = b.REFERENCE; if (!r) return;
+                    if (!multiboxDataMap.has(r)) multiboxDataMap.set(r, []);
+                    multiboxDataMap.get(r).push(b);
+                });
+
+            if (appData.UPLOADS)
+                Object.values(appData.UPLOADS).forEach(u => {
+                    const r = u.REFERENCE; if (!r) return;
+                    if (!uploadsDataMap.has(r)) uploadsDataMap.set(r, []);
+                    uploadsDataMap.get(r).push(u);
+                });
+
+            if (appData.SHIPMENTS)
+                Object.values(appData.SHIPMENTS).forEach(s => { if (s.REFERENCE) shipmentsDataMap.set(s.REFERENCE, s); });
+
+            if (appData.MODES)
+                Object.values(appData.MODES).forEach(m => modesDataMap.set(m.SHORT, m.MODE));
+
+            if (appData.CARRIERS)
+                Object.values(appData.CARRIERS).forEach(c => carriersDataMap.set(c.COMPANY_CODE, c.COMPANY_NAME));
+
+            // Update assign carrier data so the tile gets fresh data when opened
+            window._acData = appData;
+
+            updateTileCounts(allOrders);
+        }
+
         applyFilters();
         ui.statusMessage.textContent = '';
-        // Store data for assign carrier tile (lazy init when tile is clicked)
-        window._acData = appData;
     } catch (err) {
         ui.statusMessage.textContent = 'Failed to process data.';
         console.error('Data processing error:', err);
@@ -263,7 +365,12 @@ let _dataListenersRegistered = false;
 async function loadFromIndexedDB() {
     if (!_dataListenersRegistered) {
         _dataListenersRegistered = true;
-        const onData = e => initializePageWithData(e.detail.data);
+        const onData = e => {
+            // Set flag so initializePageWithData knows this is a sync refresh
+            _syncRefreshInProgress = true;
+            initializePageWithData(e.detail.data);
+            _syncRefreshInProgress = false;
+        };
         window.addEventListener('appDataLoaded',    onData);
         window.addEventListener('appDataRefreshed', onData);
     }
@@ -372,6 +479,9 @@ function applyFilters() {
     _fetchTatTrackStatuses(filteredOrders);
     ui.statusMessage.textContent = '';
 
+    // Selection persistence: during sync refreshes, only update live sections of the detail pane
+    const isSyncRefresh = _syncRefreshInProgress;
+
     if (isMobileView()) {
         const detailVisible = !ui.shipmentDetailPane.classList.contains('hidden');
         if (!detailVisible) {
@@ -383,9 +493,23 @@ function applyFilters() {
     } else {
         if (currentSelectedRef) {
             const currentOrder = filteredOrders.find(o => o.REFERENCE === currentSelectedRef);
-            if (currentOrder)
-                handleShipmentSelection(currentSelectedRef, ui.shipmentList.querySelector(`li[data-ref="${currentSelectedRef}"]`));
-            else {
+            if (currentOrder) {
+                if (isSyncRefresh) {
+                    // Partial refresh: only update live tracking data, skip full detail re-render
+                    // Status badges already updated by _fetchTatTrackStatuses above
+                    // Refresh tracking history if it was previously loaded
+                    const historyEl = document.getElementById('liveTrackingHistory');
+                    if (historyEl && historyEl.innerHTML && !historyEl.innerHTML.includes('Loading')) {
+                        renderTrackingHistory(currentOrder);
+                    }
+                    // Update the selected state on the list item
+                    ui.shipmentList.querySelectorAll('li.selected').forEach(li => li.classList.remove('selected'));
+                    const selectedLi = ui.shipmentList.querySelector(`li[data-ref="${currentSelectedRef}"]`);
+                    if (selectedLi) selectedLi.classList.add('selected');
+                } else {
+                    handleShipmentSelection(currentSelectedRef, ui.shipmentList.querySelector(`li[data-ref="${currentSelectedRef}"]`));
+                }
+            } else {
                 currentSelectedRef = null;
                 ui.emptyView.classList.remove('hidden');
                 ui.detailView.classList.add('hidden');
@@ -397,24 +521,82 @@ function applyFilters() {
     }
 }
 
-// --- RENDER LIST ---
+// --- RENDER LIST: Surgical DOM + Scroll Anchoring ---
 function renderShipmentList(orders) {
-    ui.shipmentList.innerHTML = '';
+    const container = ui.shipmentList;
+    const listContainer = ui.shipmentListContainer;
+
+    // --- Scroll Anchoring: save scrollTop before DOM mutations ---
+    const savedScrollTop = listContainer ? listContainer.scrollTop : 0;
+
+    // --- Handle empty case ---
     if (orders.length === 0) {
-        ui.shipmentList.innerHTML = `<li class="text-center text-gray-500 border-none hover:bg-transparent cursor-default">No orders match filters.</li>`;
+        // Only replace if not already the empty state
+        const isEmptyMsg = container.querySelector('li[class*="cursor-default"]');
+        if (!isEmptyMsg) {
+            container.innerHTML = `<li class="text-center text-gray-500 border-none hover:bg-transparent cursor-default">No orders match filters.</li>`;
+        }
+        if (listContainer) listContainer.scrollTop = savedScrollTop;
         return;
     }
-    orders.forEach(order => {
-        const ref  = order.REFERENCE; if (!ref) return;
-        const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
-        const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
-        const li   = document.createElement('li');
-        li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span id="st-${ref}"></span></div>`;
-        li.dataset.ref = ref;
-        li.addEventListener('click', () => handleShipmentSelection(ref, li));
-        if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
-        ui.shipmentList.appendChild(li);
+
+    // --- Map existing items by data-ref ---
+    const existingByRef = new Map();
+    container.querySelectorAll('li[data-ref]').forEach(li => {
+        existingByRef.set(li.dataset.ref, li);
     });
+
+    const newRefs = new Set();
+    orders.forEach(o => { if (o.REFERENCE) newRefs.add(o.REFERENCE); });
+
+    // --- Remove stale items (no longer in filtered results) ---
+    existingByRef.forEach((li, ref) => {
+        if (!newRefs.has(ref)) {
+            li.remove();
+            existingByRef.delete(ref);
+        }
+    });
+
+    // --- Insert/update items in correct order ---
+    // anchor starts at the beginning; we insert before it for each item
+    let anchor = container.firstChild;
+
+    orders.forEach(order => {
+        const ref = order.REFERENCE;
+        if (!ref) return;
+
+        let li = existingByRef.get(ref);
+        if (li) {
+            // Update selected state
+            li.classList.toggle('selected', String(ref) === String(currentSelectedRef));
+            // Refresh content for field-updated orders (AWB, consignor/consignee)
+            const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
+            const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
+            const strongEl = li.querySelector('strong');
+            if (strongEl) strongEl.textContent = order.AWB_NUMBER || 'No AWB';
+            const subEl = li.querySelector('.sv-item-sub');
+            if (subEl) subEl.textContent = `${cnor} → ${cnee}`;
+            existingByRef.delete(ref); // Track that we've placed it
+        } else {
+            // Create new node
+            li = document.createElement('li');
+            const cnor = b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || 'Unknown';
+            const cnee = b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || 'Unknown';
+            li.innerHTML = `<strong>${order.AWB_NUMBER || 'No AWB'}</strong><span class="sv-item-sub">${cnor} &rarr; ${cnee}</span><div class="sv-item-meta"><span>Ref: ${ref} | ${fmtDate(order.ORDER_DATE)}</span><span id="st-${ref}"></span></div>`;
+            li.dataset.ref = ref;
+            li.addEventListener('click', () => handleShipmentSelection(ref, li));
+            if (String(ref) === String(currentSelectedRef)) li.classList.add('selected');
+        }
+
+        // Place at the correct position
+        if (anchor !== li) {
+            container.insertBefore(li, anchor);
+        }
+        anchor = li.nextSibling;
+    });
+
+    // --- Scroll Anchoring: restore scrollTop ---
+    if (listContainer) listContainer.scrollTop = savedScrollTop;
 }
 
 async function _fetchTatTrackStatuses(orders) {
@@ -1256,12 +1438,32 @@ async function _waSelectedShipmentDoc(docType) {
     });
 }
 
+// --- LIVE SYNCING INDICATOR ---
+function showSyncingIndicator(show) {
+    const indicator = document.getElementById('liveSyncingIndicator');
+    if (!indicator) return;
+    if (show) {
+        indicator.classList.remove('hidden');
+    } else {
+        indicator.classList.add('hidden');
+    }
+}
+
+// Watch for appDataRefreshed to show syncing indicator briefly
+let _syncIndicatorTimer = null;
+window.addEventListener('appDataRefreshed', () => {
+    showSyncingIndicator(true);
+    clearTimeout(_syncIndicatorTimer);
+    _syncIndicatorTimer = setTimeout(() => showSyncingIndicator(false), 1500);
+});
+
 // --- BOOTSTRAP ---
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('shipmentListPane')) return; // not on Shipments.html — render functions still available
     ui = {
         statusMessage:              document.getElementById('status-message'),
         shipmentList:               document.getElementById('shipmentList'),
+        shipmentListContainer:      document.getElementById('shipmentListContainer'),
         shipmentListPane:           document.getElementById('shipmentListPane'),
         shipmentDetailPane:         document.getElementById('shipmentDetailPane'),
         backToListBtn:              document.getElementById('backToListBtn'),

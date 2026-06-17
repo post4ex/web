@@ -17,12 +17,54 @@ function initAssignCarrierTile(data) {
     const searchInput     = document.getElementById('ac-search');
     const referenceInput  = document.getElementById('ac-reference');
     const carrierSelect   = document.getElementById('ac-carrier');
+    const awbInput        = document.getElementById('ac-awb');
     const emptyView       = document.getElementById('ac-empty-view');
     const formView        = document.getElementById('ac-form-view');
     const mainPane        = document.getElementById('ac-form-pane');
     const aside           = document.getElementById('ac-list-pane');
     const backToListBtn   = document.getElementById('ac-back-to-list');
     const backToTilesBtn  = document.getElementById('ac-back-to-tiles-btn');
+
+    // Validation error elements
+    const carrierErrorEl  = document.getElementById('ac-carrier-error');
+    const awbErrorEl      = document.getElementById('ac-awb-error');
+
+    // --- VALIDATION HELPERS ---
+    function _showError(el, show) {
+        if (!el) return;
+        el.classList.toggle('hidden', !show);
+    }
+
+    function _markFieldInvalid(inputEl, errorEl, isValid) {
+        if (!inputEl) return;
+        inputEl.classList.toggle('border-red-400', !isValid);
+        inputEl.classList.toggle('border-gray-300', isValid);
+        _showError(errorEl, !isValid);
+    }
+
+    function _validateCarrier() {
+        const valid = carrierSelect.value !== '';
+        _markFieldInvalid(carrierSelect, carrierErrorEl, valid);
+        return valid;
+    }
+
+    function _validateAwb() {
+        const val = awbInput.value.trim();
+        const valid = val.length > 0;
+        _markFieldInvalid(awbInput, awbErrorEl, valid);
+        return valid;
+    }
+
+    function _validateForm() {
+        const carrierValid = _validateCarrier();
+        const awbValid = _validateAwb();
+        return carrierValid && awbValid;
+    }
+
+    // --- Real-time validation on blur and input ---
+    carrierSelect.addEventListener('change', _validateCarrier);
+    awbInput.addEventListener('input', _validateAwb);
+    awbInput.addEventListener('blur', _validateAwb);
 
     // --- STATE ---
     let allShipments = [];
@@ -108,8 +150,13 @@ function initAssignCarrierTile(data) {
         document.getElementById('ac-order-date').value   = fmtDate(shipment.ORDER_DATE, 'input');
         document.getElementById('ac-transit-date').value = shipment.TRANSIT_DATE && shipment.TRANSIT_DATE !== 0 ? fmtDate(shipment.TRANSIT_DATE, 'input') : '';
         carrierSelect.value = shipment.CARRIER    || '';
-        document.getElementById('ac-awb').value      = shipment.AWB_NUMBER || '';
+        awbInput.value      = shipment.AWB_NUMBER || '';
         document.getElementById('ac-dyna-awb').value = shipment.DYNA_AWB   || '';
+
+        // Clear validation state on new selection
+        _markFieldInvalid(carrierSelect, carrierErrorEl, true);
+        _markFieldInvalid(awbInput, awbErrorEl, true);
+        responseMessage.classList.add('hidden');
 
         emptyView.classList.add('hidden');
         formView.classList.remove('hidden');
@@ -133,6 +180,21 @@ function initAssignCarrierTile(data) {
     // --- FORM SUBMIT ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Run validation before submit
+        if (!_validateForm()) {
+            responseMessage.textContent = 'Please fix the highlighted fields before submitting.';
+            responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
+            responseMessage.classList.remove('hidden');
+            // Focus first invalid field
+            if (carrierSelect.value === '') {
+                carrierSelect.focus();
+            } else {
+                awbInput.focus();
+            }
+            return;
+        }
+
         submitButton.disabled  = true;
         buttonText.textContent = 'Updating...';
         spinner.classList.remove('hidden');
@@ -143,8 +205,8 @@ function initAssignCarrierTile(data) {
         const fieldNames = [
             { name: 'ORDER_DATE',   el: document.getElementById('ac-order-date') },
             { name: 'TRANSIT_DATE', el: document.getElementById('ac-transit-date') },
-            { name: 'CARRIER',      el: document.getElementById('ac-carrier') },
-            { name: 'AWB_NUMBER',   el: document.getElementById('ac-awb') },
+            { name: 'CARRIER',      el: carrierSelect },
+            { name: 'AWB_NUMBER',   el: awbInput },
             { name: 'DYNA_AWB',     el: document.getElementById('ac-dyna-awb') },
         ];
         fieldNames.forEach(({ name, el }) => {

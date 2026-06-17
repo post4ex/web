@@ -51,6 +51,57 @@
         .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
         .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
 
+        /* Mobile tile grid */
+        @media (max-width: 480px) {
+            #tilesView { padding:1rem 0.5rem; }
+            .tile-grid { grid-template-columns:repeat(2,1fr);gap:0.5rem; }
+            .tile { padding:1rem 0.5rem; }
+            .tile-icon { font-size:1.5rem;margin-bottom:.25rem; }
+            .tile-count { font-size:1.35rem; }
+            .tile-label { font-size:.6rem; }
+        }
+
+        /* Empty state styling */
+        .empty-state-icon {
+            width: 96px; height: 96px;
+            margin: 0 auto 1rem;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .empty-state-icon svg {
+            width: 48px; height: 48px;
+            color: #9ca3af;
+        }
+
+        /* Modal transitions */
+        .modal-overlay {
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+        .modal-overlay.hidden {
+            display: flex !important;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .modal-overlay:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .modal-overlay.hidden .modal-content {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+        .modal-overlay:not(.hidden) .modal-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+
         /* Document Center action buttons */
         .doc-action-btn {
             display: inline-flex; align-items: center; justify-content: center;
@@ -140,11 +191,16 @@
                 <div class="tile-count text-teal-700" id="cnt-fov">…</div>
                 <div class="tile-label">FOV</div>
             </div>
+            <div class="tile" data-tile="delivered" style="border-color:#bbf7d0;">
+                <div class="tile-icon">✅</div>
+                <div class="tile-count text-green-700" id="cnt-delivered">…</div>
+                <div class="tile-label">Delivered</div>
+            </div>
         </div>
     </div>
 
     <!-- Split View -->
-    <div id="splitViewWrapper" class="split-view" style="display:none;" data-refresh-view>
+    <div id="splitViewWrapper" class="split-view" style="display:none;">
 
         <!-- Left Pane: Shipment List -->
         <aside id="shipmentListPane">
@@ -154,6 +210,10 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     </button>
                     <h2 id="splitTitle" class="text-xl font-bold text-gray-800 flex-1">Shipments</h2>
+                    <span id="liveSyncingIndicator" class="hidden flex items-center gap-1 text-xs text-green-600 font-medium animate-pulse">
+                        <span class="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                        Live Syncing
+                    </span>
                 </div>
                 <div class="flex gap-2">
                     <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Client..." class="form-input w-full text-sm">
@@ -195,8 +255,12 @@
                 <div id="trackingHistoryContainer" class="detail-card"></div>
             </div>
 
-<div id="emptyView" class="h-full flex items-center justify-center">
-                <p class="text-gray-500 text-lg">Select a shipment from the list to view details.</p>
+<div id="emptyView" class="h-full flex flex-col items-center justify-center p-8">
+                <div class="empty-state-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-600 mb-1">No Shipment Selected</h3>
+                <p class="text-sm text-gray-400 text-center max-w-xs">Select a shipment from the list on the left to view its details here.</p>
             </div>
         </main>
     </div><!-- /splitViewWrapper -->
@@ -256,14 +320,16 @@
                             <legend class="text-sm font-semibold text-gray-700 mb-3">Fields to Update</legend>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label for="ac-carrier" class="text-sm font-medium text-gray-700">Carrier</label>
-                                    <select id="ac-carrier" class="mt-1 form-input bg-white">
+                                    <label for="ac-carrier" class="text-sm font-medium text-gray-700">Carrier <span class="text-red-500">*</span></label>
+                                    <select id="ac-carrier" class="mt-1 form-input bg-white" required>
                                         <option value="">Select a carrier</option>
                                     </select>
+                                    <p id="ac-carrier-error" class="text-xs text-red-500 mt-1 hidden">Please select a carrier.</p>
                                 </div>
                                 <div>
-                                    <label for="ac-awb" class="text-sm font-medium text-gray-700">AWB Number</label>
-                                    <input type="text" id="ac-awb" class="mt-1 form-input" placeholder="AWB number">
+                                    <label for="ac-awb" class="text-sm font-medium text-gray-700">AWB Number <span class="text-red-500">*</span></label>
+                                    <input type="text" id="ac-awb" class="mt-1 form-input" placeholder="AWB number" required>
+                                    <p id="ac-awb-error" class="text-xs text-red-500 mt-1 hidden">AWB number is required.</p>
                                 </div>
                                 <div>
                                     <label for="ac-order-date" class="text-sm font-medium text-gray-700">Order Date</label>
