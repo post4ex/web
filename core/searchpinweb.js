@@ -127,7 +127,6 @@ function _injectPincodeModal() {
                     align-items:center;gap:0.75rem;flex-shrink:0;
                     background:linear-gradient(to right,#f8fafc,#fff);position:sticky;top:0;z-index:1;">
             <i class="fa-solid fa-location-dot" style="color:#9C2007;font-size:0.9rem;flex-shrink:0;"></i>
-            <span style="font-size:0.85rem;font-weight:800;color:#1e293b;white-space:nowrap;">Pincode Search</span>
             <input id="pm-input" type="text" inputmode="numeric" maxlength="6"
                    placeholder="6-digit pincode"
                    style="width:7rem;flex:none;padding:0.45rem 0.75rem;border:1px solid #e2e8f0;
