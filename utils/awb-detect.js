@@ -80,6 +80,29 @@ const AWB_PATTERNS = [
         note: '9 digits, starts with 28/29/30 — multi-piece LTL shipments'
     },
 
+    // --- AIRWAYS ---
+    // 11 digits, starts with 91/92/93/94/95/96/97/98 — standard series
+    {
+        carrier: 'Airways',
+        test: (awb, len) => len === 11 && (
+            awb.startsWith('91') ||
+            awb.startsWith('92') ||
+            awb.startsWith('93') ||
+            awb.startsWith('94') ||
+            awb.startsWith('95') ||
+            awb.startsWith('96') ||
+            awb.startsWith('97') ||
+            awb.startsWith('98')
+        ),
+        note: '11 digits, starts with 91-98 — Airways standard series'
+    },
+    // 11 digits, starts with 88 — VAS series (COD/TOPAY)
+    {
+        carrier: 'Airways',
+        test: (awb, len) => len === 11 && awb.startsWith('88'),
+        note: '11 digits, starts with 88 — Airways VAS series (COD/TOPAY)'
+    },
+
     // --- BLUEDART ---
     // 11 digits, starts with 9 / 7 / 6
     // NOTE: Trackon also uses 12-digit starting with 9 — length differentiates them
@@ -199,6 +222,8 @@ const AWB_PRODUCT_PATTERNS = [
     { test: (a, l) => l === 15 && a.startsWith('15'),                         product: 'EXPRESSBEES-ECOM'  },
     { test: (a, l) => (l===14||l===13) && (a.startsWith('130')||a.startsWith('170')||a.startsWith('190')||a.startsWith('150')), product: 'DELHIVERY-ECOM' },
     { test: (a, l) => l === 9  && (a.startsWith('28')||a.startsWith('29')||a.startsWith('30')), product: 'DELHIVERY-LTL' },
+    { test: (a, l) => l === 11 && (a.startsWith('91')||a.startsWith('92')||a.startsWith('93')||a.startsWith('94')||a.startsWith('95')||a.startsWith('96')||a.startsWith('97')||a.startsWith('98')), product: 'AIRWAYS-STD' },
+    { test: (a, l) => l === 11 && a.startsWith('88'),                         product: 'AIRWAYS-VAS'       },
     { test: (a, l) => l === 11 && (a.startsWith('9')||a.startsWith('7')||a.startsWith('6')),    product: 'BLUEDART-ECOM' },
     { test: (a, l) => l === 12 && a.startsWith('200'),                        product: 'TRACKON-PRO'       },
     { test: (a, l) => l === 12 && a.startsWith('500'),                        product: 'TRACKON-PARX'      },
@@ -271,6 +296,8 @@ const CARRIER_FIXED_SUFFIX = {
 // Canonical carrier name map — normalises variations in CARRIER field spelling
 // e.g. 'Jetline', 'JetLine', 'JETLINE' all → 'JETLINE'
 const CARRIER_CANONICAL = [
+    { match: 'airways',                       name: 'AIRWAYS'       },
+    { match: 'airways courier',               name: 'AIRWAYS'       },
     { match: 'jetline',                       name: 'JETLINE'       },
     { match: 'delhivery-ltl',                 name: 'DELHIVERY' },  // legacy data entry — normalise to DELHIVERY, mode L adds -LTL
     { match: 'delhivery ltl',                 name: 'DELHIVERY' },  // same

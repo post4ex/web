@@ -115,8 +115,13 @@ let _pmLastData = null;
 // ============================================================================
 function _injectPincodeModal() {
     if (document.getElementById('pm-overlay')) return;
+    if (!document.getElementById('pm-style')) {
+        const s = document.createElement('style');
+        s.id = 'pm-style';
+        s.textContent = '@media(max-width:640px){.pm-search-label{display:none;} #pm-input{width:5.5rem;} #pm-search-btn{padding:0.45rem 0.65rem;}}';
+        document.head.appendChild(s);
+    }
     document.body.insertAdjacentHTML('beforeend', `
-<style>@media(max-width:640px){.pm-search-label{display:none;}}</style>
 <div id="pm-overlay" role="dialog" aria-modal="true" aria-label="Pincode Search"
      style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);
             backdrop-filter:blur(4px);justify-content:center;align-items:flex-start;
