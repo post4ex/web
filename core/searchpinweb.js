@@ -116,6 +116,7 @@ let _pmLastData = null;
 function _injectPincodeModal() {
     if (document.getElementById('pm-overlay')) return;
     document.body.insertAdjacentHTML('beforeend', `
+<style>@media(max-width:640px){.pm-search-label{display:none;}}</style>
 <div id="pm-overlay" role="dialog" aria-modal="true" aria-label="Pincode Search"
      style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);
             backdrop-filter:blur(4px);justify-content:center;align-items:flex-start;
@@ -135,7 +136,7 @@ function _injectPincodeModal() {
                 style="padding:0.45rem 1rem;background:#9C2007;color:#fff;border:none;
                        border-radius:0.5rem;font-size:0.8rem;font-weight:700;cursor:pointer;
                        white-space:nowrap;flex-shrink:0;">
-                <i class="fa-solid fa-magnifying-glass" style="margin-right:0.3rem;"></i>Search
+                <i class="fa-solid fa-magnifying-glass"></i><span class="pm-search-label" style="margin-left:0.3rem;">Search</span>
             </button>
             <div style="flex:1;"></div>
             <button id="pm-close" aria-label="Close"
@@ -177,7 +178,7 @@ function _bindPincodeEvents() {
 // ============================================================================
 async function _doPincodeSearch() {
     const pincode = document.getElementById('pm-input').value.trim();
-    if (!/^\d{6}$/.test(pincode)) { _pmShowMsg('Enter a valid 6-digit pincode.', 'error'); return; }
+    if (!InputValidator.pin(pincode) || !pincode) { _pmShowMsg('Enter a valid 6-digit pincode.', 'error'); return; }
     const token = typeof getSessionId === 'function' ? getSessionId() : '';
     if (!token) { _pmShowMsg('Session expired. Please log in again.', 'error'); return; }
     const base = (window.CONSTANTS || {}).OPERATIONS_URL || '';
