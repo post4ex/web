@@ -537,7 +537,11 @@ const VaultQuotations = (() => {
     // ── Load ──────────────────────────────────────────────────────────────────
 
     async function load(code) {
-        if (code) _clientCode = code;
+        if (code) {
+            _clientCode = code;
+        } else {
+            _clientCode = null;
+        }
         document.getElementById('vaultListMsg').textContent = '';
         document.getElementById('vaultList').innerHTML = '';
         document.getElementById('vaultSearch').placeholder = 'Search by reference, customer…';
@@ -552,9 +556,21 @@ const VaultQuotations = (() => {
         }
 
         try {
-            const c = _getCode();
+            // Resolve client code for selected branch
+            const activeBranch = VaultPage.getActiveBranch();
+            if (activeBranch && !_clientCode) {
+                const appData = await getAppData();
+                if (appData?.B2B) {
+                    const client = Object.values(appData.B2B).find(c => (c.BRANCH || '').toLowerCase() === activeBranch.toLowerCase());
+                    if (client) {
+                        _clientCode = client.CODE;
+                    }
+                }
+            }
+
+            const c = _clientCode || _getCode();
             if (!c) {
-                document.getElementById('vaultListMsg').textContent = 'No client code selected.';
+                document.getElementById('vaultListMsg').textContent = 'No client code resolved for selected branch.';
                 return;
             }
             document.getElementById('vaultListMsg').textContent = 'Loading…';

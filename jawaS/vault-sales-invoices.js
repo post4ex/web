@@ -1012,7 +1012,8 @@ const VaultSalesInvoices = (() => {
         
         document.getElementById('vaultListMsg').textContent = 'Loading invoices from Manager.io...';
         try {
-            const url = `/api/manager/all-sales-invoices?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}`;
+            const branch = VaultPage.getActiveBranch();
+            const url = `/api/manager/all-sales-invoices?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`;
             const res = await callApi(url, {}, 'GET');
             if (res.status === 'success') {
                 _allInvoices = res.invoices || [];

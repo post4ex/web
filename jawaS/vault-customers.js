@@ -90,6 +90,10 @@ const VaultCustomers = (() => {
         if (!ul) return;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         let customers = _allB2B.filter(c => c.CODE && c.B2B_TYPE !== 'VENDOR');
+        const activeBranch = VaultPage.getActiveBranch();
+        if (activeBranch) {
+            customers = customers.filter(c => (c.BRANCH || '').toLowerCase() === activeBranch.toLowerCase());
+        }
         if (q) {
             customers = customers.filter(c =>
                 (c.CODE || '').toLowerCase().includes(q) ||

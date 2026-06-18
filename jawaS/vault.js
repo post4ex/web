@@ -151,6 +151,18 @@ const VaultPage = (() => {
         document.getElementById('vaultDetailView').classList.toggle('hidden', !show);
     }
 
+    function getActiveBranch() {
+        const user = getUser();
+        if (!user || !user.ROLE) return '';
+        const isAboveManager = ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
+        if (isAboveManager) {
+            const selectEl = document.getElementById('vaultBranchSelect');
+            return selectEl ? selectEl.value : '';
+        } else {
+            return user.BRANCH || '';
+        }
+    }
+
     // ── Hide tiles by role ────────────────────────────────────────────────────
     function _hideTilesByRole() {
         document.querySelectorAll('[data-tile]').forEach(tile => {
@@ -163,6 +175,20 @@ const VaultPage = (() => {
     async function _activateTile(name) {
         const minRole = TILE_MIN_ROLE[name];
         if (minRole && !_can(minRole)) return;
+
+        const branch = getActiveBranch();
+        const user = getUser();
+        const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
+
+        if (isAboveManager && !branch) {
+            _activeTile = name;
+            _showSplit(TILE_LABELS[name] || name);
+            document.getElementById('vaultListMsg').textContent = 'Please select a branch to view data.';
+            document.getElementById('vaultList').innerHTML = '';
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            return;
+        }
+
         _activeTile = name;
         _showSplit(TILE_LABELS[name] || name);
 
@@ -309,6 +335,18 @@ const VaultPage = (() => {
         }
     }
 
+    function _updateBranchStatus(branch) {
+        const statusEl = document.getElementById('vaultBranchStatus');
+        if (!statusEl) return;
+        if (branch) {
+            statusEl.className = 'text-xs text-green-600 font-medium';
+            statusEl.textContent = `✓ Branch ${branch} active`;
+        } else {
+            statusEl.className = 'text-xs text-amber-600 font-medium';
+            statusEl.textContent = '⚠️ Select a branch to view accounting records.';
+        }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     function _init() {
         _hideTilesByRole();
@@ -321,11 +359,46 @@ const VaultPage = (() => {
         document.getElementById('backToListBtn')?.addEventListener('click', () => {
             if (_isMobile()) _showListPane();
         });
+
+        // Initialize branch selector for roles above MANAGER
+        const user = getUser();
+        const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
+        if (isAboveManager) {
+            const bar = document.getElementById('vaultBranchSelectorBar');
+            if (bar) bar.classList.remove('hidden');
+
+            const select = document.getElementById('vaultBranchSelect');
+            if (select) {
+                const cachedBranch = localStorage.getItem('vault_selected_branch') || '';
+                
+                getAppData('BRANCHES').then(raw => {
+                    const branches = Object.values(raw || {});
+                    select.innerHTML = '<option value="">— Select Branch —</option>' +
+                        branches.map(b => `<option value="${b.BRANCH_CODE}">${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}</option>`).join('');
+                    
+                    if (cachedBranch && branches.some(b => b.BRANCH_CODE === cachedBranch)) {
+                        select.value = cachedBranch;
+                        _updateBranchStatus(cachedBranch);
+                    }
+                });
+
+                select.addEventListener('change', () => {
+                    const branch = select.value;
+                    localStorage.setItem('vault_selected_branch', branch);
+                    _updateBranchStatus(branch);
+                    
+                    const activeTile = _activeTile;
+                    if (activeTile) {
+                        _activateTile(activeTile);
+                    }
+                });
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', _init);
 
-    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile };
+    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch };
 })();
 
 window.VaultPage = VaultPage;

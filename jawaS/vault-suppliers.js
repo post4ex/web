@@ -90,6 +90,10 @@ const VaultSuppliers = (() => {
         if (!ul) return;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         let suppliers = _allB2B.filter(c => c.CODE && c.B2B_TYPE === 'VENDOR');
+        const activeBranch = VaultPage.getActiveBranch();
+        if (activeBranch) {
+            suppliers = suppliers.filter(c => (c.BRANCH || '').toLowerCase() === activeBranch.toLowerCase());
+        }
         if (q) {
             suppliers = suppliers.filter(c =>
                 (c.CODE || '').toLowerCase().includes(q) ||
@@ -100,7 +104,7 @@ const VaultSuppliers = (() => {
         }
         // Also include carrier vendors from LEDGER that have INWARD entries
         const carrierCodes = new Set(
-            _allLedger.filter(e => e.DIRECTION === 'INWARD' && ((e.B2B_TYPE || e.VENDOR_TYPE) === 'CARRIER'))
+            _allLedger.filter(e => e.DIRECTION === 'INWARD' && ((e.B2B_TYPE || e.VENDOR_TYPE) === 'CARRIER') && (!activeBranch || (e.BRANCH || '').toLowerCase() === activeBranch.toLowerCase()))
                       .map(e => e.CODE)
         );
         carrierCodes.forEach(code => {
