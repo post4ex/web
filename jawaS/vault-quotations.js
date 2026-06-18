@@ -82,7 +82,7 @@ const VaultQuotations = (() => {
         VaultPage.showDetailPane();
         try {
             const code = _getCode();
-            const data = await callApi(`/api/manager/quotes/${key}?code=${encodeURIComponent(code)}`);
+            const data = await callApi(`/api/manager/quotes/${key}?code=${encodeURIComponent(code)}`, {}, 'GET');
             _renderDetail(key, data);
         } catch (err) {
             view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-500">Failed to load: ${err.message || err}</div></div>`;
@@ -574,7 +574,7 @@ const VaultQuotations = (() => {
                 return;
             }
             document.getElementById('vaultListMsg').textContent = 'Loading…';
-            const data = await callApi(`/api/manager/quotes?code=${encodeURIComponent(c)}`);
+            const data = await callApi(`/api/manager/quotes?code=${encodeURIComponent(c)}`, {}, 'GET');
             _allQuotes = data.salesQuotes || data.quotes || [];
             document.getElementById('vaultListMsg').textContent = '';
             _renderList(_allQuotes);
