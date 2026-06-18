@@ -254,7 +254,8 @@ class AppDatabase {
    */
   async bulkMerge(deltaMap) {
     if (!this.db || !deltaMap || typeof deltaMap !== 'object') return;
-    const storeNames = Object.keys(deltaMap);
+    const existingStores = Array.from(this.db.objectStoreNames);
+    const storeNames = Object.keys(deltaMap).filter(name => existingStores.includes(name));
     if (!storeNames.length) return;
 
     const transaction = this.db.transaction(storeNames, 'readwrite');
@@ -268,6 +269,7 @@ class AppDatabase {
       }
 
       for (const [collection, data] of Object.entries(deltaMap)) {
+        if (!storeNames.includes(collection)) continue;
         if (!data || typeof data !== 'object') continue;
         const store = transaction.objectStore(collection);
         const keyPath = this.sheetKeys[collection] || 'id';

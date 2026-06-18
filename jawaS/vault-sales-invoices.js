@@ -10,6 +10,25 @@ const VaultSalesInvoices = (() => {
     let _b2bMap    = new Map();
     let _allLedger = [];
 
+    function getCurrentFYRange() {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        let startYear = currentYear;
+        if (now.getMonth() < 3) {
+            startYear = currentYear - 1;
+        }
+        return {
+            start: `${startYear}-04-01`,
+            end: `${startYear + 1}-03-31`
+        };
+    }
+
+    const _fyRange = getCurrentFYRange();
+    let _filterStart = _fyRange.start;
+    let _filterEnd   = _fyRange.end;
+    let _filterBranch = '';
+    let _filterStatus = '';
+
     // ── List pane ─────────────────────────────────────────────────────────────
     function _injectListPane() {
         document.getElementById('vaultListMsg').textContent = '';
@@ -22,14 +41,27 @@ const VaultSalesInvoices = (() => {
         if (!ul) return;
         
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        const filtered = q
-            ? _allInvoices.filter(e =>
-                (e.reference || '').toLowerCase().includes(q) ||
-                (e.customer || '').toLowerCase().includes(q) ||
-                (e.description || '').toLowerCase().includes(q) ||
-                (e.branch || '').toLowerCase().includes(q)
-              )
-            : _allInvoices;
+        
+        const filtered = _allInvoices.filter(e => {
+            // Text search
+            if (q) {
+                const matchSearch = (e.reference || '').toLowerCase().includes(q) ||
+                                     (e.customer || '').toLowerCase().includes(q) ||
+                                     (e.description || '').toLowerCase().includes(q) ||
+                                     (e.branch || '').toLowerCase().includes(q);
+                if (!matchSearch) return false;
+            }
+            // Date range (FY/Filterform range)
+            const d = e.issueDate || '';
+            if (_filterStart && d < _filterStart) return false;
+            if (_filterEnd && d > _filterEnd) return false;
+            // Branch
+            if (_filterBranch && (e.branch || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
+            // Status
+            if (_filterStatus && (e.status || '').toLowerCase() !== _filterStatus.toLowerCase()) return false;
+            
+            return true;
+        });
 
         filtered.sort((a, b) => {
             const dateA = a.issueDate || '';
@@ -38,8 +70,14 @@ const VaultSalesInvoices = (() => {
             return (b.reference || '').localeCompare(a.reference || '');
         });
 
+        // Update status label
+        const statusEl = document.getElementById('siStatus');
+        if (statusEl) {
+            statusEl.textContent = `Showing ${filtered.length} of ${_allInvoices.length} Invoices`;
+        }
+
         if (!filtered.length) {
-            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No sales invoices found on Manager.io.</li>`;
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No matching invoices found.</li>`;
             return;
         }
         ul.innerHTML = filtered.map(e => {
@@ -263,52 +301,138 @@ const VaultSalesInvoices = (() => {
         try {
             const res = await callApi(`/api/manager/invoice-details/${listEntry.branch}/${listEntry.key}`, {}, 'GET');
             
-            const linesHtml = (res.Lines || []).map(line => `
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-600">${line.LineDescription || 'Charges'}</span>
-                    <span>₹${(+line.SalesUnitPrice || 0).toFixed(2)}</span>
-                </div>
-            `).join('');
+            let totalTaxable = 0;
+            let totalCgst = 0;
+            let totalSgst = 0;
+            let totalIgst = 0;
             
-            const subtotal = (res.Lines || []).reduce((acc, line) => acc + (+line.SalesUnitPrice || 0), 0);
-            const grandTotal = listEntry.invoiceAmount?.value || subtotal;
+            (res.Lines || []).forEach(line => {
+                const unitPrice = parseFloat(line.SalesUnitPrice || 0);
+                const qty = parseFloat(line.Qty || 1);
+                const lineSubtotal = unitPrice * qty;
+                totalTaxable += lineSubtotal;
+                
+                if (line.TaxCode === 'c9228485-7a58-4ccb-89e8-fe025e20261d') {
+                    totalCgst += lineSubtotal * 0.09;
+                    totalSgst += lineSubtotal * 0.09;
+                } else if (line.TaxCode === '16e26b59-06ca-49ab-ba1c-a2c36711683e') {
+                    totalIgst += lineSubtotal * 0.18;
+                }
+            });
+            
+            totalCgst = Math.round(totalCgst * 100) / 100;
+            totalSgst = Math.round(totalSgst * 100) / 100;
+            totalIgst = Math.round(totalIgst * 100) / 100;
+            const computedGrandTotal = totalTaxable + totalCgst + totalSgst + totalIgst;
+            
+            const linesRows = (res.Lines || []).map(line => {
+                const amount = parseFloat(line.SalesUnitPrice || 0);
+                const taxCodeLabel = line.TaxCode === 'c9228485-7a58-4ccb-89e8-fe025e20261d' ? 'CGST/SGST 18%' :
+                                     line.TaxCode === '16e26b59-06ca-49ab-ba1c-a2c36711683e' ? 'IGST 18%' : 'Exempt/Nil';
+                return `
+                    <tr class="hover:bg-gray-50/50 transition-colors">
+                        <td class="px-4 py-2.5 text-gray-700 font-medium">${line.LineDescription || 'Charges'}</td>
+                        <td class="px-4 py-2.5 text-right text-gray-500">${taxCodeLabel}</td>
+                        <td class="px-4 py-2.5 text-right text-gray-900 font-semibold">₹${amount.toFixed(2)}</td>
+                    </tr>
+                `;
+            }).join('');
+            
             const balance = listEntry.balanceDue?.value || 0;
             
             view.innerHTML = `
                 <div class="detail-card">
-                    <div class="detail-card-header flex justify-between items-center">
-                        <h3 class="font-semibold text-gray-700">Sales Invoice — ${res.Reference || 'N/A'}</h3>
-                    </div>
-                    <div class="detail-card-body">
-                        <!-- Header info grid -->
-                        <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg">
-                            <div><span class="text-gray-500">Invoice Ref:</span> <span class="font-semibold">${res.Reference || 'N/A'}</span></div>
-                            <div><span class="text-gray-500">Customer UUID:</span> <span class="text-xs truncate">${res.Customer || 'N/A'}</span></div>
-                            <div><span class="text-gray-500">Issue Date:</span> ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</div>
-                            <div><span class="text-gray-500">Status:</span> <span class="font-medium">${listEntry.status || 'N/A'}</span></div>
-                            <div><span class="text-gray-500">Branch:</span> ${listEntry.branch || 'N/A'}</div>
-                            <div><span class="text-gray-500">Balance Due:</span> ₹${(+balance).toFixed(2)}</div>
+                    <div class="detail-card-body p-6 space-y-6">
+                        <!-- Invoice Header -->
+                        <div class="flex justify-between items-start border-b border-gray-100 pb-5">
+                            <div>
+                                <h1 class="text-xl font-bold text-indigo-900 tracking-tight">${res.SalesInvoiceCustomTitle || 'Tax Invoice'}</h1>
+                                <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${listEntry.branch || 'N/A'}</span></p>
+                            </div>
+                            <div class="text-right">
+                                <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 uppercase">${listEntry.status || 'N/A'}</span>
+                                <p class="text-sm text-gray-500 mt-2">Invoice #: <span class="font-bold text-gray-800">${res.Reference || 'N/A'}</span></p>
+                                <p class="text-xs text-gray-400 mt-0.5">Date: ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</p>
+                            </div>
                         </div>
 
-                        ${res.Description ? `<div class="text-sm text-gray-700 mt-3 bg-white p-2 border rounded-md">📝 ${res.Description}</div>` : ''}
+                        <!-- Bill To & Details -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm">
+                            <div>
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Bill To</h3>
+                                <p class="font-semibold text-gray-800">${listEntry.customer || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Invoice Details</h3>
+                                <p class="text-gray-600">Due Period: <span class="font-medium text-gray-800">${res.DueDateDays || 0} Days</span></p>
+                                <p class="text-gray-600 mt-0.5">Balance Due: <span class="font-bold text-indigo-700">₹${(+balance).toFixed(2)}</span></p>
+                            </div>
+                        </div>
 
-                        <!-- Lines / Charges -->
-                        ${linesHtml ? `
-                        <div class="border rounded-lg p-3 space-y-1.5 bg-white mt-3">
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Invoice Lines</div>
-                            ${linesHtml}
-                            <hr class="border-gray-200 my-1.5">
-                            <div class="flex justify-between text-sm font-semibold"><span>Grand Total</span><span>₹${grandTotal.toFixed(2)}</span></div>
-                        </div>` : ''}
-                        
-                        <!-- Audit info -->
-                        <details class="mt-4">
-                            <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Form Metadata</summary>
-                            <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
-                                <div>Due Days: ${res.DueDateDays || 0}</div>
+                        <!-- Narration -->
+                        ${res.Description ? `
+                        <div class="bg-indigo-50/40 border border-indigo-100/50 rounded-lg p-3 text-xs text-indigo-950">
+                            <span class="font-semibold block text-indigo-800 uppercase tracking-wider mb-1" style="font-size: 10px;">Description / Narration</span>
+                            ${res.Description}
+                        </div>
+                        ` : ''}
+
+                        <!-- Lines Table -->
+                        <div class="overflow-hidden border border-gray-100 rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-100 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">Line Item Description</th>
+                                        <th class="px-4 py-2.5 text-right font-bold text-gray-500 uppercase">Tax Rate</th>
+                                        <th class="px-4 py-2.5 text-right font-bold text-gray-500 uppercase">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white">
+                                    ${linesRows}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Summary Block -->
+                        <div class="flex justify-end pt-2">
+                            <div class="w-full md:w-64 space-y-2 text-xs bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Taxable Subtotal:</span>
+                                    <span class="font-medium">₹${totalTaxable.toFixed(2)}</span>
+                                </div>
+                                ${totalCgst > 0 ? `
+                                <div class="flex justify-between text-gray-600">
+                                    <span>CGST @ 9%:</span>
+                                    <span class="font-medium text-amber-700">₹${totalCgst.toFixed(2)}</span>
+                                </div>
+                                ` : ''}
+                                ${totalSgst > 0 ? `
+                                <div class="flex justify-between text-gray-600">
+                                    <span>SGST @ 9%:</span>
+                                    <span class="font-medium text-amber-700">₹${totalSgst.toFixed(2)}</span>
+                                </div>
+                                ` : ''}
+                                ${totalIgst > 0 ? `
+                                <div class="flex justify-between text-gray-600">
+                                    <span>IGST @ 18%:</span>
+                                    <span class="font-medium text-amber-700">₹${totalIgst.toFixed(2)}</span>
+                                </div>
+                                ` : ''}
+                                <div class="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-800 text-sm">
+                                    <span>Grand Total:</span>
+                                    <span class="text-indigo-800 font-extrabold">₹${(listEntry.invoiceAmount?.value || computedGrandTotal).toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Metadata -->
+                        <details class="text-[11px] text-gray-400">
+                            <summary class="cursor-pointer hover:text-gray-600 transition-colors">Audit & System Metadata</summary>
+                            <div class="grid grid-cols-2 gap-2 mt-2 p-2 border rounded-lg bg-gray-50/50">
                                 <div>Tax Code Enabled: ${res.TaxCodeEnabled ? 'Yes' : 'No'}</div>
                                 <div>Rounding Enabled: ${res.Rounding ? 'Yes' : 'No'}</div>
-                                <div>Custom Title: ${res.SalesInvoiceCustomTitle || 'N/A'}</div>
+                                <div>Manager UUID: <span class="font-mono text-[9px]">${res.Key || 'N/A'}</span></div>
+                                <div>Project Enabled: ${res.ProjectEnabled ? 'Yes' : 'No'}</div>
                             </div>
                         </details>
                     </div>
@@ -390,202 +514,345 @@ const VaultSalesInvoices = (() => {
         });
     }
 
-    // ── New Invoice Form (full breakdown) ─────────────────────────────────────
-    function openAddPane() {
+    // ── New Invoice Form (proper line-item entry) ──────────────────────────────
+    async function openAddPane() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
+
+        // Show a loading state first
+        view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-gray-400 text-sm">Loading form data…</div></div>`;
+        VaultPage.showDetailPane();
+
+        // Get app data
+        const appData = await getAppData();
+
+        // Load all cache keys if not already loaded
+        if (!window.__vaultCacheKeys) {
+            try {
+                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+            } catch (err) {
+                console.error("Failed to load cache keys inside form:", err);
+                window.__vaultCacheKeys = {};
+            }
+        }
+
+        // Build lookup maps
+        if (appData?.B2B) Object.values(appData.B2B).forEach(c => {
+            if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
+        });
+
+        // Determine initial branch for dropdowns
+        let defaultBranch = '';
+        const firstClient = Object.values(appData?.B2B || {})[0];
+        if (firstClient?.BRANCH) {
+            defaultBranch = firstClient.BRANCH.toLowerCase();
+        }
+
+        // Helper: get dropdown options for a branch
+        function _getBranchDropdowns(branchCode) {
+            const bKey = (branchCode || '').toLowerCase();
+            const bKeys = window.__vaultCacheKeys?.[bKey] || {};
+            
+            const itemNames = Object.keys(bKeys.non_inventory_items || {}).sort();
+            const taxCodeNames = Object.keys(bKeys.tax_codes || {}).sort();
+
+            const itemOpts = `<option value="">— Select item —</option>` +
+                itemNames.map(n => `<option value="${n}">${_titleCase(n)}</option>`).join('');
+
+            const tcOpts = `<option value="">No Tax</option>` +
+                taxCodeNames.map(n => `<option value="${n}">${_titleCase(n)}</option>`).join('');
+                
+            return { itemOpts, tcOpts, itemNames, taxCodeNames };
+        }
+
+        let currentOpts = _getBranchDropdowns(defaultBranch);
+
         view.innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">➕ New Sales Invoice</h3></div>
                 <div class="detail-card-body space-y-4">
                     <form id="siForm" class="space-y-4">
-                        <!-- Row 1: Client + Dates -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
+
+                        <!-- Header: Client + Branch + POS + Date -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="sm:col-span-2">
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                                <input name="code" id="siCode" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="siCodeList" autocomplete="off">
+                                <input name="code" id="siCode" required class="form-input text-sm uppercase"
+                                    placeholder="e.g. AGWL" list="siCodeList" autocomplete="off">
                                 <datalist id="siCodeList"></datalist>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                                <input name="branch" id="siBranch" class="form-input text-sm uppercase" placeholder="Auto from client" list="siBranchList">
-                                <datalist id="siBranchList"></datalist>
+                                <input name="branch" id="siBranch" readonly
+                                    class="form-input text-sm uppercase bg-gray-50 text-gray-500" placeholder="Auto">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">POS (State Code)</label>
-                                <input name="pos" id="siPos" class="form-input text-sm" placeholder="Auto from client" maxlength="2">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">POS State</label>
+                                <input name="pos" id="siPos" readonly
+                                    class="form-input text-sm bg-gray-50 text-gray-500" placeholder="Auto">
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number <span class="text-gray-400">(optional)</span></label>
-                                <input name="inv_number" class="form-input text-sm" placeholder="Auto-generate">
-                            </div>
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
-                                <input name="inv_date" type="date" required class="form-input text-sm">
+                                <input name="inv_date" id="siDate" type="date" required class="form-input text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Due Days</label>
+                                <input name="due_days" type="number" min="0" value="20" class="form-input text-sm">
                             </div>
                         </div>
 
-                        <!-- Charges -->
-                        <div class="border rounded-lg p-3 bg-gray-50">
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operating Charges</div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                <div><label class="block text-xs text-gray-500">Freight</label><input id="si_fright" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()" placeholder="0"></div>
-                                <div><label class="block text-xs text-gray-500">Fuel Surcharge</label><input id="si_fuel" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">COD Charges</label><input id="si_cod" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">ToPay Charges</label><input id="si_topay" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">Insurance (FOV)</label><input id="si_fov" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">E-Way Charges</label><input id="si_eway" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">AWB Charges</label><input id="si_awb" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">Packaging</label><input id="si_pack" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
-                                <div><label class="block text-xs text-gray-500">Development</label><input id="si_dev" type="number" step="0.01" min="0" class="form-input text-sm" oninput="VaultSalesInvoices._recalc()"></div>
+                        <!-- Line Items -->
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="bg-gray-50 px-3 py-2 flex items-center justify-between border-b">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Line Items</span>
+                                <button type="button" id="siAddLine"
+                                    class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                                    + Add Line
+                                </button>
                             </div>
-                            <div class="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-gray-200">
-                                <span>Charges Subtotal</span>
-                                <span id="si_subtotal" class="text-indigo-700">0.00</span>
-                            </div>
-                        </div>
-
-                        <!-- Tax -->
-                        <div class="border rounded-lg p-3 bg-gray-50">
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tax Details</div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
-                                <div>
-                                    <label class="block text-xs text-gray-500">GST Rate</label>
-                                    <select id="si_tax_rate" class="form-input text-sm" onchange="VaultSalesInvoices._recalc()">
-                                        <option value="0">0% (No Tax)</option>
-                                        <option value="5">5%</option>
-                                        <option value="12">12%</option>
-                                        <option value="18" selected>18%</option>
-                                        <option value="28">28%</option>
-                                    </select>
-                                </div>
-                                <div class="flex items-center gap-2 pt-5">
-                                    <input id="si_is_inter" type="checkbox" class="rounded border-gray-300" onchange="VaultSalesInvoices._recalc()">
-                                    <label for="si_is_inter" class="text-xs text-gray-600">Inter-State (IGST)</label>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-3 mt-2 pt-2 border-t border-gray-200 text-sm">
-                                <div><span class="text-gray-500">Taxable:</span> <span id="si_taxable" class="font-semibold">0.00</span></div>
-                                <div id="si_sgst_row"><span class="text-gray-500">SGST:</span> <span id="si_sgst_val" class="font-semibold">0.00</span></div>
-                                <div id="si_cgst_row"><span class="text-gray-500">CGST:</span> <span id="si_cgst_val" class="font-semibold">0.00</span></div>
-                                <div id="si_igst_row" class="hidden"><span class="text-gray-500">IGST:</span> <span id="si_igst_val" class="font-semibold">0.00</span></div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm" id="siLinesTable">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b">
+                                            <th class="py-2 px-2 text-left" style="min-width:160px">Item</th>
+                                            <th class="py-2 px-2 text-left" style="min-width:140px">Description</th>
+                                            <th class="py-2 px-2 text-right" style="min-width:60px">Qty</th>
+                                            <th class="py-2 px-2 text-right" style="min-width:90px">Unit Price</th>
+                                            <th class="py-2 px-2 text-left" style="min-width:130px">Tax Code</th>
+                                            <th class="py-2 px-2 text-right" style="min-width:80px">Amount</th>
+                                            <th class="py-2 px-2" style="min-width:32px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="siLineRows"></tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <!-- Grand Total -->
-                        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex justify-between items-center">
-                            <span class="font-bold text-indigo-800">GRAND TOTAL</span>
-                            <span id="si_grand_total" class="text-xl font-bold text-indigo-700">0.00</span>
+                        <!-- Totals -->
+                        <div class="border rounded-lg p-3 bg-gray-50 space-y-1.5 text-sm" id="siTotals">
+                            <div class="flex justify-between text-gray-600">
+                                <span>Subtotal</span>
+                                <span id="si_subtotal" class="font-medium">₹0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-600" id="si_sgst_row">
+                                <span>SGST</span><span id="si_sgst_val" class="font-medium">₹0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-600" id="si_cgst_row">
+                                <span>CGST</span><span id="si_cgst_val" class="font-medium">₹0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-600 hidden" id="si_igst_row">
+                                <span>IGST</span><span id="si_igst_val" class="font-medium">₹0.00</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-gray-800 border-t border-gray-200 pt-2 mt-1">
+                                <span>Grand Total</span>
+                                <span id="si_grand_total" class="text-indigo-700 text-base">₹0.00</span>
+                            </div>
                         </div>
 
-                        <!-- Narration -->
+                        <!-- Description / Narration -->
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration</label>
-                            <input name="narration" class="form-input text-sm" placeholder="Invoice description (optional)">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration / Description</label>
+                            <input name="narration" class="form-input text-sm" placeholder="Invoice notes (optional)">
                         </div>
 
                         <!-- Submit -->
                         <div class="flex justify-between items-center pt-2 border-t">
                             <div id="siResponse" class="hidden text-sm"></div>
-                            <button type="submit" class="btn btn-sm flex items-center gap-2 ml-auto">
+                            <button type="submit" id="siSubmitBtn" class="btn btn-sm flex items-center gap-2 ml-auto">
                                 <span id="siBtnText">Create Invoice</span>
                                 <div id="siSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
                         </div>
                     </form>
-                    <div id="si_computed" data-subtotal="0" data-taxable="0" data-sgst="0" data-cgst="0" data-igst="0" data-taxPercent="18" data-isInter="false" data-grandTotal="0"></div>
                 </div>
             </div>`;
 
-        // Populate client + branch datalists
-        getAppData().then(data => {
-            const dl = document.getElementById('siCodeList');
-            if (data?.B2B) Object.values(data.B2B).forEach(c => {
-                if (c.CODE) { const o = document.createElement('option'); o.value = c.CODE; o.label = `${c.CODE} - ${c.B2B_NAME || ''}`; dl.appendChild(o); }
-            });
-            const bdl = document.getElementById('siBranchList');
-            if (data?.BRANCHES) Object.values(data.BRANCHES).forEach(b => {
-                if (b.BRANCH_CODE) { const o = document.createElement('option'); o.value = b.BRANCH_CODE; bdl.appendChild(o); }
-            });
+        // Populate client datalist from B2B map
+        const dl = document.getElementById('siCodeList');
+        _b2bMap.forEach((rec, code) => {
+            const o = document.createElement('option');
+            o.value = code;
+            o.label = `${code} — ${rec.B2B_NAME || ''}`;
+            dl.appendChild(o);
         });
 
-        // Auto-fill branch/POS on code change
-        document.getElementById('siCode').addEventListener('input', function() {
-            const code = this.value.trim().toUpperCase();
-            const b2b = _b2bMap.get(code);
-            if (b2b) {
-                const bi = document.getElementById('siBranch');
-                if (b2b.BRANCH && !bi.value) bi.value = b2b.BRANCH;
-                const pi = document.getElementById('siPos');
-                if (b2b.CODE_STATE && !pi.value) pi.value = b2b.CODE_STATE;
-            }
-        });
+        // Auto-fill branch + POS from B2B and update dropdown options based on branch
+        function _applyClientAutofill() {
+            const code = document.getElementById('siCode').value.trim().toUpperCase();
+            const b2b  = _b2bMap.get(code);
+            if (!b2b) return;
+            const branch = (b2b.BRANCH || '').toUpperCase();
+            document.getElementById('siBranch').value = branch;
+            document.getElementById('siPos').value    = b2b.CODE_STATE || b2b.STATE_CODE || '';
 
-        // Default date
-        const d = document.querySelector('[name="inv_date"]');
-        if (d) d.value = new Date().toISOString().split('T')[0];
+            // Update line item dropdown options dynamically for the branch
+            currentOpts = _getBranchDropdowns(branch);
+            document.querySelectorAll('#siLineRows tr').forEach(tr => {
+                const itemSel = tr.querySelector('.si-item');
+                const tcSel = tr.querySelector('.si-tc');
+                if (itemSel && tcSel) {
+                    const prevItem = itemSel.value;
+                    const prevTc = tcSel.value;
 
-        _recalc();
+                    itemSel.innerHTML = currentOpts.itemOpts;
+                    tcSel.innerHTML = currentOpts.tcOpts;
 
-        // Submit
+                    if (currentOpts.itemNames.includes(prevItem)) itemSel.value = prevItem;
+                    if (currentOpts.taxCodeNames.includes(prevTc)) tcSel.value = prevTc;
+                }
+            });
+        }
+        const siCodeEl = document.getElementById('siCode');
+        siCodeEl.addEventListener('input',  _applyClientAutofill);
+        siCodeEl.addEventListener('change', _applyClientAutofill);
+
+        // Default date = today
+        document.getElementById('siDate').value = new Date().toISOString().split('T')[0];
+
+        // ── Line management ────────────────────────────────────────────────────
+        let _lineCount = 0;
+
+        function _addLine(defaultItem = '', defaultTc = '') {
+            const idx = _lineCount++;
+            const tr  = document.createElement('tr');
+            tr.id     = `siLine_${idx}`;
+            tr.className = 'border-t border-gray-100';
+            tr.innerHTML = `
+                <td class="py-1.5 px-2">
+                    <select class="form-input text-xs si-item" data-idx="${idx}" style="min-width:140px">
+                        ${currentOpts.itemOpts}
+                    </select>
+                </td>
+                <td class="py-1.5 px-2">
+                    <input type="text" class="form-input text-xs si-desc" placeholder="Description" style="min-width:120px">
+                </td>
+                <td class="py-1.5 px-2">
+                    <input type="number" class="form-input text-xs si-qty text-right" value="1" min="0.001" step="any" style="min-width:55px">
+                </td>
+                <td class="py-1.5 px-2">
+                    <input type="number" class="form-input text-xs si-price text-right" value="" min="0" step="0.01" placeholder="0.00" style="min-width:80px">
+                </td>
+                <td class="py-1.5 px-2">
+                    <select class="form-input text-xs si-tc" style="min-width:120px">
+                        ${currentOpts.tcOpts}
+                    </select>
+                </td>
+                <td class="py-1.5 px-2 text-right">
+                    <span class="si-amt text-gray-700 font-medium text-xs">₹0.00</span>
+                </td>
+                <td class="py-1.5 px-2 text-center">
+                    <button type="button" class="si-remove text-red-400 hover:text-red-600 text-lg leading-none" title="Remove line">×</button>
+                </td>`;
+            document.getElementById('siLineRows').appendChild(tr);
+
+            // Pre-select defaults if provided
+            if (defaultItem) tr.querySelector('.si-item').value = defaultItem;
+            if (defaultTc)   tr.querySelector('.si-tc').value   = defaultTc;
+
+            // When item changes, auto-fill description from item name
+            tr.querySelector('.si-item').addEventListener('change', function() {
+                const descEl = tr.querySelector('.si-desc');
+                if (!descEl.value) descEl.value = _titleCase(this.value);
+                _calcTotals();
+            });
+
+            // Live recalc on any change
+            tr.querySelectorAll('input, select').forEach(el => el.addEventListener('input', _calcTotals));
+            tr.querySelector('.si-remove').addEventListener('click', () => { tr.remove(); _calcTotals(); });
+
+            _calcTotals();
+        }
+
+        function _calcTotals() {
+            let subtotal = 0, sgst = 0, cgst = 0, igst = 0;
+
+            document.querySelectorAll('#siLineRows tr').forEach(tr => {
+                const qty   = parseFloat(tr.querySelector('.si-qty')?.value  || 0);
+                const price = parseFloat(tr.querySelector('.si-price')?.value || 0);
+                const tc    = (tr.querySelector('.si-tc')?.value || '').toUpperCase();
+                const lineAmt = qty * price;
+                subtotal += lineAmt;
+                tr.querySelector('.si-amt').textContent = '₹' + lineAmt.toFixed(2);
+
+                // Detect tax type from tax code name
+                if (tc.includes('IGST')) {
+                    const rate = _parseTaxRate(tr.querySelector('.si-tc').value);
+                    igst += lineAmt * rate / 100;
+                } else if (tc && tc !== '') {
+                    const rate = _parseTaxRate(tr.querySelector('.si-tc').value);
+                    sgst += lineAmt * rate / 200;
+                    cgst += lineAmt * rate / 200;
+                }
+            });
+
+            const grandTotal = subtotal + sgst + cgst + igst;
+            document.getElementById('si_subtotal').textContent  = '₹' + subtotal.toFixed(2);
+            document.getElementById('si_sgst_val').textContent  = '₹' + sgst.toFixed(2);
+            document.getElementById('si_cgst_val').textContent  = '₹' + cgst.toFixed(2);
+            document.getElementById('si_igst_val').textContent  = '₹' + igst.toFixed(2);
+            document.getElementById('si_grand_total').textContent = '₹' + grandTotal.toFixed(2);
+            document.getElementById('si_sgst_row').classList.toggle('hidden', sgst === 0 && cgst === 0);
+            document.getElementById('si_cgst_row').classList.toggle('hidden', sgst === 0 && cgst === 0);
+            document.getElementById('si_igst_row').classList.toggle('hidden', igst === 0);
+        }
+
+        // Add initial line
+        _addLine();
+        document.getElementById('siAddLine').addEventListener('click', () => _addLine());
+
+        // ── Submit ────────────────────────────────────────────────────────────
         document.getElementById('siForm').addEventListener('submit', async e => {
             e.preventDefault();
-            const fd = new FormData(e.target);
+            const fd  = new FormData(e.target);
             const raw = Object.fromEntries(fd);
-            const comp = document.getElementById('si_computed').dataset;
-            const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('siSpinner');
+            const btn = document.getElementById('siSubmitBtn');
+            const sp  = document.getElementById('siSpinner');
             const resp = document.getElementById('siResponse');
             btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
 
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
-            const grandTotal = parseFloat(comp.grandTotal);
-
-            const getQ = (id) => parseFloat(document.getElementById('si_'+id)?.value || 0);
-            const chargeData = {
-                fright: getQ('fright'), fuel_chg: getQ('fuel'), cod_chg: getQ('cod'),
-                topay_chg: getQ('topay'), fov_chg: getQ('fov'), eway_chg: getQ('eway'),
-                awb_chg: getQ('awb'), pack_chg: getQ('pack'), dev_chg: getQ('dev'),
-            };
-
             try {
-                const res = await callApi('/api/ledger/invoice', {
-                    code: raw.code,
-                    branch: raw.branch || '',
-                    inv_number: raw.inv_number || '',
-                    inv_date: toMs(raw.inv_date),
-                    amount: grandTotal,
-                    pos: raw.pos || '',
-                    narration: _buildNarrationJson({
-                        description: raw.narration || '',
-                        ...chargeData,
-                        charges_subtotal: parseFloat(comp.subtotal),
-                        taxable: parseFloat(comp.taxable),
-                        sgst: parseFloat(comp.sgst),
-                        cgst: parseFloat(comp.cgst),
-                        igst: parseFloat(comp.igst),
-                        tax_percent: parseFloat(comp.taxPercent),
-                        is_inter_state: comp.isInter,
-                        grand_total: grandTotal,
-                    }),
-                    taxable_amt: parseFloat(comp.taxable),
-                    cgst: parseFloat(comp.cgst),
-                    sgst: parseFloat(comp.sgst),
-                    igst: parseFloat(comp.igst),
-                    total_amount: grandTotal,
-                    tax_type: 'GST',
-                    tax_schema: comp.isInter === 'true' ? 'REVERSE' : 'FORWARD',
-                    tax_percent: parseFloat(comp.taxPercent),
-                    service_code: '',
-                }, 'POST');
+                const clientCode = raw.code.trim().toUpperCase();
+
+                // Build lines from table rows
+                const lines = [];
+                document.querySelectorAll('#siLineRows tr').forEach(tr => {
+                    const item  = tr.querySelector('.si-item')?.value  || '';
+                    const desc  = tr.querySelector('.si-desc')?.value  || '';
+                    const qty   = parseFloat(tr.querySelector('.si-qty')?.value  || 1);
+                    const price = parseFloat(tr.querySelector('.si-price')?.value || 0);
+                    const tc    = tr.querySelector('.si-tc')?.value || '';
+                    if (price > 0 || item) {
+                        lines.push({
+                            Item:            item || undefined,
+                            LineDescription: desc || undefined,
+                            Qty:             qty,
+                            SalesUnitPrice:  price,
+                            TaxCode:         tc || undefined,
+                        });
+                    }
+                });
+
+                if (!lines.length) throw new Error('Add at least one line item with a price.');
+
+                const payload = {
+                    IssueDate:               raw.inv_date,
+                    DueDateDays:             parseInt(raw.due_days) || 20,
+                    Customer:                clientCode,
+                    Description:             raw.narration || undefined,
+                    Lines:                   lines,
+                    TaxCodeEnabled:          true,
+                    HasLineNumber:           true,
+                    Rounding:                true,
+                };
+
+                const url = `/api/manager/invoices?code=${encodeURIComponent(clientCode)}`;
+                const res = await callApi(url, payload, 'POST');
+                const refNum = res.Reference || res.reference || 'created';
                 resp.className = 'mt-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded';
-                resp.textContent = `✅ Invoice ${res.inv_number} created. Balance: ₹${(+res.balance||0).toFixed(2)}`;
+                resp.textContent = `✅ Invoice ${refNum} created in Manager.io.`;
                 resp.classList.remove('hidden');
-                e.target.reset();
-                if (d) d.value = new Date().toISOString().split('T')[0];
-                _recalc();
                 await load();
             } catch (err) {
                 resp.className = 'mt-2 text-sm bg-red-100 text-red-800 px-3 py-2 rounded';
@@ -595,7 +862,136 @@ const VaultSalesInvoices = (() => {
                 btn.disabled = false; sp.classList.add('hidden');
             }
         });
+
         VaultPage.showDetailPane();
+    }
+
+    // Helpers
+    function _titleCase(str) {
+        return (str || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    }
+    function _parseTaxRate(tcName) {
+        // Extract numeric rate from tax code name e.g. "GST 18%" → 18, "IGST @12%" → 12
+        const m = (tcName || '').match(/(\d+(\.\d+)?)\s*%?/);
+        return m ? parseFloat(m[1]) : 18;
+    }
+
+
+    function _injectUI() {
+        const listPane = document.getElementById('vaultListPane');
+        const header   = listPane?.querySelector('.sv-pane-header');
+        if (header && !document.getElementById('siFilterBtn')) {
+            const searchInput = document.getElementById('vaultSearch');
+            let searchRow = searchInput?.parentElement;
+            if (searchInput && searchRow && !searchRow.classList.contains('flex')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex gap-2 w-full mt-2';
+                searchRow.insertBefore(wrapper, searchInput);
+                wrapper.appendChild(searchInput);
+                searchInput.classList.remove('mt-2');
+                searchRow = wrapper;
+            }
+            
+            const filterBtn = document.createElement('button');
+            filterBtn.id = 'siFilterBtn';
+            filterBtn.className = 'p-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex-shrink-0 transition-colors';
+            filterBtn.title = 'Filter Invoices';
+            filterBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>`;
+            filterBtn.onclick = () => document.getElementById('siFilterModal')?.classList.remove('hidden');
+            searchRow?.appendChild(filterBtn);
+        }
+
+        if (!document.getElementById('siStatus')) {
+            const statusEl = document.createElement('p');
+            statusEl.id = 'siStatus';
+            statusEl.className = 'text-xs text-gray-500 px-4 pt-2 text-center font-medium';
+            statusEl.textContent = 'Loading...';
+            const listContainer = document.getElementById('vaultList')?.parentElement;
+            listContainer?.insertBefore(statusEl, document.getElementById('vaultList'));
+        }
+
+        if (!document.getElementById('siFilterModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'siFilterModal';
+            modal.className = 'modal-overlay hidden';
+            modal.innerHTML = `
+                <div class="modal-content space-y-4 max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-5">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h2 class="text-lg font-bold text-gray-800">Filter Sales Invoices</h2>
+                        <button onclick="document.getElementById('siFilterModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Start Date</label>
+                            <input type="date" id="siFilterStart" class="form-input text-xs" value="${_filterStart}">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">End Date</label>
+                            <input type="date" id="siFilterEnd" class="form-input text-xs" value="${_filterEnd}">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Branch</label>
+                            <select id="siFilterBranch" class="form-input text-xs">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Status</label>
+                            <select id="siFilterStatus" class="form-input text-xs">
+                                <option value="">All Statuses</option>
+                                <option value="paid">Paid</option>
+                                <option value="comingdue">Coming Due</option>
+                                <option value="overdue">Overdue</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t">
+                        <button id="siResetBtn" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold transition-colors">Reset</button>
+                        <button id="siApplyBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors">Apply Filters</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+            
+            document.getElementById('siApplyBtn').onclick = async () => {
+                _filterStart = document.getElementById('siFilterStart').value;
+                _filterEnd = document.getElementById('siFilterEnd').value;
+                _filterBranch = document.getElementById('siFilterBranch').value;
+                _filterStatus = document.getElementById('siFilterStatus').value;
+                modal.classList.add('hidden');
+                await load();
+            };
+            
+            document.getElementById('siResetBtn').onclick = async () => {
+                const range = getCurrentFYRange();
+                document.getElementById('siFilterStart').value = range.start;
+                document.getElementById('siFilterEnd').value = range.end;
+                document.getElementById('siFilterBranch').value = '';
+                document.getElementById('siFilterStatus').value = '';
+                
+                _filterStart = range.start;
+                _filterEnd = range.end;
+                _filterBranch = '';
+                _filterStatus = '';
+                await load();
+            };
+            
+            getAppData().then(data => {
+                const select = document.getElementById('siFilterBranch');
+                if (select && data?.BRANCHES) {
+                    Object.values(data.BRANCHES).forEach(b => {
+                        if (b.BRANCH_CODE) {
+                            const opt = document.createElement('option');
+                            opt.value = b.BRANCH_CODE;
+                            opt.textContent = b.BRANCH_CODE.toUpperCase();
+                            select.appendChild(opt);
+                        }
+                    });
+                }
+            });
+        }
     }
 
     // ── Load ──────────────────────────────────────────────────────────────────
@@ -604,9 +1000,20 @@ const VaultSalesInvoices = (() => {
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
         
+        _injectUI();
+
+        if (!window.__vaultCacheKeys) {
+            try {
+                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+            } catch (err) {
+                console.error("Failed to pre-fetch cache keys in sales invoices load:", err);
+            }
+        }
+        
         document.getElementById('vaultListMsg').textContent = 'Loading invoices from Manager.io...';
         try {
-            const res = await callApi('/api/manager/all-sales-invoices', {}, 'GET');
+            const url = `/api/manager/all-sales-invoices?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}`;
+            const res = await callApi(url, {}, 'GET');
             if (res.status === 'success') {
                 _allInvoices = res.invoices || [];
                 document.getElementById('vaultListMsg').textContent = '';

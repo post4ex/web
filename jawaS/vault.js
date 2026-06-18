@@ -121,6 +121,14 @@ const VaultPage = (() => {
         document.getElementById('vaultSearch').value = '';
         document.getElementById('vaultListPane').style.display = 'flex';
         document.getElementById('vaultDetailPane').style.display = _isMobile() ? 'none' : 'block';
+        
+        // Clean up Billing specific UI items from shared list header
+        document.getElementById('vbUnbilledBtn')?.remove();
+        document.getElementById('vbFilterBtn')?.remove();
+        
+        // Clean up Sales Invoice specific UI items from shared list header
+        document.getElementById('siFilterBtn')?.remove();
+        document.getElementById('siStatus')?.remove();
     }
 
     function _showListPane() {
