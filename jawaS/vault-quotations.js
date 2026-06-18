@@ -508,7 +508,7 @@ const VaultQuotations = (() => {
                 if (!lines.length) throw new Error('Add at least one line item with a price.');
 
                 const payload = {
-                    Date:                    raw.date,
+                    IssueDate:               raw.date,
                     Customer:                clientCode,
                     Description:             raw.description || undefined,
                     Lines:                   lines,
