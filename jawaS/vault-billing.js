@@ -263,7 +263,7 @@ const VaultBilling = (() => {
                 <div class="flex items-center gap-2">
                     ${inv.KEY_TYPE !== 'INV' ? `<button id="vbCloseInvBtn" class="px-3 py-1 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Close Invoice
+                        Issue Invoice
                     </button>` : ''}
                     <button id="vbPrintBtn" class="px-3 py-1 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -628,10 +628,10 @@ const VaultBilling = (() => {
                     const fresh = await getAppData().catch(() => null);
                     if (fresh) _initData(fresh);
                 } else {
-                    errEl.textContent = res.detail || 'Failed to close invoice.'; errEl.classList.remove('hidden');
+                    errEl.textContent = res.detail || 'Failed to issue invoice.'; errEl.classList.remove('hidden');
                 }
             } catch (e) {
-                errEl.textContent = e.message || 'Error closing invoice.'; errEl.classList.remove('hidden');
+                errEl.textContent = e.message || 'Error issuing invoice.'; errEl.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Confirm &amp; Generate';
@@ -647,7 +647,7 @@ const VaultBilling = (() => {
         banner.innerHTML = `
             <div class="flex items-center gap-2">
                 <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Invoice <strong>${invNum}</strong> closed on <strong>${invDate}</strong> — ${count} order${count !== 1 ? 's' : ''} updated.</span>
+                <span>Invoice <strong>${invNum}</strong> issued on <strong>${invDate}</strong> — ${count} order${count !== 1 ? 's' : ''} updated.</span>
             </div>
             <button onclick="document.getElementById('vbInvBanner').remove()" class="text-green-600 hover:text-green-800 flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

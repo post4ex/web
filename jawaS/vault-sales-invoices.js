@@ -6,54 +6,54 @@
 
 const VaultSalesInvoices = (() => {
 
-    let _allLedger = [];
+    let _allInvoices = [];
     let _b2bMap    = new Map();
+    let _allLedger = [];
 
     // ── List pane ─────────────────────────────────────────────────────────────
     function _injectListPane() {
         document.getElementById('vaultListMsg').textContent = '';
         document.getElementById('vaultList').innerHTML = '';
-        document.getElementById('vaultSearch').placeholder = 'Search by code, client, invoice no…';
-    }
-
-    function _getInvoices() {
-        return _allLedger.filter(e =>
-            (e.ENTRY_TYPE || '').toUpperCase() === 'INVOICE' &&
-            (e.DIRECTION || '').toUpperCase() === 'OUTWARD'
-        );
+        document.getElementById('vaultSearch').placeholder = 'Search by customer, reference, description…';
     }
 
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const invoices = _getInvoices();
-        // Apply search filter
+        
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         const filtered = q
-            ? invoices.filter(e =>
-                (e.CODE || '').toLowerCase().includes(q) ||
-                (e.CLIENT_NAME || '').toLowerCase().includes(q) ||
-                (e.INV_NUMBER || '').toLowerCase().includes(q) ||
-                (e.INVOICE_ID || '').toLowerCase().includes(q) ||
-                (e.NARRATION || '').toLowerCase().includes(q)
+            ? _allInvoices.filter(e =>
+                (e.reference || '').toLowerCase().includes(q) ||
+                (e.customer || '').toLowerCase().includes(q) ||
+                (e.description || '').toLowerCase().includes(q) ||
+                (e.branch || '').toLowerCase().includes(q)
               )
-            : invoices;
-        filtered.sort((a, b) => (b.ENTRY_DATE || 0) - (a.ENTRY_DATE || 0));
+            : _allInvoices;
+
+        filtered.sort((a, b) => {
+            const dateA = a.issueDate || '';
+            const dateB = b.issueDate || '';
+            if (dateA !== dateB) return dateB.localeCompare(dateA);
+            return (b.reference || '').localeCompare(a.reference || '');
+        });
 
         if (!filtered.length) {
-            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No sales invoices found.</li>`;
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No sales invoices found on Manager.io.</li>`;
             return;
         }
         ul.innerHTML = filtered.map(e => {
-            const statusColor = e.STATUS === 'ACTIVE' ? 'text-green-700' :
-                                e.STATUS === 'PENDING' ? 'text-yellow-700' :
-                                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700';
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
-                <strong class="text-indigo-700 block text-sm">${e.INV_NUMBER || 'N/A'} — ${e.CLIENT_NAME || e.CODE || 'N/A'}</strong>
-                <span class="text-xs text-gray-500">₹${(+e.DEBIT||0).toFixed(2)} · ${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''}</span>
+            const amount = e.invoiceAmount?.value || 0;
+            const balance = e.balanceDue?.value || 0;
+            const status = e.status || '';
+            const statusColor = status.toUpperCase() === 'PAID' ? 'text-green-700' :
+                                status.toUpperCase() === 'OVERDUE' ? 'text-red-700' : 'text-gray-700';
+            return `<li data-key="${e.key}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
+                <strong class="text-indigo-700 block text-sm">${e.reference || 'N/A'} — ${e.customer || 'N/A'}</strong>
+                <span class="text-xs text-gray-500">₹${(+amount).toFixed(2)} · ${e.issueDate || ''} · ${e.branch || ''}</span>
                 <div class="text-xs mt-1">
-                    <span class="${statusColor} font-medium">${e.STATUS || ''}</span>
-                    <span class="text-gray-400"> · Balance: ₹${(+e.BALANCE||0).toFixed(2)}</span>
+                    <span class="${statusColor} font-medium">${status}</span>
+                    <span class="text-gray-400"> · Balance Due: ₹${(+balance).toFixed(2)}</span>
                 </div>
             </li>`;
         }).join('');
@@ -61,7 +61,7 @@ const VaultSalesInvoices = (() => {
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                _renderDetail(_allLedger.find(e => e.ENTRY_ID === li.dataset.entry));
+                _renderDetail(_allInvoices.find(inv => inv.key === li.dataset.key));
             })
         );
     }
@@ -104,11 +104,7 @@ const VaultSalesInvoices = (() => {
         const reason = prompt('Reason for deletion (optional):', '') || '';
         try {
             await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: reason }, 'POST');
-            const appData = await getAppData();
-            if (appData?.LEDGER) {
-                _allLedger = Object.values(appData.LEDGER);
-                _renderList();
-            }
+            await load();
             document.getElementById('vaultDetailView').innerHTML = `
                 <div class="detail-card"><div class="detail-card-body text-center py-8">
                     <div class="text-4xl mb-3">🗑️</div>
@@ -242,11 +238,7 @@ const VaultSalesInvoices = (() => {
                 resp.textContent = `✅ Updated — old voided, new invoice ${res.inv_number} created. Balance: ₹${(+res.balance).toFixed(2)}`;
                 resp.classList.remove('hidden');
 
-                const appData = await getAppData();
-                if (appData?.LEDGER) {
-                    _allLedger = Object.values(appData.LEDGER);
-                    _renderList();
-                }
+                await load();
             } catch (err) {
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
                 resp.textContent = '❌ ' + (err.message || 'Failed to edit invoice');
@@ -259,129 +251,74 @@ const VaultSalesInvoices = (() => {
     }
 
     // ── Detail pane (with charge breakdown) ────────────────────────────────────
-    function _renderDetail(entry) {
-        if (!entry) return;
+    async function _renderDetail(listEntry) {
+        if (!listEntry) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const isStandalone = (entry.INVOICE_ID || '').startsWith('SI-');
-        const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
-        const isVoid = entry.STATUS === 'VOID';
-
-        // Async check GST filing
-        _ensureGstFiledCache().then(() => {
-            const gstFiled = _isGstFiled(entry.BRANCH || entry.BRANCH_NAME, entry.ENTRY_DATE);
-            const showActions = isStandalone && isActive && !gstFiled && !isVoid;
-            const actionsEl = document.getElementById('siDetailActions');
-            if (actionsEl) {
-                actionsEl.style.display = showActions ? '' : 'none';
-                if (gstFiled && !actionsEl.dataset.gstNote) {
-                    actionsEl.dataset.gstNote = '1';
-                    const note = document.createElement('p');
-                    note.className = 'text-xs text-gray-400 mt-1';
-                    note.textContent = 'GST already filed — editing locked.';
-                    actionsEl.appendChild(note);
-                }
-            }
-        });
-
-        const actionBtns = isStandalone && !isVoid ? `
-            <div id="siDetailActions" class="flex gap-2" style="display:none">
-                <button onclick="VaultSalesInvoices._printEntry('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    Print
-                </button>
-                <button onclick="VaultSalesInvoices._openEditForm('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    Edit
-                </button>
-                <button onclick="VaultSalesInvoices._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Delete
-                </button>
-            </div>` : '';
-
-        // Parse breakdown from NARRATION
-        const parsed = _parseNarration(entry);
-        const charges = parsed?.charges || {};
-        const chgNames = {fright:'Freight',fuel_chg:'Fuel Surcharge',cod_chg:'COD Charges',topay_chg:'ToPay Charges',
-                         fov_chg:'Insurance',eway_chg:'E-Way Charges',awb_chg:'AWB Charges',pack_chg:'Packaging',dev_chg:'Development'};
-        const chargeRows = Object.keys(chgNames)
-            .filter(k => (charges[k]||0) > 0)
-            .map(k => `<div class="flex justify-between text-sm"><span class="text-gray-600">${chgNames[k]}</span><span>₹${(+charges[k]).toFixed(2)}</span></div>`)
-            .join('');
-        const subtotal = (parsed?.charges_subtotal || 0);
-        const taxable = (parsed?.taxable || 0);
-        const sgst = (parsed?.sgst || 0);
-        const cgst = (parsed?.cgst || 0);
-        const igst = (parsed?.igst || 0);
-        const totalTax = sgst + cgst + igst;
-        const grandTotal = (parsed?.grand_total || +entry.DEBIT || 0);
-        const taxRate = (parsed?.tax_percent || 0);
-        const isInter = parsed?.is_inter_state || false;
-        const description = parsed?.description || '';
-
-        const taxPart = isInter
-            ? (taxable>0 ? `<div class="flex justify-between text-sm"><span class="text-gray-600">IGST @ ${taxRate}%</span><span>₹${igst.toFixed(2)}</span></div>` : '')
-            : (taxable>0 ? `<div class="flex justify-between text-sm"><span class="text-gray-600">SGST @ ${taxRate/2}%</span><span>₹${sgst.toFixed(2)}</span></div>
-                           <div class="flex justify-between text-sm"><span class="text-gray-600">CGST @ ${taxRate/2}%</span><span>₹${cgst.toFixed(2)}</span></div>` : '');
-
-        const breakdownHtml = chargeRows ? `
-            <div class="border rounded-lg p-3 space-y-1.5 bg-white mt-3">
-                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Operating Charges</div>
-                ${chargeRows}
-                <hr class="border-gray-200 my-1.5">
-                <div class="flex justify-between text-sm font-semibold"><span>Charges Subtotal</span><span>₹${subtotal.toFixed(2)}</span></div>
-            </div>
-            ${taxPart ? `<div class="border rounded-lg p-3 space-y-1.5 bg-white mt-2">
-                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tax Details</div>
-                <div class="flex justify-between text-sm"><span class="text-gray-600">Taxable Value</span><span>₹${taxable.toFixed(2)}</span></div>
-                ${taxPart}
-                <hr class="border-gray-200 my-1.5">
-                <div class="flex justify-between text-sm font-semibold"><span>Total Tax</span><span>₹${totalTax.toFixed(2)}</span></div>
-            </div>` : ''}
-            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex justify-between items-center mt-2">
-                <span class="text-sm font-bold text-indigo-800">GRAND TOTAL</span>
-                <span class="text-lg font-bold text-indigo-700">₹${grandTotal.toFixed(2)}</span>
-            </div>` : '';
-
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">Sales Invoice — ${entry.INV_NUMBER || 'N/A'}</h3>
-                    ${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : actionBtns}
+        view.innerHTML = `<div class="detail-card-body text-center py-8">
+            <div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p class="text-gray-500 text-sm">Fetching invoice details from Manager.io...</p>
+        </div>`;
+        
+        try {
+            const res = await callApi(`/api/manager/invoice-details/${listEntry.branch}/${listEntry.key}`, {}, 'GET');
+            
+            const linesHtml = (res.Lines || []).map(line => `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">${line.LineDescription || 'Charges'}</span>
+                    <span>₹${(+line.SalesUnitPrice || 0).toFixed(2)}</span>
                 </div>
-                <div class="detail-card-body">
-                    <!-- Header info grid -->
-                    <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg">
-                        <div><span class="text-gray-500">Invoice:</span> <span class="font-semibold">${entry.INV_NUMBER || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Client:</span> ${entry.CLIENT_NAME || entry.CODE || 'N/A'}</div>
-                        <div><span class="text-gray-500">Date:</span> ${entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500">Status:</span> <span class="font-medium">${entry.STATUS || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Branch:</span> ${entry.BRANCH_NAME || entry.BRANCH || 'N/A'}</div>
-                        <div><span class="text-gray-500">GST:</span> ${entry.CLIENT_GST || 'N/A'}</div>
-                        <div><span class="text-gray-500">POS:</span> ${entry.POS || 'N/A'}</div>
-                        <div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>
+            `).join('');
+            
+            const subtotal = (res.Lines || []).reduce((acc, line) => acc + (+line.SalesUnitPrice || 0), 0);
+            const grandTotal = listEntry.invoiceAmount?.value || subtotal;
+            const balance = listEntry.balanceDue?.value || 0;
+            
+            view.innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-card-header flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-700">Sales Invoice — ${res.Reference || 'N/A'}</h3>
                     </div>
-
-                    ${description ? `<div class="text-sm text-gray-700 mt-2">📝 ${description}</div>` : ''}
-
-                    <!-- Breakdown -->
-                    ${breakdownHtml}
-
-                    <!-- Audit info -->
-                    <details class="mt-4">
-                        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Audit Info</summary>
-                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
-                            <div>ID: ${entry.ENTRY_ID}</div>
-                            <div>FY: ${entry.FY || 'N/A'}</div>
-                            <div>Created: ${entry.USER_NAME || 'N/A'}</div>
-                            <div>Staff: ${entry.STAFF_NAME || ''}</div>
-                            ${entry.APPROVED_BY ? `<div>Approved: ${entry.APPROVED_BY}</div>` : ''}
-                            ${entry.VOID_REASON ? `<div class="col-span-2 text-red-600">Void: ${entry.VOID_REASON}</div>` : ''}
+                    <div class="detail-card-body">
+                        <!-- Header info grid -->
+                        <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg">
+                            <div><span class="text-gray-500">Invoice Ref:</span> <span class="font-semibold">${res.Reference || 'N/A'}</span></div>
+                            <div><span class="text-gray-500">Customer UUID:</span> <span class="text-xs truncate">${res.Customer || 'N/A'}</span></div>
+                            <div><span class="text-gray-500">Issue Date:</span> ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</div>
+                            <div><span class="text-gray-500">Status:</span> <span class="font-medium">${listEntry.status || 'N/A'}</span></div>
+                            <div><span class="text-gray-500">Branch:</span> ${listEntry.branch || 'N/A'}</div>
+                            <div><span class="text-gray-500">Balance Due:</span> ₹${(+balance).toFixed(2)}</div>
                         </div>
-                    </details>
-                </div>
-            </div>`;
+
+                        ${res.Description ? `<div class="text-sm text-gray-700 mt-3 bg-white p-2 border rounded-md">📝 ${res.Description}</div>` : ''}
+
+                        <!-- Lines / Charges -->
+                        ${linesHtml ? `
+                        <div class="border rounded-lg p-3 space-y-1.5 bg-white mt-3">
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Invoice Lines</div>
+                            ${linesHtml}
+                            <hr class="border-gray-200 my-1.5">
+                            <div class="flex justify-between text-sm font-semibold"><span>Grand Total</span><span>₹${grandTotal.toFixed(2)}</span></div>
+                        </div>` : ''}
+                        
+                        <!-- Audit info -->
+                        <details class="mt-4">
+                            <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Form Metadata</summary>
+                            <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
+                                <div>Due Days: ${res.DueDateDays || 0}</div>
+                                <div>Tax Code Enabled: ${res.TaxCodeEnabled ? 'Yes' : 'No'}</div>
+                                <div>Rounding Enabled: ${res.Rounding ? 'Yes' : 'No'}</div>
+                                <div>Custom Title: ${res.SalesInvoiceCustomTitle || 'N/A'}</div>
+                            </div>
+                        </details>
+                    </div>
+                </div>`;
+        } catch (err) {
+            view.innerHTML = `
+                <div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600">
+                    <p class="text-sm">Failed to retrieve details: ${err.message || err}</p>
+                </div></div>`;
+        }
         VaultPage.showDetailPane();
     }
 
@@ -649,8 +586,7 @@ const VaultSalesInvoices = (() => {
                 e.target.reset();
                 if (d) d.value = new Date().toISOString().split('T')[0];
                 _recalc();
-                const appData = await getAppData();
-                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
+                await load();
             } catch (err) {
                 resp.className = 'mt-2 text-sm bg-red-100 text-red-800 px-3 py-2 rounded';
                 resp.textContent = '❌ ' + (err.message || 'Failed');
@@ -665,15 +601,21 @@ const VaultSalesInvoices = (() => {
     // ── Load ──────────────────────────────────────────────────────────────────
     async function load() {
         _injectListPane();
-        // Wire search input
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
-        const data = await getAppData();
-        if (data) {
-            _allLedger = Object.values(data.LEDGER || {});
-            _b2bMap.clear();
-            if (data.B2B) Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
-            _renderList(_allLedger);
+        
+        document.getElementById('vaultListMsg').textContent = 'Loading invoices from Manager.io...';
+        try {
+            const res = await callApi('/api/manager/all-sales-invoices', {}, 'GET');
+            if (res.status === 'success') {
+                _allInvoices = res.invoices || [];
+                document.getElementById('vaultListMsg').textContent = '';
+                _renderList();
+            } else {
+                document.getElementById('vaultListMsg').textContent = 'Failed to load invoices from Manager.io.';
+            }
+        } catch (err) {
+            document.getElementById('vaultListMsg').textContent = 'Error: ' + (err.message || err);
         }
     }
 
