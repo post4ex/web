@@ -382,23 +382,32 @@ const VaultPage = (() => {
 
             const select = document.getElementById('vaultBranchSelect');
             if (select) {
-                const cachedBranch = localStorage.getItem('vault_selected_branch') || '';
-                
                 getAppData('BRANCHES').then(raw => {
                     const branches = Object.values(raw || {});
                     select.innerHTML = '<option value="">— Select Branch —</option>' +
                         branches.map(b => `<option value="${b.BRANCH_CODE}">${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}</option>`).join('');
                     
-                    if (cachedBranch && branches.some(b => b.BRANCH_CODE === cachedBranch)) {
-                        select.value = cachedBranch;
-                        _updateBranchStatus(cachedBranch);
-                    }
+                    // No branch should be default selected on init
+                    select.value = '';
+                    _updateBranchStatus('');
                 });
 
                 select.addEventListener('change', () => {
                     const branch = select.value;
                     localStorage.setItem('vault_selected_branch', branch);
                     _updateBranchStatus(branch);
+                    
+                    // Start caching (pre-fetching keys) on branch selection
+                    if (branch) {
+                        callApi('/api/manager/cache/keys', {}, 'GET')
+                            .then(keys => {
+                                window.__vaultCacheKeys = keys;
+                                console.log('[Vault] Cache keys pre-fetched on branch selection:', branch);
+                            })
+                            .catch(err => {
+                                console.error('[Vault] Failed to pre-fetch cache keys on branch selection:', err);
+                            });
+                    }
                     
                     const activeTile = _activeTile;
                     if (activeTile) {
