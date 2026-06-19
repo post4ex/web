@@ -109,9 +109,13 @@ const VaultPage = (() => {
         document.getElementById('vaultDetailPane').style.display = 'none';
         document.getElementById('vaultListPane').style.display = 'flex';
         
-        // Hide the branch selector bar when exploring tiles
-        const bar = document.getElementById('vaultBranchSelectorBar');
-        if (bar) bar.classList.add('hidden');
+        // Show the branch selector bar when exploring tiles for roles above MANAGER
+        const user = getUser();
+        const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
+        if (isAboveManager) {
+            const bar = document.getElementById('vaultBranchSelectorBar');
+            if (bar) bar.classList.remove('hidden');
+        }
         
         _activeTile = null;
     }
@@ -127,13 +131,9 @@ const VaultPage = (() => {
         document.getElementById('vaultListPane').style.display = 'flex';
         document.getElementById('vaultDetailPane').style.display = _isMobile() ? 'none' : 'block';
         
-        // Show the branch selector bar when inside a tile for roles above MANAGER
-        const user = getUser();
-        const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
-        if (isAboveManager) {
-            const bar = document.getElementById('vaultBranchSelectorBar');
-            if (bar) bar.classList.remove('hidden');
-        }
+        // Hide the branch selector bar when inside a tile/split view
+        const bar = document.getElementById('vaultBranchSelectorBar');
+        if (bar) bar.classList.add('hidden');
         
         // Clean up Billing specific UI items from shared list header
         document.getElementById('vbUnbilledBtn')?.remove();
@@ -377,7 +377,9 @@ const VaultPage = (() => {
         const user = getUser();
         const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
         if (isAboveManager) {
-            // Keep bar hidden initially as we start on the tiles view
+            const bar = document.getElementById('vaultBranchSelectorBar');
+            if (bar) bar.classList.remove('hidden');
+
             const select = document.getElementById('vaultBranchSelect');
             if (select) {
                 const cachedBranch = localStorage.getItem('vault_selected_branch') || '';
