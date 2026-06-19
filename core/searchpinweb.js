@@ -7,7 +7,7 @@
 // cols  = desktop column headers (array of {k, l, t})
 // rows  = function(r) → array of row objects (for carriers with sub-rows like areas)
 // If rows is null, single row from r itself
-const _PM_CARRIER_TABLES = {
+var _PM_CARRIER_TABLES = window._PM_CARRIER_TABLES || {
     Jetline: {
         cols: [
             { k: 'pincode', l: 'Pincode' },
@@ -107,8 +107,8 @@ const _PM_CARRIER_TABLES = {
     // Shiprocket sub-carriers (via expansion) — auto-fields handles these
 };
 
-let _pmResizeHandler = null;
-let _pmLastData = null;
+var _pmResizeHandler = window._pmResizeHandler || null;
+var _pmLastData = window._pmLastData || null;
 
 // ============================================================================
 // Modal shell

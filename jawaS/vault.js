@@ -352,11 +352,21 @@ const VaultPage = (() => {
         const statusEl = document.getElementById('vaultBranchStatus');
         if (!statusEl) return;
         if (branch) {
-            statusEl.className = 'text-xs text-green-600 font-medium';
-            statusEl.textContent = `✓ Branch ${branch} active`;
+            statusEl.innerHTML = `
+                <div class="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shadow-sm cursor-pointer hover:bg-green-100 transition-colors" onclick="window.uncollapseBranches?.()">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" style="animation-duration: 2s;"></span>
+                    <i class="fa-solid fa-circle-check text-[10px]"></i>
+                    <span>Branch ${branch} active <span class="text-[9px] text-gray-400 font-normal ml-1 hover:underline">(Change)</span></span>
+                </div>
+            `;
         } else {
-            statusEl.className = 'text-xs text-amber-600 font-medium';
-            statusEl.textContent = '⚠️ Select a branch to view accounting records.';
+            statusEl.innerHTML = `
+                <div class="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold rounded-full shadow-sm">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                    <span>Select branch</span>
+                </div>
+            `;
         }
     }
 
@@ -377,26 +387,59 @@ const VaultPage = (() => {
         const user = getUser();
         const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
         if (isAboveManager) {
-            const bar = document.getElementById('vaultBranchSelectorBar');
-            if (bar) bar.classList.remove('hidden');
-
             const select = document.getElementById('vaultBranchSelect');
-            if (select) {
+            const tilesSection = document.getElementById('vaultBranchTilesSection');
+            const tilesGrid = document.getElementById('vaultBranchTilesGrid');
+
+            window.uncollapseBranches = () => {
+                if (tilesSection) tilesSection.classList.remove('hidden');
+            };
+
+            if (select && tilesSection && tilesGrid) {
                 getAppData('BRANCHES').then(raw => {
                     const branches = Object.values(raw || {});
+
+                    // Native select sync
                     select.innerHTML = '<option value="">— Select Branch —</option>' +
                         branches.map(b => `<option value="${b.BRANCH_CODE}">${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}</option>`).join('');
-                    
+
+                    // Render branch selection tiles (Styled like other dashboard tiles)
+                    tilesGrid.innerHTML = branches.map(b => `
+                        <div class="tile select-branch-tile" data-branch="${b.BRANCH_CODE}" style="border-color:#dbeafe; padding: 1.25rem 1rem;">
+                            <div class="tile-icon">🏢</div>
+                            <div class="tile-label">${b.BRANCH_CODE}</div>
+                            <div class="text-[12px] font-bold text-gray-800 mt-1 truncate" style="max-width: 100%;">${b.BRANCH_NAME || ''}</div>
+                            <div class="text-[9px] text-gray-400 font-mono mt-0.5">GSTIN: ${b.BRANCH_GSTIN || 'N/A'}</div>
+                        </div>
+                    `).join('');
+
+                    // Add click listeners to tiles
+                    tilesGrid.querySelectorAll('.select-branch-tile').forEach(tile => {
+                        tile.addEventListener('click', () => {
+                            const val = tile.dataset.branch;
+                            select.value = val;
+                            select.dispatchEvent(new Event('change'));
+                        });
+                    });
+
                     // No branch should be default selected on init
                     select.value = '';
                     _updateBranchStatus('');
+                    tilesSection.classList.remove('hidden');
                 });
 
                 select.addEventListener('change', () => {
                     const branch = select.value;
                     localStorage.setItem('vault_selected_branch', branch);
                     _updateBranchStatus(branch);
-                    
+
+                    // Collapse branch tiles section once a branch is active
+                    if (branch) {
+                        tilesSection.classList.add('hidden');
+                    } else {
+                        tilesSection.classList.remove('hidden');
+                    }
+
                     // Start caching (pre-fetching keys) on branch selection
                     if (branch) {
                         callApi('/api/manager/cache/keys', {}, 'GET')
@@ -408,7 +451,7 @@ const VaultPage = (() => {
                                 console.error('[Vault] Failed to pre-fetch cache keys on branch selection:', err);
                             });
                     }
-                    
+
                     const activeTile = _activeTile;
                     if (activeTile) {
                         _activateTile(activeTile);
