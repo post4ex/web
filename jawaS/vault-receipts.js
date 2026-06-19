@@ -1,496 +1,548 @@
 // ============================================================================
-// VAULT-RECEIPTS.JS — Record payments received + view payment history
-// Tiles: receipts, payments
-// API: POST /api/ledger/payment (OUTWARD), POST /api/ledger/inward/payment (INWARD)
-// Both use double-entry via _create_entry_txn()
+// VAULT-RECEIPTS.JS — Manager.io native payments tile
+// Tiles: receipts (💰), payments (💸)
+// API:
+//   GET  /api/manager/all-receipts           — cross-branch receipt list
+//   GET  /api/manager/all-payments            — cross-branch payment list
+//   GET  /api/manager/receipt-details/{b}/{k} — receipt form detail
+//   GET  /api/manager/payment-details/{b}/{k} — payment form detail
+//   POST /api/manager/receipts?code=XXX       — create receipt
+//   POST /api/manager/payments?code=XXX       — create payment
+//   DELETE /api/manager/receipts/{k}?code=XXX — void receipt
+//   DELETE /api/manager/payments/{k}?code=XXX — void payment
+//   GET  /api/manager/bank-accounts?code=XXX  — bank/cash accounts
+//   GET  /api/manager/customers?code=XXX      — customers (for dropdown)
+//   GET  /api/manager/cache/keys?categories=suppliers — suppliers (for dropdown)
 // ============================================================================
 
 const VaultReceipts = (() => {
 
-    let _allLedger   = [];
-    let _b2bMap      = new Map();
-    let _carrierMap  = new Map();
-    let _activeMode  = 'receipts'; // 'receipts' | 'payments'
-    let _coaMap      = {};
+    let _activeMode     = 'receipts'; // 'receipts' | 'payments'
+    let _receiptsList   = [];
+    let _paymentsList   = [];
+    let _bankAcctsCache = {};  // clientCode → [{key, name, actualBalance}]
+    let _customersCache = {};  // clientCode → [{key, name}]
+    let _suppliersCache = {};  // clientCode → [{key, name}]
+    let _coaListsCache  = {};  // clientCode → [{key, name}]  (all COA accounts)
+    let _b2bList        = [];  // [{CODE, B2B_NAME, BRANCH}]
 
     function _can(role) { return window.VaultPage?.can(role); }
 
-    // ── COA cache ─────────────────────────────────────────────────────────────
-    async function _loadCoaCache() {
-        // TODO: load COA from Manager.io cache keys
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function _entityLabel() {
+        return _activeMode === 'receipts' ? 'Customer' : 'Supplier';
+    }
+    function _entityKey() {
+        return _activeMode === 'receipts' ? 'Customer' : 'Supplier';
+    }
+    function _entityListKey() {
+        return _activeMode === 'receipts' ? 'customer' : 'supplier';
     }
 
-    function _coaName(code) {
-        if (!code) return '';
-        const a = _coaMap[code];
-        return a ? `${a.code} — ${a.name}` : code;
-    }
-
-    // ── Parse NARRATION ───────────────────────────────────────────────────────
-    function _parseNarration(entry) {
+    // ── Cache helpers ─────────────────────────────────────────────────────────
+    async function _ensureBankAccounts(code) {
+        if (_bankAcctsCache[code]) return _bankAcctsCache[code];
         try {
-            const p = JSON.parse(entry.NARRATION || '{}');
-            if (p.charges || p.grand_total !== undefined) return p;
-        } catch (_) {}
-        return null;
+            const res = await callApi(`/api/manager/bank-accounts?code=${encodeURIComponent(code)}`, {}, 'GET');
+            const accounts = res.bankAndCashAccounts || [];
+            _bankAcctsCache[code] = accounts;
+            return accounts;
+        } catch {
+            _bankAcctsCache[code] = [];
+            return [];
+        }
     }
 
-    // ── List helpers ──────────────────────────────────────────────────────────
+    async function _ensureCustomers(code) {
+        if (_customersCache[code]) return _customersCache[code];
+        try {
+            const res = await callApi(`/api/manager/customers?code=${encodeURIComponent(code)}`, {}, 'GET');
+            const customers = res.customers || [];
+            _customersCache[code] = customers;
+            return customers;
+        } catch {
+            _customersCache[code] = [];
+            return [];
+        }
+    }
+
+    async function _ensureCoaAccounts(code) {
+        if (_coaListsCache[code]) return _coaListsCache[code];
+        try {
+            const res = await callApi(`/api/manager/cache/keys?code=${encodeURIComponent(code)}&categories=coa`, {}, 'GET');
+            const map = res.coa || {};
+            const list = Object.entries(map).map(([name, key]) => ({key, name}));
+            _coaListsCache[code] = list;
+            return list;
+        } catch {
+            _coaListsCache[code] = [];
+            return [];
+        }
+    }
+        if (_suppliersCache[code]) return _suppliersCache[code];
+        try {
+            const res = await callApi(`/api/manager/cache/keys?code=${encodeURIComponent(code)}&categories=suppliers`, {}, 'GET');
+            // Return as key→name map
+            const map = res.suppliers || {};
+            const list = Object.entries(map).map(([name, key]) => ({key, name}));
+            _suppliersCache[code] = list;
+            return list;
+        } catch {
+            _suppliersCache[code] = [];
+            return [];
+        }
+    }
+
+    async function _loadB2bList() {
+        try {
+            const data = await getAppData();
+            if (data?.B2B) {
+                _b2bList = Object.values(data.B2B).filter(c => c.CODE);
+            }
+        } catch {
+            _b2bList = [];
+        }
+    }
+
+    function _getClientCodeForBranch(branch) {
+        const b = branch?.toLowerCase();
+        const found = _b2bList.find(c => (c.BRANCH || '').toLowerCase() === b);
+        return found ? found.CODE : null;
+    }
+
+    function _getBranchForClientCode(code) {
+        const found = _b2bList.find(c => c.CODE === code);
+        return found ? (found.BRANCH || '') : '';
+    }
+
+    // ── List injection ────────────────────────────────────────────────────────
     function _injectListPane() {
         document.getElementById('vaultListMsg').textContent = '';
         document.getElementById('vaultList').innerHTML = '';
-        const label = _activeMode === 'receipts' ? 'code, client' : 'code, vendor';
-        document.getElementById('vaultSearch').placeholder = `Search by ${label}, narration…`;
+        const label = _activeMode === 'receipts' ? 'ref, customer' : 'ref, supplier';
+        document.getElementById('vaultSearch').placeholder = `Search by ${label}, branch…`;
     }
 
-    function _getEntries() {
-        if (_activeMode === 'receipts') {
-            return _allLedger.filter(e => e.DIRECTION === 'OUTWARD' && e.ENTRY_TYPE === 'PAYMENT');
+    async function _fetchList() {
+        const branchSelect = document.getElementById('vaultBranchSelect');
+        const branch = branchSelect ? branchSelect.value : '';
+        try {
+            if (_activeMode === 'receipts') {
+                const res = await callApi(`/api/manager/all-receipts${branch ? '?branch=' + branch : ''}`, {}, 'GET');
+                _receiptsList = res.receipts || [];
+            } else {
+                const res = await callApi(`/api/manager/all-payments${branch ? '?branch=' + branch : ''}`, {}, 'GET');
+                _paymentsList = res.payments || [];
+            }
+        } catch (err) {
+            console.error('[VaultReceipts] Failed to fetch list:', err);
+            if (_activeMode === 'receipts') _receiptsList = [];
+            else _paymentsList = [];
         }
-        return _allLedger.filter(e => e.DIRECTION === 'INWARD' && e.ENTRY_TYPE === 'PAYMENT');
     }
 
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const entries = _getEntries();
+        const items = _activeMode === 'receipts' ? _receiptsList : _paymentsList;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         const filtered = q
-            ? entries.filter(e =>
-                (e.CODE || '').toLowerCase().includes(q) ||
-                (e.NARRATION || '').toLowerCase().includes(q) ||
-                (e.PAYMENT_MODE || '').toLowerCase().includes(q) ||
-                (e.CLIENT_NAME || '').toLowerCase().includes(q)
-              )
-            : entries;
-        filtered.sort((a, b) => (b.ENTRY_DATE || 0) - (a.ENTRY_DATE || 0));
+            ? items.filter(item => {
+                const entity = item[_entityListKey()] || {};
+                return (item.reference || '').toLowerCase().includes(q) ||
+                       (entity.name || '').toLowerCase().includes(q) ||
+                       (item.date || '').includes(q) ||
+                       (item.branch || '').toLowerCase().includes(q);
+              })
+            : items;
+
+        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         if (!filtered.length) {
-            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No ${_activeMode} recorded yet.</li>`;
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No ${_activeMode} found.</li>`;
             return;
         }
+
         const label = _activeMode === 'receipts' ? '📥' : '📤';
-        ul.innerHTML = filtered.slice(0, 50).map(e => {
-            const amount = (+e.CREDIT || +e.DEBIT || 0);
-            const statusColor = e.STATUS === 'ACTIVE' ? 'text-green-700' :
-                                e.STATUS === 'PENDING' ? 'text-yellow-700' :
-                                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700';
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
-                <strong class="text-green-700 block text-sm">${label} ${e.CLIENT_NAME || e.CODE || ''} — ₹${amount.toFixed(2)}</strong>
-                <span class="text-xs text-gray-500">${e.PAYMENT_MODE || ''}${e.TXN_REF ? ' · ' + e.TXN_REF : ''}${e.CHEQUE_NUMBER ? ' · Chq#' + e.CHEQUE_NUMBER : ''}</span>
-                <div class="text-xs mt-1">
-                    <span class="${statusColor} font-medium">${e.STATUS || ''}</span>
-                    <span class="text-gray-400"> · ${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''}</span>
-                    <span class="text-gray-400"> · Bal: ₹${(+e.BALANCE||0).toFixed(2)}</span>
-                </div>
+        ul.innerHTML = filtered.slice(0, 100).map(item => {
+            const amount = item.total?.value || 0;
+            const entity = item[_entityListKey()] || {};
+            const entityDisplay = entity.name || '';
+            return `<li data-key="${item.key}" data-branch="${item.branch || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
+                <strong class="text-green-700 block text-sm">${label} ${item.reference || 'N/A'} — ${entityDisplay}</strong>
+                <span class="text-xs text-gray-500">₹${amount.toFixed(2)} · ${item.date || ''} · ${item.branch || ''}</span>
             </li>`;
         }).join('');
-        ul.querySelectorAll('li').forEach(li =>
+
+        ul.querySelectorAll('li').forEach(li => {
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                _renderDetail(_allLedger.find(e => e.ENTRY_ID === li.dataset.entry));
-            })
-        );
+                _renderDetail(li.dataset.key, li.dataset.branch);
+            });
+        });
+
+        document.getElementById('vaultListMsg').textContent = `${filtered.length} ${_activeMode}`;
     }
 
     function search() { _renderList(); }
 
-    // ── Edit form (void-then-recreate) ───────────────────────────────────────
-    function _openEditForm(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (!entry) return;
-        const isReceipt = entry.DIRECTION === 'OUTWARD';
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        const entryDate = entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE, 'input') : new Date().toISOString().split('T')[0];
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit ${isReceipt ? 'Receipt' : 'Payment'}</h3></div>
-                <div class="detail-card-body">
-                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-4">⚠️ Editing will void the current entry and create a replacement.</p>
-                    <form id="rptEditForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">Code *</label><input name="code" required class="form-input text-sm uppercase" value="${entry.CODE || ''}"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label><input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${(+entry.CREDIT||+entry.DEBIT||0).toFixed(2)}"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">Date *</label><input name="entry_date" type="date" required class="form-input text-sm" value="${entryDate}"></div>
-                        <div><label class="block text-xs font-medium text-gray-600 mb-1">Payment Mode *</label><select name="payment_mode" required class="form-input text-sm">
-                            <option value="CASH" ${entry.PAYMENT_MODE === 'CASH' ? 'selected' : ''}>Cash</option>
-                            <option value="CHEQUE" ${entry.PAYMENT_MODE === 'CHEQUE' ? 'selected' : ''}>Cheque</option>
-                            <option value="NEFT" ${entry.PAYMENT_MODE === 'NEFT' ? 'selected' : ''}>NEFT</option>
-                            <option value="UPI" ${entry.PAYMENT_MODE === 'UPI' ? 'selected' : ''}>UPI</option>
-                            <option value="ADJUSTMENT" ${entry.PAYMENT_MODE === 'ADJUSTMENT' ? 'selected' : ''}>Adjustment</option>
-                        </select></div>
-                        <div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-600 mb-1">Narration</label><input name="narration" class="form-input text-sm" value="${entry.NARRATION || ''}"></div>
-                        <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
-                            <button type="button" onclick="VaultReceipts._rerenderDetail('${entry.ENTRY_ID}')" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="btn btn-sm">Save Changes</button>
-                        </div>
-                    </form>
-                    <div id="rptEditResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
-                </div>
-            </div>`;
-        document.getElementById('rptEditForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd);
-            const btn = e.target.querySelector('button[type=submit]');
-            const resp = document.getElementById('rptEditResponse');
-            btn.disabled = true;
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
-            try {
-                // TODO: migrate void + recreate to Manager.io
-                const endpoint = '/api/manager/payment';
-                const body = {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    ...(isReceipt ? { credit: parseFloat(data.amount) } : { amount: parseFloat(data.amount) }),
-                    payment_mode: data.payment_mode,
-                    narration: data.narration || '',
-                    cash_account: entry.CASH_ACCOUNT || '',
-                    branch: entry.BRANCH || '',
-                    ...(isReceipt ? {} : { vendor_type: entry.B2B_TYPE || entry.VENDOR_TYPE || 'B2B' }),
-                };
-                const res = await callApi(endpoint, body, 'POST');
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ Updated. Balance: ₹${(+res.balance).toFixed(2)}`;
-                resp.classList.remove('hidden');
-                const appData = await getAppData();
-                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            } catch (err) {
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
-                resp.textContent = '❌ ' + (err.message || 'Failed');
-                resp.classList.remove('hidden');
-            } finally { btn.disabled = false; }
-        });
-        VaultPage.showDetailPane();
-    }
-
-    function _printEntry(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (entry) VaultPrint.printReceipt(entry, entry.DIRECTION === 'OUTWARD');
-    }
-
-    function _rerenderDetail(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (entry) _renderDetail(entry);
-    }
-
-    // ── Delete (void) ─────────────────────────────────────────────────────────
-    async function _handleDelete(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (!entry || entry.STATUS === 'VOID') return;
-        const label = _activeMode === 'receipts' ? 'receipt' : 'payment';
-        if (!confirm(`Delete this ${label}? Amount: ₹${(+entry.CREDIT||+entry.DEBIT||0).toFixed(2)}. This will void and recalculate balances.`)) return;
-        const reason = prompt('Reason (optional):', '') || '';
-        try {
-            // TODO: migrate void to Manager.io
-            alert('Coming soon — voiding through Manager.io');
-            return;
-        } catch (err) { alert('Failed: ' + (err.message || err)); }
-    }
-
     // ── Detail view ────────────────────────────────────────────────────────────
-    function _renderDetail(entry) {
-        if (!entry) return;
+    async function _renderDetail(key, branch) {
+        if (!key || !branch) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
-        const isVoid = entry.STATUS === 'VOID';
-        const isReceipt = entry.DIRECTION === 'OUTWARD';
-        const label = isReceipt ? 'Receipt' : 'Payment';
-        const printBtn = `<button onclick="VaultReceipts._printEntry('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>`;
-        const editBtn = isActive ? `<button onclick="VaultReceipts._openEditForm('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Edit</button>` : '';
-        const delBtn = isActive ? `<button onclick="VaultReceipts._handleDelete('${entry.ENTRY_ID}')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16\"/></svg> Delete</button>` : '';
+        view.innerHTML = `<div class="text-center py-8"><div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>`;
+        VaultPage.showDetailPane();
 
-        const buttonRow = [printBtn, editBtn, delBtn].filter(Boolean).join('');
+        try {
+            const endpoint = _activeMode === 'receipts'
+                ? `/api/manager/receipt-details/${branch}/${key}`
+                : `/api/manager/payment-details/${branch}/${key}`;
+            const formData = await callApi(endpoint, {}, 'GET');
 
-        const amount = (+entry.CREDIT || +entry.DEBIT || 0);
-        const mode = entry.PAYMENT_MODE || '';
-        const coaDr = _coaName(entry.COA_DR);
-        const coaCr = _coaName(entry.COA_CR);
+            const isReceipt = _activeMode === 'receipts';
+            const label = isReceipt ? 'Receipt' : 'Payment';
+            const entityNameKey = isReceipt ? 'Customer' : 'Supplier';
+            const bankKey = isReceipt ? 'ReceivedIn' : 'PaidFrom';
+            const amount = formData.Lines?.reduce((s, l) => s + (l.Amount || 0), 0) || 0;
 
-        // Payment mode specific details
-        let modeDetails = '';
-        if (mode === 'CHEQUE') {
-            modeDetails = `
-                <div class="bg-blue-50/50 rounded-lg p-3 border border-blue-100">
-                    <div class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Cheque Details</div>
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        <div><span class="text-gray-500 text-xs">Cheque No:</span><br><span class="font-medium">${entry.CHEQUE_NUMBER || 'N/A'}</span></div>
-                        <div><span class="text-gray-500 text-xs">Date:</span><br>${entry.CHEQUE_DATE ? fmtDate(entry.CHEQUE_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500 text-xs">Bank:</span><br>${entry.BANK_NAME || 'N/A'}</div>
-                        <div><span class="text-gray-500 text-xs">Status:</span><br><span class="font-medium ${entry.CHEQUE_STATUS === 'CLEARED' ? 'text-green-600' : entry.CHEQUE_STATUS === 'BOUNCED' ? 'text-red-600' : 'text-yellow-600'}">${entry.CHEQUE_STATUS || 'PENDING'}</span></div>
-                    </div>
-                </div>`;
-        } else if (mode === 'NEFT' || mode === 'UPI') {
-            modeDetails = `
-                <div class="bg-cyan-50/50 rounded-lg p-3 border border-cyan-100">
-                    <div class="text-xs font-semibold text-cyan-600 uppercase tracking-wider mb-2">${mode} Details</div>
-                    <div class="text-sm"><span class="text-gray-500">TXN Ref:</span> <span class="font-medium">${entry.TXN_REF || 'N/A'}</span></div>
-                </div>`;
-        }
+            // Resolve names from cache
+            const clientCode = _getClientCodeForBranch(branch);
+            let entityDisplay = formData[entityNameKey] || '';
+            let bankDisplay = formData[bankKey] || '';
 
-        // Bank account info — shown independently of payment mode
-        let bankAccountCard = '';
-        if (entry.CASH_ACCOUNT) {
-            bankAccountCard = `
-                <div class="bg-gray-50/50 rounded-lg p-3 border border-gray-200">
-                    <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Bank Account</div>
-                    <div class="text-sm"><span class="text-gray-500">Account:</span> <span class="font-medium">${entry.CASH_ACCOUNT}</span></div>
-                    ${entry.BANK_NAME ? `<div class="text-sm"><span class="text-gray-500">Bank:</span> ${entry.BANK_NAME}</div>` : ''}
-                </div>`;
-        }
+            if (clientCode && isReceipt) {
+                const customers = await _ensureCustomers(clientCode);
+                const cust = customers.find(c => c.key === formData[entityNameKey]);
+                if (cust) entityDisplay = cust.name;
+            }
+            if (clientCode) {
+                const banks = await _ensureBankAccounts(clientCode);
+                const bank = banks.find(b => b.key === formData[bankKey]);
+                if (bank) bankDisplay = bank.name;
+            }
 
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">${label} Detail</h3>
-                    <div class="flex gap-2 items-center">
-                        ${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : ''}
-                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">₹${amount.toFixed(2)}</span>
-                        ${editBtn}${delBtn}
-                    </div>
-                </div>
-                <div class="detail-card-body">
-                    <!-- Header info -->
-                    <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg">
-                        <div><span class="text-gray-500">${isReceipt ? 'Client' : 'Vendor'}:</span> <span class="font-semibold">${entry.CLIENT_NAME || entry.CODE || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Status:</span> <span class="font-medium">${entry.STATUS || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Date:</span> ${entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500">Mode:</span> <span class="font-medium">${mode}</span></div>
-                        <div><span class="text-gray-500">Branch:</span> ${entry.BRANCH_NAME || entry.BRANCH || 'N/A'}</div>
-                        <div><span class="text-gray-500">Direction:</span> ${entry.DIRECTION || 'N/A'}</div>
-                        <div><span class="text-gray-500">Amount:</span> ₹${amount.toFixed(2)}</div>
-                        <div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>
-                    </div>
+            const linesHtml = (formData.Lines || []).map((line, i) => {
+                const invRef = line.AccountsReceivableSalesInvoice
+                    ? `<span class="text-gray-400 ml-2">Inv: ${line.AccountsReceivableSalesInvoice}</span>`
+                    : line.AccountsPayablePurchaseInvoice
+                    ? `<span class="text-gray-400 ml-2">Bill: ${line.AccountsPayablePurchaseInvoice}</span>`
+                    : '';
+                const accountName = line.Account ? (line.Account.length === 36 ? line.Account.substring(0, 8) + '…' : line.Account) : '';
+                return `<tr><td class="py-1 text-xs text-gray-500">${i + 1}</td><td class="py-1 text-sm">${accountName}${invRef}</td><td class="py-1 text-sm text-right font-medium">₹${(line.Amount || 0).toFixed(2)}</td></tr>`;
+            }).join('');
 
-                    <!-- Payment mode details -->
-                    ${modeDetails}
+            const printBtn = `<button onclick="VaultReceipts._printEntry('${key}','${branch}')" class="btn btn-sm flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>`;
 
-                    <!-- Bank account info -->
-                    ${bankAccountCard}
+            const voidBtn = `<button onclick="VaultReceipts._handleDelete('${key}','${branch}')" class="btn-danger btn-sm flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Void</button>`;
 
-                    <!-- COA mapping -->
-                    <div class="text-xs text-gray-400 mt-2 flex gap-4">
-                        <span>Dr: ${coaDr}</span>
-                        <span>Cr: ${coaCr}</span>
-                    </div>
-
-                    <!-- Narration -->
-                    ${entry.NARRATION ? `<div class="text-sm text-gray-700 mt-2 bg-white border rounded-lg p-3">📝 ${entry.NARRATION}</div>` : ''}
-
-                    <!-- Audit info -->
-                    <details class="mt-4">
-                        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Audit Info</summary>
-                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
-                            <div>ID: ${entry.ENTRY_ID}</div>
-                            <div>FY: ${entry.FY || 'N/A'}</div>
-                            <div>Created: ${entry.USER_NAME || 'N/A'}</div>
-                            <div>Staff: ${entry.STAFF_NAME || ''}</div>
-                            ${entry.APPROVED_BY ? `<div>Approved: ${entry.APPROVED_BY}</div>` : ''}
-                            ${entry.VOID_REASON ? `<div class="col-span-2 text-red-600">Void: ${entry.VOID_REASON}</div>` : ''}
+            view.innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-card-header flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-700">${label} Detail</h3>
+                        <div class="flex gap-2 items-center">
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 border border-green-200">₹${amount.toFixed(2)}</span>
+                            ${printBtn}${voidBtn}
                         </div>
-                    </details>
-                </div>
-            </div>`;
+                    </div>
+                    <div class="detail-card-body">
+                        <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg mb-4">
+                            <div><span class="text-gray-500">Reference:</span> <span class="font-semibold">${formData.Reference || formData.reference || 'N/A'}</span></div>
+                            <div><span class="text-gray-500">Date:</span> ${formData.Date || formData.date || 'N/A'}</div>
+                            <div><span class="text-gray-500">${entityNameKey}:</span> <span class="font-semibold">${entityDisplay}</span></div>
+                            <div><span class="text-gray-500">Bank Account:</span> ${bankDisplay}</div>
+                            <div><span class="text-gray-500">Branch:</span> ${branch.toUpperCase()}</div>
+                            <div><span class="text-gray-500">Total:</span> <span class="font-bold">₹${amount.toFixed(2)}</span></div>
+                        </div>
+
+                        ${formData.Description ? `<div class="text-sm text-gray-700 mb-4 bg-white border rounded-lg p-3">📝 ${formData.Description}</div>` : ''}
+
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 px-3 py-2 border-b">Lines</div>
+                            <table class="w-full text-sm">
+                                <thead><tr class="border-b bg-gray-50/50"><th class="text-left py-1 px-3 text-xs text-gray-400">#</th><th class="text-left py-1 px-3 text-xs text-gray-400">Account</th><th class="text-right py-1 px-3 text-xs text-gray-400">Amount</th></tr></thead>
+                                <tbody>${linesHtml || '<tr><td colspan="3" class="text-center py-4 text-gray-400 text-sm">No lines</td></tr>'}</tbody>
+                            </table>
+                        </div>
+
+                        <details class="mt-4">
+                            <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Raw Data</summary>
+                            <pre class="text-xs text-gray-500 mt-2 p-3 border rounded-lg overflow-auto max-h-64">${JSON.stringify(formData, null, 2)}</pre>
+                        </details>
+                    </div>
+                </div>`;
+        } catch (err) {
+            view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
+        }
         VaultPage.showDetailPane();
     }
 
-    // ── Form for new payment ─────────────────────────────────────────────────
+    // ── Print ─────────────────────────────────────────────────────────────────
+    async function _printEntry(key, branch) {
+        try {
+            const endpoint = _activeMode === 'receipts'
+                ? `/api/manager/receipt-details/${branch}/${key}`
+                : `/api/manager/payment-details/${branch}/${key}`;
+            const formData = await callApi(endpoint, {}, 'GET');
+            // Fallback to window.print with a simple summary if VaultPrint is not available
+            if (window.VaultPrint?.printReceipt) {
+                window.VaultPrint.printReceipt(formData, _activeMode === 'receipts');
+            } else {
+                const w = window.open('', '_blank');
+                w.document.write(`<html><head><title>${_activeMode === 'receipts' ? 'Receipt' : 'Payment'} - ${formData.Reference || key}</title></head><body><pre>${JSON.stringify(formData, null, 2)}</pre></body></html>`);
+                w.document.close();
+                w.print();
+            }
+        } catch (err) {
+            alert('Failed to load details for print: ' + (err.message || err));
+        }
+    }
+
+    // ── Void / Delete ─────────────────────────────────────────────────────────
+    async function _handleDelete(key, branch) {
+        const label = _activeMode === 'receipts' ? 'receipt' : 'payment';
+        if (!confirm(`Void this ${label}? This action cannot be undone.`)) return;
+
+        const clientCode = _getClientCodeForBranch(branch);
+        if (!clientCode) {
+            alert(`Cannot void: no client code found for branch ${branch}.`);
+            return;
+        }
+
+        try {
+            const endpoint = _activeMode === 'receipts'
+                ? `/api/manager/receipts/${key}?code=${encodeURIComponent(clientCode)}`
+                : `/api/manager/payments/${key}?code=${encodeURIComponent(clientCode)}`;
+            const res = await callApi(endpoint, null, 'DELETE');
+            if (res.status === 'deleted' || res.status === 204) {
+                // Remove from local list
+                if (_activeMode === 'receipts') {
+                    _receiptsList = _receiptsList.filter(r => r.key !== key);
+                } else {
+                    _paymentsList = _paymentsList.filter(p => p.key !== key);
+                }
+                _renderList();
+                VaultPage.showDetail(false);
+                VaultPage.showDetailPane();
+            } else {
+                alert('Voided successfully.');
+                _fetchList().then(_renderList);
+                VaultPage.showDetail(false);
+            }
+        } catch (err) {
+            alert('Failed to void: ' + (err.message || err));
+        }
+    }
+
+    // ── Add / Create form ─────────────────────────────────────────────────────
     function openAddPane() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         const isReceipt = _activeMode === 'receipts';
+        const label = isReceipt ? 'Receipt' : 'Payment';
+
+        // Build branch dropdown options
+        const branchOptions = _b2bList
+            .filter((c, i, arr) => arr.findIndex(x => x.BRANCH === c.BRANCH) === i) // unique branches
+            .map(c => `<option value="${c.CODE}">${c.BRANCH || ''} — ${c.CODE}</option>`)
+            .join('');
+
         view.innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">${isReceipt ? '📥 Record Receipt' : '📤 Record Payment'}</h3></div>
+                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">📥 Record ${label}</h3></div>
                 <div class="detail-card-body">
-                    <form id="paymentForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <form id="rptCreateForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                            <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="receiptCodeList">
-                            <datalist id="receiptCodeList"></datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
-                            <input name="credit" type="number" step="0.01" min="0.01" required class="form-input text-sm" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                            <select name="branch" class="form-input text-sm">
-                                <option value="">All Branches</option>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Branch / Client *</label>
+                            <select name="client_code" required class="form-input text-sm">
+                                <option value="">— Select Branch —</option>
+                                ${branchOptions}
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
-                            <input name="entry_date" type="date" required class="form-input text-sm">
+                            <input name="date" type="date" required class="form-input text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Payment Mode *</label>
-                            <select name="payment_mode" required class="form-input text-sm">
-                                <option value="CASH">Cash</option>
-                                <option value="CHEQUE">Cheque</option>
-                                <option value="NEFT">NEFT</option>
-                                <option value="UPI">UPI</option>
-                                <option value="ADJUSTMENT">Adjustment</option>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">${_entityLabel()} *</label>
+                            <select name="entity_key" required class="form-input text-sm" id="rptEntitySelect" disabled>
+                                <option value="">— Select branch first —</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Bank Account *</label>
+                            <select name="bank_key" required class="form-input text-sm" id="rptBankSelect" disabled>
+                                <option value="">— Select branch first —</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
+                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">${isReceipt ? 'Income' : 'Expense'} Account</label>
+                            <select name="account" class="form-input text-sm" id="rptAccountSelect" disabled>
+                                <option value="">— Select branch first —</option>
                             </select>
                         </div>
                         <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Bank Account <span class="text-gray-400">(${isReceipt ? 'destination' : 'source'})</span></label>
-                            <select name="bank_account" class="form-input text-sm">
-                                <option value="">— Select bank account —</option>
-                            </select>
-                        </div>
-                        <div id="chequeFields" class="hidden sm:col-span-2 grid grid-cols-3 gap-3">
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">Cheque No</label><input name="cheque_number" class="form-input text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">Cheque Date</label><input name="cheque_date" type="date" class="form-input text-sm"></div>
-                            <div><label class="block text-xs font-medium text-gray-600 mb-1">Bank Name</label><input name="bank_name" class="form-input text-sm"></div>
-                        </div>
-                        <div id="neftFields" class="hidden sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">TXN Ref</label>
-                            <input name="txn_ref" class="form-input text-sm" placeholder="UTR / TXN ID">
-                        </div>
-                        ${isReceipt ? `` : `
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Vendor Type</label>
-                            <select name="vendor_type" class="form-input text-sm">
-                                <option value="B2B">B2B (Vendor)</option>
-                                <option value="CARRIER">Carrier</option>
-                            </select>
-                        </div>`}
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration</label>
-                            <input name="narration" class="form-input text-sm" placeholder="Optional description">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Description / Narration</label>
+                            <input name="description" class="form-input text-sm" placeholder="Optional description">
                         </div>
                         <div class="sm:col-span-2 flex justify-end pt-2 border-t">
                             <button type="submit" class="btn btn-sm flex items-center gap-2">
-                                <span id="payBtnText">Save ${isReceipt ? 'Receipt' : 'Payment'}</span>
-                                <div id="paySpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span id="rptCreateBtnText">Save ${label}</span>
+                                <div id="rptCreateSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
                         </div>
                     </form>
-                    <div id="payResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
+                    <div id="rptCreateResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
                 </div>
             </div>`;
 
-        // Populate code datalist
-        const dl = document.getElementById('receiptCodeList');
-        _b2bMap.forEach((v, k) => {
-            const opt = document.createElement('option');
-            opt.value = k; opt.label = `${k} - ${v.B2B_NAME || ''}`;
-            dl.appendChild(opt);
-        });
+        // Set default date
+        const dateInput = document.querySelector('[name="date"]');
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-        // Populate branch dropdown + bank account selector
-        const bankAcctSelect = document.querySelector('select[name="bank_account"]');
-        getAppData().then(data => {
-            const branchSelect = document.querySelector('select[name="branch"]');
-            if (branchSelect && data?.BRANCHES) {
-                Object.values(data.BRANCHES).forEach(b => {
-                    if (b.BRANCH_CODE) {
-                        const opt = document.createElement('option');
-                        opt.value = b.BRANCH_CODE;
-                        opt.textContent = b.BRANCH_NAME || b.BRANCH_CODE;
-                        branchSelect.appendChild(opt);
-                    }
-                });
+        // Branch/Client selector → load bank accounts and entity list
+        const clientSelect = document.querySelector('[name="client_code"]');
+        clientSelect.addEventListener('change', async function() {
+            const code = this.value;
+            const entitySelect = document.getElementById('rptEntitySelect');
+            const bankSelect = document.getElementById('rptBankSelect');
+
+            if (!code) {
+                entitySelect.innerHTML = '<option value="">— Select branch first —</option>';
+                entitySelect.disabled = true;
+                bankSelect.innerHTML = '<option value="">— Select branch first —</option>';
+                bankSelect.disabled = true;
+                return;
             }
 
-            // Populate bank account selector from branches + carriers with bank details
-            if (bankAcctSelect && data) {
-                const accs = [];
-                if (data.BRANCHES) {
-                    Object.values(data.BRANCHES).forEach(b => {
-                        if (b.BRANCH_BANK_NAME || b.BRANCH_UPI) {
-                            const label = `${b.BRANCH_BANK_NAME || 'N/A'} — ${b.BRANCH_NAME || b.BRANCH_CODE}${b.BRANCH_BANK_AC ? ' [' + b.BRANCH_BANK_AC + ']' : ''}`;
-                            accs.push({ code: b.BRANCH_CODE, bank: b.BRANCH_BANK_NAME || '', label, type: 'Branch' });
-                        }
-                    });
-                }
-                if (data.CARRIERS) {
-                    Object.values(data.CARRIERS).forEach(c => {
-                        if (c.BANK_NAME || c.UPI) {
-                            const label = `${c.BANK_NAME || 'N/A'} — ${c.COMPANY_NAME || c.COMPANY_CODE}${c.BANK_AC ? ' [' + c.BANK_AC + ']' : ''}`;
-                            accs.push({ code: c.COMPANY_CODE, bank: c.BANK_NAME || '', label, type: 'Carrier' });
-                        }
-                    });
-                }
-                accs.sort((a, b) => a.label.localeCompare(b.label));
-                accs.forEach(a => {
+            entitySelect.innerHTML = '<option value="">Loading…</option>';
+            bankSelect.innerHTML = '<option value="">Loading…</option>';
+            entitySelect.disabled = true;
+            bankSelect.disabled = true;
+
+            try {
+                // Load in parallel
+                const [banks, entities, coa] = await Promise.all([
+                    _ensureBankAccounts(code),
+                    isReceipt ? _ensureCustomers(code) : _ensureSuppliers(code),
+                    _ensureCoaAccounts(code)
+                ]);
+
+                // Populate bank accounts
+                bankSelect.innerHTML = '<option value="">— Select bank account —</option>';
+                banks.forEach(b => {
                     const opt = document.createElement('option');
-                    opt.value = a.code;
-                    opt.textContent = a.label;
-                    opt.dataset.bank = a.bank;
-                    bankAcctSelect.appendChild(opt);
+                    opt.value = b.key;
+                    opt.textContent = `${b.name} (₹${(b.actualBalance?.value || 0).toFixed(2)})`;
+                    bankSelect.appendChild(opt);
                 });
+                bankSelect.disabled = false;
 
-                // Event: when bank account selected, auto-fill bank_name
-                bankAcctSelect.addEventListener('change', function() {
-                    const selectedOpt = this.options[this.selectedIndex];
-                    const bankNameInput = document.querySelector('[name="bank_name"]');
-                    if (selectedOpt && selectedOpt.dataset.bank && bankNameInput) {
-                        bankNameInput.value = selectedOpt.dataset.bank;
-                    }
+                // Populate entities (customers or suppliers)
+                entitySelect.innerHTML = `<option value="">— Select ${_entityLabel()} —</option>`;
+                entities.forEach(e => {
+                    const opt = document.createElement('option');
+                    opt.value = e.key;
+                    opt.textContent = e.name;
+                    entitySelect.appendChild(opt);
                 });
+                entitySelect.disabled = false;
+
+                // Populate account dropdown (COA -> filter income/expense-like)
+                const acctSelect = document.getElementById('rptAccountSelect');
+                const keywords = isReceipt
+                    ? ['income', 'sales', 'revenue', 'received', 'freight']
+                    : ['expense', 'direct expenses', 'purchase', 'cost', 'fee', 'rent', 'charge'];
+                const filtered = coa.filter(a =>
+                    keywords.some(k => a.name.toLowerCase().includes(k))
+                );
+                acctSelect.innerHTML = '<option value="">— Auto (default) —</option>';
+                filtered.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.key;
+                    opt.textContent = a.name;
+                    acctSelect.appendChild(opt);
+                });
+                acctSelect.disabled = false;
+
+            } catch (err) {
+                console.error('[VaultReceipts] Failed to load form data:', err);
+                entitySelect.innerHTML = '<option value="">Error loading</option>';
+                bankSelect.innerHTML = '<option value="">Error loading</option>';
             }
         });
 
-        // Payment mode conditional fields
-        document.querySelector('[name="payment_mode"]').addEventListener('change', e => {
-            const v = e.target.value;
-            document.getElementById('chequeFields').classList.toggle('hidden', v !== 'CHEQUE');
-            document.getElementById('neftFields').classList.toggle('hidden', v !== 'NEFT' && v !== 'UPI');
-            // Show bank account selector for non-ADJUSTMENT modes
-            if (bankAcctSelect) {
-                bankAcctSelect.closest('.sm\:col-span-2')?.classList.toggle('hidden', v === 'ADJUSTMENT');
-            }
-        });
-
-        // Submit
-        document.getElementById('paymentForm').addEventListener('submit', async e => {
+        // Form submit
+        document.getElementById('rptCreateForm').addEventListener('submit', async e => {
             e.preventDefault();
             const fd = new FormData(e.target);
             const data = Object.fromEntries(fd);
             const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('paySpinner');
-            const resp = document.getElementById('payResponse');
-            btn.disabled = true; sp.classList.remove('hidden');
+            const sp = document.getElementById('rptCreateSpinner');
+            const resp = document.getElementById('rptCreateResponse');
+            btn.disabled = true;
+            sp.classList.remove('hidden');
+            resp.classList.add('hidden');
 
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
+            const code = data.client_code;
+            const amount = parseFloat(data.amount);
+            if (!amount || amount <= 0) {
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
+                resp.textContent = '❌ Invalid amount.';
+                resp.classList.remove('hidden');
+                btn.disabled = false;
+                sp.classList.add('hidden');
+                return;
+            }
+
             try {
-                // TODO: migrate payment creation to Manager.io
-                const endpoint = isReceipt ? '/api/manager/payments' : '/api/manager/payments/inward';
-                const body = {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    ...(isReceipt ? { credit: parseFloat(data.credit) } : { amount: parseFloat(data.credit) }),
-                    payment_mode: data.payment_mode,
-                    narration: data.narration || '',
-                    branch: data.branch || '',
-                    cash_account: data.bank_account || data.cash_account || '',
-                    ...(isReceipt ? {} : { vendor_type: data.vendor_type || 'B2B' }),
-                    ...(data.cheque_number ? { cheque_number: data.cheque_number, cheque_date: toMs(data.cheque_date), bank_name: data.bank_name } : {}),
-                    ...(data.txn_ref ? { txn_ref: data.txn_ref } : {}),
+                const payload = {
+                    Date: data.date,
+                    ...(isReceipt
+                        ? { ReceivedIn: data.bank_key, Customer: data.entity_key }
+                        : { PaidFrom: data.bank_key, Supplier: data.entity_key }
+                    ),
+                    Description: data.description || '',
+                    Lines: [{
+                        Amount: amount
+                    }]
                 };
-                const res = await callApi(endpoint, body, 'POST');
+
+                // Only include Account if specific one was selected
+                if (data.account) {
+                    payload.Lines[0].Account = data.account;
+                }
+
+                const endpoint = isReceipt
+                    ? `/api/manager/receipts?code=${encodeURIComponent(code)}`
+                    : `/api/manager/payments?code=${encodeURIComponent(code)}`;
+
+                const res = await callApi(endpoint, payload, 'POST');
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ ${isReceipt ? 'Receipt' : 'Payment'} recorded. Balance: ₹${(+res.balance).toFixed(2)}`;
+                resp.textContent = `✅ ${label} recorded. Ref: ${res.Reference || 'done'}`;
                 resp.classList.remove('hidden');
                 e.target.reset();
-                const appData = await getAppData();
-                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
+                if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+                // Refresh list
+                await _fetchList();
+                _renderList();
             } catch (err) {
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
-                resp.textContent = '❌ ' + (err.message || 'Failed');
+                resp.textContent = '❌ ' + (err.message || 'Failed to create');
                 resp.classList.remove('hidden');
             } finally {
-                btn.disabled = false; sp.classList.add('hidden');
+                btn.disabled = false;
+                sp.classList.add('hidden');
             }
         });
-
-        // Set default date
-        const d = document.querySelector('[name="entry_date"]');
-        if (d) d.value = new Date().toISOString().split('T')[0];
 
         VaultPage.showDetailPane();
     }
@@ -500,21 +552,21 @@ const VaultReceipts = (() => {
         _injectListPane();
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
-        await _loadCoaCache();
-        const data = await getAppData();
-        if (data) {
-            _allLedger = Object.values(data.LEDGER || {});
-            _b2bMap.clear();
-            if (data.B2B) Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
-            _carrierMap.clear();
-            if (data.CARRIERS) Object.values(data.CARRIERS).forEach(c => c.COMPANY_CODE && _carrierMap.set(c.COMPANY_CODE, c));
-            _renderList();
-        }
+        await _loadB2bList();
+        await _fetchList();
+        _renderList();
     }
 
     function setMode(mode) { _activeMode = mode; }
 
-    return { load, search, openAddPane, setMode, _handleDelete, _rerenderDetail, _openEditForm, _printEntry };
+    return {
+        load,
+        search,
+        openAddPane,
+        setMode,
+        _handleDelete,
+        _printEntry,
+    };
 })();
 
 window.VaultReceipts = VaultReceipts;
