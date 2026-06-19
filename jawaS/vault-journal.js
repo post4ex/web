@@ -25,13 +25,7 @@ const VaultJournal = (() => {
 
     // ── COA cache ─────────────────────────────────────────────────────────
     async function _loadCoaCache() {
-        try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            if (res?.data) {
-                _allCOA = res.data;
-                res.data.forEach(a => _coaMap[a.code] = a);
-            }
-        } catch {}
+        // TODO: load COA from Manager.io cache keys
     }
 
     function _coaName(code) {
@@ -370,6 +364,9 @@ const VaultJournal = (() => {
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
+                // TODO: migrate journal creation to Manager.io
+                alert('Coming soon — creating journal entries through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/journal/multi', {
                     code: data.code,
                     entry_date: toMs(data.entry_date),
@@ -535,6 +532,9 @@ const VaultJournal = (() => {
 
             try {
                 // Use replace-ob endpoint (atomically voids old OB + creates new one)
+                // TODO: migrate opening balance to Manager.io
+                alert('Coming soon — setting opening balances through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/journal/replace-ob', {
                     code: data.code,
                     entry_date: toMs(data.entry_date),
@@ -657,12 +657,9 @@ const VaultJournal = (() => {
         const reason = prompt('Reason (optional):', '') || '';
         try {
             // Void all rows in the transaction
-            for (const r of rows) {
-                await callApi('/api/ledger/void', { entry_id: r.ENTRY_ID, void_reason: reason }, 'POST');
-            }
-            const appData = await getAppData();
-            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Entry deleted (voided).</p></div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding journal entries through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -878,6 +875,9 @@ const VaultJournal = (() => {
 
             try {
                 if (isEdit) {
+                    // TODO: migrate recurring entry update to Manager.io
+                    alert('Coming soon — managing recurring entries through Manager.io');
+                    return;
                     await callApi(`/api/ledger/journal/recurring/${editTxnId}`, {
                         schedule_name: data.schedule_name || '',
                         narration: '',
@@ -894,6 +894,9 @@ const VaultJournal = (() => {
                     }, 'PUT');
                     resp.textContent = '✅ Template updated.';
                 } else {
+                    // TODO: migrate recurring entry creation to Manager.io
+                    alert('Coming soon — creating recurring entries through Manager.io');
+                    return;
                     await callApi('/api/ledger/journal/recurring', {
                         code: data.code,
                         branch: data.branch || '',

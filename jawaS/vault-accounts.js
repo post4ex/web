@@ -17,10 +17,7 @@ const VaultAccounts = (() => {
 
     // ── COA cache ─────────────────────────────────────────────────────────────
     async function _loadCoaCache() {
-        try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            if (res?.data) { res.data.forEach(a => _coaMap[a.code] = a); }
-        } catch {}
+        // TODO: load COA from Manager.io cache keys
     }
 
     function _coaName(code) {
@@ -133,13 +130,9 @@ const VaultAccounts = (() => {
     async function _updateChequeStatus(entryId, newStatus) {
         const note = newStatus === 'BOUNCED' ? (prompt('Reason for bounce:') || '') : '';
         try {
-            const res = await callApi('/api/ledger/cheque-status', { entry_id: entryId, cheque_status: newStatus, note }, 'PATCH');
-            if (res.status === 'success') {
-                const appData = await getAppData();
-                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
-                _renderList();
-                _renderChequeDetail(_allLedger.find(e => e.ENTRY_ID === entryId));
-            }
+            // TODO: migrate cheque status update to Manager.io
+            alert('Coming soon — updating cheque status through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -338,6 +331,9 @@ const VaultAccounts = (() => {
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
+                // TODO: migrate cheque recording to Manager.io
+                alert('Coming soon — recording cheques through Manager.io');
+                return;
                 const isOutward = data.direction === 'OUTWARD';
                 const endpoint = isOutward ? '/api/ledger/payment' : '/api/ledger/inward/payment';
                 const body = {

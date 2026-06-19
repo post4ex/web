@@ -141,13 +141,9 @@ const VaultSalesInvoices = (() => {
         if (!confirm(`Delete invoice ${entry.INV_NUMBER || entry.INVOICE_ID || ''}?\n\nThis will void the entry and recalculate balances.`)) return;
         const reason = prompt('Reason for deletion (optional):', '') || '';
         try {
-            await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: reason }, 'POST');
-            await load();
-            document.getElementById('vaultDetailView').innerHTML = `
-                <div class="detail-card"><div class="detail-card-body text-center py-8">
-                    <div class="text-4xl mb-3">🗑️</div>
-                    <p class="text-gray-500 text-sm">Invoice has been deleted (voided).</p>
-                </div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding invoices through Manager.io');
+            return;
         } catch (err) {
             alert('Failed to delete: ' + (err.message || err));
         }
@@ -610,13 +606,9 @@ const VaultSalesInvoices = (() => {
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
 
             try {
-                // Step 1: Void the current entry
-                await callApi('/api/ledger/void', {
-                    entry_id: entry.ENTRY_ID,
-                    void_reason: `Replaced by edit`,
-                }, 'POST');
-
-                // Step 2: Create new entry
+                // TODO: migrate edit (void + recreate) to Manager.io
+                alert('Coming soon — editing invoices through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/invoice', {
                     code: data.code,
                     branch: data.branch || '',

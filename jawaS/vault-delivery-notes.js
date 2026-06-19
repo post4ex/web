@@ -159,10 +159,9 @@ const VaultDeliveryNotes = (() => {
         if (!confirm('Delete this delivery note?')) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
-            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
-            const appData = await getAppData();
-            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Delivery note voided.</p></div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding delivery notes through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -397,6 +396,9 @@ const VaultDeliveryNotes = (() => {
             };
 
             try {
+                // TODO: migrate delivery note creation to Manager.io
+                alert('Coming soon — creating delivery notes through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/journal', {
                     code: raw.code,
                     entry_date: toMs(raw.entry_date),

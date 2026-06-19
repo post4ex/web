@@ -79,10 +79,7 @@ const VaultDebitNotes = (() => {
 
     // ── COA cache ─────────────────────────────────────────────────────────────
     async function _loadCoaCache() {
-        try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            if (res?.data) { res.data.forEach(a => _coaMap[a.code] = a); }
-        } catch {}
+        // TODO: load COA from Manager.io cache keys
     }
 
     function _coaName(code) {
@@ -162,10 +159,9 @@ const VaultDebitNotes = (() => {
         if (!confirm(`Delete this debit note? Dr ₹${(+entry.DEBIT||0).toFixed(2)}. This will void and recalculate balances.`)) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
-            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
-            const appData = await getAppData();
-            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Debit note deleted (voided).</p></div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding debit notes through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -413,14 +409,8 @@ const VaultDebitNotes = (() => {
         });
 
         // Populate product datalist
-        callApi('/api/product-items', {}, 'GET').then(res => {
-            if (res?.data) {
-                const pdl = document.getElementById('dbProductList');
-                res.data.forEach(p => {
-                    if (p.code) { const o = document.createElement('option'); o.value = p.code; o.label = `${p.code} — ${p.name} (${p.group})`; pdl.appendChild(o); }
-                });
-            }
-        }).catch(() => {});
+        // TODO: load product items from Manager.io
+        // callApi('/api/product-items', {}, 'GET').then(...)
 
         _recalc();
 
@@ -449,6 +439,9 @@ const VaultDebitNotes = (() => {
             };
 
             try {
+                // TODO: migrate debit note creation to Manager.io
+                alert('Coming soon — creating debit notes through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/inward/journal', {
                     code: raw.code,
                     vendor_type: raw.vendor_type.toUpperCase(),

@@ -77,12 +77,7 @@ const VaultPurchases = (() => {
 
     // ── COA cache for account name resolution ─────────────────────────────────
     async function _loadCoaCache() {
-        try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            if (res?.data) {
-                res.data.forEach(a => _coaMap[a.code] = a);
-            }
-        } catch {}
+        // TODO: load COA from Manager.io cache keys
     }
 
     function _coaName(code) {
@@ -162,10 +157,9 @@ const VaultPurchases = (() => {
         if (!confirm(`Delete purchase bill ${entry.INV_NUMBER || ''}? ₹${(+entry.CREDIT||0).toFixed(2)}. This will void and recalculate balances.`)) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
-            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
-            const appData = await getAppData();
-            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">Purchase bill deleted (voided).</p></div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding purchase bills through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -435,14 +429,8 @@ const VaultPurchases = (() => {
         });
 
         // Populate product datalist from API
-        callApi('/api/product-items', {}, 'GET').then(res => {
-            if (res?.data) {
-                const pdl = document.getElementById('purProductList');
-                res.data.forEach(p => {
-                    if (p.code) { const o = document.createElement('option'); o.value = p.code; o.label = `${p.code} — ${p.name} (${p.group})`; pdl.appendChild(o); }
-                });
-            }
-        }).catch(() => {});
+        // TODO: load product items from Manager.io
+        // callApi('/api/product-items', {}, 'GET').then(...)
 
         // Default date
         const d = document.querySelector('[name="entry_date"]');
@@ -497,6 +485,9 @@ const VaultPurchases = (() => {
                     igst: parseFloat(comp.igst),
                     product_code: (document.getElementById('purProductCode')?.value || '').toUpperCase(),
                 };
+                // TODO: migrate purchase bill creation to Manager.io
+                alert('Coming soon — creating purchase bills through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/inward/invoice', body, 'POST');
                 resp.className = 'mt-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded';
                 resp.textContent = `✅ Purchase bill saved. Balance: ₹${(+res.balance||0).toFixed(2)}`;

@@ -225,6 +225,9 @@ const VaultCloseFY = (() => {
         btn.innerHTML = '<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Processing…';
 
         try {
+            // TODO: migrate close FY to Manager.io
+            alert('Coming soon — closing FY through Manager.io');
+            return;
             const res = await callApi('/api/ledger/close-fy', {
                 from_fy: _currentFY,
                 to_fy: _nextFY(_currentFY),
@@ -267,8 +270,10 @@ const VaultCloseFY = (() => {
         VaultPage.showDetail(false);
 
         try {
-            const res = await callApi(`/api/ledger/fy-summary?fy=${_currentFY}${_selectedBranch ? `&branch=${_selectedBranch}` : ''}`, {}, 'GET');
-            _fyData = res.data || [];
+            // TODO: migrate FY summary to Manager.io
+            _fyData = [];
+            // const res = await callApi(`/api/ledger/fy-summary?fy=${_currentFY}${_selectedBranch ? `&branch=${_selectedBranch}` : ''}`, {}, 'GET');
+            // _fyData = res.data || [];
 
             // Select first item if any
             if (_fyData.length) {

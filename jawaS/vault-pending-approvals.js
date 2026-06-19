@@ -309,14 +309,9 @@ const VaultPendingApprovals = (() => {
         const primary = rows.sort((a, b) => (parseInt(a.ENTRY_SQNSE) || 1) - (parseInt(b.ENTRY_SQNSE) || 1))[0];
 
         try {
-            const res = await callApi('/api/ledger/approve', {
-                entry_id: primary.ENTRY_ID,
-                action,
-                reason,
-            }, 'POST');
-            if (res.status === 'success') {
-                await load();
-            }
+            // TODO: migrate approval to Manager.io
+            alert('Coming soon — approving entries through Manager.io');
+            return;
         } catch (err) {
             alert('Failed: ' + (err.message || err));
         }
@@ -355,11 +350,10 @@ const VaultPendingApprovals = (() => {
         }
 
         try {
+            // TODO: migrate batch approval to Manager.io
+            alert('Coming soon — batch approving entries through Manager.io');
+            return;
             const res = await callApi('/api/ledger/batch-approve', {
-                entry_ids: entryIds,
-                action,
-                reason,
-            }, 'POST');
             const msg = `${action === 'APPROVE' ? 'Approved' : 'Rejected'} ${res.approved} transaction(s)`;
             if (res.failed > 0) alert(msg + `, ${res.failed} failed. Check console for details.`);
             else alert(msg);
@@ -397,8 +391,10 @@ const VaultPendingApprovals = (() => {
         _selectedForBulk.clear();
 
         try {
-            const res = await callApi('/api/ledger/pending', {}, 'GET');
-            _pendingEntries = res.data || [];
+            // TODO: load pending entries from Manager.io
+            _pendingEntries = [];
+            // const res = await callApi('/api/ledger/pending', {}, 'GET');
+            // _pendingEntries = res.data || [];
             _renderFilterChips();
             _renderList();
             // Auto-select first entry's detail

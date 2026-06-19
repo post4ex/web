@@ -17,10 +17,7 @@ const VaultReceipts = (() => {
 
     // ── COA cache ─────────────────────────────────────────────────────────────
     async function _loadCoaCache() {
-        try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            if (res?.data) { res.data.forEach(a => _coaMap[a.code] = a); }
-        } catch {}
+        // TODO: load COA from Manager.io cache keys
     }
 
     function _coaName(code) {
@@ -141,8 +138,8 @@ const VaultReceipts = (() => {
             btn.disabled = true;
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
-                const endpoint = isReceipt ? '/api/ledger/payment' : '/api/ledger/inward/payment';
+                // TODO: migrate void + recreate to Manager.io
+                const endpoint = '/api/manager/payment';
                 const body = {
                     code: data.code,
                     entry_date: toMs(data.entry_date),
@@ -186,10 +183,9 @@ const VaultReceipts = (() => {
         if (!confirm(`Delete this ${label}? Amount: ₹${(+entry.CREDIT||+entry.DEBIT||0).toFixed(2)}. This will void and recalculate balances.`)) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
-            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
-            const appData = await getAppData();
-            if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _renderList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">${label.charAt(0).toUpperCase() + label.slice(1)} deleted (voided).</p></div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -462,7 +458,8 @@ const VaultReceipts = (() => {
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                const endpoint = isReceipt ? '/api/ledger/payment' : '/api/ledger/inward/payment';
+                // TODO: migrate payment creation to Manager.io
+                const endpoint = isReceipt ? '/api/manager/payments' : '/api/manager/payments/inward';
                 const body = {
                     code: data.code,
                     entry_date: toMs(data.entry_date),

@@ -218,23 +218,9 @@ const VaultPayroll = (() => {
             try {
                 // Void existing structure if editing
                 if (existingData && existingData.entry_id) {
-                    await callApi('/api/ledger/void', { entry_id: existingData.entry_id, void_reason: 'Replaced by update' }, 'POST');
-                } else {
-                    const oldEntry = _allLedger.find(x => x.ENTRY_TYPE === 'JOURNAL' && x.JOURNAL_TYPE === 'SALARY_STRUCTURE' && x.CODE === staffCode && x.STATUS === 'ACTIVE');
-                    if (oldEntry) {
-                        await callApi('/api/ledger/void', { entry_id: oldEntry.ENTRY_ID, void_reason: 'Replaced by update' }, 'POST');
-                    }
-                }
-                const templateData = JSON.stringify({ earnings, deductions, net });
-                await callApi('/api/ledger/journal', {
-                    code: staffCode,
-                    entry_date: Date.now(),
-                    journal_type: 'SALARY_STRUCTURE',
-                    narration: templateData,
-                    branch: staff?.BRANCH || '',
-                    debit: net,
-                    credit: 0,
-                }, 'POST');
+                    // TODO: migrate salary structure void + save to Manager.io
+                    alert('Coming soon — managing salary structures through Manager.io');
+                    return;
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
                 resp.textContent = `✅ Salary structure saved for ${staff?.STAFF_NAME || staffCode}: ₹${net.toFixed(2)}`;
                 resp.classList.remove('hidden');
@@ -278,15 +264,9 @@ const VaultPayroll = (() => {
             const structure = _getSalaryForStaff(staff.STAFF_CODE);
             try {
                 const data = JSON.parse(structure.NARRATION || '{}');
-                await callApi('/api/ledger/journal', {
-                    code: staff.STAFF_CODE,
-                    entry_date: Date.now(),
-                    journal_type: 'SALARY',
-                    narration: `Salary ${month} - ${staff.STAFF_NAME || ''} - ₹${(data.net || 0).toFixed(2)}`,
-                    branch: staff.BRANCH || '',
-                    debit: data.net || 0,
-                    credit: 0,
-                }, 'POST');
+                // TODO: migrate salary processing to Manager.io
+                alert('Coming soon — processing payroll through Manager.io');
+                return;
                 success++;
             } catch { failed++; }
         }

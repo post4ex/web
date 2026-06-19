@@ -14,10 +14,7 @@ const VaultExpenses = (() => {
     let _coaMap = {};
 
     async function _loadCoaCache() {
-        try {
-            const res = await callApi('/api/coa', {}, 'GET');
-            if (res?.data) { res.data.forEach(a => _coaMap[a.code] = a); }
-        } catch {}
+        // TODO: load COA from Manager.io cache keys
     }
 
     function _coaName(code) {
@@ -224,6 +221,9 @@ const VaultExpenses = (() => {
             btn.disabled = true;
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
+                // TODO: migrate void + recreate to Manager.io
+                alert('Coming soon — editing expenses/cash movements through Manager.io');
+                return;
                 await callApi('/api/ledger/void', { entry_id: entry.ENTRY_ID, void_reason: 'Replaced by edit' }, 'POST');
                 const endpoint = isExpense ? '/api/ledger/expense' : '/api/ledger/cash_movement';
                 const body = isExpense ? {
@@ -263,9 +263,9 @@ const VaultExpenses = (() => {
         if (!confirm(`Delete this ${label}? This will void and recalculate balances.`)) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
-            await callApi('/api/ledger/void', { entry_id: entryId, void_reason: reason }, 'POST');
-            const appData = await getAppData();                if (appData?.LEDGER) { _allLedger = Object.values(appData.LEDGER); _activeType === 'expense' ? _renderList() : _renderCashList(); }
-            document.getElementById('vaultDetailView').innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8"><div class="text-4xl mb-3">🗑️</div><p class="text-gray-500 text-sm">${label.charAt(0).toUpperCase() + label.slice(1)} deleted (voided).</p></div></div>`;
+            // TODO: migrate void to Manager.io
+            alert('Coming soon — voiding expenses/cash movements through Manager.io');
+            return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
 
@@ -438,6 +438,9 @@ const VaultExpenses = (() => {
             btn.disabled = true; sp.classList.remove('hidden');
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
+                // TODO: migrate expense creation to Manager.io
+                alert('Coming soon — recording expenses through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/expense', {
                     branch: data.branch,
                     entry_date: toMs(data.entry_date),
@@ -517,6 +520,9 @@ const VaultExpenses = (() => {
             btn.disabled = true; sp.classList.remove('hidden');
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
+                // TODO: migrate cash movement creation to Manager.io
+                alert('Coming soon — recording cash movements through Manager.io');
+                return;
                 const res = await callApi('/api/ledger/cash_movement', {
                     cash_from: data.cash_from,
                     cash_to: data.cash_to,
@@ -699,9 +705,11 @@ const VaultExpenses = (() => {
             );
         };
         try {
-            const res = await callApi('/api/ledger/cash', {}, 'GET');
-            _cashHolders = res.data || [];
+            // TODO: load wallet data from Manager.io
+            _cashHolders = [];
             _renderCashHoldersList();
+            // const res = await callApi('/api/ledger/cash', {}, 'GET');
+            // _cashHolders = res.data || [];
         } catch (err) {
             document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;
         }
