@@ -353,12 +353,6 @@ const VaultPendingApprovals = (() => {
             // TODO: migrate batch approval to Manager.io
             alert('Coming soon — batch approving entries through Manager.io');
             return;
-            const res = await callApi('/api/ledger/batch-approve', {
-            const msg = `${action === 'APPROVE' ? 'Approved' : 'Rejected'} ${res.approved} transaction(s)`;
-            if (res.failed > 0) alert(msg + `, ${res.failed} failed. Check console for details.`);
-            else alert(msg);
-            _selectedForBulk.clear();
-            await load();
         } catch (err) {
             alert('Failed: ' + (err.message || err));
         }

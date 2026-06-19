@@ -79,6 +79,8 @@ const VaultReceipts = (() => {
             return [];
         }
     }
+
+    async function _ensureSuppliers(code) {
         if (_suppliersCache[code]) return _suppliersCache[code];
         try {
             const res = await callApi(`/api/manager/cache/keys?code=${encodeURIComponent(code)}&categories=suppliers`, {}, 'GET');

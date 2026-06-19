@@ -221,6 +221,7 @@ const VaultPayroll = (() => {
                     // TODO: migrate salary structure void + save to Manager.io
                     alert('Coming soon — managing salary structures through Manager.io');
                     return;
+                }
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
                 resp.textContent = `✅ Salary structure saved for ${staff?.STAFF_NAME || staffCode}: ₹${net.toFixed(2)}`;
                 resp.classList.remove('hidden');
