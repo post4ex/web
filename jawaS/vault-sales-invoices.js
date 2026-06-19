@@ -107,33 +107,7 @@ const VaultSalesInvoices = (() => {
         _renderList();
     }
 
-    // ── GST filing check ────────────────────────────────────────────────────
-    let _gstFiledCache = null;
-
-    async function _ensureGstFiledCache() {
-        if (_gstFiledCache) return _gstFiledCache;
-        try {
-            const res = await callApi('/api/gst/filings', {}, 'GET');
-            _gstFiledCache = (res.data || []).filter(f =>
-                f.return_type === 'GSTR1' && f.status === 'FILED'
-            );
-        } catch {
-            _gstFiledCache = [];
-        }
-        return _gstFiledCache;
-    }
-
-    function _isGstFiled(branch, entryDate) {
-        if (!branch || !entryDate) return false;
-        const d = new Date(entryDate);
-        if (isNaN(d.getTime())) return false;
-        const period = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-        return (_gstFiledCache || []).some(f =>
-            f.branch === branch && f.period === period
-        );
-    }
-
-    // ── Delete via Manager.io ─────────────────────────────────────────────────
+    // ── Invoice delete ─────────────────────────────────────────────────
     async function _handleDelete(invoiceKey, branchCode) {
         if (!invoiceKey || !branchCode) {
             alert('Cannot delete: missing invoice key or branch.');
@@ -430,17 +404,9 @@ const VaultSalesInvoices = (() => {
             const existingDueDays = res.DueDateDays || res.dueDateDays || 20;
             const existingLines = res.Lines || res.lines || [];
 
-            // ── GST period guard: block edit if period already filed ──
+            // ── GST period guard: block edit if period already filed (Disabled) ──
             let _gstBlocked = false;
             let _gstPeriod = '';
-            await _ensureGstFiledCache();
-            if (_isGstFiled(branchCode, existingDate)) {
-                _gstBlocked = true;
-                const d = new Date(existingDate);
-                if (!isNaN(d.getTime())) {
-                    _gstPeriod = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-                }
-            }
 
             function _getBranchDropdowns(brCode) {
                 const bKey = (brCode || '').toLowerCase();
