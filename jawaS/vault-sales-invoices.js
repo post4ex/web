@@ -647,6 +647,32 @@ const VaultSalesInvoices = (() => {
     // ── Detail pane (with charge breakdown) ────────────────────────────────────
     async function _renderDetail(listEntry) {
         if (!listEntry) return;
+
+        if (!listEntry.key) {
+            const ref = listEntry.INV_NUMBER || listEntry.INVOICE_ID;
+            const branch = listEntry.BRANCH || listEntry.branch;
+            if (ref) {
+                const match = _allInvoices.find(inv => 
+                    (inv.reference === ref) && 
+                    (!branch || (inv.branch || '').toLowerCase() === branch.toLowerCase())
+                );
+                if (match) {
+                    listEntry = match;
+                }
+            }
+        }
+
+        if (!listEntry.key) {
+            VaultPage.showDetail(true);
+            const view = document.getElementById('vaultDetailView');
+            view.innerHTML = `<div class="detail-card">
+                <div class="detail-card-body text-center py-8 text-red-600">
+                    <p class="text-sm font-semibold">Cannot view details: Manager.io key not found.</p>
+                </div>
+            </div>`;
+            return;
+        }
+
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         view.innerHTML = `<div class="detail-card-body text-center py-8">
@@ -695,6 +721,13 @@ const VaultSalesInvoices = (() => {
             }).join('');
             
             const balance = listEntry.balanceDue?.value || 0;
+
+            const refVal = res.Reference || listEntry.reference || '';
+            const cleanRef = refVal.trim().toUpperCase();
+            const ledgerEntry = _allLedger.find(e => {
+                const eRef = (e.INV_NUMBER || e.INVOICE_ID || '').trim().toUpperCase();
+                return eRef === cleanRef;
+            });
             
             view.innerHTML = `
                 <div class="detail-card">
@@ -706,14 +739,31 @@ const VaultSalesInvoices = (() => {
                                 <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${listEntry.branch || 'N/A'}</span></p>
                             </div>
                             <div class="text-right flex flex-col items-end gap-1.5">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 uppercase">${listEntry.status || 'N/A'}</span>
+                                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 uppercase mr-1">${listEntry.status || 'N/A'}</span>
+                                    ${ledgerEntry ? `
+                                    <button onclick="VaultSalesInvoices._printEntry('${ledgerEntry.ENTRY_ID}')"
+                                        class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                        </svg> Print
+                                    </button>
+                                    ` : ''}
                                     <button onclick="VaultSalesInvoices._openEditPaneFromDetail('${listEntry.key}', '${listEntry.branch}', event)"
-                                        class="px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded hover:bg-amber-200 flex items-center gap-1 transition-colors">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        class="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded hover:bg-amber-200 flex items-center gap-1 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg> Edit
                                     </button>
+                                    ${ledgerEntry ? `
+                                    <button onclick="VaultSalesInvoices._handleDelete('${ledgerEntry.ENTRY_ID}')"
+                                        class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                    ` : ''}
                                 </div>
                                 <p class="text-sm text-gray-500 mt-1">Invoice #: <span class="font-bold text-gray-800">${res.Reference || 'N/A'}</span></p>
                                 <p class="text-xs text-gray-400">Date: ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</p>
@@ -1372,6 +1422,15 @@ const VaultSalesInvoices = (() => {
             } catch (err) {
                 console.error("Failed to pre-fetch cache keys in sales invoices load:", err);
             }
+        }
+
+        try {
+            const appData = await getAppData();
+            if (appData && appData.LEDGER) {
+                _allLedger = Object.values(appData.LEDGER).filter(e => e.ENTRY_TYPE === 'INVOICE' && e.DIRECTION === 'OUTWARD');
+            }
+        } catch (err) {
+            console.error("Failed to load ledger cache in sales invoices load:", err);
         }
         
         document.getElementById('vaultListMsg').textContent = 'Loading invoices from Manager.io...';
