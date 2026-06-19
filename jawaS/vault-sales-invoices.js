@@ -8,7 +8,6 @@ const VaultSalesInvoices = (() => {
 
     let _allInvoices = [];
     let _b2bMap    = new Map();
-    let _allLedger = [];
 
     function getCurrentFYRange() {
         const now = new Date();
@@ -134,28 +133,241 @@ const VaultSalesInvoices = (() => {
         );
     }
 
-    // ── Delete (void) ─────────────────────────────────────────────────────────
-    async function _handleDelete(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (!entry) return;
-        if (!confirm(`Delete invoice ${entry.INV_NUMBER || entry.INVOICE_ID || ''}?\n\nThis will void the entry and recalculate balances.`)) return;
-        const reason = prompt('Reason for deletion (optional):', '') || '';
-        try {
-            // TODO: migrate void to Manager.io
-            alert('Coming soon — voiding invoices through Manager.io');
+    // ── Delete via Manager.io ─────────────────────────────────────────────────
+    async function _handleDelete(invoiceKey, branchCode) {
+        if (!invoiceKey || !branchCode) {
+            alert('Cannot delete: missing invoice key or branch.');
             return;
+        }
+        if (!confirm('Delete this invoice from Manager.io permanently?\n\nThis action cannot be undone.')) return;
+        try {
+            // Resolve client code from branch
+            const appData = await getAppData();
+            let clientCode = '';
+            if (appData?.B2B) {
+                Object.values(appData.B2B).forEach(c => {
+                    if ((c.BRANCH || '').toLowerCase() === (branchCode || '').toLowerCase()) {
+                        clientCode = c.CODE;
+                    }
+                });
+            }
+            if (!clientCode) {
+                alert(`Cannot resolve client code for branch "${branchCode}".`);
+                return;
+            }
+
+            await callApi(`/api/manager/invoices/${invoiceKey}?code=${encodeURIComponent(clientCode)}`, {}, 'DELETE');
+            await load();
         } catch (err) {
-            alert('Failed to delete: ' + (err.message || err));
+            alert('Failed to delete invoice: ' + (err.message || err));
         }
     }
 
-    function _renderDetailById(entryId) {
-        _renderDetail(_allLedger.find(e => e.ENTRY_ID === entryId));
+    function _numToWords(n) {
+        const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+        const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+        n=Math.round(n); if(!n) return 'Zero';
+        if(n<20) return a[n]; if(n<100) return b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');
+        if(n<1000) return a[Math.floor(n/100)]+' Hundred'+(n%100?' '+_numToWords(n%100):'');
+        if(n<100000) return _numToWords(Math.floor(n/1000))+' Thousand'+(n%1000?' '+_numToWords(n%1000):'');
+        if(n<10000000) return _numToWords(Math.floor(n/100000))+' Lakh'+(n%100000?' '+_numToWords(n%100000):'');
+        return _numToWords(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+_numToWords(n%10000000):'');
     }
 
-    function _printEntry(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (entry) VaultPrint.printSalesInvoice(entry);
+    async function _printEntry(invoiceKey, branchCode) {
+        if (!invoiceKey || !branchCode) return;
+        try {
+            const [res, appData] = await Promise.all([
+                callApi(`/api/manager/invoice-details/${branchCode}/${invoiceKey}`, {}, 'GET'),
+                getAppData()
+            ]);
+
+            // Ensure _b2bMap is populated (may not be if user clicked Print without opening Add/Edit)
+            if (appData?.B2B) {
+                Object.values(appData.B2B).forEach(c => {
+                    if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
+                });
+            }
+
+            const inv = _allInvoices.find(i => i.key === invoiceKey);
+
+            const ref = res.Reference || inv?.reference || invoiceKey;
+            const issueDate = res.IssueDate || inv?.issueDate || '';
+            const customerCode = inv?.customer || '';
+            const description = res.Description || '';
+
+            // Look up B2B and branch details
+            const b2b = _b2bMap.get(customerCode.trim().toUpperCase());
+            const b2bName = b2b?.B2B_NAME || customerCode;
+            const b2bAddr = b2b?.B2B_ADDRESS || '';
+            const b2bCity = b2b?.B2B_CITY || '';
+            const b2bState = b2b?.B2B_STATE || '';
+            const b2bMobile = b2b?.MOBILE_NUMBER || '';
+            const b2bGst = b2b?.ID_GST_PAN_ADHAR || 'N/A';
+
+            let branch = null;
+            if (appData?.BRANCHES) {
+                Object.values(appData.BRANCHES).forEach(b => {
+                    if ((b.BRANCH_CODE || '').toLowerCase() === (branchCode || '').toLowerCase()) {
+                        branch = b;
+                    }
+                });
+            }
+            const branchName = branch?.BRANCH_NAME || branchCode.toUpperCase();
+            const branchAddr = branch?.BRANCH_ADDRESS || '';
+            const branchCity = branch?.BRANCH_CITY || 'local';
+            const branchState = branch?.BRANCH_STATE || '';
+            const branchMobile = branch?.BRANCH_MOBILE || '';
+            const branchEmail = branch?.BRANCH_EMAIL || '';
+            const branchPan = branch?.BRANCH_PAN || '';
+            const branchGstin = branch?.BRANCH_GSTIN || '';
+            const branchUpi = branch?.BRANCH_UPI || '';
+            const branchUpiName = branch?.BRANCH_UPI_NAME || branchName;
+
+            // Build line items from Manager.io detail
+            const lines = res.Lines || [];
+            let taxableSubtotal = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0;
+            const linesHtml = lines.map((line, i) => {
+                const desc = line.LineDescription || '';
+                const qty = line.Qty || 1;
+                const price = line.SalesUnitPrice || 0;
+                const lineAmt = qty * price;
+                taxableSubtotal += lineAmt;
+                if (line.TaxCode === 'c9228485-7a58-4ccb-89e8-fe025e20261d') {
+                    totalCgst += lineAmt * 0.09;
+                    totalSgst += lineAmt * 0.09;
+                } else if (line.TaxCode === '16e26b59-06ca-49ab-ba1c-a2c36711683e') {
+                    totalIgst += lineAmt * 0.18;
+                }
+                return `<tr><td class="tc">${i+1}</td><td>${_escapeHtml(desc)}</td><td class="tr">${qty}</td><td class="tr">₹${price.toFixed(2)}</td><td class="tr">₹${lineAmt.toFixed(2)}</td></tr>`;
+            }).join('');
+
+            totalCgst = Math.round(totalCgst * 100) / 100;
+            totalSgst = Math.round(totalSgst * 100) / 100;
+            totalIgst = Math.round(totalIgst * 100) / 100;
+            const grandTotal = taxableSubtotal + totalCgst + totalSgst + totalIgst;
+
+            // Build charges table
+            const chargeRows = [
+                `<tr><td>Taxable Subtotal</td><td class="tr">₹${taxableSubtotal.toFixed(2)}</td></tr>`,
+                ...(totalCgst > 0 ? [`<tr><td>CGST @ 9%</td><td class="tr">₹${totalCgst.toFixed(2)}</td></tr>`] : []),
+                ...(totalSgst > 0 ? [`<tr><td>SGST @ 9%</td><td class="tr">₹${totalSgst.toFixed(2)}</td></tr>`] : []),
+                ...(totalIgst > 0 ? [`<tr><td>IGST @ 18%</td><td class="tr">₹${totalIgst.toFixed(2)}</td></tr>`] : []),
+            ].join('');
+
+            const qrUrl = branchUpi
+                ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${grandTotal.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent('INV-'+ref)}`
+                : '';
+
+            const terms = [
+                'All disputes subject to ' + branchCity + ' Jurisdiction.',
+                'Payment due on receipt.',
+                'Computer-generated bill; no signature required.',
+                'SAC Code 996812 (Courier Services).'
+            ];
+
+            const css = `
+                body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0;padding:20px;background:#f5f5f5}
+                .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15)}
+                .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:15px;margin-bottom:20px}
+                .tr{text-align:right}.tc{text-align:center}
+                .info{display:flex;justify-content:space-between;margin-bottom:20px;gap:20px}
+                .col{width:48%}.col h3{margin:0 0 5px;font-size:14px;border-bottom:1px solid #ccc;padding-bottom:3px}.col p{margin:2px 0;font-size:12px}
+                .div{width:1px;background:#ccc}.divb{height:2px;background:#000;margin-bottom:20px}
+                .meta{margin-bottom:20px;font-weight:bold;text-align:center}
+                table{width:100%;border-collapse:collapse;margin-bottom:20px}table,th,td{border:1px solid #000}th,td{padding:6px;text-align:left}th{background:#f2f2f2}
+                .tot{display:flex;justify-content:space-between;margin-bottom:20px;page-break-inside:avoid}
+                .chg{width:55%}.chg table{margin-bottom:0}.chg th,.chg td{padding:4px 6px}
+                .pay{width:40%}
+                .terms{font-size:11px;margin-bottom:40px}.terms ol{margin:5px 0 0;padding-left:20px}
+                .sig{text-align:right;font-weight:bold;margin-top:20px}.sigbox{display:inline-block;text-align:center;min-width:200px}
+                .no-print{text-align:center;margin-bottom:15px}
+                .no-print button{padding:8px 20px;margin:3px;border:none;border-radius:4px;cursor:pointer;font-weight:600}
+                .no-print .print-btn{background:#1a1a2e;color:#fff}
+                .no-print .close-btn{background:#6b7280;color:#fff}
+                @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}.no-print{display:none}}
+            `;
+
+            const body = `
+                <div class="no-print"><button class="print-btn" onclick="window.print()">🖨️ Print</button><button class="close-btn" onclick="window.close()">✕ Close</button></div>
+                <div class="box">
+                    <div class="hdr">
+                        <div style="font-size:26px;font-weight:bold;text-transform:uppercase">Tax Invoice</div>
+                        <div style="text-align:right;font-size:12px">
+                            <b>Invoice No:</b> ${_escapeHtml(ref)}<br>
+                            <b>Invoice Date:</b> ${issueDate.split('T')[0] || issueDate}
+                        </div>
+                    </div>
+
+                    <div class="info">
+                        <div class="col">
+                            <h3>Billed By: ${_escapeHtml(branchName)}</h3>
+                            <p><b>Address:</b> ${_escapeHtml(branchAddr)}</p>
+                            <p><b>City:</b> ${_escapeHtml(branchCity)}, ${_escapeHtml(branchState)}</p>
+                            <p><b>Phone:</b> ${_escapeHtml(branchMobile)}</p>
+                            <p><b>Email:</b> ${_escapeHtml(branchEmail)}</p>
+                            ${branchPan ? `<p><b>PAN/GST:</b> ${_escapeHtml(branchPan)} / ${_escapeHtml(branchGstin)}</p>` : ''}
+                        </div>
+                        <div class="div"></div>
+                        <div class="col">
+                            <h3>Bill To: ${_escapeHtml(b2bName)}</h3>
+                            <p><b>Address:</b> ${_escapeHtml(b2bAddr)}</p>
+                            <p><b>City:</b> ${_escapeHtml(b2bCity)}, ${_escapeHtml(b2bState)}</p>
+                            <p><b>Mobile:</b> ${_escapeHtml(b2bMobile)}</p>
+                            <p><b>GST:</b> ${_escapeHtml(b2bGst)}</p>
+                        </div>
+                    </div>
+
+                    <div class="divb"></div>
+                    ${description ? `<div class="meta"><p>${_escapeHtml(description)}</p></div>` : ''}
+
+                    ${lines.length ? `
+                    <table>
+                        <thead><tr><th class="tc">Sr</th><th>Description</th><th class="tr">Qty</th><th class="tr">Unit Price</th><th class="tr">Amount</th></tr></thead>
+                        <tbody>${linesHtml}</tbody>
+                    </table>
+                    ` : ''}
+
+                    <div class="tot">
+                        <div class="pay">
+                            <p><b>Amount in words:</b><br>Rupees ${_numToWords(Math.round(grandTotal))} Only</p>
+                            ${qrUrl ? `<p><b>Pay via UPI:</b></p><img src="${qrUrl}" style="width:120px;height:120px;margin:10px 0;border:1px solid #ddd"><p>Name: ${_escapeHtml(branchUpiName)}<br>UPI ID: ${_escapeHtml(branchUpi)}<br><b>Note:</b> INV-${_escapeHtml(ref)}</p>` : ''}
+                        </div>
+                        <div class="chg">
+                            <table>
+                                <thead><tr><th>Charge</th><th class="tr">Amount</th></tr></thead>
+                                <tbody>${chargeRows}<tr style="font-weight:bold"><td>Total Amount</td><td class="tr">${grandTotal.toFixed(2)}</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="terms">
+                        <b>Terms &amp; Conditions:</b>
+                        <ol>${terms.map(t => `<li>${_escapeHtml(t)}</li>`).join('')}</ol>
+                    </div>
+
+                    <div class="sig">
+                        <div class="sigbox">
+                            <p style="margin-bottom:40px">Authorized Signatory</p>
+                            <p>for ${_escapeHtml(branchName)}</p>
+                        </div>
+                    </div>
+                </div>`;
+
+            const w = window.open('', 'Sales_Invoice_' + ref.replace(/[^a-zA-Z0-9]/g, '_'));
+            if (!w) { alert('Pop-up blocked! Please allow pop-ups.'); return; }
+            w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tax Invoice - ' + _escapeHtml(ref) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+            w.document.close();
+            w.onload = function() {
+                setTimeout(function() {
+                    try {
+                        w.document.querySelectorAll('.no-print').forEach(function(e) { e.style.display = 'block'; });
+                    } catch(_) {}
+                }, 500);
+            };
+        } catch (err) {
+            alert('Failed to print: ' + (err.message || err));
+        }
     }
 
     // ── Edit via Manager.io PUT ──────────────────────────────────────────────
@@ -212,6 +424,18 @@ const VaultSalesInvoices = (() => {
             const existingDueDays = res.DueDateDays || res.dueDateDays || 20;
             const existingLines = res.Lines || res.lines || [];
 
+            // ── GST period guard: block edit if period already filed ──
+            let _gstBlocked = false;
+            let _gstPeriod = '';
+            await _ensureGstFiledCache();
+            if (_isGstFiled(branchCode, existingDate)) {
+                _gstBlocked = true;
+                const d = new Date(existingDate);
+                if (!isNaN(d.getTime())) {
+                    _gstPeriod = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+                }
+            }
+
             function _getBranchDropdowns(brCode) {
                 const bKey = (brCode || '').toLowerCase();
                 const bKeys = window.__vaultCacheKeys?.[bKey] || {};
@@ -233,6 +457,19 @@ const VaultSalesInvoices = (() => {
                         <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
                             ⚠️ Editing will update this invoice in Manager.io. Reference number will be preserved.
                         </p>
+                        ${_gstBlocked ? `
+                        <div class="bg-red-100 border border-red-300 text-red-800 rounded-lg p-3 text-xs space-y-1">
+                            <div class="flex items-center gap-2 font-semibold">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                GST Period Filed — Edit Blocked
+                            </div>
+                            <p>This invoice's period <strong>${_gstPeriod}</strong> has already been filed as <strong>GSTR1</strong> for branch <strong>${branchCode.toUpperCase()}</strong>.</p>
+                            <p>Editing invoices in filed periods is restricted. If you need to make changes, please manage this invoice directly in Manager.io or contact your accounts team.</p>
+                        </div>
+                        ` : ''}
                         <form id="sieForm" class="space-y-4">
                             <input type="hidden" name="invoice_key" value="${invoiceKey}">
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -308,8 +545,8 @@ const VaultSalesInvoices = (() => {
 
                             <div class="flex justify-between items-center pt-2 border-t">
                                 <div id="sieResponse" class="hidden text-sm"></div>
-                                <button type="submit" id="sieSubmitBtn" class="btn btn-sm flex items-center gap-2 ml-auto">
-                                    <span id="sieBtnText">Update Invoice</span>
+                                <button type="submit" id="sieSubmitBtn" class="btn btn-sm flex items-center gap-2 ml-auto" ${_gstBlocked ? 'disabled' : ''}>
+                                    <span id="sieBtnText">${_gstBlocked ? 'Edit Blocked' : 'Update Invoice'}</span>
                                     <div id="sieSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                 </button>
                             </div>
@@ -514,128 +751,6 @@ const VaultSalesInvoices = (() => {
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ── Edit (void old → create new) ──────────────────────────────────────────
-    function _openEditForm(entryId) {
-        const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
-        if (!entry) return;
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        const entryDate = entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE, 'input') : new Date().toISOString().split('T')[0];
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit Invoice — ${entry.INV_NUMBER || 'N/A'}</h3></div>
-                <div class="detail-card-body">
-                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-4">
-                        ⚠️ Editing will void the current invoice and create a replacement.
-                    </p>
-                    <form id="sieForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                            <input name="code" id="sieCode" required class="form-input text-sm uppercase" value="${entry.CODE || ''}" list="sieCodeList" autocomplete="off">
-                            <datalist id="sieCodeList"></datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                            <input name="branch" id="sieBranch" class="form-input text-sm uppercase" value="${entry.BRANCH || ''}" list="siEditBranchList">
-                            <datalist id="siEditBranchList"></datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
-                            <input name="inv_number" class="form-input text-sm" value="${entry.INV_NUMBER || ''}" placeholder="Auto-generate if blank">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
-                            <input name="inv_date" type="date" required class="form-input text-sm" value="${entryDate}">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
-                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" value="${(+entry.DEBIT||0).toFixed(2)}" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">POS (State Code)</label>
-                            <input name="pos" id="siePos" class="form-input text-sm" value="${entry.POS || ''}" maxlength="2">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration</label>
-                            <input name="narration" class="form-input text-sm" value="${entry.NARRATION || ''}" placeholder="Invoice description">
-                        </div>
-                        <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
-                            <button type="button" onclick="VaultSalesInvoices._renderDetailById('${entry.ENTRY_ID}')" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="btn btn-sm flex items-center gap-2">
-                                <span id="sieBtnText">Save Changes</span>
-                                <div id="sieSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </button>
-                        </div>
-                    </form>
-                    <div id="sieResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
-                </div>
-            </div>`;
-
-        // Populate datalists
-        getAppData().then(data => {
-            const dl = document.getElementById('sieCodeList');
-            if (data?.B2B) Object.values(data.B2B).forEach(c => {
-                if (c.CODE) { const o = document.createElement('option'); o.value = c.CODE; o.label = `${c.CODE} - ${c.B2B_NAME || ''}`; dl.appendChild(o); }
-            });
-            const bdl = document.getElementById('siEditBranchList');
-            if (data?.BRANCHES) Object.values(data.BRANCHES).forEach(b => {
-                if (b.BRANCH_CODE) { const o = document.createElement('option'); o.value = b.BRANCH_CODE; bdl.appendChild(o); }
-            });
-        });
-
-        // Auto-fill branch/POS on code change
-        document.getElementById('sieCode').addEventListener('input', function() {
-            const code = this.value.trim().toUpperCase();
-            const b2b = _b2bMap.get(code);
-            if (b2b) {
-                const bi = document.getElementById('sieBranch');
-                if (b2b.BRANCH && !bi.value) bi.value = b2b.BRANCH;
-                const pi = document.getElementById('siePos');
-                if (b2b.CODE_STATE && !pi.value) pi.value = b2b.CODE_STATE;
-            }
-        });
-
-        document.getElementById('sieForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd);
-            const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('sieSpinner');
-            const resp = document.getElementById('sieResponse');
-            btn.disabled = true; sp.classList.remove('hidden');
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
-
-            try {
-                // TODO: migrate edit (void + recreate) to Manager.io
-                alert('Coming soon — editing invoices through Manager.io');
-                return;
-                const res = await callApi('/api/ledger/invoice', {
-                    code: data.code,
-                    branch: data.branch || '',
-                    inv_number: data.inv_number || '',
-                    inv_date: toMs(data.inv_date),
-                    amount: parseFloat(data.amount),
-                    pos: data.pos || '',
-                    narration: data.narration || `Invoice ${data.inv_number || ''}`,
-                    service_code: '',
-                }, 'POST');
-
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ Updated — old voided, new invoice ${res.inv_number} created. Balance: ₹${(+res.balance).toFixed(2)}`;
-                resp.classList.remove('hidden');
-
-                await load();
-            } catch (err) {
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
-                resp.textContent = '❌ ' + (err.message || 'Failed to edit invoice');
-                resp.classList.remove('hidden');
-            } finally {
-                btn.disabled = false; sp.classList.add('hidden');
-            }
-        });
-        VaultPage.showDetailPane();
-    }
-
     // ── Detail pane (with charge breakdown) ────────────────────────────────────
     async function _renderDetail(listEntry) {
         if (!listEntry) return;
@@ -714,13 +829,6 @@ const VaultSalesInvoices = (() => {
             
             const balance = listEntry.balanceDue?.value || 0;
 
-            const refVal = res.Reference || listEntry.reference || '';
-            const cleanRef = refVal.trim().toUpperCase();
-            const ledgerEntry = _allLedger.find(e => {
-                const eRef = (e.INV_NUMBER || e.INVOICE_ID || '').trim().toUpperCase();
-                return eRef === cleanRef;
-            });
-            
             view.innerHTML = `
                 <div class="detail-card">
                     <div class="detail-card-body p-6 space-y-6">
@@ -733,29 +841,25 @@ const VaultSalesInvoices = (() => {
                             <div class="text-right flex flex-col items-end gap-1.5">
                                 <div class="flex items-center gap-1.5 flex-wrap justify-end">
                                     <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 uppercase mr-1">${listEntry.status || 'N/A'}</span>
-                                    ${ledgerEntry ? `
-                                    <button onclick="VaultSalesInvoices._printEntry('${ledgerEntry.ENTRY_ID}')"
-                                        class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1 transition-colors">
+                                    <button onclick="VaultSalesInvoices._printEntry('${listEntry.key}', '${listEntry.branch}')"
+                                        class="btn btn-sm">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                                         </svg> Print
                                     </button>
-                                    ` : ''}
                                     <button onclick="VaultSalesInvoices._openEditPaneFromDetail('${listEntry.key}', '${listEntry.branch}', event)"
-                                        class="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded hover:bg-amber-200 flex items-center gap-1 transition-colors">
+                                        class="btn btn-sm">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg> Edit
                                     </button>
-                                    ${ledgerEntry ? `
-                                    <button onclick="VaultSalesInvoices._handleDelete('${ledgerEntry.ENTRY_ID}')"
-                                        class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1 transition-colors">
+                                    <button onclick="VaultSalesInvoices._handleDelete('${listEntry.key}', '${listEntry.branch}')"
+                                        class="btn-danger btn-sm">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                         </svg>
                                     </button>
-                                    ` : ''}
                                 </div>
                                 <p class="text-sm text-gray-500 mt-1">Invoice #: <span class="font-bold text-gray-800">${res.Reference || 'N/A'}</span></p>
                                 <p class="text-xs text-gray-400">Date: ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</p>
@@ -1300,7 +1404,7 @@ const VaultSalesInvoices = (() => {
             
             const filterBtn = document.createElement('button');
             filterBtn.id = 'siFilterBtn';
-            filterBtn.className = 'p-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex-shrink-0 transition-colors';
+            filterBtn.className = 'btn-ghost btn-sm flex-shrink-0';
             filterBtn.title = 'Filter Invoices';
             filterBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>`;
             filterBtn.onclick = () => document.getElementById('siFilterModal')?.classList.remove('hidden');
@@ -1354,8 +1458,8 @@ const VaultSalesInvoices = (() => {
                         </div>
                     </div>
                     <div class="flex justify-end gap-2 pt-3 border-t">
-                        <button id="siResetBtn" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold transition-colors">Reset</button>
-                        <button id="siApplyBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors">Apply Filters</button>
+                        <button id="siResetBtn" class="btn-ghost btn-sm">Reset</button>
+                        <button id="siApplyBtn" class="btn btn-sm">Apply Filters</button>
                     </div>
                 </div>`;
             document.body.appendChild(modal);
@@ -1416,15 +1520,6 @@ const VaultSalesInvoices = (() => {
             }
         }
 
-        try {
-            const appData = await getAppData();
-            if (appData && appData.LEDGER) {
-                _allLedger = Object.values(appData.LEDGER).filter(e => e.ENTRY_TYPE === 'INVOICE' && e.DIRECTION === 'OUTWARD');
-            }
-        } catch (err) {
-            console.error("Failed to load ledger cache in sales invoices load:", err);
-        }
-        
         document.getElementById('vaultListMsg').textContent = 'Loading invoices from Manager.io...';
         try {
             const branch = VaultPage.getActiveBranch();
@@ -1442,7 +1537,7 @@ const VaultSalesInvoices = (() => {
         }
     }
 
-    return { load, search, openAddPane, _handleDelete, _openEditForm, _renderDetailById, _recalc, _printEntry, _openEditPaneFromDetail };
+    return { load, search, openAddPane, _handleDelete, _recalc, _printEntry, _openEditPaneFromDetail };
 })();
 
 window.VaultSalesInvoices = VaultSalesInvoices;
