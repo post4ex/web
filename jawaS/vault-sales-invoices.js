@@ -162,6 +162,362 @@ const VaultSalesInvoices = (() => {
         if (entry) VaultPrint.printSalesInvoice(entry);
     }
 
+    // ── Edit via Manager.io PUT ──────────────────────────────────────────────
+    async function _openEditPaneFromDetail(invoiceKey, branchCode, evt) {
+        const btn = evt?.target?.closest('button');
+        if (btn) { btn.disabled = true; btn.innerHTML = '...'; }
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+        view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-gray-400 text-sm">Loading invoice form data…</div></div>`;
+        VaultPage.showDetailPane();
+
+        try {
+            // Fetch the full invoice form from Manager.io
+            const res = await callApi(`/api/manager/invoice-details/${branchCode}/${invoiceKey}`, {}, 'GET');
+
+            // Determine client code from branch
+            const appData = await getAppData();
+            let clientCode = '';
+            if (appData?.B2B) {
+                Object.values(appData.B2B).forEach(c => {
+                    if ((c.BRANCH || '').toLowerCase() === (branchCode || '').toLowerCase()) {
+                        clientCode = c.CODE;
+                    }
+                });
+            }
+
+            // Ensure cache keys are loaded
+            if (!window.__vaultCacheKeys) {
+                try {
+                    window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+                } catch (err) {
+                    console.error("Failed to load cache keys:", err);
+                    window.__vaultCacheKeys = {};
+                }
+            }
+
+            // Build B2B map
+            if (appData?.B2B) Object.values(appData.B2B).forEach(c => {
+                if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
+            });
+
+            // Build reverse UUID → name maps from cache keys for pre-filling dropdowns
+            const _bKey = (branchCode || '').toLowerCase();
+            const _bKeys = window.__vaultCacheKeys?.[_bKey] || {};
+            const _itemUuidToName = {};
+            const _tcUuidToName = {};
+            Object.entries(_bKeys.non_inventory_items || {}).forEach(([name, uuid]) => { _itemUuidToName[uuid] = name; });
+            Object.entries(_bKeys.tax_codes || {}).forEach(([name, uuid]) => { _tcUuidToName[uuid] = name; });
+
+            const existingRef = res.Reference || res.reference || '';
+            const existingCustomer = res.Customer || res.customer || '';
+            const existingDate = res.IssueDate || res.issueDate || '';
+            const existingDesc = res.Description || res.description || '';
+            const existingDueDays = res.DueDateDays || res.dueDateDays || 20;
+            const existingLines = res.Lines || res.lines || [];
+
+            function _getBranchDropdowns(brCode) {
+                const bKey = (brCode || '').toLowerCase();
+                const bKeys = window.__vaultCacheKeys?.[bKey] || {};
+                const itemNames = Object.keys(bKeys.non_inventory_items || {}).sort();
+                const taxCodeNames = Object.keys(bKeys.tax_codes || {}).sort();
+                const itemOpts = `<option value="">— Select item —</option>` +
+                    itemNames.map(n => `<option value="${n}">${_titleCase(n)}</option>`).join('');
+                const tcOpts = `<option value="">No Tax</option>` +
+                    taxCodeNames.map(n => `<option value="${n}">${_titleCase(n)}</option>`).join('');
+                return { itemOpts, tcOpts, itemNames, taxCodeNames };
+            }
+
+            let currentOpts = _getBranchDropdowns(branchCode);
+
+            view.innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit Invoice — ${existingRef || invoiceKey}</h3></div>
+                    <div class="detail-card-body space-y-4">
+                        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                            ⚠️ Editing will update this invoice in Manager.io. Reference number will be preserved.
+                        </p>
+                        <form id="sieForm" class="space-y-4">
+                            <input type="hidden" name="invoice_key" value="${invoiceKey}">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div class="sm:col-span-2">
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
+                                    <input name="code" id="sieCode" required class="form-input text-sm uppercase"
+                                        value="${clientCode}" list="sieCodeList" autocomplete="off">
+                                    <datalist id="sieCodeList"></datalist>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+                                    <input name="branch" id="sieBranch" readonly
+                                        class="form-input text-sm uppercase bg-gray-50 text-gray-500" value="${branchCode.toUpperCase() || ''}">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">POS State</label>
+                                    <input name="pos" id="siePos" readonly
+                                        class="form-input text-sm bg-gray-50 text-gray-500" placeholder="Auto">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
+                                    <input name="inv_date" type="date" required class="form-input text-sm" value="${existingDate.split('T')[0] || existingDate}">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Due Days</label>
+                                    <input name="due_days" type="number" min="0" class="form-input text-sm" value="${existingDueDays}">
+                                </div>
+                            </div>
+
+                            <!-- Line Items -->
+                            <div class="border rounded-lg overflow-hidden">
+                                <div class="bg-gray-50 px-3 py-2 flex items-center justify-between border-b">
+                                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Line Items</span>
+                                    <button type="button" id="sieAddLine"
+                                        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">+ Add Line</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm" id="sieLinesTable">
+                                        <thead>
+                                            <tr class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b">
+                                                <th class="py-2 px-2 text-left" style="min-width:160px">Item</th>
+                                                <th class="py-2 px-2 text-left" style="min-width:140px">Description</th>
+                                                <th class="py-2 px-2 text-right" style="min-width:60px">Qty</th>
+                                                <th class="py-2 px-2 text-right" style="min-width:90px">Unit Price</th>
+                                                <th class="py-2 px-2 text-left" style="min-width:130px">Tax Code</th>
+                                                <th class="py-2 px-2 text-right" style="min-width:80px">Amount</th>
+                                                <th class="py-2 px-2" style="min-width:32px"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sieLineRows"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="border rounded-lg p-3 bg-gray-50 space-y-1.5 text-sm" id="sieTotals">
+                                <div class="flex justify-between text-gray-600"><span>Subtotal</span><span id="sie_subtotal" class="font-medium">₹0.00</span></div>
+                                <div class="flex justify-between text-gray-600" id="sie_sgst_row"><span>SGST</span><span id="sie_sgst_val" class="font-medium">₹0.00</span></div>
+                                <div class="flex justify-between text-gray-600" id="sie_cgst_row"><span>CGST</span><span id="sie_cgst_val" class="font-medium">₹0.00</span></div>
+                                <div class="flex justify-between text-gray-600 hidden" id="sie_igst_row"><span>IGST</span><span id="sie_igst_val" class="font-medium">₹0.00</span></div>
+                                <div class="flex justify-between font-bold text-gray-800 border-t border-gray-200 pt-2 mt-1">
+                                    <span>Grand Total</span>
+                                    <span id="sie_grand_total" class="text-indigo-700 text-base">₹0.00</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Narration / Description</label>
+                                <input name="narration" class="form-input text-sm" value="${_escapeHtml(existingDesc)}">
+                            </div>
+
+                            <div class="flex justify-between items-center pt-2 border-t">
+                                <div id="sieResponse" class="hidden text-sm"></div>
+                                <button type="submit" id="sieSubmitBtn" class="btn btn-sm flex items-center gap-2 ml-auto">
+                                    <span id="sieBtnText">Update Invoice</span>
+                                    <div id="sieSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>`;
+
+            // Populate client datalist
+            const dl = document.getElementById('sieCodeList');
+            _b2bMap.forEach((rec, code) => {
+                const o = document.createElement('option');
+                o.value = code;
+                o.label = `${code} — ${rec.B2B_NAME || ''}`;
+                dl.appendChild(o);
+            });
+
+            // Auto-fill branch + POS
+            function _applyClientAutofill() {
+                const code = document.getElementById('sieCode').value.trim().toUpperCase();
+                const b2b = _b2bMap.get(code);
+                if (!b2b) return;
+                const branch = (b2b.BRANCH || '').toUpperCase();
+                document.getElementById('sieBranch').value = branch;
+                document.getElementById('siePos').value = b2b.CODE_STATE || b2b.STATE_CODE || '';
+                currentOpts = _getBranchDropdowns(branch);
+                document.querySelectorAll('#sieLineRows tr').forEach(tr => {
+                    const itemSel = tr.querySelector('.sie-item');
+                    const tcSel = tr.querySelector('.sie-tc');
+                    if (itemSel && tcSel) {
+                        const prevItem = itemSel.value;
+                        const prevTc = tcSel.value;
+                        itemSel.innerHTML = currentOpts.itemOpts;
+                        tcSel.innerHTML = currentOpts.tcOpts;
+                        if (currentOpts.itemNames.includes(prevItem)) itemSel.value = prevItem;
+                        if (currentOpts.taxCodeNames.includes(prevTc)) tcSel.value = prevTc;
+                    }
+                });
+            }
+            document.getElementById('sieCode').addEventListener('input', _applyClientAutofill);
+            document.getElementById('sieCode').addEventListener('change', _applyClientAutofill);
+
+            // ── Line management ──
+            let _lineCount = 0;
+
+            function _addLine(defaultItem = '', defaultDesc = '', defaultQty = 1, defaultPrice = 0, defaultTc = '') {
+                const idx = _lineCount++;
+                const tr = document.createElement('tr');
+                tr.id = `sieLine_${idx}`;
+                tr.className = 'border-t border-gray-100';
+                tr.innerHTML = `
+                    <td class="py-1.5 px-2">
+                        <select class="form-input text-xs sie-item" style="min-width:140px">${currentOpts.itemOpts}</select>
+                    </td>
+                    <td class="py-1.5 px-2">
+                        <input type="text" class="form-input text-xs sie-desc" placeholder="Description" style="min-width:120px" value="${_escapeHtml(defaultDesc)}">
+                    </td>
+                    <td class="py-1.5 px-2">
+                        <input type="number" class="form-input text-xs sie-qty text-right" value="${defaultQty}" min="0.001" step="any" style="min-width:55px">
+                    </td>
+                    <td class="py-1.5 px-2">
+                        <input type="number" class="form-input text-xs sie-price text-right" value="${defaultPrice}" min="0" step="0.01" style="min-width:80px">
+                    </td>
+                    <td class="py-1.5 px-2">
+                        <select class="form-input text-xs sie-tc" style="min-width:120px">${currentOpts.tcOpts}</select>
+                    </td>
+                    <td class="py-1.5 px-2 text-right">
+                        <span class="sie-amt text-gray-700 font-medium text-xs">₹0.00</span>
+                    </td>
+                    <td class="py-1.5 px-2 text-center">
+                        <button type="button" class="sie-remove text-red-400 hover:text-red-600 text-lg leading-none" title="Remove line">×</button>
+                    </td>`;
+                document.getElementById('sieLineRows').appendChild(tr);
+
+                if (defaultItem) tr.querySelector('.sie-item').value = defaultItem;
+                if (defaultTc) tr.querySelector('.sie-tc').value = defaultTc;
+
+                tr.querySelector('.sie-item').addEventListener('change', function() {
+                    const descEl = tr.querySelector('.sie-desc');
+                    if (!descEl.value) descEl.value = _titleCase(this.value);
+                    _calcTotals();
+                });
+                tr.querySelectorAll('input, select').forEach(el => el.addEventListener('input', _calcTotals));
+                tr.querySelector('.sie-remove').addEventListener('click', () => { tr.remove(); _calcTotals(); });
+                _calcTotals();
+            }
+
+            function _calcTotals() {
+                let subtotal = 0, sgst = 0, cgst = 0, igst = 0;
+                document.querySelectorAll('#sieLineRows tr').forEach(tr => {
+                    const qty = parseFloat(tr.querySelector('.sie-qty')?.value || 0);
+                    const price = parseFloat(tr.querySelector('.sie-price')?.value || 0);
+                    const tc = (tr.querySelector('.sie-tc')?.value || '').toUpperCase();
+                    const lineAmt = qty * price;
+                    subtotal += lineAmt;
+                    tr.querySelector('.sie-amt').textContent = '₹' + lineAmt.toFixed(2);
+                    if (tc.includes('IGST')) {
+                        igst += lineAmt * _parseTaxRate(tr.querySelector('.sie-tc').value) / 100;
+                    } else if (tc && tc !== '') {
+                        const rate = _parseTaxRate(tr.querySelector('.sie-tc').value);
+                        sgst += lineAmt * rate / 200;
+                        cgst += lineAmt * rate / 200;
+                    }
+                });
+                const grandTotal = subtotal + sgst + cgst + igst;
+                document.getElementById('sie_subtotal').textContent = '₹' + subtotal.toFixed(2);
+                document.getElementById('sie_sgst_val').textContent = '₹' + sgst.toFixed(2);
+                document.getElementById('sie_cgst_val').textContent = '₹' + cgst.toFixed(2);
+                document.getElementById('sie_igst_val').textContent = '₹' + igst.toFixed(2);
+                document.getElementById('sie_grand_total').textContent = '₹' + grandTotal.toFixed(2);
+                document.getElementById('sie_sgst_row').classList.toggle('hidden', sgst === 0 && cgst === 0);
+                document.getElementById('sie_cgst_row').classList.toggle('hidden', sgst === 0 && cgst === 0);
+                document.getElementById('sie_igst_row').classList.toggle('hidden', igst === 0);
+            }
+
+            // Populate existing lines (convert UUIDs back to friendly names for dropdown matching)
+            if (existingLines.length) {
+                existingLines.forEach(ln => {
+                    const itemUuid = ln.Item || '';
+                    const itemName = _itemUuidToName[itemUuid] || itemUuid;
+                    const desc = ln.LineDescription || ln.lineDescription || '';
+                    const qty = ln.Qty || ln.qty || 1;
+                    const price = ln.SalesUnitPrice || ln.salesUnitPrice || 0;
+                    const tcUuid = ln.TaxCode || ln.taxCode || '';
+                    const tcName = _tcUuidToName[tcUuid] || tcUuid;
+                    _addLine(itemName, desc, qty, price, tcName);
+                });
+            } else {
+                _addLine();
+            }
+
+            document.getElementById('sieAddLine').addEventListener('click', () => _addLine());
+            _applyClientAutofill();
+
+            // ── Submit ──
+            document.getElementById('sieForm').addEventListener('submit', async e => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const raw = Object.fromEntries(fd);
+                const btn = document.getElementById('sieSubmitBtn');
+                const sp = document.getElementById('sieSpinner');
+                const resp = document.getElementById('sieResponse');
+                btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
+
+                try {
+                    const editClientCode = raw.code.trim().toUpperCase();
+                    const lines = [];
+                    document.querySelectorAll('#sieLineRows tr').forEach(tr => {
+                        const item = tr.querySelector('.sie-item')?.value || '';
+                        const desc = tr.querySelector('.sie-desc')?.value || '';
+                        const qty = parseFloat(tr.querySelector('.sie-qty')?.value || 1);
+                        const price = parseFloat(tr.querySelector('.sie-price')?.value || 0);
+                        const tc = tr.querySelector('.sie-tc')?.value || '';
+                        if (price > 0 || item) {
+                            lines.push({
+                                Item: item || undefined,
+                                LineDescription: desc || undefined,
+                                Qty: qty,
+                                SalesUnitPrice: price,
+                                TaxCode: tc || undefined,
+                            });
+                        }
+                    });
+                    if (!lines.length) throw new Error('Add at least one line item with a price.');
+
+                    const payload = {
+                        IssueDate: raw.inv_date,
+                        DueDateDays: parseInt(raw.due_days) || 20,
+                        Customer: editClientCode,
+                        Description: raw.narration || undefined,
+                        Lines: lines,
+                        TaxCodeEnabled: true,
+                        HasLineNumber: true,
+                        Rounding: true,
+                    };
+
+                    const url = `/api/manager/invoices/${raw.invoice_key}?code=${encodeURIComponent(editClientCode)}`;
+                    const result = await callApi(url, payload, 'PUT');
+                    const refNum = result.Reference || result.reference || 'updated';
+                    resp.className = 'mt-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded';
+                    resp.textContent = `✅ Invoice ${refNum} updated in Manager.io!`;
+                    resp.classList.remove('hidden');
+                    await load();
+                } catch (err) {
+                    resp.className = 'mt-2 text-sm bg-red-100 text-red-800 px-3 py-2 rounded';
+                    resp.textContent = '❌ ' + (err.message || 'Failed');
+                    resp.classList.remove('hidden');
+                } finally {
+                    btn.disabled = false; sp.classList.add('hidden');
+                }
+            });
+
+            VaultPage.showDetailPane();
+        } catch (err) {
+            view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = ''; }
+        }
+    }
+
+    function _escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     // ── Edit (void old → create new) ──────────────────────────────────────────
     function _openEditForm(entryId) {
         const entry = _allLedger.find(e => e.ENTRY_ID === entryId);
@@ -176,15 +532,15 @@ const VaultSalesInvoices = (() => {
                     <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-4">
                         ⚠️ Editing will void the current invoice and create a replacement.
                     </p>
-                    <form id="siEditForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <form id="sieForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                            <input name="code" id="siEditCode" required class="form-input text-sm uppercase" value="${entry.CODE || ''}" list="siEditCodeList" autocomplete="off">
-                            <datalist id="siEditCodeList"></datalist>
+                            <input name="code" id="sieCode" required class="form-input text-sm uppercase" value="${entry.CODE || ''}" list="sieCodeList" autocomplete="off">
+                            <datalist id="sieCodeList"></datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                            <input name="branch" id="siEditBranch" class="form-input text-sm uppercase" value="${entry.BRANCH || ''}" list="siEditBranchList">
+                            <input name="branch" id="sieBranch" class="form-input text-sm uppercase" value="${entry.BRANCH || ''}" list="siEditBranchList">
                             <datalist id="siEditBranchList"></datalist>
                         </div>
                         <div>
@@ -201,7 +557,7 @@ const VaultSalesInvoices = (() => {
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">POS (State Code)</label>
-                            <input name="pos" id="siEditPos" class="form-input text-sm" value="${entry.POS || ''}" maxlength="2">
+                            <input name="pos" id="siePos" class="form-input text-sm" value="${entry.POS || ''}" maxlength="2">
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-medium text-gray-600 mb-1">Narration</label>
@@ -210,18 +566,18 @@ const VaultSalesInvoices = (() => {
                         <div class="sm:col-span-2 flex justify-end pt-2 border-t gap-2">
                             <button type="button" onclick="VaultSalesInvoices._renderDetailById('${entry.ENTRY_ID}')" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                             <button type="submit" class="btn btn-sm flex items-center gap-2">
-                                <span id="siEditBtnText">Save Changes</span>
-                                <div id="siEditSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span id="sieBtnText">Save Changes</span>
+                                <div id="sieSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             </button>
                         </div>
                     </form>
-                    <div id="siEditResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
+                    <div id="sieResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
                 </div>
             </div>`;
 
         // Populate datalists
         getAppData().then(data => {
-            const dl = document.getElementById('siEditCodeList');
+            const dl = document.getElementById('sieCodeList');
             if (data?.B2B) Object.values(data.B2B).forEach(c => {
                 if (c.CODE) { const o = document.createElement('option'); o.value = c.CODE; o.label = `${c.CODE} - ${c.B2B_NAME || ''}`; dl.appendChild(o); }
             });
@@ -232,24 +588,24 @@ const VaultSalesInvoices = (() => {
         });
 
         // Auto-fill branch/POS on code change
-        document.getElementById('siEditCode').addEventListener('input', function() {
+        document.getElementById('sieCode').addEventListener('input', function() {
             const code = this.value.trim().toUpperCase();
             const b2b = _b2bMap.get(code);
             if (b2b) {
-                const bi = document.getElementById('siEditBranch');
+                const bi = document.getElementById('sieBranch');
                 if (b2b.BRANCH && !bi.value) bi.value = b2b.BRANCH;
-                const pi = document.getElementById('siEditPos');
+                const pi = document.getElementById('siePos');
                 if (b2b.CODE_STATE && !pi.value) pi.value = b2b.CODE_STATE;
             }
         });
 
-        document.getElementById('siEditForm').addEventListener('submit', async e => {
+        document.getElementById('sieForm').addEventListener('submit', async e => {
             e.preventDefault();
             const fd = new FormData(e.target);
             const data = Object.fromEntries(fd);
             const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('siEditSpinner');
-            const resp = document.getElementById('siEditResponse');
+            const sp = document.getElementById('sieSpinner');
+            const resp = document.getElementById('sieResponse');
             btn.disabled = true; sp.classList.remove('hidden');
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
 
@@ -349,10 +705,18 @@ const VaultSalesInvoices = (() => {
                                 <h1 class="text-xl font-bold text-indigo-900 tracking-tight">${res.SalesInvoiceCustomTitle || 'Tax Invoice'}</h1>
                                 <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${listEntry.branch || 'N/A'}</span></p>
                             </div>
-                            <div class="text-right">
-                                <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 uppercase">${listEntry.status || 'N/A'}</span>
-                                <p class="text-sm text-gray-500 mt-2">Invoice #: <span class="font-bold text-gray-800">${res.Reference || 'N/A'}</span></p>
-                                <p class="text-xs text-gray-400 mt-0.5">Date: ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</p>
+                            <div class="text-right flex flex-col items-end gap-1.5">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 uppercase">${listEntry.status || 'N/A'}</span>
+                                    <button onclick="VaultSalesInvoices._openEditPaneFromDetail('${listEntry.key}', '${listEntry.branch}', event)"
+                                        class="px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded hover:bg-amber-200 flex items-center gap-1 transition-colors">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg> Edit
+                                    </button>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-1">Invoice #: <span class="font-bold text-gray-800">${res.Reference || 'N/A'}</span></p>
+                                <p class="text-xs text-gray-400">Date: ${res.IssueDate ? res.IssueDate.split('T')[0] : 'N/A'}</p>
                             </div>
                         </div>
 
@@ -1027,7 +1391,7 @@ const VaultSalesInvoices = (() => {
         }
     }
 
-    return { load, search, openAddPane, _handleDelete, _openEditForm, _renderDetailById, _recalc, _printEntry };
+    return { load, search, openAddPane, _handleDelete, _openEditForm, _renderDetailById, _recalc, _printEntry, _openEditPaneFromDetail };
 })();
 
 window.VaultSalesInvoices = VaultSalesInvoices;

@@ -59,11 +59,33 @@ const VaultSummary = (() => {
     }
 
     function search(q) {
+        if (_activeView !== 'summary') {
+            const lq = q.toLowerCase();
+            _renderSummaryList(_allLEDGER.filter(e =>
+                (e.CODE || '').toLowerCase().includes(lq) ||
+                (e.CLIENT_NAME || '').toLowerCase().includes(lq)
+            ));
+            return;
+        }
+        // Filter financial categories
         const lq = q.toLowerCase();
-        _renderSummaryList(_allLEDGER.filter(e =>
-            (e.CODE || '').toLowerCase().includes(lq) ||
-            (e.CLIENT_NAME || '').toLowerCase().includes(lq)
-        ));
+        document.querySelectorAll('.financial-cat').forEach(li => {
+            const label = li.textContent.toLowerCase();
+            li.style.display = label.includes(lq) ? '' : 'none';
+        });
+        // Show/hide section headers based on whether any sibling category is visible
+        document.querySelectorAll('.section-header').forEach(header => {
+            let hasVisible = false;
+            let el = header.nextElementSibling;
+            while (el && !el.classList.contains('section-header')) {
+                if (el.classList.contains('financial-cat') && el.style.display !== 'none') {
+                    hasVisible = true;
+                    break;
+                }
+                el = el.nextElementSibling;
+            }
+            header.style.display = hasVisible ? '' : 'none';
+        });
     }
 
     // ── Statement View ────────────────────────────────────────────────────────
@@ -195,115 +217,279 @@ const VaultSummary = (() => {
         };
     }
 
-    // ── TILE: Summary Dashboard ──────────────────────────────────────────────
+    // ── TILE: Financial Summary Dashboard ────────────────────────────────────
+    // Shows combined Balance Sheet + Profit & Loss with drill-down by category
+    
+    // Category definitions for sidebar
+    const _FINANCIAL_CATEGORIES = [
+        { id: 'all',        icon: '📊', label: 'All',       section: 'Overview' },
+        { id: 'assets',     icon: '🏛️', label: 'Assets',    section: 'Balance Sheet' },
+        { id: 'liabilities',icon: '📋', label: 'Liabilities',section: 'Balance Sheet' },
+        { id: 'equity',     icon: '💰', label: 'Equity',    section: 'Balance Sheet' },
+        { id: 'income',     icon: '📈', label: 'Income',    section: 'Profit & Loss' },
+        { id: 'expenses',   icon: '💸', label: 'Expenses',  section: 'Profit & Loss' },
+    ];
+
+    function _renderFinancialCategories() {
+        const ul = document.getElementById('vaultList');
+        if (!ul) return;
+        let sections = {};
+        _FINANCIAL_CATEGORIES.forEach(cat => {
+            if (!sections[cat.section]) sections[cat.section] = [];
+            sections[cat.section].push(cat);
+        });
+        ul.innerHTML = Object.entries(sections).map(([section, cats]) => `
+            <li class="section-header text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">${section}</li>
+            ${cats.map(c => `<li data-category="${c.id}" class="financial-cat px-3 py-2.5 rounded-lg cursor-pointer hover:bg-blue-50 transition-all flex items-center gap-3 border border-transparent hover:border-blue-200 mb-0.5 text-sm font-medium text-gray-700">
+                <span class="text-lg">${c.icon}</span>
+                <span>${c.label}</span>
+            </li>`).join('')}
+        `).join('');
+        ul.querySelectorAll('.financial-cat').forEach(li =>
+            li.addEventListener('click', () => {
+                ul.querySelectorAll('.financial-cat').forEach(x => {
+                    x.classList.remove('selected', 'bg-blue-100', 'border-blue-300', 'text-blue-700');
+                    x.classList.add('border-transparent');
+                });
+                li.classList.add('selected', 'bg-blue-100', 'border-blue-300', 'text-blue-700');
+                li.classList.remove('border-transparent');
+                _showFinancialCategory(li.dataset.category);
+            })
+        );
+    }
+
+    async function _showFinancialCategory(categoryId) {
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+        
+        if (categoryId === 'all') {
+            await showDashboard();
+            return;
+        }
+        
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">Loading…</div>';
+        try {
+            if (categoryId === 'assets' || categoryId === 'liabilities' || categoryId === 'equity') {
+                const res = await callApi('/api/ledger/balance-sheet', {}, 'GET');
+                _renderCategoryDetail(categoryId, res);
+            } else {
+                const res = await callApi('/api/ledger/profit-loss', {}, 'GET');
+                _renderCategoryDetail(categoryId, res);
+            }
+        } catch (err) {
+            view.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load'}</div>`;
+        }
+        VaultPage.showDetailPane();
+    }
+
+    function _renderCategoryDetail(categoryId, data) {
+        const view = document.getElementById('vaultDetailView');
+        const catConfig = _FINANCIAL_CATEGORIES.find(c => c.id === categoryId);
+        
+        // Determine which accounts to show
+        let accounts = [], total = 0, colorClass = '', icon = '';
+        
+        if (categoryId === 'assets') {
+            accounts = data.assets || [];
+            total = data.total_assets || 0;
+            colorClass = 'text-blue-700 bg-blue-50 border-blue-200';
+            icon = '🏛️';
+        } else if (categoryId === 'liabilities') {
+            accounts = data.liabilities || [];
+            total = data.total_liabilities || 0;
+            colorClass = 'text-orange-700 bg-orange-50 border-orange-200';
+            icon = '📋';
+        } else if (categoryId === 'equity') {
+            accounts = data.equity || [];
+            total = data.total_equity || 0;
+            colorClass = 'text-purple-700 bg-purple-50 border-purple-200';
+            icon = '💰';
+        } else if (categoryId === 'income') {
+            accounts = data.income_lines || [];
+            total = data.income_total || 0;
+            colorClass = 'text-green-700 bg-green-50 border-green-200';
+            icon = '📈';
+        } else if (categoryId === 'expenses') {
+            accounts = data.expense_lines || [];
+            total = data.expense_total || 0;
+            colorClass = 'text-red-700 bg-red-50 border-red-200';
+            icon = '💸';
+        }
+        
+        const cat = catConfig || {};
+        view.innerHTML = `
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-3xl">${icon}</span>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">${cat.label || categoryId}</h2>
+                    <p class="text-sm text-gray-500">${categoryId === 'income' || categoryId === 'expenses' ? 'Profit & Loss' : 'Balance Sheet'}</p>
+                </div>
+            </div>
+            
+            <!-- Total Card -->
+            <div class="rounded-xl border-2 p-5 mb-5 ${colorClass}">
+                <div class="text-xs font-semibold uppercase tracking-wide">Total ${cat.label || ''}</div>
+                <div class="text-3xl font-bold mt-1">₹${(+total).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                <div class="text-xs mt-1 opacity-75">${accounts.length} account${accounts.length !== 1 ? 's' : ''}</div>
+            </div>
+            
+            <!-- Account Breakdown -->
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <h3 class="font-semibold text-gray-700">Account Breakdown</h3>
+                </div>
+                <div class="detail-card-body p-0">
+                    ${accounts.length ? `<div class="divide-y divide-gray-100">
+                        ${accounts.map(a => {
+                            const amt = +(a.amount !== undefined ? a.amount : a.balance) || 0;
+                            const pct = total > 0 ? (amt / total * 100) : 0;
+                            return `<div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    ${a.code ? `<span class="text-xs font-mono text-gray-400 w-16 flex-shrink-0">${a.code}</span>` : ''}
+                                    <span class="text-sm font-medium text-gray-800 truncate">${a.name || a.code || 'Unnamed'}</span>
+                                </div>
+                                <div class="text-right flex-shrink-0">
+                                    <span class="text-sm font-semibold text-gray-800">₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                    <div class="w-24 h-1.5 bg-gray-100 rounded-full mt-1 ml-auto overflow-hidden">
+                                        <div class="h-full rounded-full ${categoryId === 'assets' ? 'bg-blue-500' : categoryId === 'liabilities' ? 'bg-orange-500' : categoryId === 'equity' ? 'bg-purple-500' : categoryId === 'income' ? 'bg-green-500' : 'bg-red-500'}" style="width:${Math.min(pct, 100)}%"></div>
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>` : '<p class="text-gray-400 text-sm text-center py-8">No accounts found in this category.</p>'}
+                </div>
+            </div>`;
+        VaultPage.showDetailPane();
+    }
+
     async function showDashboard() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">Loading summary…</div>';
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">Loading financial summary…</div>';
 
         try {
-            const [outRes, inRes, cashRes, agingRes] = await Promise.all([
-                callApi('/api/ledger/summary', {}, 'GET').catch(() => ({ data: [] })),
-                callApi('/api/ledger/inward/summary', {}, 'GET').catch(() => ({ data: [] })),
-                callApi('/api/ledger/cash', {}, 'GET').catch(() => ({ data: [] })),
-                callApi('/api/ledger/aging', {}, 'GET').catch(() => ({ buckets: {}, total_outstanding: 0 })),
+            const [bsRes, plRes] = await Promise.all([
+                callApi('/api/ledger/balance-sheet', {}, 'GET').catch(() => null),
+                callApi('/api/ledger/profit-loss', {}, 'GET').catch(() => null),
             ]);
 
-            const outData = outRes.data || [];
-            const inData = inRes.data || [];
-            const cashData = cashRes.data || [];
-            const aging = agingRes.buckets || {};
-            const agingKeys = ['0-30', '31-60', '61-90', '91+'];
-
-            const totalOutstanding = outData.reduce((s, d) => s + (+d.balance || 0), 0);
-            const totalInward = inData.reduce((s, d) => s + (+d.balance || 0), 0);
-            const totalCash = cashData.reduce((s, d) => s + Math.max(0, +d.balance || 0), 0);
-            const topDebtors = [...outData].sort((a, b) => (+b.balance || 0) - (+a.balance || 0)).slice(0, 5);
-            const agingTotal = agingKeys.reduce((s, k) => s + (aging[k]?.total || 0), 0);
+            const bs = bsRes || { total_assets: 0, total_liabilities: 0, total_equity: 0, assets: [], liabilities: [], equity: [] };
+            const pl = plRes || { income_total: 0, expense_total: 0, net_profit: 0, income_lines: [], expense_lines: [] };
 
             view.innerHTML = `
-                <!-- KPI Cards -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                        <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Outstanding</div>
-                        <div class="text-xl font-bold text-red-600 mt-1">₹${totalOutstanding.toFixed(2)}</div>
-                        <div class="text-xs text-gray-400 mt-1">${outData.length} clients</div>
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="text-3xl">📊</span>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Financial Summary</h2>
+                        <p class="text-sm text-gray-500">Balance Sheet &amp; Profit &amp; Loss</p>
                     </div>
-                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                        <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Vendor Dues</div>
-                        <div class="text-xl font-bold text-orange-600 mt-1">₹${totalInward.toFixed(2)}</div>
-                        <div class="text-xs text-gray-400 mt-1">${inData.length} vendors</div>
-                    </div>
-                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                        <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Cash in Hand</div>
-                        <div class="text-xl font-bold text-green-600 mt-1">₹${totalCash.toFixed(2)}</div>
-                        <div class="text-xs text-gray-400 mt-1">${cashData.length} holders</div>
-                    </div>
-                    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                        <div class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Overdue Total</div>
-                        <div class="text-xl font-bold text-purple-600 mt-1">₹${agingTotal.toFixed(2)}</div>
-                        <div class="text-xs text-gray-400 mt-1">Aging report</div>
-                    </div>
+                    <span class="ml-auto text-xs text-gray-400">As of today</span>
                 </div>
 
-                <!-- Aging Summary -->
-                <div class="detail-card mb-4">
-                    <div class="detail-card-header">
-                        <div class="flex justify-between items-center">
-                            <h3 class="font-semibold text-gray-700">📅 Aging Summary</h3>
-                            <span class="text-xs text-gray-500">Total overdue: ₹${agingTotal.toFixed(2)}</span>
-                        </div>
+                <!-- ════════════ BALANCE SHEET ════════════ -->
+                <div class="detail-card mb-5">
+                    <div class="detail-card-header bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <h3 class="font-bold text-gray-800 text-base">📋 Balance Sheet</h3>
                     </div>
                     <div class="detail-card-body">
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            ${agingKeys.map(k => {
-                                const bucket = aging[k] || { total: 0, count: 0 };
-                                const colors = { '0-30': 'bg-green-50 border-green-200 text-green-700', '31-60': 'bg-yellow-50 border-yellow-200 text-yellow-700', '61-90': 'bg-orange-50 border-orange-200 text-orange-700', '91+': 'bg-red-50 border-red-200 text-red-700' };
-                                return `<div class="rounded-lg border p-3 ${colors[k] || ''}">
-                                    <div class="text-xs font-semibold uppercase">${k} days</div>
-                                    <div class="text-lg font-bold mt-1">₹${bucket.total.toFixed(2)}</div>
-                                    <div class="text-xs opacity-75">${bucket.count} codes</div>
-                                </div>`;
-                            }).join('')}
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-4 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="document.querySelector('[data-category=assets]')?.click()">
+                                <div class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Assets</div>
+                                <div class="text-2xl font-bold text-blue-700 mt-1">₹${(+bs.total_assets).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                                <div class="text-xs text-blue-500 mt-1">${(bs.assets || []).length} accounts</div>
+                            </div>
+                            <div class="rounded-xl border-2 border-orange-200 bg-orange-50/50 p-4 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="document.querySelector('[data-category=liabilities]')?.click()">
+                                <div class="text-xs font-semibold text-orange-700 uppercase tracking-wide">Liabilities</div>
+                                <div class="text-2xl font-bold text-orange-700 mt-1">₹${(+bs.total_liabilities).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                                <div class="text-xs text-orange-500 mt-1">${(bs.liabilities || []).length} accounts</div>
+                            </div>
+                            <div class="rounded-xl border-2 border-purple-200 bg-purple-50/50 p-4 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="document.querySelector('[data-category=equity]')?.click()">
+                                <div class="text-xs font-semibold text-purple-700 uppercase tracking-wide">Equity</div>
+                                <div class="text-2xl font-bold text-purple-700 mt-1">₹${(+bs.total_equity).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                                <div class="text-xs text-purple-500 mt-1">${(bs.equity || []).length} accounts</div>
+                            </div>
+                        </div>
+
+                        <!-- BS Account Lines -->
+                        ${['assets', 'liabilities', 'equity'].map(type => {
+                            const items = bs[type] || [];
+                            if (!items.length) return '';
+                            const colors = { assets: 'text-blue-700', liabilities: 'text-orange-700', equity: 'text-purple-700' };
+                            const labels = { assets: 'Assets', liabilities: 'Liabilities', equity: 'Equity' };
+                            return `<div class="mb-3 last:mb-0">
+                                <h4 class="text-xs font-bold uppercase ${colors[type]} mb-1.5 px-1">${labels[type]}</h4>
+                                <div class="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+                                    ${items.map(a => {
+                                        const amt = +(a.amount !== undefined ? a.amount : a.balance) || 0;
+                                        return `<div class="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors">
+                                            <span class="text-sm text-gray-700">${a.name || a.code || 'Unnamed'}</span>
+                                            <span class="text-sm font-semibold text-gray-800">₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>`;
+                                    }).join('')}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                        
+                        <div class="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center px-1">
+                            <span class="text-xs text-gray-500">Assets = Liabilities + Equity</span>
+                            <span class="text-sm font-bold text-gray-800">₹${(+bs.total_assets).toLocaleString('en-IN', {minimumFractionDigits: 2})} = ₹${((+bs.total_liabilities || 0) + (+bs.total_equity || 0)).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Top Debtors -->
-                <div class="detail-card mb-4">
-                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Top Outstanding Clients</h3></div>
-                    <div class="detail-card-body overflow-x-auto">
-                        ${topDebtors.length ? `<table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-xs uppercase text-gray-500"><tr>
-                                <th class="px-3 py-2">Client</th><th class="px-3 py-2">Name</th><th class="px-3 py-2 text-right">Outstanding</th>
-                            </tr></thead>
-                            <tbody>${topDebtors.map(d => `<tr class="border-b cursor-pointer hover:bg-gray-50" onclick="VaultSummary._showStatement('${d.code}')">
-                                <td class="px-3 py-2 font-medium">${d.code}</td>
-                                <td class="px-3 py-2 text-gray-600">${d.client_name || ''}</td>
-                                <td class="px-3 py-2 text-right font-semibold text-red-600">₹${(+d.balance).toFixed(2)}</td>
-                            </tr>`).join('')}</tbody>
-                        </table>` : '<p class="text-gray-400 text-sm">No data</p>'}
+                <!-- ════════════ PROFIT & LOSS ════════════ -->
+                <div class="detail-card mb-5">
+                    <div class="detail-card-header bg-gradient-to-r from-green-50 to-emerald-50">
+                        <h3 class="font-bold text-gray-800 text-base">📈 Profit &amp; Loss Statement</h3>
                     </div>
-                </div>
+                    <div class="detail-card-body">
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="rounded-xl border-2 border-green-200 bg-green-50/50 p-4 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="document.querySelector('[data-category=income]')?.click()">
+                                <div class="text-xs font-semibold text-green-700 uppercase tracking-wide">Income</div>
+                                <div class="text-2xl font-bold text-green-700 mt-1">₹${(+pl.income_total).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                                <div class="text-xs text-green-500 mt-1">${(pl.income_lines || []).length} accounts</div>
+                            </div>
+                            <div class="rounded-xl border-2 border-red-200 bg-red-50/50 p-4 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="document.querySelector('[data-category=expenses]')?.click()">
+                                <div class="text-xs font-semibold text-red-700 uppercase tracking-wide">Expenses</div>
+                                <div class="text-2xl font-bold text-red-700 mt-1">₹${(+pl.expense_total).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                                <div class="text-xs text-red-500 mt-1">${(pl.expense_lines || []).length} accounts</div>
+                            </div>
+                            <div class="rounded-xl border-2 ${(+pl.net_profit || 0) >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'} p-4 text-center">
+                                <div class="text-xs font-semibold ${(+pl.net_profit || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'} uppercase tracking-wide">Net ${(+pl.net_profit || 0) >= 0 ? 'Profit' : 'Loss'}</div>
+                                <div class="text-2xl font-bold ${(+pl.net_profit || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'} mt-1">₹${Math.abs(+pl.net_profit || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                                <div class="text-xs ${(+pl.net_profit || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'} mt-1">${(+pl.net_profit || 0) >= 0 ? 'Profit' : 'Loss'}</div>
+                            </div>
+                        </div>
 
-                <!-- Cash Holders -->
-                <div class="detail-card">
-                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Cash Holders</h3></div>
-                    <div class="detail-card-body overflow-x-auto">
-                        ${cashData.length ? `<table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-xs uppercase text-gray-500"><tr>
-                                <th class="px-3 py-2">Holder</th><th class="px-3 py-2 text-right">Balance</th>
-                            </tr></thead>
-                            <tbody>${cashData.map(d => `<tr class="border-b">
-                                <td class="px-3 py-2">${d.holder}</td>
-                                <td class="px-3 py-2 text-right font-semibold ${d.balance >= 0 ? 'text-green-700' : 'text-red-700'}">₹${(+d.balance).toFixed(2)}</td>
-                            </tr>`).join('')}</tbody>
-                        </table>` : '<p class="text-gray-400 text-sm">No cash data</p>'}
+                        <!-- P&L Account Lines -->
+                        ${['income', 'expenses'].map(type => {
+                            const items = type === 'income' ? (pl.income_lines || []) : (pl.expense_lines || []);
+                            if (!items.length) return '';
+                            const colors = { income: 'text-green-700', expenses: 'text-red-700' };
+                            const labels = { income: 'Income', expenses: 'Expenses' };
+                            return `<div class="mb-3 last:mb-0">
+                                <h4 class="text-xs font-bold uppercase ${colors[type]} mb-1.5 px-1">${labels[type]}</h4>
+                                <div class="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+                                    ${items.map(a => {
+                                        const amt = +(a.amount !== undefined ? a.amount : a.balance) || 0;
+                                        return `<div class="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors">
+                                            <span class="text-sm text-gray-700">${a.name || a.code || 'Unnamed'}</span>
+                                            <span class="text-sm font-semibold text-gray-800">₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>`;
+                                    }).join('')}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                        
+                        <div class="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center px-1">
+                            <span class="text-xs text-gray-500">Net ${(+pl.net_profit || 0) >= 0 ? 'Profit' : 'Loss'}</span>
+                            <span class="text-sm font-bold ${(+pl.net_profit || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}">₹${Math.abs(+pl.net_profit || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        </div>
                     </div>
                 </div>`;
             VaultPage.showDetailPane();
         } catch (err) {
-            view.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load summary'}</div>`;
+            view.innerHTML = `<div class="text-center text-red-500 py-8">❌ ${err.message || 'Failed to load financial summary'}</div>`;
             VaultPage.showDetailPane();
         }
     }
@@ -793,17 +979,23 @@ const VaultSummary = (() => {
     }
 
     // ── Load ──────────────────────────────────────────────────────────────────
+    // ── Load ──────────────────────────────────────────────────────────────────
     async function load() {
-        _injectListPane();
+        _injectListPane('Filter categories…');
         const data = await getAppData();
         if (data?.LEDGER) {
             _allLEDGER = Object.values(data.LEDGER);
             _allB2B = data.B2B ? Object.values(data.B2B) : [];
         }
         if (_activeView === 'summary') {
-            _renderSummaryList(_allLEDGER);
-            showDashboard();
-        } else if (_activeView === 'reports') {
+            _renderFinancialCategories();
+            await showDashboard();
+            // Auto-select 'All' category after dashboard loads
+            const allCat = document.querySelector('[data-category=all]');
+            if (allCat) {
+                allCat.classList.add('selected', 'bg-blue-100', 'border-blue-300', 'text-blue-700');
+                allCat.classList.remove('border-transparent');
+            }
             showReports();
         } else if (_activeView === 'bank-recon') {
             _showBankRecon();
