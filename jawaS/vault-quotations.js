@@ -132,12 +132,15 @@ const VaultQuotations = (() => {
         VaultPage.showDetail(true);
         view.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">Loading…</p>';
         VaultPage.showDetailPane();
+        window.setLoading?.(true, 'Fetching quotation...', 'detail');
         try {
             const code = _getCode();
             const data = await callApi(`/api/manager/quotes/${key}?code=${encodeURIComponent(code)}`, {}, 'GET');
             _renderDetail(key, data);
         } catch (err) {
             view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-500">Failed to load: ${err.message || err}</div></div>`;
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -247,6 +250,7 @@ const VaultQuotations = (() => {
 
     async function _handleDelete(key) {
         if (!confirm('Delete this quotation from Manager.io? This cannot be undone.')) return;
+        window.setLoading?.(true, 'Deleting quotation...', 'detail');
         try {
             const code = _getCode();
             await callApi(`/api/manager/quotes/${key}?code=${encodeURIComponent(code)}`, null, 'DELETE');
@@ -257,7 +261,11 @@ const VaultQuotations = (() => {
                     <div class="text-4xl mb-3">🗑️</div>
                     <p class="text-gray-500 text-sm">Quotation deleted.</p>
                 </div></div>`;
-        } catch (err) { alert('Failed: ' + (err.message || err)); }
+        } catch (err) {
+            alert('Failed: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
     }
 
     const _b2bMap = new Map();
@@ -374,12 +382,15 @@ const VaultQuotations = (() => {
 
     async function _handleEdit(key) {
         // Fetch the full quote data first, then open the form pre-filled
+        window.setLoading?.(true, 'Loading quotation for edit...', 'detail');
         try {
             const code = _getCode();
             const data = await callApi(`/api/manager/quotes/${key}?code=${encodeURIComponent(code)}`, {}, 'GET');
             await _openEditPane(key, data);
         } catch (err) {
             alert('Failed to load quote for editing: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -661,6 +672,7 @@ const VaultQuotations = (() => {
             const sp = document.getElementById('quotEditSpinner');
             const resp = document.getElementById('quotEditResponse');
             btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
+            window.setLoading?.(true, 'Updating quotation...', 'detail');
 
             try {
                 const clientCode = raw.code.trim().toUpperCase();
@@ -703,6 +715,7 @@ const VaultQuotations = (() => {
                 resp.textContent = '❌ ' + (err.message || 'Failed');
                 resp.classList.remove('hidden');
             } finally {
+                window.setLoading?.(false);
                 btn.disabled = false; sp.classList.add('hidden');
             }
         });
@@ -713,12 +726,15 @@ const VaultQuotations = (() => {
     // ── Print ─────────────────────────────────────────────────────────────────
 
     async function _handlePrint(key) {
+        window.setLoading?.(true, 'Preparing print...', 'detail');
         try {
             const code = _getCode();
             const data = await callApi(`/api/manager/quotes/${key}?code=${encodeURIComponent(code)}`, {}, 'GET');
             _printQuote(data);
         } catch (err) {
             alert('Failed to load quote for printing: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -789,6 +805,7 @@ const VaultQuotations = (() => {
 
     async function _handleConvertToInvoice(quoteKey, evt) {
         if (!confirm('Convert this quotation to a Sales Invoice? A new invoice will be created in Manager.io.')) return;
+        window.setLoading?.(true, 'Converting to invoice...', 'detail');
         try {
             const code = _getCode();
             const btn = evt?.target?.closest('button');
@@ -808,6 +825,8 @@ const VaultQuotations = (() => {
             }
         } catch (err) {
             alert('❌ Conversion failed: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -1116,6 +1135,7 @@ const VaultQuotations = (() => {
             const sp  = document.getElementById('quotSpinner');
             const resp = document.getElementById('quotResponse');
             btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
+            window.setLoading?.(true, 'Saving quotation...', 'detail');
 
             try {
                 const clientCode = raw.code.trim().toUpperCase();
@@ -1161,6 +1181,7 @@ const VaultQuotations = (() => {
                 resp.textContent = '❌ ' + (err.message || 'Failed');
                 resp.classList.remove('hidden');
             } finally {
+                window.setLoading?.(false);
                 btn.disabled = false; sp.classList.add('hidden');
             }
         });
@@ -1192,6 +1213,7 @@ const VaultQuotations = (() => {
             }
         }
 
+        window.setLoading?.(true, 'Loading quotations...', 'list');
         try {
             // Resolve client code for selected branch
             const activeBranch = VaultPage.getActiveBranch();
@@ -1217,6 +1239,8 @@ const VaultQuotations = (() => {
             _renderList(_getFilteredQuotes());
         } catch (err) {
             document.getElementById('vaultListMsg').textContent = 'Failed to load: ' + (err.message || err);
+        } finally {
+            window.setLoading?.(false);
         }
     }
 

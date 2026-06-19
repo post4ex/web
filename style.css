@@ -4394,9 +4394,12 @@ html.needs-sync::after {
     border-top-color: #9C2007;
     border-radius: 50%;
     z-index: 99999;
-    animation: spin 1s linear infinite;
+    animation: sync-spin 1s linear infinite;
 }
-@keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes sync-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
 
 /* ==========================================================================
    PAGE TRANSITIONS (Smooth Navigation)

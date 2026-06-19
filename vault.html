@@ -48,15 +48,17 @@
     <main class="flex-grow flex flex-col">
 
         <!-- Vault Header Selector Bar -->
-        <div id="vaultBranchSelectorBar" class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between hidden">
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Branch:</span>
-                <select id="vaultBranchSelect" class="form-input text-xs py-1" style="width: auto; min-width: 150px; padding: 0.25rem 0.5rem;">
-                    <option value="">— Select Branch —</option>
-                </select>
-            </div>
-            <div id="vaultBranchStatus" class="text-xs text-amber-600 font-medium">
-                ⚠️ Select a branch to view accounting records.
+        <div id="vaultBranchSelectorBar" class="bg-white border-b border-gray-200 px-3 md:px-6 py-2 md:py-3 hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Branch:</span>
+                    <select id="vaultBranchSelect" class="form-input text-xs py-1 flex-1 min-w-0" style="padding: 0.25rem 0.5rem;">
+                        <option value="">— Select Branch —</option>
+                    </select>
+                </div>
+                <div id="vaultBranchStatus" class="text-xs text-amber-600 font-medium leading-tight sm:whitespace-nowrap">
+                    ⚠️ Select a branch to view accounting records.
+                </div>
             </div>
         </div>
 
@@ -160,16 +162,21 @@
                     </div>
                     <input id="vaultSearch" type="text" placeholder="Search…" class="form-input text-sm">
                 </div>
-                <div id="vaultListContainer" class="sv-pane-body">
+                <div id="vaultListContainer" class="sv-pane-body" style="position:relative;">
                     <p id="vaultListMsg" class="text-gray-400 text-sm text-center py-8">Loading…</p>
                     <ul id="vaultList">
                         <!-- List items rendered by JS -->
                     </ul>
+                    <!-- List pane inline loading overlay -->
+                    <div id="list-loading-overlay" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.9);flex-direction:column;align-items:center;justify-content:center;z-index:20;">
+                        <div style="width:32px;height:32px;border-radius:50%;background:conic-gradient(from 0deg,#9C2007,#9C2007 25%,rgba(156,32,7,0.2) 25%,rgba(156,32,7,0.2) 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));animation:spin 1s linear infinite;margin-bottom:8px;flex-shrink:0;"></div>
+                        <span class="loading-text text-blue-900 text-xs font-bold tracking-wide">Processing...</span>
+                    </div>
                 </div>
             </aside>
 
             <!-- Right Pane: Details -->
-            <main id="vaultDetailPane" class="p-6 md:p-8" style="display:none;">
+            <main id="vaultDetailPane" class="p-6 md:p-8" style="display:none;position:relative;">
                 <!-- Back button (mobile only) -->
                 <div class="p-4 border-b md:hidden bg-white -mt-6 -mx-6 mb-6 shadow-sm">
                     <button id="backToListBtn" class="btn-danger btn-sm flex items-center gap-2">
@@ -185,10 +192,34 @@
                 <div id="vaultDetailView" class="hidden space-y-6">
                     <!-- Cards rendered by module JS -->
                 </div>
+                <!-- Detail pane inline loading overlay -->
+                <div id="detail-loading-overlay" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.9);flex-direction:column;align-items:center;justify-content:center;z-index:20;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:conic-gradient(from 0deg,#9C2007,#9C2007 25%,rgba(156,32,7,0.2) 25%,rgba(156,32,7,0.2) 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#fff calc(100% - 4px));animation:spin 1s linear infinite;margin-bottom:8px;flex-shrink:0;"></div>
+                    <span class="loading-text text-blue-900 text-xs font-bold tracking-wide">Processing...</span>
+                </div>
             </main>
         </div>
 
     </main>
+
+    <script>
+    // Per-pane loading overlay — target 'list' | 'detail' | 'full'
+    window.setLoading = function(state, text, section) {
+        const ids = section === 'list' ? ['list-loading-overlay']
+            : section === 'detail' ? ['detail-loading-overlay']
+            : ['list-loading-overlay', 'detail-loading-overlay'];
+
+        ids.forEach(id => {
+            const overlay = document.getElementById(id);
+            if (!overlay) return;
+            overlay.style.display = state ? 'flex' : 'none';
+            if (state) {
+                const txtEl = overlay.querySelector('.loading-text');
+                if (txtEl) txtEl.textContent = text || 'Processing...';
+            }
+        });
+    };
+    </script>
 
     <!-- Footer placeholder -->
     <div id="footer-placeholder" class="mt-auto" style="min-height:36px"><div class="animate-pulse bg-gray-200 h-10 w-full"></div></div>

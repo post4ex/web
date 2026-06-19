@@ -140,6 +140,7 @@ const VaultSalesInvoices = (() => {
             return;
         }
         if (!confirm('Delete this invoice from Manager.io permanently?\n\nThis action cannot be undone.')) return;
+        window.setLoading?.(true, 'Deleting invoice...', 'detail');
         try {
             // Resolve client code from branch
             const appData = await getAppData();
@@ -160,6 +161,8 @@ const VaultSalesInvoices = (() => {
             await load();
         } catch (err) {
             alert('Failed to delete invoice: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -176,6 +179,7 @@ const VaultSalesInvoices = (() => {
 
     async function _printEntry(invoiceKey, branchCode) {
         if (!invoiceKey || !branchCode) return;
+        window.setLoading?.(true, 'Preparing print...', 'detail');
         try {
             const [res, appData] = await Promise.all([
                 callApi(`/api/manager/invoice-details/${branchCode}/${invoiceKey}`, {}, 'GET'),
@@ -367,6 +371,8 @@ const VaultSalesInvoices = (() => {
             };
         } catch (err) {
             alert('Failed to print: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -689,6 +695,7 @@ const VaultSalesInvoices = (() => {
                 const sp = document.getElementById('sieSpinner');
                 const resp = document.getElementById('sieResponse');
                 btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
+                window.setLoading?.(true, 'Updating invoice...', 'detail');
 
                 try {
                     const editClientCode = raw.code.trim().toUpperCase();
@@ -734,6 +741,7 @@ const VaultSalesInvoices = (() => {
                     resp.textContent = '❌ ' + (err.message || 'Failed');
                     resp.classList.remove('hidden');
                 } finally {
+                    window.setLoading?.(false);
                     btn.disabled = false; sp.classList.add('hidden');
                 }
             });
@@ -783,9 +791,10 @@ const VaultSalesInvoices = (() => {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         view.innerHTML = `<div class="detail-card-body text-center py-8">
-            <div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
             <p class="text-gray-500 text-sm">Fetching invoice details from Manager.io...</p>
         </div>`;
+        VaultPage.showDetailPane();
+        window.setLoading?.(true, 'Fetching invoice details...', 'detail');
         
         try {
             const res = await callApi(`/api/manager/invoice-details/${listEntry.branch}/${listEntry.key}`, {}, 'GET');
@@ -952,8 +961,9 @@ const VaultSalesInvoices = (() => {
                 <div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600">
                     <p class="text-sm">Failed to retrieve details: ${err.message || err}</p>
                 </div></div>`;
+        } finally {
+            window.setLoading?.(false);
         }
-        VaultPage.showDetailPane();
     }
 
     // ── Parse breakdown from NARRATION ────────────────────────────────────────
@@ -1321,6 +1331,7 @@ const VaultSalesInvoices = (() => {
             const sp  = document.getElementById('siSpinner');
             const resp = document.getElementById('siResponse');
             btn.disabled = true; sp.classList.remove('hidden'); resp.className = 'hidden text-sm';
+            window.setLoading?.(true, 'Creating invoice...', 'detail');
 
             try {
                 const clientCode = raw.code.trim().toUpperCase();
@@ -1369,6 +1380,7 @@ const VaultSalesInvoices = (() => {
                 resp.textContent = '❌ ' + (err.message || 'Failed');
                 resp.classList.remove('hidden');
             } finally {
+                window.setLoading?.(false);
                 btn.disabled = false; sp.classList.add('hidden');
             }
         });
@@ -1520,7 +1532,7 @@ const VaultSalesInvoices = (() => {
             }
         }
 
-        document.getElementById('vaultListMsg').textContent = 'Loading invoices from Manager.io...';
+        window.setLoading?.(true, 'Loading invoices...', 'list');
         try {
             const branch = VaultPage.getActiveBranch();
             const url = `/api/manager/all-sales-invoices?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`;
@@ -1534,6 +1546,8 @@ const VaultSalesInvoices = (() => {
             }
         } catch (err) {
             document.getElementById('vaultListMsg').textContent = 'Error: ' + (err.message || err);
+        } finally {
+            window.setLoading?.(false);
         }
     }
 

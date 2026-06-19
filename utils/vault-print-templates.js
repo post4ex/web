@@ -73,6 +73,145 @@ const VaultPrint = (() => {
         w.document.close();
     }
 
+    // ── Global Generic Print Engine ──────────────────────────────────────────
+    function printDocument(config) {
+        if (!config) return;
+
+        // Title and Meta header
+        const metaHtml = Object.entries(config.meta || {})
+            .map(([k, v]) => `<div><strong>${_esc(k)}:</strong> ${_esc(v)}</div>`)
+            .join('');
+
+        const headerHtml = `
+            <div class="hdr">
+                <div class="hdr-l">${_esc(config.title || 'DOCUMENT')}</div>
+                <div class="hdr-r">
+                    ${metaHtml}
+                </div>
+            </div>`;
+
+        // Info boxes
+        let infoRowHtml = '';
+        if (config.leftBox || config.rightBox) {
+            infoRowHtml += '<div class="info-row">';
+            if (config.leftBox) {
+                const linesHtml = (config.leftBox.lines || [])
+                    .map(line => {
+                        if (line.includes(':')) {
+                            const pivot = line.indexOf(':');
+                            const label = line.substring(0, pivot);
+                            const val = line.substring(pivot + 1);
+                            return `<p><span class="lbl">${_esc(label)}:</span>${_esc(val)}</p>`;
+                        }
+                        return `<p><strong>${_esc(line)}</strong></p>`;
+                    })
+                    .join('');
+                infoRowHtml += `
+                    <div class="info-box">
+                        <h3>${_esc(config.leftBox.title || '')}</h3>
+                        ${linesHtml}
+                    </div>`;
+            }
+            if (config.rightBox) {
+                const linesHtml = (config.rightBox.lines || [])
+                    .map(line => {
+                        if (line.includes(':')) {
+                            const pivot = line.indexOf(':');
+                            const label = line.substring(0, pivot);
+                            const val = line.substring(pivot + 1);
+                            return `<p><span class="lbl">${_esc(label)}:</span>${_esc(val)}</p>`;
+                        }
+                        return `<p><strong>${_esc(line)}</strong></p>`;
+                    })
+                    .join('');
+                infoRowHtml += `
+                    <div class="info-box">
+                        <h3>${_esc(config.rightBox.title || '')}</h3>
+                        ${linesHtml}
+                    </div>`;
+            }
+            infoRowHtml += '</div>';
+        }
+
+        // Table
+        let tableHtml = '';
+        if (config.table) {
+            const ths = (config.table.headers || [])
+                .map(h => {
+                    const low = h.toLowerCase();
+                    const isNum = low.includes('amount') || low.includes('debit') || low.includes('credit') || low.includes('₹') || low.includes('rate') || low.includes('price') || low.includes('total');
+                    return `<th class="${isNum ? 'tr' : ''}">${_esc(h)}</th>`;
+                })
+                .join('');
+            
+            const rowsHtml = (config.table.rows || [])
+                .map(row => {
+                    const tds = row.map((cell, idx) => {
+                        const lowH = (config.table.headers && config.table.headers[idx]) ? config.table.headers[idx].toLowerCase() : '';
+                        const isNumericHeader = lowH.includes('amount') || lowH.includes('debit') || lowH.includes('credit') || lowH.includes('₹') || lowH.includes('rate') || lowH.includes('price') || lowH.includes('total');
+                        const isNumericCell = typeof cell === 'number' || String(cell).startsWith('₹') || (!isNaN(parseFloat(cell)) && isNumericHeader);
+                        return `<td class="${isNumericCell ? 'tr' : ''}">${_esc(cell)}</td>`;
+                    }).join('');
+                    return `<tr>${tds}</tr>`;
+                }).join('');
+
+            let tfootsHtml = '';
+            if (config.table.totals) {
+                tfootsHtml = config.table.totals.map((totalRow, idx) => {
+                    const isLast = idx === config.table.totals.length - 1;
+                    const style = isLast ? 'style="background:#1a1a2e;color:#fff;font-weight:bold"' : 'class="total-row"';
+                    const tds = totalRow.map((cell, cellIdx) => {
+                        const isNumeric = typeof cell === 'number' || String(cell).startsWith('₹') || (cellIdx > 0 && !isNaN(parseFloat(cell)));
+                        return `<td class="${isNumeric ? 'tr' : ''}">${_esc(cell)}</td>`;
+                    }).join('');
+                    return `<tr ${style}>${tds}</tr>`;
+                }).join('');
+            }
+
+            tableHtml = `
+                <table>
+                    <thead><tr>${ths}</tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                    ${tfootsHtml ? `<tfoot>${tfootsHtml}</tfoot>` : ''}
+                </table>`;
+        }
+
+        // Notes / Narration
+        let notesHtml = '';
+        if (config.notes) {
+            notesHtml = `<div style="padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:15px"><strong>📝 Narration/Notes:</strong> ${_esc(config.notes)}</div>`;
+        }
+
+        // Signatory
+        let sigHtml = '';
+        if (config.signatory) {
+            sigHtml = `
+                <div class="sig">
+                    <div class="sig-line"></div>
+                    <div><strong>${_esc(config.signatory)}</strong></div>
+                    ${config.signatorySub ? `<div class="sub">${_esc(config.signatorySub)}</div>` : ''}
+                </div>`;
+        }
+
+        // Footer
+        const footerHtml = `
+            <div class="footer">
+                This is a computer-generated document. Valid without signature.<br>
+                Generated on: ${new Date().toLocaleString()}
+            </div>`;
+
+        const bodyHtml = `
+            ${headerHtml}
+            ${infoRowHtml}
+            ${tableHtml}
+            ${notesHtml}
+            ${sigHtml}
+            <div style="clear:both"></div>
+            ${footerHtml}`;
+
+        _openPrintWindow(config.title || 'Document', bodyHtml);
+    }
+
     // ── Charge breakdown table builder (used by invoices, credit/debit notes) ─
     function _chargeTable(parsed, grandTotal) {
         if (!parsed) return '';
@@ -746,6 +885,7 @@ const VaultPrint = (() => {
 
     // ── Public API ──────────────────────────────────────────────────────────
     return {
+        printDocument,
         printSalesInvoice,
         printReceipt,
         printPurchaseBill,

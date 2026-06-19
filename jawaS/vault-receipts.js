@@ -128,6 +128,7 @@ const VaultReceipts = (() => {
     async function _fetchList() {
         const branchSelect = document.getElementById('vaultBranchSelect');
         const branch = branchSelect ? branchSelect.value : '';
+        window.setLoading?.(true, `Loading ${_activeMode}...`, 'list');
         try {
             if (_activeMode === 'receipts') {
                 const res = await callApi(`/api/manager/all-receipts${branch ? '?branch=' + branch : ''}`, {}, 'GET');
@@ -140,6 +141,8 @@ const VaultReceipts = (() => {
             console.error('[VaultReceipts] Failed to fetch list:', err);
             if (_activeMode === 'receipts') _receiptsList = [];
             else _paymentsList = [];
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -197,6 +200,8 @@ const VaultReceipts = (() => {
         view.innerHTML = `<div class="text-center py-8"><div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>`;
         VaultPage.showDetailPane();
 
+        const _dl = _activeMode === 'receipts' ? 'Receipt' : 'Payment';
+        window.setLoading?.(true, `Fetching ${_dl}...`, 'detail');
         try {
             const endpoint = _activeMode === 'receipts'
                 ? `/api/manager/receipt-details/${branch}/${key}`
@@ -278,12 +283,15 @@ const VaultReceipts = (() => {
                 </div>`;
         } catch (err) {
             view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
+        } finally {
+            window.setLoading?.(false);
         }
         VaultPage.showDetailPane();
     }
 
     // ── Print ─────────────────────────────────────────────────────────────────
     async function _printEntry(key, branch) {
+        window.setLoading?.(true, 'Preparing print...', 'detail');
         try {
             const endpoint = _activeMode === 'receipts'
                 ? `/api/manager/receipt-details/${branch}/${key}`
@@ -300,6 +308,8 @@ const VaultReceipts = (() => {
             }
         } catch (err) {
             alert('Failed to load details for print: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -314,6 +324,7 @@ const VaultReceipts = (() => {
             return;
         }
 
+        window.setLoading?.(true, `Voiding ${label}...`, 'detail');
         try {
             const endpoint = _activeMode === 'receipts'
                 ? `/api/manager/receipts/${key}?code=${encodeURIComponent(clientCode)}`
@@ -336,6 +347,8 @@ const VaultReceipts = (() => {
             }
         } catch (err) {
             alert('Failed to void: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
         }
     }
 
@@ -428,6 +441,7 @@ const VaultReceipts = (() => {
             bankSelect.innerHTML = '<option value="">Loading…</option>';
             entitySelect.disabled = true;
             bankSelect.disabled = true;
+            window.setLoading?.(true, 'Loading dropdowns...', 'detail');
 
             try {
                 // Load in parallel
@@ -478,6 +492,8 @@ const VaultReceipts = (() => {
                 console.error('[VaultReceipts] Failed to load form data:', err);
                 entitySelect.innerHTML = '<option value="">Error loading</option>';
                 bankSelect.innerHTML = '<option value="">Error loading</option>';
+            } finally {
+                window.setLoading?.(false);
             }
         });
 
@@ -492,6 +508,7 @@ const VaultReceipts = (() => {
             btn.disabled = true;
             sp.classList.remove('hidden');
             resp.classList.add('hidden');
+            window.setLoading?.(true, `Saving ${label}...`, 'detail');
 
             const code = data.client_code;
             const amount = parseFloat(data.amount);
@@ -541,6 +558,7 @@ const VaultReceipts = (() => {
                 resp.textContent = '❌ ' + (err.message || 'Failed to create');
                 resp.classList.remove('hidden');
             } finally {
+                window.setLoading?.(false);
                 btn.disabled = false;
                 sp.classList.add('hidden');
             }
