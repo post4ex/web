@@ -886,14 +886,20 @@ const VaultSalesInvoices = (() => {
             const computedGrandTotal = totalTaxable + totalCgst + totalSgst + totalIgst;
             
             const linesRows = (res.Lines || []).map(line => {
-                const amount = parseFloat(line.SalesUnitPrice || 0);
+                const qty = parseFloat(line.Qty || 1);
+                const price = parseFloat(line.SalesUnitPrice || 0);
+                const lineAmt = qty * price;
                 const taxCodeLabel = line.TaxCode === 'c9228485-7a58-4ccb-89e8-fe025e20261d' ? 'CGST/SGST 18%' :
                                      line.TaxCode === '16e26b59-06ca-49ab-ba1c-a2c36711683e' ? 'IGST 18%' : 'Exempt/Nil';
+                let desc = line.LineDescription || 'Charges';
+                if (qty !== 1) {
+                    desc += ` (${qty} × ₹${price.toFixed(2)})`;
+                }
                 return `
                     <tr class="hover:bg-gray-50/50 transition-colors">
-                        <td class="px-4 py-2.5 text-gray-700 font-medium">${line.LineDescription || 'Charges'}</td>
+                        <td class="px-4 py-2.5 text-gray-700 font-medium">${desc}</td>
                         <td class="px-4 py-2.5 text-right text-gray-500">${taxCodeLabel}</td>
-                        <td class="px-4 py-2.5 text-right text-gray-900 font-semibold">₹${amount.toFixed(2)}</td>
+                        <td class="px-4 py-2.5 text-right text-gray-900 font-semibold">₹${lineAmt.toFixed(2)}</td>
                     </tr>
                 `;
             }).join('');
