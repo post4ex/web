@@ -151,7 +151,7 @@ const VaultSalesInvoices = (() => {
         return _numToWords(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+_numToWords(n%10000000):'');
     }
 
-    async function _printEntry(invoiceKey, branchCode) {
+        async function _printEntry(invoiceKey, branchCode) {
         if (!invoiceKey || !branchCode) return;
         window.setLoading?.(true, 'Preparing print...', 'detail');
         try {
@@ -160,13 +160,6 @@ const VaultSalesInvoices = (() => {
                 getAppData()
             ]);
 
-            // Ensure _b2bMap is populated (may not be if user clicked Print without opening Add/Edit)
-            if (appData?.B2B) {
-                Object.values(appData.B2B).forEach(c => {
-                    if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
-                });
-            }
-
             const inv = _allInvoices.find(i => i.key === invoiceKey);
 
             const ref = res.Reference || inv?.reference || invoiceKey;
@@ -174,14 +167,39 @@ const VaultSalesInvoices = (() => {
             const customerCode = inv?.customer || '';
             const description = res.Description || '';
 
-            // Look up B2B and branch details
-            const b2b = _b2bMap.get(customerCode.trim().toUpperCase());
-            const b2bName = b2b?.B2B_NAME || customerCode;
-            const b2bAddr = b2b?.B2B_ADDRESS || '';
-            const b2bCity = b2b?.B2B_CITY || '';
-            const b2bState = b2b?.B2B_STATE || '';
-            const b2bMobile = b2b?.MOBILE_NUMBER || '';
-            const b2bGst = b2b?.ID_GST_PAN_ADHAR || 'N/A';
+            // Resolve client code from branch
+            let clientCode = '';
+            if (appData?.B2B) {
+                Object.values(appData.B2B).forEach(c => {
+                    if ((c.BRANCH || '').toLowerCase() === (branchCode || '').toLowerCase()) {
+                        clientCode = c.CODE;
+                    }
+                });
+            }
+
+            let b2bName = customerCode;
+            let b2bAddr = '';
+            let b2bState = '';
+            let b2bGst = 'N/A';
+
+            if (res.Customer && clientCode) {
+                try {
+                    const cust = await callApi(`/api/manager/customers/${res.Customer}?code=${encodeURIComponent(clientCode)}`, {}, 'GET');
+                    if (cust) {
+                        b2bName = cust.Name || b2bName;
+                        b2bAddr = cust.BillingAddress || '';
+                        if (cust.CustomFields) {
+                            b2bGst = cust.CustomFields["37a9097b-398e-4227-bd32-f483ddc4ea3a"] || 'N/A';
+                            b2bState = cust.CustomFields["48d27da1-05e8-4a61-b0ff-800e6e979584"] || '';
+                            if (b2bState && b2bState.includes('-')) {
+                                b2bState = b2bState.split('-')[1];
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch customer details for print:", err);
+                }
+            }
 
             let branch = null;
             if (appData?.BRANCHES) {
@@ -266,6 +284,8 @@ const VaultSalesInvoices = (() => {
                 @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}.no-print{display:none}}
             `;
 
+            const b2bAddrHtml = b2bAddr ? b2bAddr.replace(/\n/g, '<br>') : '';
+
             const body = `
                 <div class="no-print"><button class="print-btn" onclick="window.print()">🖨️ Print</button><button class="close-btn" onclick="window.close()">✕ Close</button></div>
                 <div class="box">
@@ -289,9 +309,8 @@ const VaultSalesInvoices = (() => {
                         <div class="div"></div>
                         <div class="col">
                             <h3>Bill To: ${_escapeHtml(b2bName)}</h3>
-                            <p><b>Address:</b> ${_escapeHtml(b2bAddr)}</p>
-                            <p><b>City:</b> ${_escapeHtml(b2bCity)}, ${_escapeHtml(b2bState)}</p>
-                            <p><b>Mobile:</b> ${_escapeHtml(b2bMobile)}</p>
+                            <p>${b2bAddrHtml}</p>
+                            ${b2bState ? `<p><b>State:</b> ${_escapeHtml(b2bState)}</p>` : ''}
                             <p><b>GST:</b> ${_escapeHtml(b2bGst)}</p>
                         </div>
                     </div>
@@ -803,7 +822,7 @@ const VaultSalesInvoices = (() => {
     }
 
     // ── Detail pane (with charge breakdown) ────────────────────────────────────
-    async function _renderDetail(listEntry) {
+        async function _renderDetail(listEntry) {
         if (!listEntry) return;
 
         if (!listEntry.key) {
@@ -881,6 +900,35 @@ const VaultSalesInvoices = (() => {
             
             const balance = listEntry.balanceDue?.value || 0;
 
+            // Fetch live customer details from Manager.io bypassing B2B map
+            let customerName = listEntry.customer || 'N/A';
+            let customerAddr = '';
+            let customerGst = '';
+            
+            try {
+                const appData = await getAppData();
+                let clientCode = '';
+                if (appData?.B2B) {
+                    Object.values(appData.B2B).forEach(c => {
+                        if ((c.BRANCH || '').toLowerCase() === (listEntry.branch || '').toLowerCase()) {
+                            clientCode = c.CODE;
+                        }
+                    });
+                }
+                if (clientCode && res.Customer) {
+                    const cust = await callApi(`/api/manager/customers/${res.Customer}?code=${encodeURIComponent(clientCode)}`, {}, 'GET');
+                    if (cust) {
+                        customerName = cust.Name || customerName;
+                        customerAddr = cust.BillingAddress || '';
+                        if (cust.CustomFields) {
+                            customerGst = cust.CustomFields["37a9097b-398e-4227-bd32-f483ddc4ea3a"] || '';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch customer details for viewer:", err);
+            }
+
             view.innerHTML = `
                 <div class="detail-card">
                     <div class="detail-card-body p-6 space-y-6">
@@ -922,7 +970,9 @@ const VaultSalesInvoices = (() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm">
                             <div>
                                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Bill To</h3>
-                                <p class="font-semibold text-gray-800">${listEntry.customer || 'N/A'}</p>
+                                <p class="font-semibold text-gray-800">${_escapeHtml(customerName)}</p>
+                                ${customerAddr ? `<p class="text-xs text-gray-500 mt-1">${_escapeHtml(customerAddr).replace(/\n/g, '<br>')}</p>` : ''}
+                                ${customerGst ? `<p class="text-xs text-gray-500 mt-1">GSTIN: <span class="font-semibold text-gray-700">${_escapeHtml(customerGst)}</span></p>` : ''}
                             </div>
                             <div>
                                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Invoice Details</h3>
