@@ -7,7 +7,7 @@
         const cachedHeader = sessionStorage.getItem('component-header.html');
         if (cachedHeader) {
             const el = document.getElementById('header-placeholder');
-            if (el) {
+            if (el && el.getAttribute('data-fully-loaded') !== 'true') {
                 const doc = new DOMParser().parseFromString(cachedHeader, 'text/html');
                 const scripts = Array.from(doc.querySelectorAll('script'));
                 el.innerHTML = '';
@@ -29,7 +29,7 @@
         const cachedFooter = sessionStorage.getItem('component-footer.html');
         if (cachedFooter) {
             const el = document.getElementById('footer-placeholder');
-            if (el) {
+            if (el && el.getAttribute('data-fully-loaded') !== 'true') {
                 const doc = new DOMParser().parseFromString(cachedFooter, 'text/html');
                 const scripts = Array.from(doc.querySelectorAll('script'));
                 el.innerHTML = '';

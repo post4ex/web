@@ -10,6 +10,92 @@
         #shipmentsList li.incomplete { border-color: #fcd34d; background-color: #fffbeb; }
         #shipmentsList li.incomplete:hover { background-color: #fef3c7; }
     </style>
+    <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
+    <script>
+        (() => {
+            try {
+                const cachedHeader = sessionStorage.getItem('component-header.html');
+                const cachedFooter = sessionStorage.getItem('component-footer.html');
+                if (!cachedHeader && !cachedFooter) return;
+                
+                const observer = new MutationObserver((mutations, obs) => {
+                    const headerEl = cachedHeader ? document.getElementById('header-placeholder') : null;
+                    const footerEl = cachedFooter ? document.getElementById('footer-placeholder') : null;
+                    
+                    if (headerEl && headerEl.getAttribute('data-fully-loaded') !== 'true') {
+                        const doc = new DOMParser().parseFromString(cachedHeader, 'text/html');
+                        const scripts = Array.from(doc.querySelectorAll('script'));
+                        headerEl.innerHTML = '';
+                        while (doc.body.firstChild) headerEl.appendChild(doc.body.firstChild);
+                        
+                        // Hydrate login/logout visibility state immediately to prevent visual flicker
+                        const loginData = localStorage.getItem('loginData');
+                        if (loginData) {
+                            const loginBtn = headerEl.querySelector('#login-button');
+                            if (loginBtn) loginBtn.classList.add('hidden');
+                            
+                            const publicNav = headerEl.querySelector('#container-desktop-public');
+                            if (publicNav) publicNav.classList.add('hidden');
+                            
+                            const globalNotif = headerEl.querySelector('#notification-container-global');
+                            if (globalNotif) globalNotif.classList.remove('hidden');
+
+                            const searchBtn = headerEl.querySelector('#nav-search-private');
+                            if (searchBtn) searchBtn.classList.remove('hidden');
+
+                            const pincodeBtn = headerEl.querySelector('#nav-pincode-private');
+                            if (pincodeBtn) pincodeBtn.classList.remove('hidden');
+
+                            const privateNav = headerEl.querySelector('#container-desktop-private');
+                            if (privateNav) {
+                                privateNav.classList.remove('hidden');
+                                privateNav.classList.add('flex');
+                            }
+
+                            const desktopLogout = headerEl.querySelector('#desktop-logout-button');
+                            if (desktopLogout) {
+                                desktopLogout.classList.remove('hidden');
+                                desktopLogout.style.display = window.innerWidth >= 1280 ? 'flex' : 'none';
+                            }
+                            
+                            const sidebarToggle = headerEl.querySelector('#sidebar-toggle-container');
+                            if (sidebarToggle) sidebarToggle.classList.remove('hidden');
+                        }
+                        
+                        scripts.forEach(script => {
+                            const newScript = document.createElement('script');
+                            if (script.src) newScript.src = script.src;
+                            else newScript.textContent = script.textContent;
+                            document.head.appendChild(newScript);
+                        });
+                        headerEl.setAttribute('data-fully-loaded', 'true');
+                    }
+                    
+                    if (footerEl && footerEl.getAttribute('data-fully-loaded') !== 'true') {
+                        const doc = new DOMParser().parseFromString(cachedFooter, 'text/html');
+                        const scripts = Array.from(doc.querySelectorAll('script'));
+                        footerEl.innerHTML = '';
+                        while (doc.body.firstChild) footerEl.appendChild(doc.body.firstChild);
+                        
+                        scripts.forEach(script => {
+                            const newScript = document.createElement('script');
+                            if (script.src) newScript.src = script.src;
+                            else newScript.textContent = script.textContent;
+                            document.head.appendChild(newScript);
+                        });
+                        footerEl.setAttribute('data-fully-loaded', 'true');
+                    }
+                    
+                    if ((!cachedHeader || (headerEl && headerEl.getAttribute('data-fully-loaded') === 'true')) &&
+                        (!cachedFooter || (footerEl && footerEl.getAttribute('data-fully-loaded') === 'true'))) {
+                        obs.disconnect();
+                    }
+                });
+                
+                observer.observe(document.documentElement, { childList: true, subtree: true });
+            } catch (_) {}
+        })();
+    </script>
 </head>
 <body class="bg-gray-100 flex flex-col">
 
