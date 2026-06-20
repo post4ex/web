@@ -1,64 +1,42 @@
 // ============================================================================
-// VAULT-ACCOUNTS.JS — Cheque tracking + Bank account reference
-// Tiles: cheques, bank-accounts
-// API: GET /api/ledger/payment (via cache), POST /api/ledger/payment
+// VAULT-ACCOUNTS.JS — Cheque tracking (Manager.io) + Bank account reference
+// Tiles: cheques (💳), bank-accounts (🏛️)
+// API:
+//   GET  /api/manager/all-cheques                  — cross-branch cheque list
+//   GET  /api/manager/cheque-details/{type}/{b}/{k} — cheque form detail
+//   PUT  /api/manager/cheque-status/{type}/{k}      — mark cleared/pending
+//   GET  /api/manager/bank-accounts?code=XXX        — bank accounts (manager side)
 // ============================================================================
 
 const VaultAccounts = (() => {
 
+    let _chequesList = [];
     let _allLedger = [];
     let _allBranches = [];
     let _allCarriers = [];
+    let _b2bList = [];
     let _b2bMap = new Map();
-    let _coaMap      = {};
     let _activeTile = 'cheques';
+
+    // ── Filter state ────────────────────────────────────────────────────────────
+    function getCurrentFYRange() {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        let startYear = currentYear;
+        if (now.getMonth() < 3) startYear = currentYear - 1;
+        return { start: `${startYear}-04-01`, end: `${startYear + 1}-03-31` };
+    }
+    const _fyRange = getCurrentFYRange();
+    let _filterStart = _fyRange.start;
+    let _filterEnd   = _fyRange.end;
+    let _filterBranch = '';
+    let _filterStatus = '';
 
     function _can(role) { return window.VaultPage?.can(role); }
 
-    // ── COA cache ─────────────────────────────────────────────────────────────
-    async function _loadCoaCache() {
-        // TODO: load COA from Manager.io cache keys
-    }
-
-    function _coaName(code) {
-        if (!code) return '';
-        const a = _coaMap[code];
-        return a ? `${a.code} — ${a.name}` : code;
-    }
-
-    // ── Parse NARRATION ───────────────────────────────────────────────────────
-    function _parseNarration(entry) {
-        try {
-            const p = JSON.parse(entry.NARRATION || '{}');
-            if (p.charges || p.grand_total !== undefined) return p;
-        } catch (_) {}
-        return null;
-    }
-
-    function _fmt(v, t) {
-        if (!v) return 'N/A';
-        try { return (typeof fmtDate === 'function') ? fmtDate(v, t) : new Date(v).toLocaleDateString(); }
-        catch { return String(v); }
-    }
-
-    // ── Render charge popup ────────────────────────────────────────────────────
-    function _renderChargePopup(entry) {
-        const parsed = _parseNarration(entry);
-        if (!parsed) return '';
-        const charges = parsed.charges || {};
-        const chargeKeys = Object.keys(charges).filter(k => charges[k]);
-        if (!chargeKeys.length) return '';
-        return `<div class="mt-3 bg-gray-50 border rounded-lg p-3 text-xs">
-            <div class="font-semibold text-gray-700 mb-2">🧾 Charge Breakdown</div>
-            <div class="grid grid-cols-2 gap-x-4 gap-y-1">
-                ${chargeKeys.map(k => `<div class="flex justify-between"><span class="text-gray-500 capitalize">${k.replace(/_/g, ' ')}</span><span>₹${(+charges[k]).toFixed(2)}</span></div>`).join('')}
-                ${parsed.subtotal !== undefined ? `<div class="flex justify-between border-t pt-1 mt-1 col-span-2"><span class="font-medium">Subtotal</span><span>₹${(+parsed.subtotal).toFixed(2)}</span></div>` : ''}
-                ${parsed.taxable !== undefined ? `<div class="flex justify-between col-span-2"><span class="text-gray-500">Taxable</span><span>₹${(+parsed.taxable).toFixed(2)}</span></div>` : ''}
-                ${parsed.sgst !== undefined && parsed.cgst !== undefined ? `<div class="flex justify-between col-span-2"><span class="text-gray-500">SGST @${parsed.gst_rate || ''}%</span><span>₹${(+parsed.sgst).toFixed(2)}</span></div><div class="flex justify-between col-span-2"><span class="text-gray-500">CGST @${parsed.gst_rate || ''}%</span><span>₹${(+parsed.cgst).toFixed(2)}</span></div>` : ''}
-                ${parsed.igst !== undefined ? `<div class="flex justify-between col-span-2"><span class="text-gray-500">IGST @${parsed.gst_rate || ''}%</span><span>₹${(+parsed.igst).toFixed(2)}</span></div>` : ''}
-                ${parsed.grand_total !== undefined ? `<div class="flex justify-between border-t pt-1 mt-1 col-span-2 font-semibold text-gray-800"><span>Grand Total</span><span>₹${(+parsed.grand_total).toFixed(2)}</span></div>` : ''}
-            </div>
-        </div>`;
+    function _escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     // ── Common list injection ─────────────────────────────────────────────────
@@ -68,311 +46,503 @@ const VaultAccounts = (() => {
         document.getElementById('vaultSearch').placeholder = placeholder || 'Search…';
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function _getClientCodeForBranch(branch) {
+        const b = branch?.toLowerCase();
+        const found = _b2bList.find(c => (c.BRANCH || '').toLowerCase() === b);
+        return found ? found.CODE : null;
+    }
+
     // ========================================================================
-    // CHEQUES TILE
+    // CHEQUES TILE (Manager.io API)
     // ========================================================================
 
-    function _getEntries() {
-        return _allLedger.filter(e => e.PAYMENT_MODE === 'CHEQUE' && e.ENTRY_TYPE === 'PAYMENT');
+    async function _fetchCheques() {
+        const branchSelect = document.getElementById('vaultBranchSelect');
+        const branch = branchSelect ? branchSelect.value : '';
+        window.setLoading?.(true, 'Loading cheques...', 'list');
+        try {
+            const res = await callApi(
+                `/api/manager/all-cheques?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}&status=${_filterStatus || ''}`,
+                {}, 'GET'
+            );
+            _chequesList = res.cheques || [];
+        } catch (err) {
+            console.error('[VaultAccounts] Failed to fetch cheques:', err);
+            _chequesList = [];
+        } finally {
+            window.setLoading?.(false);
+        }
     }
 
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const entries = _getEntries();
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        const filtered = q
-            ? entries.filter(e =>
-                (e.CHEQUE_NUMBER || '').toLowerCase().includes(q) ||
-                (e.BANK_NAME || '').toLowerCase().includes(q) ||
-                (e.CODE || '').toLowerCase().includes(q) ||
-                (e.CLIENT_NAME || '').toLowerCase().includes(q) ||
-                (e.NARRATION || '').toLowerCase().includes(q)
-              )
-            : entries;
-        filtered.sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
+        const filtered = _chequesList.filter(item => {
+            if (q) {
+                const entity = item.customer || item.supplier || {};
+                const match = (item.chequeNumber || '').toLowerCase().includes(q) ||
+                    (entity.name || '').toLowerCase().includes(q) ||
+                    (item.date || '').includes(q) ||
+                    (item.branch || '').toLowerCase().includes(q);
+                if (!match) return false;
+            }
+            if (_filterBranch && (item.branch || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
+            return true;
+        });
+
+        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        // Status label
+        const statusEl = document.getElementById('chqStatus');
+        if (statusEl) {
+            statusEl.textContent = `Showing ${filtered.length} of ${_chequesList.length} Cheques`;
+        }
+
         if (!filtered.length) {
             ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No cheque entries found.</li>';
             return;
         }
-        ul.innerHTML = filtered.slice(0, 100).map(e => {
-            const dir = e.DIRECTION === 'INWARD' ? '📤' : '📥';
-            const amt = (+e.CREDIT || +e.DEBIT || 0);
-            const statusColor = e.STATUS === 'ACTIVE' ? 'text-green-700' :
-                                e.STATUS === 'PENDING' ? 'text-yellow-700' :
-                                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700';
-            const chqBadge = (e.CHEQUE_STATUS || 'PENDING') === 'CLEARED' ? '<span class="text-green-600">✅</span>' :
-                             (e.CHEQUE_STATUS || 'PENDING') === 'BOUNCED' ? '<span class="text-red-600">💥</span>' :
-                             '<span class="text-yellow-600">⏳</span>';
-            return `<li data-entry="${e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
+
+        ul.innerHTML = filtered.slice(0, 100).map(item => {
+            const amt = item.total?.value || 0;
+            const isReceipt = item.chequeType === 'receipt';
+            const isCleared = item.cleared === true;
+            const chqBadge = isCleared ? '<span class="text-green-600">✅</span>' : '<span class="text-yellow-600">⏳</span>';
+            const typeIcon = isReceipt ? '📥' : '📤';
+            const entityName = item.customer?.name || item.supplier?.name || '';
+            return `<li data-key="${item.key}" data-type="${item.chequeType}" data-branch="${item.branch || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
                 <div class="flex items-start justify-between">
                     <div>
-                        <strong class="text-blue-700 block text-sm">${chqBadge} ${e.CHEQUE_NUMBER || 'N/A'} — ₹${amt.toFixed(2)}</strong>
-                        <span class="text-xs text-gray-500">${e.BANK_NAME || 'N/A'} · ${e.CLIENT_NAME || e.CODE || ''}</span>
+                        <strong class="text-blue-700 block text-sm">${chqBadge} ${typeIcon} ${_escapeHtml(item.chequeNumber || 'N/A')} — ₹${amt.toFixed(2)}</strong>
+                        <span class="text-xs text-gray-500">${_escapeHtml(entityName)}</span>
                     </div>
-                    <span class="${statusColor} text-xs font-medium">${e.STATUS || ''}</span>
+                    <span class="text-xs text-gray-400">${_escapeHtml(item.branch || '')}</span>
                 </div>
                 <div class="flex gap-3 text-xs mt-1">
-                    <span class="text-gray-400">${e.CHEQUE_DATE ? _fmt(e.CHEQUE_DATE, 'date') : ''}</span>
-                    <span class="text-gray-400">Bal: ₹${(+e.BALANCE||0).toFixed(2)}</span>
+                    <span class="text-gray-400">${_escapeHtml(item.date || '')}</span>
+                    <span class="text-gray-400 capitalize">${item.chequeType}</span>
                 </div>
             </li>`;
         }).join('');
-        ul.querySelectorAll('li').forEach(li =>
+
+        ul.querySelectorAll('li').forEach(li => {
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                _renderChequeDetail(_allLedger.find(e => e.ENTRY_ID === li.dataset.entry));
-            })
-        );
+                _renderChequeDetail(li.dataset.type, li.dataset.key, li.dataset.branch);
+            });
+        });
     }
 
-    async function _updateChequeStatus(entryId, newStatus) {
-        const note = newStatus === 'BOUNCED' ? (prompt('Reason for bounce:') || '') : '';
-        try {
-            // TODO: migrate cheque status update to Manager.io
-            alert('Coming soon — updating cheque status through Manager.io');
-            return;
-        } catch (err) { alert('Failed: ' + (err.message || err)); }
-    }
+    function search() { _renderList(); }
 
-    function _renderChequeDetail(entry) {
-        if (!entry) return;
+    // ── Detail view ────────────────────────────────────────────────────────────
+    async function _renderChequeDetail(chequeType, key, branch) {
+        if (!key || !branch) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const amt = (+entry.CREDIT || +entry.DEBIT || 0);
-        const dir = entry.DIRECTION === 'INWARD' ? 'Payment to vendor' : 'Receipt from client';
-        const isActive = entry.STATUS === 'ACTIVE';
-        const isVoid = entry.STATUS === 'VOID';
-        const chqStatus = entry.CHEQUE_STATUS || 'PENDING';
-        const chqStatusBadge = chqStatus === 'CLEARED' ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ CLEARED</span>' :
-            chqStatus === 'BOUNCED' ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">💥 BOUNCED</span>' :
-            '<span class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ PENDING</span>';
-        const actionBtns = isActive && chqStatus === 'PENDING' ? `
-            <span class="flex gap-2 mt-3">
-                <button onclick="VaultAccounts._updateChequeStatus('${entry.ENTRY_ID}', 'CLEARED')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Mark Cleared</button>
-                <button onclick="VaultAccounts._updateChequeStatus('${entry.ENTRY_ID}', 'BOUNCED')" class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200">💥 Mark Bounced</button>
-            </span>` : '';
+        view.innerHTML = `<div class="text-center py-8"><div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>`;
+        VaultPage.showDetailPane();
 
-        const coaDr = _coaName(entry.COA_DR);
-        const coaCr = _coaName(entry.COA_CR);
-        const chargePopup = isActive ? _renderChargePopup(entry) : '';
+        window.setLoading?.(true, 'Fetching cheque...', 'detail');
+        try {
+            const formData = await callApi(
+                `/api/manager/cheque-details/${chequeType}/${branch}/${key}`,
+                {}, 'GET'
+            );
 
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">🏦 Cheque Detail</h3>
-                    <div class="flex gap-2 items-center">
-                        ${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : ''}
-                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">₹${amt.toFixed(2)}</span>
-                    </div>
-                </div>
-                <div class="detail-card-body">
-                    <!-- Amount & Status -->
-                    <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <div class="text-lg font-bold text-blue-800">₹${amt.toFixed(2)}</div>
-                                <div class="text-xs text-blue-600">${dir}</div>
+            const isReceipt = chequeType === 'receipt';
+            const dirLabel = isReceipt ? 'Receipt from client' : 'Payment to vendor';
+            const entityNameKey = isReceipt ? 'Customer' : 'Supplier';
+            const bankKey = isReceipt ? 'ReceivedIn' : 'PaidFrom';
+            const amount = formData.Lines?.reduce((s, l) => s + (l.Amount || 0), 0) || 0;
+
+            const chqNumber = formData.Reference || formData.reference || 'N/A';
+            const isCleared = formData.Cleared === true;
+            const chqStatusBadge = isCleared
+                ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ CLEARED</span>'
+                : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ PENDING</span>';
+
+            const actionBtns = !isCleared ? `
+                <span class="flex gap-2 mt-3">
+                    <button onclick="VaultAccounts._updateChequeStatus('${chequeType}', '${key}', true, '${branch}')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Mark Cleared</button>
+                </span>` : '';
+
+            view.innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-card-body p-6 space-y-6">
+                        <!-- Header -->
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-gray-100 pb-5">
+                            <div class="flex-1 min-w-0">
+                                <h1 class="text-xl font-bold text-blue-800 tracking-tight break-words">💳 Cheque Detail</h1>
+                                <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${_escapeHtml(branch.toUpperCase())}</span></p>
                             </div>
-                            <div class="text-right">
-                                <div>${chqStatusBadge}</div>
-                                <div class="text-xs text-gray-500 mt-1">Ledger: ${entry.STATUS || 'N/A'}</div>
+                            <div class="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+                                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
+                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 uppercase whitespace-nowrap">${isReceipt ? 'RECEIPT' : 'PAYMENT'}</span>
+                                    <button onclick="VaultAccounts._printCheque('${chequeType}','${key}','${branch}')"
+                                        class="btn btn-sm flex-1 sm:flex-none min-w-0 justify-center">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                        </svg><span class="truncate">Print</span>
+                                    </button>
+                                </div>
+                                <p class="text-sm text-gray-500">Cheque #: <span class="font-bold text-gray-800">${_escapeHtml(chqNumber)}</span></p>
+                                <p class="text-xs text-gray-400">Date: ${_escapeHtml(formData.Date || formData.date || 'N/A')}</p>
                             </div>
                         </div>
-                        ${actionBtns}
-                    </div>
 
-                    <!-- Cheque Details -->
-                    <div class="grid grid-cols-2 gap-3 text-sm mt-3 bg-white border rounded-lg p-3">
-                        <div><span class="text-gray-500">Cheque No:</span> <span class="font-semibold">${entry.CHEQUE_NUMBER || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Cheque Date:</span> ${entry.CHEQUE_DATE ? _fmt(entry.CHEQUE_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500">Bank:</span> ${entry.BANK_NAME || 'N/A'}</div>
-                        <div><span class="text-gray-500">Client/Vendor:</span> ${entry.CLIENT_NAME || entry.CODE || 'N/A'}</div>
-                        <div><span class="text-gray-500">Direction:</span> ${entry.DIRECTION || 'N/A'}</div>
-                        <div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>
-                    </div>
-
-                    <!-- Charge breakdown popup -->
-                    ${chargePopup}
-
-                    <!-- COA -->
-                    <div class="text-xs text-gray-400 mt-2 flex gap-4">
-                        <span>Dr: ${coaDr}</span>
-                        <span>Cr: ${coaCr}</span>
-                    </div>
-
-                    <!-- Narration -->
-                    ${entry.NARRATION ? `<div class="text-sm text-gray-700 mt-2 bg-white border rounded-lg p-3">📝 ${entry.NARRATION}</div>` : ''}
-
-                    <!-- Audit info -->
-                    <details class="mt-4">
-                        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Audit Info</summary>
-                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
-                            <div>Entry ID: <span class="font-mono">${entry.ENTRY_ID}</span></div>
-                            <div>FY: ${entry.FY || 'N/A'}</div>
-                            <div>Entry Date: ${entry.ENTRY_DATE ? _fmt(entry.ENTRY_DATE) : 'N/A'}</div>
-                            <div>Created: ${entry.USER_NAME || 'N/A'}</div>
-                            ${entry.AGAINST_ENTRY ? `<div>Against: ${entry.AGAINST_ENTRY}</div>` : ''}
-                            ${entry.VOID_REASON ? `<div class="col-span-2 text-red-600">Void: ${entry.VOID_REASON}</div>` : ''}
+                        <!-- Amount & Status -->
+                        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-lg font-bold text-blue-800">₹${amount.toFixed(2)}</div>
+                                    <div class="text-xs text-blue-600">${dirLabel}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div>${chqStatusBadge}</div>
+                                </div>
+                            </div>
+                            ${actionBtns}
                         </div>
-                    </details>
-                </div>
-            </div>`;
+
+                        <!-- Cheque Details Grid -->
+                        <div class="grid grid-cols-2 gap-3 text-sm bg-white border rounded-lg p-3">
+                            <div><span class="text-gray-500">Cheque No:</span> <span class="font-semibold">${_escapeHtml(chqNumber)}</span></div>
+                            <div><span class="text-gray-500">Cheque Date:</span> ${_escapeHtml(formData.Date || formData.date || 'N/A')}</div>
+                            <div><span class="text-gray-500">${entityNameKey}:</span> <span class="font-semibold">${_escapeHtml(formData[entityNameKey] || 'N/A')}</span></div>
+                            <div><span class="text-gray-500">Direction:</span> ${isReceipt ? 'Receipt (Money In)' : 'Payment (Money Out)'}</div>
+                        </div>
+
+                        <!-- Description -->
+                        ${formData.Description ? `<div class="bg-blue-50/40 border border-blue-100/50 rounded-lg p-3 text-xs text-blue-950">
+                            <span class="font-semibold block text-blue-800 uppercase tracking-wider mb-1" style="font-size: 10px;">Description</span>
+                            ${_escapeHtml(formData.Description)}
+                        </div>` : ''}
+
+                        <!-- Lines Table -->
+                        <div class="overflow-hidden border border-gray-100 rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-100 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">#</th>
+                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">Account</th>
+                                        <th class="px-4 py-2.5 text-right font-bold text-gray-500 uppercase">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white">
+                                    ${(formData.Lines || []).map((line, i) => {
+                                        const accountName = line.Account || '';
+                                        return `<tr><td class="py-1 text-xs text-gray-500">${i + 1}</td><td class="py-1 text-sm">${_escapeHtml(accountName)}</td><td class="py-1 text-sm text-right font-medium">₹${(line.Amount || 0).toFixed(2)}</td></tr>`;
+                                    }).join('') || '<tr><td colspan="3" class="text-center py-4 text-gray-400 text-sm">No lines</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="flex justify-end pt-2">
+                            <div class="w-full md:w-64 space-y-2 text-xs bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                <div class="flex justify-between font-bold text-gray-800 text-sm">
+                                    <span>Total:</span>
+                                    <span class="text-blue-700 font-extrabold">₹${amount.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metadata -->
+                        <details class="text-[11px] text-gray-400">
+                            <summary class="cursor-pointer hover:text-gray-600 transition-colors">Audit & System Metadata</summary>
+                            <div class="grid grid-cols-2 gap-2 mt-2 p-2 border rounded-lg bg-gray-50/50">
+                                <div>Branch: ${_escapeHtml(branch.toUpperCase())}</div>
+                                <div>Manager UUID: <span class="font-mono text-[9px]">${formData.Key || formData.key || 'N/A'}</span></div>
+                                <div>Type: ${chequeType}</div>
+                                <div>Cleared: ${isCleared ? 'Yes' : 'No'}</div>
+                            </div>
+                        </details>
+                    </div>
+                </div>`;
+        } catch (err) {
+            view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
+        } finally {
+            window.setLoading?.(false);
+        }
         VaultPage.showDetailPane();
     }
 
-    function _openChequeAddPane() {
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">🏦 Record Cheque / PDC</h3></div>
-                <div class="detail-card-body">
-                    <form id="chequeForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    // ── Update clearance status ────────────────────────────────────────────────
+    async function _updateChequeStatus(chequeType, key, cleared, branch) {
+        const clientCode = _getClientCodeForBranch(branch);
+        if (!clientCode) {
+            alert(`Cannot update: no client code found for branch ${branch}.`);
+            return;
+        }
+        if (!confirm(`Mark this cheque as ${cleared ? 'CLEARED' : 'PENDING'}?`)) return;
+
+        window.setLoading?.(true, 'Updating cheque status...', 'detail');
+        try {
+            const res = await callApi(
+                `/api/manager/cheque-status/${chequeType}/${key}?cleared=${cleared}&code=${encodeURIComponent(clientCode)}`,
+                {}, 'PUT'
+            );
+            // Refresh
+            await _fetchCheques();
+            _renderList();
+            _renderChequeDetail(chequeType, key, branch);
+        } catch (err) {
+            alert('Failed to update status: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
+    // ── Print ─────────────────────────────────────────────────────────────────
+    async function _printCheque(chequeType, key, branch) {
+        window.setLoading?.(true, 'Preparing print...', 'detail');
+        try {
+            const [formData, appData] = await Promise.all([
+                callApi(`/api/manager/cheque-details/${chequeType}/${branch}/${key}`, {}, 'GET'),
+                getAppData()
+            ]);
+
+            const isReceipt = chequeType === 'receipt';
+            const entityNameKey = isReceipt ? 'Customer' : 'Supplier';
+            const ref = formData.Reference || formData.reference || key;
+            const date = formData.Date || formData.date || '';
+            const chqNumber = ref;
+            const amt = formData.Lines?.reduce((s, l) => s + (l.Amount || 0), 0) || 0;
+
+            // Branch info
+            let branchInfo = null;
+            if (appData?.BRANCHES) {
+                Object.values(appData.BRANCHES).forEach(b => {
+                    if ((b.BRANCH_CODE || '').toLowerCase() === (branch || '').toLowerCase()) {
+                        branchInfo = b;
+                    }
+                });
+            }
+            const branchName = branchInfo?.BRANCH_NAME || branch.toUpperCase();
+            const branchAddr = branchInfo?.BRANCH_ADDRESS || '';
+            const branchCity = branchInfo?.BRANCH_CITY || '';
+            const branchState = branchInfo?.BRANCH_STATE || '';
+
+            const isCleared = formData.Cleared === true;
+            const clearedLabel = isCleared ? '✅ Cleared' : '⏳ Pending';
+
+            const lines = formData.Lines || [];
+            const linesHtml = lines.map((line, i) =>
+                `<tr><td class="tc">${i+1}</td><td>${_escapeHtml(line.Account || '')}</td><td class="tr">₹${(line.Amount || 0).toFixed(2)}</td></tr>`
+            ).join('');
+
+            const css = `
+                body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0;padding:20px;background:#f5f5f5}
+                .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15)}
+                .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2563eb;padding-bottom:15px;margin-bottom:20px}
+                .tr{text-align:right}.tc{text-align:center}
+                .info{display:flex;justify-content:space-between;margin-bottom:20px;gap:20px}
+                .col{width:48%}.col h3{margin:0 0 5px;font-size:14px;border-bottom:1px solid #ccc;padding-bottom:3px}.col p{margin:2px 0;font-size:12px}
+                .div{width:1px;background:#ccc}.divb{height:2px;background:#2563eb;margin-bottom:20px}
+                table{width:100%;border-collapse:collapse;margin-bottom:20px}table,th,td{border:1px solid #000}th,td{padding:6px;text-align:left}th{background:#f2f2f2}
+                .sig{text-align:right;font-weight:bold;margin-top:20px}.sigbox{display:inline-block;text-align:center;min-width:200px}
+                .no-print{text-align:center;margin-bottom:15px}
+                .no-print button{padding:8px 20px;margin:3px;border:none;border-radius:4px;cursor:pointer;font-weight:600}
+                .no-print .print-btn{background:#2563eb;color:#fff}
+                .no-print .close-btn{background:#6b7280;color:#fff}
+                @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}.no-print{display:none}}
+            `;
+
+            const body = `
+                <div class="no-print"><button class="print-btn" onclick="window.print()">🖨️ Print</button><button class="close-btn" onclick="window.close()">✕ Close</button></div>
+                <div class="box">
+                    <div class="hdr">
+                        <div style="font-size:26px;font-weight:bold;text-transform:uppercase;color:#2563eb">💳 Cheque</div>
+                        <div style="text-align:right;font-size:12px">
+                            <b>Cheque No:</b> ${_escapeHtml(chqNumber)}<br>
+                            <b>Date:</b> ${_escapeHtml(date.split('T')[0] || date)}
+                        </div>
+                    </div>
+
+                    <div style="display:flex;justify-content:space-between;background:#eff6ff;padding:12px;border-radius:6px;margin-bottom:20px">
+                        <div><b>Amount:</b> ₹${amt.toFixed(2)}</div>
+                        <div><b>Status:</b> ${clearedLabel}</div>
+                        <div><b>Type:</b> ${isReceipt ? 'Receipt' : 'Payment'}</div>
+                    </div>
+
+                    <div class="info">
+                        <div class="col">
+                            <h3>Branch: ${_escapeHtml(branchName)}</h3>
+                            <p><b>Address:</b> ${_escapeHtml(branchAddr)}</p>
+                            <p><b>City:</b> ${_escapeHtml(branchCity)}, ${_escapeHtml(branchState)}</p>
+                        </div>
+                        <div class="div"></div>
+                        <div class="col">
+                            <h3>${entityNameKey}</h3>
+                            <p><b>${entityNameKey} Key:</b> ${_escapeHtml(formData[entityNameKey] || 'N/A')}</p>
+                            <p><b>Branch:</b> ${_escapeHtml(branch.toUpperCase())}</p>
+                        </div>
+                    </div>
+
+                    <div class="divb"></div>
+                    ${formData.Description ? `<div style="margin-bottom:20px;font-weight:bold;text-align:center"><p>${_escapeHtml(formData.Description)}</p></div>` : ''}
+
+                    ${lines.length ? `
+                    <table>
+                        <thead><tr><th class="tc">Sr</th><th>Account</th><th class="tr">Amount</th></tr></thead>
+                        <tbody>${linesHtml}</tbody>
+                    </table>
+                    ` : ''}
+
+                    <div style="margin-top:10px;text-align:right;font-size:16px;font-weight:bold;color:#2563eb">
+                        Total: ₹${amt.toFixed(2)}
+                    </div>
+
+                    <div class="sig">
+                        <div class="sigbox">
+                            <p style="margin-bottom:40px">Authorized Signatory</p>
+                            <p>for ${_escapeHtml(branchName)}</p>
+                        </div>
+                    </div>
+                </div>`;
+
+            const w = window.open('', 'Cheque_' + chqNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+            if (!w) { alert('Pop-up blocked! Please allow pop-ups.'); return; }
+            w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cheque - ' + _escapeHtml(chqNumber) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+            w.document.close();
+            w.onload = function() {
+                setTimeout(function() {
+                    try {
+                        w.document.querySelectorAll('.no-print').forEach(function(e) { e.style.display = 'block'; });
+                    } catch(_) {}
+                }, 500);
+            };
+        } catch (err) {
+            alert('Failed to load cheque details for print: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
+    // ── Filter UI injection ────────────────────────────────────────────────────
+    function _injectFilterUI() {
+        const listPane = document.getElementById('vaultListPane');
+        const header = listPane?.querySelector('.sv-pane-header');
+        if (header && !document.getElementById('chqFilterBtn')) {
+            const searchInput = document.getElementById('vaultSearch');
+            let searchRow = searchInput?.parentElement;
+            if (searchInput && searchRow && !searchRow.classList.contains('flex')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex gap-2 w-full mt-2';
+                searchRow.insertBefore(wrapper, searchInput);
+                wrapper.appendChild(searchInput);
+                searchInput.classList.remove('mt-2');
+                searchRow = wrapper;
+            }
+
+            const filterBtn = document.createElement('button');
+            filterBtn.id = 'chqFilterBtn';
+            filterBtn.className = 'btn-ghost btn-sm flex-shrink-0';
+            filterBtn.title = 'Filter Cheques';
+            filterBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>`;
+            filterBtn.onclick = () => document.getElementById('chqFilterModal')?.classList.remove('hidden');
+            searchRow?.appendChild(filterBtn);
+        }
+
+        if (!document.getElementById('chqStatus')) {
+            const statusEl = document.createElement('p');
+            statusEl.id = 'chqStatus';
+            statusEl.className = 'text-xs text-gray-500 px-4 pt-2 text-center font-medium';
+            statusEl.textContent = 'Loading...';
+            const listContainer = document.getElementById('vaultList')?.parentElement;
+            listContainer?.insertBefore(statusEl, document.getElementById('vaultList'));
+        }
+
+        if (!document.getElementById('chqFilterModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'chqFilterModal';
+            modal.className = 'modal-overlay hidden';
+            modal.innerHTML = `
+                <div class="modal-content space-y-4 max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-5">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h2 class="text-lg font-bold text-gray-800">Filter Cheques</h2>
+                        <button onclick="document.getElementById('chqFilterModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Direction *</label>
-                            <select name="direction" required class="form-input text-sm">
-                                <option value="OUTWARD">Receipt (client pays us)</option>
-                                <option value="INWARD">Payment (we pay vendor)</option>
-                            </select>
+                            <label class="block font-semibold text-gray-600 mb-1">Start Date</label>
+                            <input type="date" id="chqFilterStart" class="form-input text-xs" value="${_filterStart}">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Client/Vendor Code *</label>
-                            <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="chqCodeList">
-                            <datalist id="chqCodeList"></datalist>
+                            <label class="block font-semibold text-gray-600 mb-1">End Date</label>
+                            <input type="date" id="chqFilterEnd" class="form-input text-xs" value="${_filterEnd}">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Amount (₹) *</label>
-                            <input name="amount" type="number" step="0.01" min="0.01" required class="form-input text-sm" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Entry Date *</label>
-                            <input name="entry_date" type="date" required class="form-input text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Cheque Number *</label>
-                            <input name="cheque_number" required class="form-input text-sm" placeholder="e.g. 000123">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Cheque Date *</label>
-                            <input name="cheque_date" type="date" required class="form-input text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Bank Name *</label>
-                            <input name="bank_name" required class="form-input text-sm" placeholder="e.g. HDFC Bank" list="bankNameList">
-                            <datalist id="bankNameList"></datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                            <select name="branch" class="form-input text-sm">
+                            <label class="block font-semibold text-gray-600 mb-1">Branch</label>
+                            <select id="chqFilterBranch" class="form-input text-xs">
                                 <option value="">All Branches</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Vendor Type <span class="text-gray-400">(for payments)</span></label>
-                            <select name="vendor_type" class="form-input text-sm">
-                                <option value="">N/A</option>
-                                <option value="B2B">B2B Vendor</option>
-                                <option value="CARRIER">Carrier</option>
+                            <label class="block font-semibold text-gray-600 mb-1">Status</label>
+                            <select id="chqFilterStatus" class="form-input text-xs">
+                                <option value="">All</option>
+                                <option value="cleared">Cleared</option>
+                                <option value="pending">Pending</option>
                             </select>
                         </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration</label>
-                            <input name="narration" class="form-input text-sm" placeholder="Optional description">
-                        </div>
-                        <div class="sm:col-span-2 flex justify-end pt-2 border-t">
-                            <button type="submit" class="btn btn-sm flex items-center gap-2">
-                                <span id="chqBtnText">Save Cheque</span>
-                                <div id="chqSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </button>
-                        </div>
-                    </form>
-                    <div id="chqResponse" class="hidden mt-3 p-3 rounded text-sm text-center"></div>
-                </div>
-            </div>`;
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t">
+                        <button id="chqResetBtn" class="btn-ghost btn-sm">Reset</button>
+                        <button id="chqApplyBtn" class="btn btn-sm">Apply Filters</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
 
-        // Populate code datalist
-        const dl = document.getElementById('chqCodeList');
-        _b2bMap.forEach((v, k) => {
-            const opt = document.createElement('option');
-            opt.value = k; opt.label = `${k} - ${v.B2B_NAME || ''}`;
-            dl.appendChild(opt);
-        });
-
-        // Bank name suggestions
-        const bankDl = document.getElementById('bankNameList');
-        const knownBanks = ['HDFC Bank', 'ICICI Bank', 'SBI', 'Axis Bank', 'Kotak Mahindra', 'Yes Bank', 'PNB', 'BOB', 'Canara Bank', 'Union Bank'];
-        knownBanks.forEach(b => { const o = document.createElement('option'); o.value = b; bankDl.appendChild(o); });
-
-        // Populate branch dropdown
-        getAppData().then(data => {
-            const branchSelect = document.querySelector('select[name="branch"]');
-            if (branchSelect && data?.BRANCHES) {
-                Object.values(data.BRANCHES).forEach(b => {
-                    if (b.BRANCH_CODE) {
-                        const opt = document.createElement('option');
-                        opt.value = b.BRANCH_CODE;
-                        opt.textContent = b.BRANCH_NAME || b.BRANCH_CODE;
-                        branchSelect.appendChild(opt);
-                    }
-                });
-            }
-        });
-
-        document.getElementById('chequeForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd);
-            const btn = e.target.querySelector('button[type=submit]');
-            const sp = document.getElementById('chqSpinner');
-            const resp = document.getElementById('chqResponse');
-            btn.disabled = true; sp.classList.remove('hidden');
-
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
-            try {
-                // TODO: migrate cheque recording to Manager.io
-                alert('Coming soon — recording cheques through Manager.io');
-                return;
-                const isOutward = data.direction === 'OUTWARD';
-                const endpoint = isOutward ? '/api/ledger/payment' : '/api/ledger/inward/payment';
-                const body = {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    credit: parseFloat(data.amount),
-                    payment_mode: 'CHEQUE',
-                    cheque_number: data.cheque_number,
-                    cheque_date: toMs(data.cheque_date),
-                    bank_name: data.bank_name,
-                    narration: data.narration || '',
-                    branch: data.branch || '',
-                    ...(isOutward ? {} : { vendor_type: data.vendor_type || 'B2B' }),
-                };
-                const res = await callApi(endpoint, body, 'POST');
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ Cheque recorded. Balance: ₹${(+res.balance).toFixed(2)}`;
-                resp.classList.remove('hidden');
-                e.target.reset();
-                const appData = await getAppData();
-                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
+            document.getElementById('chqApplyBtn').onclick = async () => {
+                _filterStart = document.getElementById('chqFilterStart').value;
+                _filterEnd = document.getElementById('chqFilterEnd').value;
+                _filterBranch = document.getElementById('chqFilterBranch').value;
+                _filterStatus = document.getElementById('chqFilterStatus').value;
+                modal.classList.add('hidden');
+                await _fetchCheques();
                 _renderList();
-            } catch (err) {
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
-                resp.textContent = '❌ ' + (err.message || 'Failed');
-                resp.classList.remove('hidden');
-            } finally {
-                btn.disabled = false; sp.classList.add('hidden');
-            }
-        });
+            };
 
-        const d = document.querySelector('[name="entry_date"]');
-        if (d) d.value = new Date().toISOString().split('T')[0];
+            document.getElementById('chqResetBtn').onclick = async () => {
+                const range = getCurrentFYRange();
+                document.getElementById('chqFilterStart').value = range.start;
+                document.getElementById('chqFilterEnd').value = range.end;
+                document.getElementById('chqFilterBranch').value = '';
+                document.getElementById('chqFilterStatus').value = '';
+                _filterStart = range.start;
+                _filterEnd = range.end;
+                _filterBranch = '';
+                _filterStatus = '';
+                await _fetchCheques();
+                _renderList();
+            };
 
-        VaultPage.showDetailPane();
+            getAppData().then(data => {
+                const select = document.getElementById('chqFilterBranch');
+                if (select && data?.BRANCHES) {
+                    Object.values(data.BRANCHES).forEach(b => {
+                        if (b.BRANCH_CODE) {
+                            const opt = document.createElement('option');
+                            opt.value = b.BRANCH_CODE;
+                            opt.textContent = b.BRANCH_CODE.toUpperCase();
+                            select.appendChild(opt);
+                        }
+                    });
+                }
+            });
+        }
     }
 
     // ========================================================================
-    // BANK ACCOUNTS TILE
+    // BANK ACCOUNTS TILE (unchanged — uses appData ledger)
     // ========================================================================
 
     function _computeBankBalance(code) {
@@ -436,6 +606,12 @@ const VaultAccounts = (() => {
                 }).join('')}
             </div>
         </div>`;
+    }
+
+    function _fmt(v, t) {
+        if (!v) return 'N/A';
+        try { return (typeof fmtDate === 'function') ? fmtDate(v, t) : new Date(v).toLocaleDateString(); }
+        catch { return String(v); }
     }
 
     function _copyToClipboard(text, label) {
@@ -586,11 +762,6 @@ const VaultAccounts = (() => {
     // LOAD & ROUTING
     // ========================================================================
 
-    function search() {
-        if (_activeTile === 'cheques') _renderList();
-        else if (_activeTile === 'bank-accounts') _renderBankAccounts();
-    }
-
     async function load() {
         const data = await getAppData();
         if (!data) return;
@@ -599,26 +770,35 @@ const VaultAccounts = (() => {
         _allBranches = Object.values(data.BRANCHES || {});
         _allCarriers = Object.values(data.CARRIERS || {});
         _b2bMap.clear();
-        if (data.B2B) Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
+        _b2bList = [];
+        if (data.B2B) {
+            Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
+            _b2bList = Object.values(data.B2B).filter(c => c.CODE);
+        }
 
-        _injectListPane('Search cheque number, bank, party…');
-        await _loadCoaCache();
-
-        // Wire search input
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
 
         if (_activeTile === 'cheques') {
+            _injectListPane('Search cheque number, branch…');
+            _injectFilterUI();
+            await _fetchCheques();
             _renderList();
         } else if (_activeTile === 'bank-accounts') {
+            _injectListPane('Search bank, entity, account…');
             document.getElementById('vaultAddBtn').classList.add('hidden');
             _renderBankAccounts();
         }
     }
 
+    function search() {
+        if (_activeTile === 'cheques') _renderList();
+        else if (_activeTile === 'bank-accounts') _renderBankAccounts();
+    }
+
     function setTile(tile) { _activeTile = tile; }
 
-    return { load, search, setTile, _openChequeAddPane, _updateChequeStatus, _copyToClipboard };
+    return { load, search, setTile, _printCheque, _copyToClipboard, _updateChequeStatus };
 })();
 
 window.VaultAccounts = VaultAccounts;

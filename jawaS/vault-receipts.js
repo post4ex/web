@@ -39,6 +39,25 @@ const VaultReceipts = (() => {
         return _activeMode === 'receipts' ? 'customer' : 'supplier';
     }
 
+    function _escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── Filter state ────────────────────────────────────────────────────────────
+    function getCurrentFYRange() {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        let startYear = currentYear;
+        if (now.getMonth() < 3) startYear = currentYear - 1;
+        return { start: `${startYear}-04-01`, end: `${startYear + 1}-03-31` };
+    }
+    const _fyRange = getCurrentFYRange();
+    let _filterStart = _fyRange.start;
+    let _filterEnd   = _fyRange.end;
+    let _filterBranch = '';
+    let _filterStatus = '';
+
     // ── Cache helpers ─────────────────────────────────────────────────────────
     async function _ensureBankAccounts(code) {
         if (_bankAcctsCache[code]) return _bankAcctsCache[code];
@@ -131,10 +150,10 @@ const VaultReceipts = (() => {
         window.setLoading?.(true, `Loading ${_activeMode}...`, 'list');
         try {
             if (_activeMode === 'receipts') {
-                const res = await callApi(`/api/manager/all-receipts${branch ? '?branch=' + branch : ''}`, {}, 'GET');
+                const res = await callApi(`/api/manager/all-receipts?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`, {}, 'GET');
                 _receiptsList = res.receipts || [];
             } else {
-                const res = await callApi(`/api/manager/all-payments${branch ? '?branch=' + branch : ''}`, {}, 'GET');
+                const res = await callApi(`/api/manager/all-payments?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`, {}, 'GET');
                 _paymentsList = res.payments || [];
             }
         } catch (err) {
@@ -151,20 +170,42 @@ const VaultReceipts = (() => {
         if (!ul) return;
         const items = _activeMode === 'receipts' ? _receiptsList : _paymentsList;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        const filtered = q
-            ? items.filter(item => {
+        const filtered = items.filter(item => {
+            // Text search
+            if (q) {
                 const entity = item[_entityListKey()] || {};
-                return (item.reference || '').toLowerCase().includes(q) ||
-                       (entity.name || '').toLowerCase().includes(q) ||
-                       (item.date || '').includes(q) ||
-                       (item.branch || '').toLowerCase().includes(q);
-              })
-            : items;
+                const match = (item.reference || '').toLowerCase().includes(q) ||
+                    (entity.name || '').toLowerCase().includes(q) ||
+                    (item.date || '').includes(q) ||
+                    (item.branch || '').toLowerCase().includes(q);
+                if (!match) return false;
+            }
+            // Date range
+            const d = item.date || '';
+            if (_filterStart && d < _filterStart) return false;
+            if (_filterEnd && d > _filterEnd) return false;
+            // Branch
+            if (_filterBranch && (item.branch || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
+            // Status (has amount vs zero)
+            if (_filterStatus) {
+                const amt = item.total?.value || 0;
+                if (_filterStatus === 'hasamount' && amt <= 0) return false;
+                if (_filterStatus === 'zero' && amt > 0) return false;
+            }
+            return true;
+        });
 
         filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
+        // Update status label
+        const statusEl = document.getElementById('rptStatus');
+        if (statusEl) {
+            const totalLabel = _activeMode === 'receipts' ? 'Receipts' : 'Payments';
+            statusEl.textContent = `Showing ${filtered.length} of ${items.length} ${totalLabel}`;
+        }
+
         if (!filtered.length) {
-            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No ${_activeMode} found.</li>`;
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No matching ${_activeMode} found.</li>`;
             return;
         }
 
@@ -172,10 +213,10 @@ const VaultReceipts = (() => {
         ul.innerHTML = filtered.slice(0, 100).map(item => {
             const amount = item.total?.value || 0;
             const entity = item[_entityListKey()] || {};
-            const entityDisplay = entity.name || '';
+            const entityDisplay = _escapeHtml(entity.name || '');
             return `<li data-key="${item.key}" data-branch="${item.branch || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
-                <strong class="text-green-700 block text-sm">${label} ${item.reference || 'N/A'} — ${entityDisplay}</strong>
-                <span class="text-xs text-gray-500">₹${amount.toFixed(2)} · ${item.date || ''} · ${item.branch || ''}</span>
+                <strong class="text-green-700 block text-sm">${label} ${_escapeHtml(item.reference || 'N/A')} — ${entityDisplay}</strong>
+                <span class="text-xs text-gray-500">₹${amount.toFixed(2)} · ${_escapeHtml(item.date || '')} · ${_escapeHtml(item.branch || '')}</span>
             </li>`;
         }).join('');
 
@@ -240,44 +281,89 @@ const VaultReceipts = (() => {
                 return `<tr><td class="py-1 text-xs text-gray-500">${i + 1}</td><td class="py-1 text-sm">${accountName}${invRef}</td><td class="py-1 text-sm text-right font-medium">₹${(line.Amount || 0).toFixed(2)}</td></tr>`;
             }).join('');
 
-            const printBtn = `<button onclick="VaultReceipts._printEntry('${key}','${branch}')" class="btn btn-sm flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>`;
-
-            const voidBtn = `<button onclick="VaultReceipts._handleDelete('${key}','${branch}')" class="btn-danger btn-sm flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Void</button>`;
-
             view.innerHTML = `
                 <div class="detail-card">
-                    <div class="detail-card-header flex justify-between items-center">
-                        <h3 class="font-semibold text-gray-700">${label} Detail</h3>
-                        <div class="flex gap-2 items-center">
-                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 border border-green-200">₹${amount.toFixed(2)}</span>
-                            ${printBtn}${voidBtn}
-                        </div>
-                    </div>
-                    <div class="detail-card-body">
-                        <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg mb-4">
-                            <div><span class="text-gray-500">Reference:</span> <span class="font-semibold">${formData.Reference || formData.reference || 'N/A'}</span></div>
-                            <div><span class="text-gray-500">Date:</span> ${formData.Date || formData.date || 'N/A'}</div>
-                            <div><span class="text-gray-500">${entityNameKey}:</span> <span class="font-semibold">${entityDisplay}</span></div>
-                            <div><span class="text-gray-500">Bank Account:</span> ${bankDisplay}</div>
-                            <div><span class="text-gray-500">Branch:</span> ${branch.toUpperCase()}</div>
-                            <div><span class="text-gray-500">Total:</span> <span class="font-bold">₹${amount.toFixed(2)}</span></div>
+                    <div class="detail-card-body p-6 space-y-6">
+                        <!-- Header -->
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-gray-100 pb-5">
+                            <div class="flex-1 min-w-0">
+                                <h1 class="text-xl font-bold text-green-800 tracking-tight break-words">${label}</h1>
+                                <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${_escapeHtml(branch.toUpperCase())}</span></p>
+                            </div>
+                            <div class="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+                                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
+                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-50 text-green-700 uppercase whitespace-nowrap">${isReceipt ? 'RECEIPT' : 'PAYMENT'}</span>
+                                    <button onclick="VaultReceipts._printEntry('${key}','${branch}')"
+                                        class="btn btn-sm flex-1 sm:flex-none min-w-0 justify-center">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                        </svg><span class="truncate">Print</span>
+                                    </button>
+                                    <button onclick="VaultReceipts._handleDelete('${key}','${branch}')"
+                                        class="btn-danger btn-sm flex-1 sm:flex-none min-w-0 justify-center">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg><span class="truncate">Void</span>
+                                    </button>
+                                </div>
+                                <p class="text-sm text-gray-500">${label} #: <span class="font-bold text-gray-800">${_escapeHtml(formData.Reference || formData.reference || 'N/A')}</span></p>
+                                <p class="text-xs text-gray-400">Date: ${_escapeHtml(formData.Date || formData.date || 'N/A')}</p>
+                            </div>
                         </div>
 
-                        ${formData.Description ? `<div class="text-sm text-gray-700 mb-4 bg-white border rounded-lg p-3">📝 ${formData.Description}</div>` : ''}
+                        <!-- Entity & Bank Details -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm">
+                            <div>
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">${entityNameKey}</h3>
+                                <p class="font-semibold text-gray-800">${_escapeHtml(entityDisplay)}</p>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Details</h3>
+                                <p class="text-gray-600">Bank Account: <span class="font-medium text-gray-800">${_escapeHtml(bankDisplay)}</span></p>
+                                <p class="text-gray-600 mt-0.5">Total: <span class="font-bold text-green-700">₹${amount.toFixed(2)}</span></p>
+                            </div>
+                        </div>
 
-                        <div class="border rounded-lg overflow-hidden">
-                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 px-3 py-2 border-b">Lines</div>
-                            <table class="w-full text-sm">
-                                <thead><tr class="border-b bg-gray-50/50"><th class="text-left py-1 px-3 text-xs text-gray-400">#</th><th class="text-left py-1 px-3 text-xs text-gray-400">Account</th><th class="text-right py-1 px-3 text-xs text-gray-400">Amount</th></tr></thead>
-                                <tbody>${linesHtml || '<tr><td colspan="3" class="text-center py-4 text-gray-400 text-sm">No lines</td></tr>'}</tbody>
+                        <!-- Description -->
+                        ${formData.Description ? `<div class="bg-green-50/40 border border-green-100/50 rounded-lg p-3 text-xs text-green-950">
+                            <span class="font-semibold block text-green-800 uppercase tracking-wider mb-1" style="font-size: 10px;">Description</span>
+                            ${_escapeHtml(formData.Description)}
+                        </div>` : ''}
+
+                        <!-- Lines Table -->
+                        <div class="overflow-hidden border border-gray-100 rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-100 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">#</th>
+                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">Account</th>
+                                        <th class="px-4 py-2.5 text-right font-bold text-gray-500 uppercase">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white">
+                                    ${linesHtml || '<tr><td colspan="3" class="text-center py-4 text-gray-400 text-sm">No lines</td></tr>'}
+                                </tbody>
                             </table>
                         </div>
 
-                        <details class="mt-4">
-                            <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Raw Data</summary>
-                            <pre class="text-xs text-gray-500 mt-2 p-3 border rounded-lg overflow-auto max-h-64">${JSON.stringify(formData, null, 2)}</pre>
+                        <!-- Summary Block -->
+                        <div class="flex justify-end pt-2">
+                            <div class="w-full md:w-64 space-y-2 text-xs bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                <div class="flex justify-between font-bold text-gray-800 text-sm">
+                                    <span>Total ${label}:</span>
+                                    <span class="text-green-700 font-extrabold">₹${amount.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metadata -->
+                        <details class="text-[11px] text-gray-400">
+                            <summary class="cursor-pointer hover:text-gray-600 transition-colors">Audit & System Metadata</summary>
+                            <div class="grid grid-cols-2 gap-2 mt-2 p-2 border rounded-lg bg-gray-50/50">
+                                <div>Branch: ${_escapeHtml(branch.toUpperCase())}</div>
+                                <div>Manager UUID: <span class="font-mono text-[9px]">${formData.Key || formData.key || 'N/A'}</span></div>
+                            </div>
                         </details>
                     </div>
                 </div>`;
@@ -296,16 +382,137 @@ const VaultReceipts = (() => {
             const endpoint = _activeMode === 'receipts'
                 ? `/api/manager/receipt-details/${branch}/${key}`
                 : `/api/manager/payment-details/${branch}/${key}`;
-            const formData = await callApi(endpoint, {}, 'GET');
-            // Fallback to window.print with a simple summary if VaultPrint is not available
-            if (window.VaultPrint?.printReceipt) {
-                window.VaultPrint.printReceipt(formData, _activeMode === 'receipts');
-            } else {
-                const w = window.open('', '_blank');
-                w.document.write(`<html><head><title>${_activeMode === 'receipts' ? 'Receipt' : 'Payment'} - ${formData.Reference || key}</title></head><body><pre>${JSON.stringify(formData, null, 2)}</pre></body></html>`);
-                w.document.close();
-                w.print();
+            const [formData, appData] = await Promise.all([
+                callApi(endpoint, {}, 'GET'),
+                getAppData()
+            ]);
+
+            const isReceipt = _activeMode === 'receipts';
+            const label = isReceipt ? 'Receipt' : 'Payment';
+            const entityNameKey = isReceipt ? 'Customer' : 'Supplier';
+            const bankKey = isReceipt ? 'ReceivedIn' : 'PaidFrom';
+            const ref = formData.Reference || formData.reference || key;
+            const date = formData.Date || formData.date || '';
+
+            // Resolve names
+            const clientCode = _getClientCodeForBranch(branch);
+            let entityDisplay = formData[entityNameKey] || '';
+            let bankDisplay = formData[bankKey] || '';
+            if (clientCode && isReceipt) {
+                const customers = await _ensureCustomers(clientCode);
+                const cust = customers.find(c => c.key === formData[entityNameKey]);
+                if (cust) entityDisplay = cust.name;
             }
+            if (clientCode) {
+                const banks = await _ensureBankAccounts(clientCode);
+                const bank = banks.find(b => b.key === formData[bankKey]);
+                if (bank) bankDisplay = bank.name;
+            }
+
+            // Branch info
+            let branchInfo = null;
+            if (appData?.BRANCHES) {
+                Object.values(appData.BRANCHES).forEach(b => {
+                    if ((b.BRANCH_CODE || '').toLowerCase() === (branch || '').toLowerCase()) {
+                        branchInfo = b;
+                    }
+                });
+            }
+            const branchName = branchInfo?.BRANCH_NAME || branch.toUpperCase();
+            const branchAddr = branchInfo?.BRANCH_ADDRESS || '';
+            const branchCity = branchInfo?.BRANCH_CITY || '';
+            const branchState = branchInfo?.BRANCH_STATE || '';
+            const branchMobile = branchInfo?.BRANCH_MOBILE || '';
+            const branchEmail = branchInfo?.BRANCH_EMAIL || '';
+            const branchGstin = branchInfo?.BRANCH_GSTIN || '';
+
+            const lines = formData.Lines || [];
+            const linesHtml = lines.map((line, i) => {
+                const accountName = line.Account || '';
+                const amt = line.Amount || 0;
+                return `<tr><td class="tc">${i+1}</td><td>${_escapeHtml(accountName)}</td><td class="tr">₹${amt.toFixed(2)}</td></tr>`;
+            }).join('');
+            const totalAmount = lines.reduce((s, l) => s + (l.Amount || 0), 0);
+
+            const css = `
+                body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0;padding:20px;background:#f5f5f5}
+                .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15)}
+                .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16a34a;padding-bottom:15px;margin-bottom:20px}
+                .tr{text-align:right}.tc{text-align:center}
+                .info{display:flex;justify-content:space-between;margin-bottom:20px;gap:20px}
+                .col{width:48%}.col h3{margin:0 0 5px;font-size:14px;border-bottom:1px solid #ccc;padding-bottom:3px}.col p{margin:2px 0;font-size:12px}
+                .div{width:1px;background:#ccc}.divb{height:2px;background:#16a34a;margin-bottom:20px}
+                .meta{margin-bottom:20px;font-weight:bold;text-align:center}
+                table{width:100%;border-collapse:collapse;margin-bottom:20px}table,th,td{border:1px solid #000}th,td{padding:6px;text-align:left}th{background:#f2f2f2}
+                .sig{text-align:right;font-weight:bold;margin-top:20px}.sigbox{display:inline-block;text-align:center;min-width:200px}
+                .no-print{text-align:center;margin-bottom:15px}
+                .no-print button{padding:8px 20px;margin:3px;border:none;border-radius:4px;cursor:pointer;font-weight:600}
+                .no-print .print-btn{background:#16a34a;color:#fff}
+                .no-print .close-btn{background:#6b7280;color:#fff}
+                @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}.no-print{display:none}}
+            `;
+
+            const body = `
+                <div class="no-print"><button class="print-btn" onclick="window.print()">🖨️ Print</button><button class="close-btn" onclick="window.close()">✕ Close</button></div>
+                <div class="box">
+                    <div class="hdr">
+                        <div style="font-size:26px;font-weight:bold;text-transform:uppercase;color:#16a34a">${label}</div>
+                        <div style="text-align:right;font-size:12px">
+                            <b>${label} No:</b> ${_escapeHtml(ref)}<br>
+                            <b>Date:</b> ${_escapeHtml(date.split('T')[0] || date)}
+                        </div>
+                    </div>
+
+                    <div class="info">
+                        <div class="col">
+                            <h3>Branch: ${_escapeHtml(branchName)}</h3>
+                            <p><b>Address:</b> ${_escapeHtml(branchAddr)}</p>
+                            <p><b>City:</b> ${_escapeHtml(branchCity)}, ${_escapeHtml(branchState)}</p>
+                            <p><b>Phone:</b> ${_escapeHtml(branchMobile)}</p>
+                            <p><b>Email:</b> ${_escapeHtml(branchEmail)}</p>
+                            ${branchGstin ? `<p><b>GSTIN:</b> ${_escapeHtml(branchGstin)}</p>` : ''}
+                        </div>
+                        <div class="div"></div>
+                        <div class="col">
+                            <h3>${entityNameKey}: ${_escapeHtml(entityDisplay)}</h3>
+                            <p><b>Bank Account:</b> ${_escapeHtml(bankDisplay)}</p>
+                            <p><b>Branch:</b> ${_escapeHtml(branch.toUpperCase())}</p>
+                        </div>
+                    </div>
+
+                    <div class="divb"></div>
+                    ${formData.Description ? `<div class="meta"><p>${_escapeHtml(formData.Description)}</p></div>` : ''}
+
+                    ${lines.length ? `
+                    <table>
+                        <thead><tr><th class="tc">Sr</th><th>Account</th><th class="tr">Amount</th></tr></thead>
+                        <tbody>${linesHtml}</tbody>
+                    </table>
+                    ` : ''}
+
+                    <div style="margin-top:10px;text-align:right;font-size:16px;font-weight:bold;color:#16a34a">
+                        Total ${label}: ₹${totalAmount.toFixed(2)}
+                    </div>
+
+                    <div class="sig">
+                        <div class="sigbox">
+                            <p style="margin-bottom:40px">Authorized Signatory</p>
+                            <p>for ${_escapeHtml(branchName)}</p>
+                        </div>
+                    </div>
+                </div>`;
+
+            const w = window.open('', (isReceipt ? 'Receipt_' : 'Payment_') + ref.replace(/[^a-zA-Z0-9]/g, '_'));
+            if (!w) { alert('Pop-up blocked! Please allow pop-ups.'); return; }
+            w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + label + ' - ' + _escapeHtml(ref) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
+            w.document.close();
+            w.onload = function() {
+                setTimeout(function() {
+                    try {
+                        w.document.querySelectorAll('.no-print').forEach(function(e) { e.style.display = 'block'; });
+                    } catch(_) {}
+                }, 500);
+            };
         } catch (err) {
             alert('Failed to load details for print: ' + (err.message || err));
         } finally {
@@ -567,12 +774,131 @@ const VaultReceipts = (() => {
         VaultPage.showDetailPane();
     }
 
+    // ── Filter UI injection (filter button, status counter, filter modal) ──────
+    function _injectUI() {
+        const listPane = document.getElementById('vaultListPane');
+        const header   = listPane?.querySelector('.sv-pane-header');
+        if (header && !document.getElementById('rptFilterBtn')) {
+            const searchInput = document.getElementById('vaultSearch');
+            let searchRow = searchInput?.parentElement;
+            if (searchInput && searchRow && !searchRow.classList.contains('flex')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex gap-2 w-full mt-2';
+                searchRow.insertBefore(wrapper, searchInput);
+                wrapper.appendChild(searchInput);
+                searchInput.classList.remove('mt-2');
+                searchRow = wrapper;
+            }
+
+            const filterBtn = document.createElement('button');
+            filterBtn.id = 'rptFilterBtn';
+            filterBtn.className = 'btn-ghost btn-sm flex-shrink-0';
+            filterBtn.title = 'Filter ' + (_activeMode === 'receipts' ? 'Receipts' : 'Payments');
+            filterBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>`;
+            filterBtn.onclick = () => document.getElementById('rptFilterModal')?.classList.remove('hidden');
+            searchRow?.appendChild(filterBtn);
+        }
+
+        if (!document.getElementById('rptStatus')) {
+            const statusEl = document.createElement('p');
+            statusEl.id = 'rptStatus';
+            statusEl.className = 'text-xs text-gray-500 px-4 pt-2 text-center font-medium';
+            statusEl.textContent = 'Loading...';
+            const listContainer = document.getElementById('vaultList')?.parentElement;
+            listContainer?.insertBefore(statusEl, document.getElementById('vaultList'));
+        }
+
+        if (!document.getElementById('rptFilterModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'rptFilterModal';
+            modal.className = 'modal-overlay hidden';
+            modal.innerHTML = `
+                <div class="modal-content space-y-4 max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-5">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h2 class="text-lg font-bold text-gray-800">Filter ${_activeMode === 'receipts' ? 'Receipts' : 'Payments'}</h2>
+                        <button onclick="document.getElementById('rptFilterModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Start Date</label>
+                            <input type="date" id="rptFilterStart" class="form-input text-xs" value="${_filterStart}">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">End Date</label>
+                            <input type="date" id="rptFilterEnd" class="form-input text-xs" value="${_filterEnd}">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Branch</label>
+                            <select id="rptFilterBranch" class="form-input text-xs">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Amount</label>
+                            <select id="rptFilterStatus" class="form-input text-xs">
+                                <option value="">All</option>
+                                <option value="hasamount">Has Amount</option>
+                                <option value="zero">Zero Amount</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t">
+                        <button id="rptResetBtn" class="btn-ghost btn-sm">Reset</button>
+                        <button id="rptApplyBtn" class="btn btn-sm">Apply Filters</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+
+            document.getElementById('rptApplyBtn').onclick = async () => {
+                _filterStart = document.getElementById('rptFilterStart').value;
+                _filterEnd = document.getElementById('rptFilterEnd').value;
+                _filterBranch = document.getElementById('rptFilterBranch').value;
+                _filterStatus = document.getElementById('rptFilterStatus').value;
+                modal.classList.add('hidden');
+                await _fetchList();
+                _renderList();
+            };
+
+            document.getElementById('rptResetBtn').onclick = async () => {
+                const range = getCurrentFYRange();
+                document.getElementById('rptFilterStart').value = range.start;
+                document.getElementById('rptFilterEnd').value = range.end;
+                document.getElementById('rptFilterBranch').value = '';
+                document.getElementById('rptFilterStatus').value = '';
+                _filterStart = range.start;
+                _filterEnd = range.end;
+                _filterBranch = '';
+                _filterStatus = '';
+                await _fetchList();
+                _renderList();
+            };
+
+            getAppData().then(data => {
+                const select = document.getElementById('rptFilterBranch');
+                if (select && data?.BRANCHES) {
+                    Object.values(data.BRANCHES).forEach(b => {
+                        if (b.BRANCH_CODE) {
+                            const opt = document.createElement('option');
+                            opt.value = b.BRANCH_CODE;
+                            opt.textContent = b.BRANCH_CODE.toUpperCase();
+                            select.appendChild(opt);
+                        }
+                    });
+                }
+            });
+        }
+    }
+
     // ── Load ──────────────────────────────────────────────────────────────────
     async function load() {
         _injectListPane();
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
         await _loadB2bList();
+        _injectUI();
         await _fetchList();
         _renderList();
     }

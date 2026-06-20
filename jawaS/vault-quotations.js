@@ -183,33 +183,33 @@ const VaultQuotations = (() => {
 
         view.innerHTML = `
             <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">📋 Quotation — ${ref} ${statusHtml}</h3>
-                    <div class="flex gap-1.5 items-center flex-wrap justify-end">
+                <div class="detail-card-header flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                    <h3 class="font-semibold text-gray-700 break-words">📋 Quotation — ${ref} ${statusHtml}</h3>
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         <button onclick="VaultQuotations._handleConvertToInvoice('${key}', event)"
-                            class="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1 justify-center flex-1 sm:flex-none min-w-0">
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg> Invoice
+                            </svg><span class="truncate">Invoice</span>
                         </button>
                         <button onclick="VaultQuotations._handlePrint('${key}')"
-                            class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 flex items-center gap-1 justify-center flex-1 sm:flex-none min-w-0">
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                            </svg> Print
+                            </svg><span class="truncate">Print</span>
                         </button>
                         <button onclick="VaultQuotations._handleEdit('${key}')"
-                            class="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded hover:bg-amber-200 flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded hover:bg-amber-200 flex items-center gap-1 justify-center flex-1 sm:flex-none min-w-0">
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg> Edit
+                            </svg><span class="truncate">Edit</span>
                         </button>
                         <button onclick="VaultQuotations._handleDelete('${key}')"
-                            class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center gap-1 justify-center flex-1 sm:flex-none min-w-0">
+                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
+                            </svg><span class="truncate">Delete</span>
                         </button>
                     </div>
                 </div>

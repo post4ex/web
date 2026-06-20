@@ -298,13 +298,17 @@ const VaultPage = (() => {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultProductItems.load();
         }
+        else if (name === 'inventory') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultInventory.load();
+        }
         else if (name === 'chart-of-accounts') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultCOA.load();
         }
         else if (name === 'cheques') {
             VaultAccounts.setTile('cheques');
-            document.getElementById('vaultAddBtn').onclick = () => VaultAccounts._openChequeAddPane();
+            document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultAccounts.load();
         }
         else if (name === 'bank-accounts') {
