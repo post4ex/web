@@ -277,17 +277,12 @@ const VaultSalesInvoices = (() => {
                 .pay{width:40%}
                 .terms{font-size:11px;margin-bottom:40px}.terms ol{margin:5px 0 0;padding-left:20px}
                 .sig{text-align:right;font-weight:bold;margin-top:20px}.sigbox{display:inline-block;text-align:center;min-width:200px}
-                .no-print{text-align:center;margin-bottom:15px}
-                .no-print button{padding:8px 20px;margin:3px;border:none;border-radius:4px;cursor:pointer;font-weight:600}
-                .no-print .print-btn{background:#1a1a2e;color:#fff}
-                .no-print .close-btn{background:#6b7280;color:#fff}
-                @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}.no-print{display:none}}
+                @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}}
             `;
 
             const b2bAddrHtml = b2bAddr ? b2bAddr.replace(/\n/g, '<br>') : '';
 
             const body = `
-                <div class="no-print"><button class="print-btn" onclick="window.print()">🖨️ Print</button><button class="close-btn" onclick="window.close()">✕ Close</button></div>
                 <div class="box">
                     <div class="hdr">
                         <div style="font-size:26px;font-weight:bold;text-transform:uppercase">Tax Invoice</div>
@@ -349,19 +344,24 @@ const VaultSalesInvoices = (() => {
                             <p>for ${_escapeHtml(branchName)}</p>
                         </div>
                     </div>
-                </div>`;
+                </div>
+                <script>
+                    function startPrint() {
+                        window.print();
+                        window.close();
+                    }
+                    if (document.readyState === 'complete') {
+                        setTimeout(startPrint, 300);
+                    } else {
+                        window.addEventListener('load', () => setTimeout(startPrint, 300));
+                    }
+                </script>
+            `;
 
             const w = window.open('', 'Sales_Invoice_' + ref.replace(/[^a-zA-Z0-9]/g, '_'));
             if (!w) { alert('Pop-up blocked! Please allow pop-ups.'); return; }
             w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tax Invoice - ' + _escapeHtml(ref) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
             w.document.close();
-            w.onload = function() {
-                setTimeout(function() {
-                    try {
-                        w.document.querySelectorAll('.no-print').forEach(function(e) { e.style.display = 'block'; });
-                    } catch(_) {}
-                }, 500);
-            };
         } catch (err) {
             alert('Failed to print: ' + (err.message || err));
         } finally {
