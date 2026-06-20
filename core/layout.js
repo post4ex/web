@@ -6,6 +6,53 @@
 // CSS in style.css renders body::before/::after as the spinner overlay
 document.documentElement.classList.add('needs-sync');
 
+// Synchronously inject cached header/footer to prevent page load flash
+(() => {
+    try {
+        const cachedHeader = sessionStorage.getItem('component-header.html');
+        if (cachedHeader) {
+            const el = document.getElementById('header-placeholder');
+            if (el) {
+                const doc = new DOMParser().parseFromString(cachedHeader, 'text/html');
+                const scripts = Array.from(doc.querySelectorAll('script'));
+                el.innerHTML = '';
+                while (doc.body.firstChild) el.appendChild(doc.body.firstChild);
+                
+                // Run script tags synchronously to hydrate login/logout states and render navigation instantly
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    if (script.src) newScript.src = script.src;
+                    else newScript.textContent = script.textContent;
+                    document.head.appendChild(newScript);
+                });
+                if (typeof checkLoginStatus === 'function') {
+                    checkLoginStatus();
+                }
+                el.setAttribute('data-fully-loaded', 'true');
+            }
+        }
+        const cachedFooter = sessionStorage.getItem('component-footer.html');
+        if (cachedFooter) {
+            const el = document.getElementById('footer-placeholder');
+            if (el) {
+                const doc = new DOMParser().parseFromString(cachedFooter, 'text/html');
+                const scripts = Array.from(doc.querySelectorAll('script'));
+                el.innerHTML = '';
+                while (doc.body.firstChild) el.appendChild(doc.body.firstChild);
+                
+                // Run script tags synchronously
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    if (script.src) newScript.src = script.src;
+                    else newScript.textContent = script.textContent;
+                    document.head.appendChild(newScript);
+                });
+                el.setAttribute('data-fully-loaded', 'true');
+            }
+        }
+    } catch (_) {}
+})();
+
 // AppRefresh — global helper to preserve UI state across appDataRefreshed
 // Usage: AppRefresh.register({ save: () => snap, restore: (snap) => ... })
 window.AppRefresh = (() => {
@@ -30,44 +77,75 @@ window.AppRefresh = (() => {
 
 const _ALLOWED_COMPONENTS = ['header.html', 'footer.html'];
 
+function _injectComponentHTML(placeholder, htmlText) {
+    const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+
+    // Run script tags
+    Array.from(doc.querySelectorAll('script')).forEach(script => {
+        const newScript = document.createElement('script');
+        if (script.src) {
+            newScript.src = script.src;
+        } else {
+            newScript.textContent = script.textContent;
+        }
+        document.head.appendChild(newScript);
+        script.remove();
+    });
+
+    placeholder.innerHTML = '';
+    while (doc.body.firstChild) {
+        placeholder.appendChild(doc.body.firstChild);
+    }
+}
+
 async function loadComponent(componentUrl, placeholderId) {
     try {
         const placeholder = document.getElementById(placeholderId);
         if (!placeholder) return;
 
         const isHeader = placeholderId === 'header-placeholder';
-        placeholder.innerHTML = isHeader
-            ? '<div class="animate-pulse bg-gray-200 h-14 w-full rounded"></div>'
-            : '<div class="animate-pulse bg-gray-200 h-10 w-full rounded"></div>';
-        placeholder.style.minHeight = isHeader ? '56px' : '26px';
+        const cached = sessionStorage.getItem(`component-${componentUrl}`);
+
+        if (cached) {
+            if (placeholder.getAttribute('data-fully-loaded') === 'true') {
+                // Already visually injected and script executed synchronously by IIFE.
+                // Do not re-inject or re-run scripts to prevent any flicker.
+            } else {
+                if (placeholder.querySelector('header') || placeholder.querySelector('footer')) {
+                    const doc = new DOMParser().parseFromString(cached, 'text/html');
+                    Array.from(doc.querySelectorAll('script')).forEach(script => {
+                        const newScript = document.createElement('script');
+                        if (script.src) newScript.src = script.src;
+                        else newScript.textContent = script.textContent;
+                        document.head.appendChild(newScript);
+                    });
+                } else {
+                    _injectComponentHTML(placeholder, cached);
+                }
+                placeholder.setAttribute('data-fully-loaded', 'true');
+            }
+        } else {
+            placeholder.innerHTML = isHeader
+                ? '<div class="animate-pulse bg-gray-200 h-14 w-full rounded"></div>'
+                : '<div class="animate-pulse bg-gray-200 h-10 w-full rounded"></div>';
+            placeholder.style.minHeight = isHeader ? '56px' : '26px';
+        }
 
         const safeComponent = _ALLOWED_COMPONENTS.find(c => c === componentUrl);
         if (!safeComponent) throw new Error(`Disallowed component: ${componentUrl}`);
-        const response = await fetch(safeComponent, { cache: 'default' });
+        const response = await fetch(safeComponent, { cache: 'force-cache' });
         if (!response.ok) throw new Error(`Failed to load ${componentUrl}`);
 
         const text = await response.text();
-        const doc  = new DOMParser().parseFromString(text, 'text/html');
-
-        Array.from(doc.querySelectorAll('script')).forEach(script => {
-            const newScript = document.createElement('script');
-            if (script.src) {
-                newScript.src = script.src;
-            } else {
-                newScript.textContent = script.textContent;
-            }
-            document.head.appendChild(newScript);
-            script.remove();
-        });
-
-        placeholder.innerHTML = '';
-        while (doc.body.firstChild) {
-            placeholder.appendChild(doc.body.firstChild);
+        if (text !== cached) {
+            sessionStorage.setItem(`component-${componentUrl}`, text);
+            _injectComponentHTML(placeholder, text);
+            placeholder.setAttribute('data-fully-loaded', 'true');
         }
     } catch (error) {
         console.warn(`[Component Engine] Failed loading ${componentUrl}:`, error);
         const placeholder = document.getElementById(placeholderId);
-        if (placeholder) {
+        if (placeholder && !placeholder.querySelector('header') && !placeholder.querySelector('footer')) {
             placeholder.innerHTML = `<div class="text-red-500 text-sm p-2">Failed to load ${componentUrl}</div>`;
         }
     }

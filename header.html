@@ -236,7 +236,7 @@
     // ============================================================================
     // INITIALIZATION
     // ============================================================================
-    window.addEventListener('footerLoaded', () => {
+    (() => {
         renderNavItems(NAV_CONFIG.public, 'public');
         renderNavItems(NAV_CONFIG.private, 'private');
         renderSidebar();
@@ -284,5 +284,5 @@
             }
         };
         checkMobileTools();
-    });
+    })();
 </script>

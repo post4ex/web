@@ -4385,6 +4385,19 @@ html.needs-sync::before {
     z-index: 99998;
     background: rgba(255,255,255,0.92);
 }
+html.needs-sync #header-placeholder,
+html.needs-sync #footer-placeholder {
+    position: relative;
+    z-index: 99999 !important;
+    background-color: #fff !important;
+}
+html.needs-sync #header-placeholder {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; /* shadow-md */
+}
+html.needs-sync header,
+html.needs-sync footer {
+    z-index: 99999 !important;
+}
 html.needs-sync body::before {
     content: '';
     position: fixed;
