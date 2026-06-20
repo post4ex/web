@@ -351,8 +351,9 @@ const VaultSalesInvoices = (() => {
     }
 
     // ── Edit via Manager.io PUT ──────────────────────────────────────────────
-    async function _openEditPaneFromDetail(invoiceKey, branchCode, evt) {
+        async function _openEditPaneFromDetail(invoiceKey, branchCode, evt) {
         const btn = evt?.target?.closest('button');
+        const oldHtml = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '...'; }
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
@@ -403,6 +404,12 @@ const VaultSalesInvoices = (() => {
             const existingDesc = res.Description || res.description || '';
             const existingDueDays = res.DueDateDays || res.dueDateDays || 20;
             const existingLines = res.Lines || res.lines || [];
+            
+            // Extract document-level fields from existing record
+            const existingHasCustomTitle = res.HasSalesInvoiceCustomTitle !== false;
+            const existingCustomTitle = res.SalesInvoiceCustomTitle || 'Tax Invoice';
+            const existingDiscountRate = res.EarlyPaymentDiscountRate !== undefined && res.EarlyPaymentDiscountRate !== null ? res.EarlyPaymentDiscountRate : '';
+            const existingLateFees = res.LatePaymentFees === true;
 
             // ── GST period guard: block edit if period already filed (Disabled) ──
             let _gstBlocked = false;
@@ -422,16 +429,40 @@ const VaultSalesInvoices = (() => {
 
             let currentOpts = _getBranchDropdowns(branchCode);
 
+            // Populate customer options from cache keys (names to UUIDs)
+            const customersList = Object.entries(_bKeys.customers || {}).sort((a, b) => a[0].localeCompare(b[0]));
+            const customerOpts = `<option value="">— Select Customer —</option>` +
+                customersList.map(([name, uuid]) => {
+                    const selected = uuid === existingCustomer ? 'selected' : '';
+                    return `<option value="${uuid}" ${selected}>${_escapeHtml(name)}</option>`;
+                }).join('');
+
             view.innerHTML = `
-                <div class="detail-card">
-                    <div class="detail-card-header"><h3 class="font-semibold text-gray-700">✏️ Edit Invoice — ${existingRef || invoiceKey}</h3></div>
-                    <div class="detail-card-body space-y-4">
-                        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                            ⚠️ Editing will update this invoice in Manager.io. Reference number will be preserved.
-                        </p>
+                <div class="detail-card rounded-2xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                    <div class="h-1.5 bg-gradient-to-r from-amber-400 via-indigo-500 to-purple-500"></div>
+                    <div class="px-6 py-5 border-b border-slate-50 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-650 shadow-sm">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg tracking-tight">Edit Invoice</h3>
+                                <p class="text-xs text-slate-400">Update Sales Invoice — ${existingRef || invoiceKey}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="detail-card-body p-6 space-y-6">
+                        <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-850/95 flex items-start gap-2.5 shadow-sm">
+                            <svg class="w-4 h-4 shrink-0 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                            <div>
+                                <span class="font-bold">Notice:</span> Editing this invoice will update its values in Manager.io. The reference number <strong>${existingRef}</strong> is locked and will be preserved automatically.
+                            </div>
+                        </div>
                         ${_gstBlocked ? `
-                        <div class="bg-red-100 border border-red-300 text-red-800 rounded-lg p-3 text-xs space-y-1">
-                            <div class="flex items-center gap-2 font-semibold">
+                        <div class="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3.5 text-xs space-y-1.5 shadow-sm">
+                            <div class="flex items-center gap-2 font-bold text-red-900">
                                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
@@ -442,123 +473,145 @@ const VaultSalesInvoices = (() => {
                             <p>Editing invoices in filed periods is restricted. If you need to make changes, please manage this invoice directly in Manager.io or contact your accounts team.</p>
                         </div>
                         ` : ''}
-                        <form id="sieForm" class="space-y-4">
+                        <form id="sieForm" class="space-y-6">
                             <input type="hidden" name="invoice_key" value="${invoiceKey}">
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div class="sm:col-span-2">
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                                    <input name="code" id="sieCode" required class="form-input text-sm uppercase"
-                                        value="${clientCode}" list="sieCodeList" autocomplete="off">
-                                    <datalist id="sieCodeList"></datalist>
+                            
+                            <!-- Header: Customer, Date, Due Days -->
+                            <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-100/80 grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Customer *</label>
+                                    <select name="customer" id="sieCustomer" required class="form-input text-sm w-full rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                                        ${customerOpts}
+                                    </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                                    <input name="branch" id="sieBranch" readonly
-                                        class="form-input text-sm uppercase bg-gray-50 text-gray-500" value="${branchCode.toUpperCase() || ''}">
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Invoice Date *</label>
+                                    <input name="inv_date" type="date" required class="form-input text-sm w-full rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" value="${existingDate.split('T')[0] || existingDate}">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">POS State</label>
-                                    <input name="pos" id="siePos" readonly
-                                        class="form-input text-sm bg-gray-50 text-gray-500" placeholder="Auto">
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
-                                    <input name="inv_date" type="date" required class="form-input text-sm" value="${existingDate.split('T')[0] || existingDate}">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Due Days</label>
-                                    <input name="due_days" type="number" min="0" class="form-input text-sm" value="${existingDueDays}">
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Due Days</label>
+                                    <input name="due_days" type="number" min="0" class="form-input text-sm w-full rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" value="${existingDueDays}">
                                 </div>
                             </div>
 
                             <!-- Line Items -->
-                            <div class="border rounded-lg overflow-hidden">
-                                <div class="bg-gray-50 px-3 py-2 flex items-center justify-between border-b">
-                                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Line Items</span>
+                            <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white">
+                                <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-100">
+                                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                                        Line Items
+                                    </span>
                                     <button type="button" id="sieAddLine"
-                                        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">+ Add Line</button>
+                                        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 bg-white border border-indigo-150/70 px-3 py-1.5 rounded-lg shadow-sm hover:shadow">
+                                        ➕ Add Line
+                                    </button>
                                 </div>
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-sm" id="sieLinesTable">
-                                        <thead>
-                                            <tr class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b">
-                                                <th class="py-2 px-2 text-left" style="min-width:160px">Item</th>
-                                                <th class="py-2 px-2 text-left" style="min-width:140px">Description</th>
-                                                <th class="py-2 px-2 text-right" style="min-width:60px">Qty</th>
-                                                <th class="py-2 px-2 text-right" style="min-width:90px">Unit Price</th>
-                                                <th class="py-2 px-2 text-left" style="min-width:130px">Tax Code</th>
-                                                <th class="py-2 px-2 text-right" style="min-width:80px">Amount</th>
-                                                <th class="py-2 px-2" style="min-width:32px"></th>
+                                    <table class="w-full text-sm divide-y divide-slate-100" id="sieLinesTable">
+                                        <thead class="bg-slate-50/50">
+                                            <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider text-left border-b">
+                                                <th class="py-3 px-4" style="min-width:180px">Item</th>
+                                                <th class="py-3 px-4" style="min-width:200px">Description</th>
+                                                <th class="py-3 px-4 text-right" style="min-width:70px">Qty</th>
+                                                <th class="py-3 px-4 text-right" style="min-width:100px">Unit Price</th>
+                                                <th class="py-3 px-4" style="min-width:150px">Tax Code</th>
+                                                <th class="py-3 px-4 text-right" style="min-width:100px">Amount</th>
+                                                <th class="py-3 px-4 w-10"></th>
                                             </tr>
                                         </thead>
-                                        <tbody id="sieLineRows"></tbody>
+                                        <tbody id="sieLineRows" class="divide-y divide-slate-100"></tbody>
                                     </table>
                                 </div>
                             </div>
 
-                            <!-- Totals -->
-                            <div class="border rounded-lg p-3 bg-gray-50 space-y-1.5 text-sm" id="sieTotals">
-                                <div class="flex justify-between text-gray-600"><span>Subtotal</span><span id="sie_subtotal" class="font-medium">₹0.00</span></div>
-                                <div class="flex justify-between text-gray-600" id="sie_sgst_row"><span>SGST</span><span id="sie_sgst_val" class="font-medium">₹0.00</span></div>
-                                <div class="flex justify-between text-gray-600" id="sie_cgst_row"><span>CGST</span><span id="sie_cgst_val" class="font-medium">₹0.00</span></div>
-                                <div class="flex justify-between text-gray-600 hidden" id="sie_igst_row"><span>IGST</span><span id="sie_igst_val" class="font-medium">₹0.00</span></div>
-                                <div class="flex justify-between font-bold text-gray-800 border-t border-gray-200 pt-2 mt-1">
-                                    <span>Grand Total</span>
-                                    <span id="sie_grand_total" class="text-indigo-700 text-base">₹0.00</span>
+                            <!-- Advanced Document Options -->
+                            <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white mt-4">
+                                <div class="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                        Advanced & Document Options
+                                    </span>
+                                </div>
+                                <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <label class="flex items-center gap-2 font-semibold text-slate-650 mb-1.5 cursor-pointer">
+                                            <input type="checkbox" name="has_custom_title" id="sieHasCustomTitle" class="rounded text-indigo-600 focus:ring-indigo-500/20" ${existingHasCustomTitle ? 'checked' : ''}>
+                                            <span>Custom Invoice Title</span>
+                                        </label>
+                                        <input type="text" name="custom_title" id="sieCustomTitle" value="${_escapeHtml(existingCustomTitle)}" class="form-input text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full" placeholder="e.g. Tax Invoice">
+                                    </div>
+                                    <div>
+                                        <label class="block font-semibold text-slate-650 mb-1.5">Early Payment Discount (%)</label>
+                                        <input type="number" name="discount_rate" id="sieDiscountRate" min="0" max="100" step="any" class="form-input text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full" placeholder="Optional" value="${existingDiscountRate}">
+                                    </div>
+                                    <div class="flex items-center pt-5">
+                                        <label class="flex items-center gap-2 font-semibold text-slate-650 cursor-pointer">
+                                            <input type="checkbox" name="late_fees" id="sieLateFees" class="rounded text-indigo-600 focus:ring-indigo-500/20" ${existingLateFees ? 'checked' : ''}>
+                                            <span>Apply Late Payment Fees</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Narration / Description</label>
-                                <input name="narration" class="form-input text-sm" value="${_escapeHtml(existingDesc)}">
+                            <!-- Narration + Totals -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                                <!-- Narration -->
+                                <div class="md:col-span-2 space-y-1.5">
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Narration / Description</label>
+                                    <textarea name="narration" rows="3" class="form-input text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full" placeholder="Enter invoice notes or narration (optional)">${_escapeHtml(existingDesc)}</textarea>
+                                </div>
+
+                                <!-- Totals Box -->
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 border border-slate-150/60 space-y-3 text-sm flex flex-col justify-between" id="sieTotals">
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between text-slate-500 font-medium">
+                                            <span>Subtotal</span>
+                                            <span id="sie_subtotal" class="font-bold text-slate-700">₹0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500 font-medium" id="sie_sgst_row">
+                                            <span>SGST</span>
+                                            <span id="sie_sgst_val" class="font-bold text-slate-700">₹0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500 font-medium" id="sie_cgst_row">
+                                            <span>CGST</span>
+                                            <span id="sie_cgst_val" class="font-bold text-slate-700">₹0.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-slate-500 font-medium hidden" id="sie_igst_row">
+                                            <span>IGST</span>
+                                            <span id="sie_igst_val" class="font-bold text-slate-700">₹0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="border-t border-slate-200 pt-3 flex justify-between items-center font-bold text-slate-800">
+                                        <span class="text-xs uppercase tracking-wider text-slate-400">Grand Total</span>
+                                        <span id="sie_grand_total" class="text-indigo-650 text-lg font-black tracking-tight">₹0.00</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="flex justify-between items-center pt-2 border-t">
+                            <!-- Submit Bar -->
+                            <div class="flex items-center justify-between pt-4 border-t border-slate-100">
                                 <div id="sieResponse" class="hidden text-sm"></div>
-                                <button type="submit" id="sieSubmitBtn" class="btn btn-sm flex items-center gap-2 ml-auto" ${_gstBlocked ? 'disabled' : ''}>
-                                    <span id="sieBtnText">${_gstBlocked ? 'Edit Blocked' : 'Update Invoice'}</span>
-                                    <div id="sieSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                </button>
+                                <div class="flex gap-3 ml-auto">
+                                    <button type="button" id="sieCancelBtn" class="btn btn-sm btn-ghost px-4 py-2 text-slate-500 font-semibold hover:bg-slate-50 rounded-lg">Cancel</button>
+                                    <button type="submit" id="sieSubmitBtn" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-2" ${_gstBlocked ? 'disabled' : ''}>
+                                        <span id="sieBtnText">${_gstBlocked ? 'Edit Blocked' : 'Update Invoice'}</span>
+                                        <div id="sieSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
                 </div>`;
 
-            // Populate client datalist
-            const dl = document.getElementById('sieCodeList');
-            _b2bMap.forEach((rec, code) => {
-                const o = document.createElement('option');
-                o.value = code;
-                o.label = `${code} — ${rec.B2B_NAME || ''}`;
-                dl.appendChild(o);
-            });
-
-            // Auto-fill branch + POS
-            function _applyClientAutofill() {
-                const code = document.getElementById('sieCode').value.trim().toUpperCase();
-                const b2b = _b2bMap.get(code);
-                if (!b2b) return;
-                const branch = (b2b.BRANCH || '').toUpperCase();
-                document.getElementById('sieBranch').value = branch;
-                document.getElementById('siePos').value = b2b.CODE_STATE || b2b.STATE_CODE || '';
-                currentOpts = _getBranchDropdowns(branch);
-                document.querySelectorAll('#sieLineRows tr').forEach(tr => {
-                    const itemSel = tr.querySelector('.sie-item');
-                    const tcSel = tr.querySelector('.sie-tc');
-                    if (itemSel && tcSel) {
-                        const prevItem = itemSel.value;
-                        const prevTc = tcSel.value;
-                        itemSel.innerHTML = currentOpts.itemOpts;
-                        tcSel.innerHTML = currentOpts.tcOpts;
-                        if (currentOpts.itemNames.includes(prevItem)) itemSel.value = prevItem;
-                        if (currentOpts.taxCodeNames.includes(prevTc)) tcSel.value = prevTc;
-                    }
-                });
+            // Handle custom title toggle
+            const hasCustomTitleEl = document.getElementById('sieHasCustomTitle');
+            const customTitleEl = document.getElementById('sieCustomTitle');
+            function _toggleCustomTitle() {
+                customTitleEl.disabled = !hasCustomTitleEl.checked;
+                customTitleEl.classList.toggle('bg-slate-100', !hasCustomTitleEl.checked);
             }
-            document.getElementById('sieCode').addEventListener('input', _applyClientAutofill);
-            document.getElementById('sieCode').addEventListener('change', _applyClientAutofill);
+            hasCustomTitleEl.addEventListener('change', _toggleCustomTitle);
+            _toggleCustomTitle();
 
             // ── Line management ──
             let _lineCount = 0;
@@ -567,28 +620,30 @@ const VaultSalesInvoices = (() => {
                 const idx = _lineCount++;
                 const tr = document.createElement('tr');
                 tr.id = `sieLine_${idx}`;
-                tr.className = 'border-t border-gray-100';
+                tr.className = 'border-t border-slate-100';
                 tr.innerHTML = `
-                    <td class="py-1.5 px-2">
-                        <select class="form-input text-xs sie-item" style="min-width:140px">${currentOpts.itemOpts}</select>
+                    <td class="py-2.5 px-4">
+                        <select class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sie-item w-full" data-idx="${idx}">${currentOpts.itemOpts}</select>
                     </td>
-                    <td class="py-1.5 px-2">
-                        <input type="text" class="form-input text-xs sie-desc" placeholder="Description" style="min-width:120px" value="${_escapeHtml(defaultDesc)}">
+                    <td class="py-2.5 px-4">
+                        <input type="text" class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sie-desc w-full" placeholder="Description" value="${_escapeHtml(defaultDesc)}">
                     </td>
-                    <td class="py-1.5 px-2">
-                        <input type="number" class="form-input text-xs sie-qty text-right" value="${defaultQty}" min="0.001" step="any" style="min-width:55px">
+                    <td class="py-2.5 px-4">
+                        <input type="number" class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sie-qty text-right w-full" value="${defaultQty}" min="0.001" step="any">
                     </td>
-                    <td class="py-1.5 px-2">
-                        <input type="number" class="form-input text-xs sie-price text-right" value="${defaultPrice}" min="0" step="0.01" style="min-width:80px">
+                    <td class="py-2.5 px-4">
+                        <input type="number" class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sie-price text-right w-full" value="${defaultPrice}" min="0" step="0.01">
                     </td>
-                    <td class="py-1.5 px-2">
-                        <select class="form-input text-xs sie-tc" style="min-width:120px">${currentOpts.tcOpts}</select>
+                    <td class="py-2.5 px-4">
+                        <select class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sie-tc w-full">${currentOpts.tcOpts}</select>
                     </td>
-                    <td class="py-1.5 px-2 text-right">
-                        <span class="sie-amt text-gray-700 font-medium text-xs">₹0.00</span>
+                    <td class="py-2.5 px-4 text-right font-semibold text-slate-700">
+                        <span class="sie-amt text-xs">₹0.00</span>
                     </td>
-                    <td class="py-1.5 px-2 text-center">
-                        <button type="button" class="sie-remove text-red-400 hover:text-red-600 text-lg leading-none" title="Remove line">×</button>
+                    <td class="py-2.5 px-4 text-center">
+                        <button type="button" class="sie-remove text-slate-350 hover:text-red-500 transition-colors" title="Remove line">
+                            <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
                     </td>`;
                 document.getElementById('sieLineRows').appendChild(tr);
 
@@ -650,7 +705,11 @@ const VaultSalesInvoices = (() => {
             }
 
             document.getElementById('sieAddLine').addEventListener('click', () => _addLine());
-            _applyClientAutofill();
+
+            // Bind cancel event listener
+            document.getElementById('sieCancelBtn').addEventListener('click', () => {
+                _renderDetail({ key: invoiceKey, branch: branchCode });
+            });
 
             // ── Submit ──
             document.getElementById('sieForm').addEventListener('submit', async e => {
@@ -664,7 +723,20 @@ const VaultSalesInvoices = (() => {
                 window.setLoading?.(true, 'Updating invoice...', 'detail');
 
                 try {
-                    const editClientCode = raw.code.trim().toUpperCase();
+                    const customerUuid = raw.customer;
+                    const appData = await getAppData();
+                    let clientCode = '';
+                    if (appData?.B2B) {
+                        Object.values(appData.B2B).forEach(c => {
+                            if ((c.BRANCH || '').toLowerCase() === (branchCode || '').toLowerCase()) {
+                                clientCode = c.CODE;
+                            }
+                        });
+                    }
+                    if (!clientCode) {
+                        throw new Error(`Cannot resolve manager client code for branch "${branchCode}".`);
+                    }
+
                     const lines = [];
                     document.querySelectorAll('#sieLineRows tr').forEach(tr => {
                         const item = tr.querySelector('.sie-item')?.value || '';
@@ -687,23 +759,28 @@ const VaultSalesInvoices = (() => {
                     const payload = {
                         IssueDate: raw.inv_date,
                         DueDateDays: parseInt(raw.due_days) || 20,
-                        Customer: editClientCode,
+                        Reference: existingRef || undefined,
+                        Customer: customerUuid,
                         Description: raw.narration || undefined,
                         Lines: lines,
                         TaxCodeEnabled: true,
                         HasLineNumber: true,
                         Rounding: true,
+                        HasSalesInvoiceCustomTitle: document.getElementById('sieHasCustomTitle').checked,
+                        SalesInvoiceCustomTitle: document.getElementById('sieHasCustomTitle').checked ? document.getElementById('sieCustomTitle').value.trim() || "Tax Invoice" : undefined,
+                        EarlyPaymentDiscountRate: raw.discount_rate ? parseFloat(raw.discount_rate) : undefined,
+                        LatePaymentFees: document.getElementById('sieLateFees').checked,
                     };
 
-                    const url = `/api/manager/invoices/${raw.invoice_key}?code=${encodeURIComponent(editClientCode)}`;
+                    const url = `/api/manager/invoices/${raw.invoice_key}?code=${encodeURIComponent(clientCode)}`;
                     const result = await callApi(url, payload, 'PUT');
                     const refNum = result.Reference || result.reference || 'updated';
-                    resp.className = 'mt-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded';
+                    resp.className = 'mt-2 text-sm bg-green-150 text-green-800 px-3 py-2 rounded-xl';
                     resp.textContent = `✅ Invoice ${refNum} updated in Manager.io!`;
                     resp.classList.remove('hidden');
                     await load();
                 } catch (err) {
-                    resp.className = 'mt-2 text-sm bg-red-100 text-red-800 px-3 py-2 rounded';
+                    resp.className = 'mt-2 text-sm bg-red-150 text-red-800 px-3 py-2 rounded-xl';
                     resp.textContent = '❌ ' + (err.message || 'Failed');
                     resp.classList.remove('hidden');
                 } finally {
@@ -716,7 +793,7 @@ const VaultSalesInvoices = (() => {
         } catch (err) {
             view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
         } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = ''; }
+            if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
         }
     }
 
@@ -1001,7 +1078,7 @@ const VaultSalesInvoices = (() => {
     }
 
     // ── New Invoice Form (proper line-item entry) ──────────────────────────────
-    async function openAddPane() {
+        async function openAddPane() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
 
@@ -1027,12 +1104,8 @@ const VaultSalesInvoices = (() => {
             if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
         });
 
-        // Determine initial branch for dropdowns
-        let defaultBranch = '';
-        const firstClient = Object.values(appData?.B2B || {})[0];
-        if (firstClient?.BRANCH) {
-            defaultBranch = firstClient.BRANCH.toLowerCase();
-        }
+        // Determine active branch
+        const activeBranch = (VaultPage.getActiveBranch() || '').toLowerCase();
 
         // Helper: get dropdown options for a branch
         function _getBranchDropdowns(branchCode) {
@@ -1051,151 +1124,170 @@ const VaultSalesInvoices = (() => {
             return { itemOpts, tcOpts, itemNames, taxCodeNames };
         }
 
-        let currentOpts = _getBranchDropdowns(defaultBranch);
+        let currentOpts = _getBranchDropdowns(activeBranch);
+
+        // Populate customer options from cache keys (names to UUIDs)
+        const bKeys = window.__vaultCacheKeys?.[activeBranch] || {};
+        const customersList = Object.entries(bKeys.customers || {}).sort((a, b) => a[0].localeCompare(b[0]));
+        const customerOpts = `<option value="">— Select Customer —</option>` +
+            customersList.map(([name, uuid]) => `<option value="${uuid}">${_escapeHtml(name)}</option>`).join('');
 
         view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header"><h3 class="font-semibold text-gray-700">➕ New Sales Invoice</h3></div>
-                <div class="detail-card-body space-y-4">
-                    <form id="siForm" class="space-y-4">
-
-                        <!-- Header: Client + Branch + POS + Date -->
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                                <input name="code" id="siCode" required class="form-input text-sm uppercase"
-                                    placeholder="e.g. AGWL" list="siCodeList" autocomplete="off">
-                                <datalist id="siCodeList"></datalist>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                                <input name="branch" id="siBranch" readonly
-                                    class="form-input text-sm uppercase bg-gray-50 text-gray-500" placeholder="Auto">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">POS State</label>
-                                <input name="pos" id="siPos" readonly
-                                    class="form-input text-sm bg-gray-50 text-gray-500" placeholder="Auto">
-                            </div>
+            <div class="detail-card rounded-2xl border border-slate-100 shadow-sm bg-white overflow-hidden">
+                <div class="h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                <div class="px-6 py-5 border-b border-slate-50 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
-                                <input name="inv_date" id="siDate" type="date" required class="form-input text-sm">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-lg tracking-tight">New Sales Invoice</h3>
+                            <p class="text-xs text-slate-400">Create a new customer invoice synchronized with Manager.io</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-card-body p-6 space-y-6">
+                    <form id="siForm" class="space-y-6">
+
+                        <!-- Header: Customer, Date, Due Days -->
+                        <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-100/80 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Customer *</label>
+                                <select name="customer" id="siCustomer" required class="form-input text-sm w-full rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                                    ${customerOpts}
+                                </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">Due Days</label>
-                                <input name="due_days" type="number" min="0" value="20" class="form-input text-sm">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Invoice Date *</label>
+                                <input name="inv_date" id="siDate" type="date" required class="form-input text-sm w-full rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Due Days</label>
+                                <input name="due_days" type="number" min="0" value="20" class="form-input text-sm w-full rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
                             </div>
                         </div>
 
                         <!-- Line Items -->
-                        <div class="border rounded-lg overflow-hidden">
-                            <div class="bg-gray-50 px-3 py-2 flex items-center justify-between border-b">
-                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Line Items</span>
+                        <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white">
+                            <div class="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-100">
+                                <span class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                                    Line Items
+                                </span>
                                 <button type="button" id="siAddLine"
-                                    class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-                                    + Add Line
+                                    class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 bg-white border border-indigo-150/70 px-3 py-1.5 rounded-lg shadow-sm hover:shadow">
+                                    ➕ Add Line
                                 </button>
                             </div>
                             <div class="overflow-x-auto">
-                                <table class="w-full text-sm" id="siLinesTable">
-                                    <thead>
-                                        <tr class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b">
-                                            <th class="py-2 px-2 text-left" style="min-width:160px">Item</th>
-                                            <th class="py-2 px-2 text-left" style="min-width:140px">Description</th>
-                                            <th class="py-2 px-2 text-right" style="min-width:60px">Qty</th>
-                                            <th class="py-2 px-2 text-right" style="min-width:90px">Unit Price</th>
-                                            <th class="py-2 px-2 text-left" style="min-width:130px">Tax Code</th>
-                                            <th class="py-2 px-2 text-right" style="min-width:80px">Amount</th>
-                                            <th class="py-2 px-2" style="min-width:32px"></th>
+                                <table class="w-full text-sm divide-y divide-slate-100" id="siLinesTable">
+                                    <thead class="bg-slate-50/50">
+                                        <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider text-left border-b">
+                                            <th class="py-3 px-4" style="min-width:180px">Item</th>
+                                            <th class="py-3 px-4" style="min-width:200px">Description</th>
+                                            <th class="py-3 px-4 text-right" style="min-width:70px">Qty</th>
+                                            <th class="py-3 px-4 text-right" style="min-width:100px">Unit Price</th>
+                                            <th class="py-3 px-4" style="min-width:150px">Tax Code</th>
+                                            <th class="py-3 px-4 text-right" style="min-width:100px">Amount</th>
+                                            <th class="py-3 px-4 w-10"></th>
                                         </tr>
                                     </thead>
-                                    <tbody id="siLineRows"></tbody>
+                                    <tbody id="siLineRows" class="divide-y divide-slate-100"></tbody>
                                 </table>
                             </div>
                         </div>
 
-                        <!-- Totals -->
-                        <div class="border rounded-lg p-3 bg-gray-50 space-y-1.5 text-sm" id="siTotals">
-                            <div class="flex justify-between text-gray-600">
-                                <span>Subtotal</span>
-                                <span id="si_subtotal" class="font-medium">₹0.00</span>
+                        <!-- Advanced Document Options -->
+                        <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white mt-4">
+                            <div class="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    Advanced & Document Options
+                                </span>
                             </div>
-                            <div class="flex justify-between text-gray-600" id="si_sgst_row">
-                                <span>SGST</span><span id="si_sgst_val" class="font-medium">₹0.00</span>
-                            </div>
-                            <div class="flex justify-between text-gray-600" id="si_cgst_row">
-                                <span>CGST</span><span id="si_cgst_val" class="font-medium">₹0.00</span>
-                            </div>
-                            <div class="flex justify-between text-gray-600 hidden" id="si_igst_row">
-                                <span>IGST</span><span id="si_igst_val" class="font-medium">₹0.00</span>
-                            </div>
-                            <div class="flex justify-between font-bold text-gray-800 border-t border-gray-200 pt-2 mt-1">
-                                <span>Grand Total</span>
-                                <span id="si_grand_total" class="text-indigo-700 text-base">₹0.00</span>
+                            <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                <div>
+                                    <label class="flex items-center gap-2 font-semibold text-slate-600 mb-1.5 cursor-pointer">
+                                        <input type="checkbox" name="has_custom_title" id="siHasCustomTitle" class="rounded text-indigo-600 focus:ring-indigo-500/20" checked>
+                                        <span>Custom Invoice Title</span>
+                                    </label>
+                                    <input type="text" name="custom_title" id="siCustomTitle" value="Tax Invoice" class="form-input text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full" placeholder="e.g. Tax Invoice">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-600 mb-1.5">Early Payment Discount (%)</label>
+                                    <input type="number" name="discount_rate" id="siDiscountRate" min="0" max="100" step="any" class="form-input text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full" placeholder="Optional">
+                                </div>
+                                <div class="flex items-center pt-5">
+                                    <label class="flex items-center gap-2 font-semibold text-slate-600 cursor-pointer">
+                                        <input type="checkbox" name="late_fees" id="siLateFees" class="rounded text-indigo-600 focus:ring-indigo-500/20">
+                                        <span>Apply Late Payment Fees</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Description / Narration -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Narration / Description</label>
-                            <input name="narration" class="form-input text-sm" placeholder="Invoice notes (optional)">
+                        <!-- Narration + Totals -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Narration -->
+                            <div class="md:col-span-2 space-y-1.5">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Narration / Description</label>
+                                <textarea name="narration" rows="3" class="form-input text-sm rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full" placeholder="Enter invoice notes or narration (optional)"></textarea>
+                            </div>
+
+                            <!-- Totals Box -->
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 border border-slate-150/60 space-y-3 text-sm flex flex-col justify-between" id="siTotals">
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-slate-500 font-medium">
+                                        <span>Subtotal</span>
+                                        <span id="si_subtotal" class="font-bold text-slate-700">₹0.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-slate-500 font-medium" id="si_sgst_row">
+                                        <span>SGST</span>
+                                        <span id="si_sgst_val" class="font-bold text-slate-700">₹0.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-slate-500 font-medium" id="si_cgst_row">
+                                        <span>CGST</span>
+                                        <span id="si_cgst_val" class="font-bold text-slate-700">₹0.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-slate-500 font-medium hidden" id="si_igst_row">
+                                        <span>IGST</span>
+                                        <span id="si_igst_val" class="font-bold text-slate-700">₹0.00</span>
+                                    </div>
+                                </div>
+                                <div class="border-t border-slate-200 pt-3 flex justify-between items-center font-bold text-slate-800">
+                                    <span class="text-xs uppercase tracking-wider text-slate-400">Grand Total</span>
+                                    <span id="si_grand_total" class="text-indigo-600 text-lg font-black tracking-tight">₹0.00</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Submit -->
-                        <div class="flex justify-between items-center pt-2 border-t">
+                        <!-- Submit Bar -->
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100">
                             <div id="siResponse" class="hidden text-sm"></div>
-                            <button type="submit" id="siSubmitBtn" class="btn btn-sm flex items-center gap-2 ml-auto">
-                                <span id="siBtnText">Create Invoice</span>
-                                <div id="siSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </button>
+                            <div class="flex gap-3 ml-auto">
+                                <button type="button" onclick="VaultPage.showDetail(false)" class="btn btn-sm btn-ghost px-4 py-2 text-slate-500 font-semibold hover:bg-slate-50 rounded-lg">Cancel</button>
+                                <button type="submit" id="siSubmitBtn" class="btn btn-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-2">
+                                    <span id="siBtnText">Create Invoice</span>
+                                    <div id="siSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>`;
 
-        // Populate client datalist from B2B map
-        const dl = document.getElementById('siCodeList');
-        _b2bMap.forEach((rec, code) => {
-            const o = document.createElement('option');
-            o.value = code;
-            o.label = `${code} — ${rec.B2B_NAME || ''}`;
-            dl.appendChild(o);
-        });
-
-        // Auto-fill branch + POS from B2B and update dropdown options based on branch
-        function _applyClientAutofill() {
-            const code = document.getElementById('siCode').value.trim().toUpperCase();
-            const b2b  = _b2bMap.get(code);
-            if (!b2b) return;
-            const branch = (b2b.BRANCH || '').toUpperCase();
-            document.getElementById('siBranch').value = branch;
-            document.getElementById('siPos').value    = b2b.CODE_STATE || b2b.STATE_CODE || '';
-
-            // Update line item dropdown options dynamically for the branch
-            currentOpts = _getBranchDropdowns(branch);
-            document.querySelectorAll('#siLineRows tr').forEach(tr => {
-                const itemSel = tr.querySelector('.si-item');
-                const tcSel = tr.querySelector('.si-tc');
-                if (itemSel && tcSel) {
-                    const prevItem = itemSel.value;
-                    const prevTc = tcSel.value;
-
-                    itemSel.innerHTML = currentOpts.itemOpts;
-                    tcSel.innerHTML = currentOpts.tcOpts;
-
-                    if (currentOpts.itemNames.includes(prevItem)) itemSel.value = prevItem;
-                    if (currentOpts.taxCodeNames.includes(prevTc)) tcSel.value = prevTc;
-                }
-            });
-        }
-        const siCodeEl = document.getElementById('siCode');
-        siCodeEl.addEventListener('input',  _applyClientAutofill);
-        siCodeEl.addEventListener('change', _applyClientAutofill);
-
         // Default date = today
         document.getElementById('siDate').value = new Date().toISOString().split('T')[0];
+
+        // Handle custom title toggle
+        const hasCustomTitleEl = document.getElementById('siHasCustomTitle');
+        const customTitleEl = document.getElementById('siCustomTitle');
+        function _toggleCustomTitle() {
+            customTitleEl.disabled = !hasCustomTitleEl.checked;
+            customTitleEl.classList.toggle('bg-slate-100', !hasCustomTitleEl.checked);
+        }
+        hasCustomTitleEl.addEventListener('change', _toggleCustomTitle);
+        _toggleCustomTitle();
 
         // ── Line management ────────────────────────────────────────────────────
         let _lineCount = 0;
@@ -1204,32 +1296,34 @@ const VaultSalesInvoices = (() => {
             const idx = _lineCount++;
             const tr  = document.createElement('tr');
             tr.id     = `siLine_${idx}`;
-            tr.className = 'border-t border-gray-100';
+            tr.className = 'border-t border-slate-100';
             tr.innerHTML = `
-                <td class="py-1.5 px-2">
-                    <select class="form-input text-xs si-item" data-idx="${idx}" style="min-width:140px">
+                <td class="py-2.5 px-4">
+                    <select class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 si-item w-full" data-idx="${idx}">
                         ${currentOpts.itemOpts}
                     </select>
                 </td>
-                <td class="py-1.5 px-2">
-                    <input type="text" class="form-input text-xs si-desc" placeholder="Description" style="min-width:120px">
+                <td class="py-2.5 px-4">
+                    <input type="text" class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 si-desc w-full" placeholder="Description">
                 </td>
-                <td class="py-1.5 px-2">
-                    <input type="number" class="form-input text-xs si-qty text-right" value="1" min="0.001" step="any" style="min-width:55px">
+                <td class="py-2.5 px-4">
+                    <input type="number" class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 si-qty text-right w-full" value="1" min="0.001" step="any">
                 </td>
-                <td class="py-1.5 px-2">
-                    <input type="number" class="form-input text-xs si-price text-right" value="" min="0" step="0.01" placeholder="0.00" style="min-width:80px">
+                <td class="py-2.5 px-4">
+                    <input type="number" class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 si-price text-right w-full" value="" min="0" step="0.01" placeholder="0.00">
                 </td>
-                <td class="py-1.5 px-2">
-                    <select class="form-input text-xs si-tc" style="min-width:120px">
+                <td class="py-2.5 px-4">
+                    <select class="form-input text-xs rounded-lg border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 si-tc w-full">
                         ${currentOpts.tcOpts}
                     </select>
                 </td>
-                <td class="py-1.5 px-2 text-right">
-                    <span class="si-amt text-gray-700 font-medium text-xs">₹0.00</span>
+                <td class="py-2.5 px-4 text-right font-semibold text-slate-700">
+                    <span class="si-amt text-xs">₹0.00</span>
                 </td>
-                <td class="py-1.5 px-2 text-center">
-                    <button type="button" class="si-remove text-red-400 hover:text-red-600 text-lg leading-none" title="Remove line">×</button>
+                <td class="py-2.5 px-4 text-center">
+                    <button type="button" class="si-remove text-slate-350 hover:text-red-500 transition-colors" title="Remove line">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
                 </td>`;
             document.getElementById('siLineRows').appendChild(tr);
 
@@ -1300,7 +1394,19 @@ const VaultSalesInvoices = (() => {
             window.setLoading?.(true, 'Creating invoice...', 'detail');
 
             try {
-                const clientCode = raw.code.trim().toUpperCase();
+                const customerUuid = raw.customer;
+                const appData = await getAppData();
+                let clientCode = '';
+                if (appData?.B2B) {
+                    Object.values(appData.B2B).forEach(c => {
+                        if ((c.BRANCH || '').toLowerCase() === (activeBranch || '').toLowerCase()) {
+                            clientCode = c.CODE;
+                        }
+                    });
+                }
+                if (!clientCode) {
+                    throw new Error(`Cannot resolve manager client code for branch "${activeBranch}".`);
+                }
 
                 // Build lines from table rows
                 const lines = [];
@@ -1324,25 +1430,29 @@ const VaultSalesInvoices = (() => {
                 if (!lines.length) throw new Error('Add at least one line item with a price.');
 
                 const payload = {
-                    IssueDate:               raw.inv_date,
-                    DueDateDays:             parseInt(raw.due_days) || 20,
-                    Customer:                clientCode,
-                    Description:             raw.narration || undefined,
-                    Lines:                   lines,
-                    TaxCodeEnabled:          true,
-                    HasLineNumber:           true,
-                    Rounding:                true,
+                    IssueDate:                  raw.inv_date,
+                    DueDateDays:                parseInt(raw.due_days) || 20,
+                    Customer:                   customerUuid,
+                    Description:                raw.narration || undefined,
+                    Lines:                      lines,
+                    TaxCodeEnabled:             true,
+                    HasLineNumber:              true,
+                    Rounding:                   true,
+                    HasSalesInvoiceCustomTitle: document.getElementById('siHasCustomTitle').checked,
+                    SalesInvoiceCustomTitle:    document.getElementById('siHasCustomTitle').checked ? document.getElementById('siCustomTitle').value.trim() || "Tax Invoice" : undefined,
+                    EarlyPaymentDiscountRate:   raw.discount_rate ? parseFloat(raw.discount_rate) : undefined,
+                    LatePaymentFees:            document.getElementById('siLateFees').checked,
                 };
 
                 const url = `/api/manager/invoices?code=${encodeURIComponent(clientCode)}`;
                 const res = await callApi(url, payload, 'POST');
                 const refNum = res.Reference || res.reference || 'created';
-                resp.className = 'mt-2 text-sm bg-green-100 text-green-800 px-3 py-2 rounded';
+                resp.className = 'mt-2 text-sm bg-green-150 text-green-800 px-3 py-2 rounded-xl';
                 resp.textContent = `✅ Invoice ${refNum} created in Manager.io.`;
                 resp.classList.remove('hidden');
                 await load();
             } catch (err) {
-                resp.className = 'mt-2 text-sm bg-red-100 text-red-800 px-3 py-2 rounded';
+                resp.className = 'mt-2 text-sm bg-red-150 text-red-800 px-3 py-2 rounded-xl';
                 resp.textContent = '❌ ' + (err.message || 'Failed');
                 resp.classList.remove('hidden');
             } finally {
