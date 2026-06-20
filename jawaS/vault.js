@@ -396,37 +396,59 @@ const VaultPage = (() => {
             };
 
             if (select && tilesSection && tilesGrid) {
-                getAppData('BRANCHES').then(raw => {
-                    const branches = Object.values(raw || {});
+                // Initialize active selection as empty on fresh load
+                select.value = '';
+                _updateBranchStatus('');
 
-                    // Native select sync
-                    select.innerHTML = '<option value="">— Select Branch —</option>' +
-                        branches.map(b => `<option value="${b.BRANCH_CODE}">${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}</option>`).join('');
+                const renderBranches = () => {
+                    getAppData('BRANCHES').then(raw => {
+                        const branches = Object.values(raw || {});
+                        if (branches.length === 0) return; // Wait for sync
 
-                    // Render branch selection tiles (Styled like other dashboard tiles)
-                    tilesGrid.innerHTML = branches.map(b => `
-                        <div class="tile select-branch-tile" data-branch="${b.BRANCH_CODE}" style="border-color:#dbeafe; padding: 1.25rem 1rem;">
-                            <div class="tile-icon">🏢</div>
-                            <div class="tile-label">${b.BRANCH_CODE}</div>
-                            <div class="text-[12px] font-bold text-gray-800 mt-1 truncate" style="max-width: 100%;">${b.BRANCH_NAME || ''}</div>
-                            <div class="text-[9px] text-gray-400 font-mono mt-0.5">GSTIN: ${b.BRANCH_GSTIN || 'N/A'}</div>
-                        </div>
-                    `).join('');
+                        const currentVal = select.value;
 
-                    // Add click listeners to tiles
-                    tilesGrid.querySelectorAll('.select-branch-tile').forEach(tile => {
-                        tile.addEventListener('click', () => {
-                            const val = tile.dataset.branch;
-                            select.value = val;
-                            select.dispatchEvent(new Event('change'));
+                        // Native select sync
+                        select.innerHTML = '<option value="">— Select Branch —</option>' +
+                            branches.map(b => `<option value="${b.BRANCH_CODE}">${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}</option>`).join('');
+
+                        if (currentVal && branches.some(b => b.BRANCH_CODE === currentVal)) {
+                            select.value = currentVal;
+                        } else {
+                            select.value = '';
+                        }
+
+                        // Render branch selection tiles
+                        tilesGrid.innerHTML = branches.map(b => `
+                            <div class="tile select-branch-tile" data-branch="${b.BRANCH_CODE}" style="border-color:#dbeafe; padding: 1.25rem 1rem;">
+                                <div class="tile-icon">🏢</div>
+                                <div class="tile-label">${b.BRANCH_CODE}</div>
+                                <div class="text-[12px] font-bold text-gray-800 mt-1 truncate" style="max-width: 100%;">${b.BRANCH_NAME || ''}</div>
+                                <div class="text-[9px] text-gray-400 font-mono mt-0.5">GSTIN: ${b.BRANCH_GSTIN || 'N/A'}</div>
+                            </div>
+                        `).join('');
+
+                        // Add click listeners to tiles
+                        tilesGrid.querySelectorAll('.select-branch-tile').forEach(tile => {
+                            tile.addEventListener('click', () => {
+                                const val = tile.dataset.branch;
+                                select.value = val;
+                                select.dispatchEvent(new Event('change'));
+                            });
                         });
-                    });
 
-                    // No branch should be default selected on init
-                    select.value = '';
-                    _updateBranchStatus('');
-                    tilesSection.classList.remove('hidden');
-                });
+                        // Show branch section if no active selection
+                        if (!select.value) {
+                            tilesSection.classList.remove('hidden');
+                        }
+                    });
+                };
+
+                // Render immediately with cached entries
+                renderBranches();
+
+                // Re-render when new data arrives/sync finishes
+                window.addEventListener('appDataLoaded', renderBranches);
+                window.addEventListener('appDataRefreshed', renderBranches);
 
                 select.addEventListener('change', () => {
                     const branch = select.value;
