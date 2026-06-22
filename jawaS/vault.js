@@ -142,6 +142,10 @@ const VaultPage = (() => {
         // Clean up Sales Invoice specific UI items from shared list header
         document.getElementById('siFilterBtn')?.remove();
         document.getElementById('siStatus')?.remove();
+
+        // Clean up Quotations specific UI items from shared list header
+        document.getElementById('quotFilterBtn')?.remove();
+        document.getElementById('quotStatus')?.remove();
     }
 
     function _showListPane() {

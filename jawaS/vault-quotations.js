@@ -81,7 +81,7 @@ const VaultQuotations = (() => {
                     (x.description || '').toLowerCase().includes(q);
                 if (!matchText) return false;
             }
-            const d = x.date || x.Date || '';
+            const d = x.issueDate || x.date || '';
             if (_filterStart && d < _filterStart) return false;
             if (_filterEnd && d > _filterEnd) return false;
             if (_filterStatus) {
@@ -120,10 +120,10 @@ const VaultQuotations = (() => {
         }
         ul.innerHTML = quotes.map(q => {
             const total = q.totalAmount != null ? _fmtAmt(q.totalAmount) : '—';
-            const customer = q.customer || q.Customer || '—';
-            const ref = q.reference || q.Reference || '—';
-            const date = _fmtDate(q.date || q.Date);
-            const status = _getStatusBadge(q.status || q.Status);
+            const customer = q.customer || '—';
+            const ref = q.reference || '—';
+            const date = _fmtDate(q.issueDate || q.date);
+            const status = _getStatusBadge(q.status);
             return `<li data-key="${q.key}" class="p-3 rounded-lg cursor-pointer hover:bg-cyan-50 border border-gray-200 transition-colors">
                 <div class="flex items-start justify-between">
                     <strong class="text-cyan-700 block text-sm flex-1 min-w-0 truncate">📋 ${ref} — ${customer}</strong>
@@ -198,7 +198,7 @@ const VaultQuotations = (() => {
         VaultPage.showDetail(true);
 
         const ref      = data.Reference || data.reference || '—';
-        const date     = data.Date || data.date || '';
+        const date     = data.Date || data.date || data.IssueDate || data.issueDate || '';
         const desc     = data.Description || data.description || '';
         const validDays = data.ValidDays || data.validDays || 30;
         const status   = data.Status || data.status || '';
@@ -461,7 +461,7 @@ const VaultQuotations = (() => {
 
     function _printQuote(data, appData, opts) {
         const ref       = data.Reference || data.reference || 'N/A';
-        const date      = data.Date || data.date || '';
+        const date      = data.Date || data.date || data.IssueDate || data.issueDate || '';
         const desc      = data.Description || data.description || '';
         const validDays = data.ValidDays || data.validDays || 30;
         const lines     = data.Lines || data.lines || [];
@@ -708,7 +708,7 @@ const VaultQuotations = (() => {
 
             const existingRef      = data.Reference || data.reference || '';
             const existingCustomer = data.Customer || data.customer || '';
-            const existingDate     = data.Date || data.date || '';
+            const existingDate     = data.Date || data.date || data.IssueDate || data.issueDate || '';
             const existingDesc     = data.Description || data.description || '';
             const existingLines    = data.Lines || data.lines || [];
             const existingValidDays = data.ValidDays || data.validDays || 30;
@@ -1439,22 +1439,22 @@ const VaultQuotations = (() => {
             document.body.appendChild(modal);
             modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
 
-            document.getElementById('quotApplyBtn').onclick = () => {
+            document.getElementById('quotApplyBtn').onclick = async () => {
                 _filterStart = document.getElementById('quotFilterStart').value;
                 _filterEnd = document.getElementById('quotFilterEnd').value;
                 _filterStatus = document.getElementById('quotFilterStatus').value;
                 modal.classList.add('hidden');
-                _applyFilters();
+                await load();
             };
 
-            document.getElementById('quotResetBtn').onclick = () => {
+            document.getElementById('quotResetBtn').onclick = async () => {
                 document.getElementById('quotFilterStart').value = _fyRange.start;
                 document.getElementById('quotFilterEnd').value   = _fyRange.end;
                 document.getElementById('quotFilterStatus').value = '';
                 _filterStart  = _fyRange.start;
                 _filterEnd    = _fyRange.end;
                 _filterStatus = '';
-                _applyFilters();
+                await load();
             };
         }
     }
@@ -1496,14 +1496,15 @@ const VaultQuotations = (() => {
                 }
             }
 
-            const c = _clientCode || _getCode();
-            if (!c) {
-                document.getElementById('vaultListMsg').textContent = 'No client code resolved for selected branch.';
+            const branch = activeBranch;
+            if (!branch) {
+                document.getElementById('vaultListMsg').textContent = 'No branch selected.';
                 return;
             }
             document.getElementById('vaultListMsg').textContent = 'Loading…';
-            const data = await callApi(`/api/manager/quotes?code=${encodeURIComponent(c)}`, {}, 'GET');
-            _allQuotes = data.salesQuotes || data.quotes || [];
+            const url = `/api/manager/all-quotes?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`;
+            const res = await callApi(url, {}, 'GET');
+            _allQuotes = (res.status === 'success' ? res.quotes : res.salesQuotes || res.quotes) || [];
             document.getElementById('vaultListMsg').textContent = '';
             _renderList(_getFilteredQuotes());
         } catch (err) {
