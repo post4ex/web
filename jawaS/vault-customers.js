@@ -16,6 +16,13 @@ const VaultCustomers = (() => {
     let _allLedger = [];
     let _b2bList   = [];   // for branch→clientCode resolution
 
+    // ── Current report state ──────────────────────────────────────────────────
+    let _currentCustomer    = null;
+    let _currentCode        = null;
+    let _currentStmtEntries = [];
+    let _currentStmtBalance = 0;
+    let _activeTab          = 'transactions';
+
     // ── Cache ────────────────────────────────────────────────────────────────
     let _balanceCache   = null;
     let _bankAcctsCache = {};  // clientCode → [{key, name, actualBalance}]
@@ -113,12 +120,61 @@ const VaultCustomers = (() => {
         }
     }
 
-    // ── Statement fetching from Manager.io API ──────────────────────────────
+    function _getLocalLedgerFallback(code, start, end, direction = 'OUTWARD') {
+        let localEntries = _allLedger.filter(e =>
+            e.CODE === code && e.DIRECTION === direction
+        );
+        if (start) {
+            localEntries = localEntries.filter(e => e.ENTRY_DATE >= start);
+        }
+        if (end) {
+            localEntries = localEntries.filter(e => e.ENTRY_DATE <= end);
+        }
+        localEntries.sort((a, b) =>
+            (a.ENTRY_DATE || '').localeCompare(b.ENTRY_DATE || '') ||
+            (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0)
+        );
+
+        return localEntries.map(e => {
+            let desc = '';
+            try {
+                const parsed = JSON.parse(e.NARRATION || '{}');
+                desc = parsed.narration || parsed.description || e.NARRATION || '';
+            } catch (_) {
+                desc = e.NARRATION || '';
+            }
+
+            const debit = +(e.DEBIT || 0);
+            const credit = +(e.CREDIT || 0);
+
+            return {
+                date: e.ENTRY_DATE || '',
+                ENTRY_DATE: e.ENTRY_DATE || '',
+                description: desc,
+                reference: e.INV_NUMBER || e.INVOICE_ID || '',
+                INV_NUMBER: e.INV_NUMBER || e.INVOICE_ID || '',
+                debit: debit,
+                DEBIT: debit,
+                credit: credit,
+                CREDIT: credit,
+                balance: +(e.BALANCE || 0),
+                BALANCE: +(e.BALANCE || 0),
+                ENTRY_TYPE: e.ENTRY_TYPE || (credit > 0 ? 'PAYMENT' : 'INVOICE'),
+                STATUS: e.STATUS || 'ACTIVE'
+            };
+        });
+    }
+
+    // ── Statement fetching from Manager.io API (with local ledger fallback) ──
     async function _fetchStatement(code, branch) {
         const start = document.getElementById('custStmtFilterStart')?.value || _stmtFilterStart;
         const end   = document.getElementById('custStmtFilterEnd')?.value   || _stmtFilterEnd;
         const clientCode = _getClientCodeForBranch(branch);
-        if (!clientCode) return { entries: [], balance: 0 };
+        if (!clientCode) {
+            const fallbackEntries = _getLocalLedgerFallback(code, start, end, 'OUTWARD');
+            const balance = fallbackEntries.length > 0 ? fallbackEntries[fallbackEntries.length - 1].balance : _getLatestBalance(code);
+            return { entries: fallbackEntries, balance };
+        }
 
         const params = new URLSearchParams();
         if (start) params.set('startDate', start);
@@ -128,27 +184,66 @@ const VaultCustomers = (() => {
         try {
             const url = `/api/manager/customer-statement/${encodeURIComponent(branch)}/${encodeURIComponent(code)}?${params.toString()}`;
             const res = await callApi(url, {}, 'GET');
+            if (res && res.detail) {
+                throw new Error(res.detail);
+            }
             const entries = res.statement || res.transactions || [];
             const balance = entries.length > 0 ? (entries[entries.length - 1].balance || 0) : 0;
-            return { entries, balance };
+            const mapped = entries.map(e => {
+                const debit = +(e.debit || 0);
+                const credit = +(e.credit || 0);
+                const isPmt = credit > 0;
+                return {
+                    date: e.date || '',
+                    ENTRY_DATE: e.date || '',
+                    description: e.description || '',
+                    reference: e.reference || '',
+                    INV_NUMBER: e.reference || '',
+                    debit: debit,
+                    DEBIT: debit,
+                    credit: credit,
+                    CREDIT: credit,
+                    balance: +(e.balance || 0),
+                    BALANCE: +(e.balance || 0),
+                    ENTRY_TYPE: isPmt ? 'PAYMENT' : 'INVOICE',
+                    STATUS: 'ACTIVE'
+                };
+            });
+            return { entries: mapped, balance };
         } catch (err) {
-            console.error('[VaultCustomers] Failed to fetch statement:', err);
-            return { entries: [], balance: 0 };
+            console.warn('[VaultCustomers] Manager.io statement failed, falling back to local ledger:', err);
+            const fallbackEntries = _getLocalLedgerFallback(code, start, end, 'OUTWARD');
+            const balance = fallbackEntries.length > 0 ? fallbackEntries[fallbackEntries.length - 1].balance : _getLatestBalance(code);
+            return { entries: fallbackEntries, balance };
         } finally {
             window.setLoading?.(false);
         }
     }
 
-    // ── List render ──────────────────────────────────────────────────────────
+    // ── List render (populated from Manager.io cache keys) ───────────────────
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        let customers = _allB2B.filter(c => c.CODE && c.B2B_TYPE !== 'VENDOR');
-        const activeBranch = VaultPage.getActiveBranch();
-        if (activeBranch) {
-            customers = customers.filter(c => (c.BRANCH || '').toLowerCase() === activeBranch.toLowerCase());
+        const activeBranch = (VaultPage.getActiveBranch() || '').toLowerCase();
+        if (!activeBranch) {
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">Please select a branch first.</li>`;
+            return;
         }
+
+        const bKeys = window.__vaultCacheKeys?.[activeBranch] || {};
+        const cacheCustomers = Object.keys(bKeys.customers || {});
+
+        let customers = cacheCustomers.map(name => {
+            const localCust = _allB2B.find(c =>
+                c.CODE === name ||
+                c.B2B_NAME === name ||
+                (c.CODE || '').toLowerCase() === name.toLowerCase() ||
+                (c.B2B_NAME || '').toLowerCase() === name.toLowerCase()
+            );
+            return localCust || { CODE: name, B2B_NAME: name, BRANCH: VaultPage.getActiveBranch() };
+        });
+
         if (q) {
             customers = customers.filter(c =>
                 (c.CODE || '').toLowerCase().includes(q) ||
@@ -165,6 +260,8 @@ const VaultCustomers = (() => {
 
         if (!customers.length) {
             ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No customers found.</li>`;
+            const statusEl = document.getElementById('custListStatus');
+            if (statusEl) statusEl.textContent = '0 customers';
             return;
         }
 
@@ -177,7 +274,7 @@ const VaultCustomers = (() => {
             const balClass = balance > 0 ? 'text-red-600' : balance < 0 ? 'text-green-600' : 'text-gray-500';
             return `<li data-code="${_escapeHtml(c.CODE)}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
                 <strong class="text-blue-800 block text-sm">${_escapeHtml(c.B2B_NAME || c.CODE)}</strong>
-                <span class="text-xs text-gray-500">${_escapeHtml(c.CODE || '')} · ${_escapeHtml(c.MOBILE_NUMBER || '')} · ${_escapeHtml(c.B2B_CITY || '')}</span>
+                <span class="text-xs text-gray-500">${_escapeHtml(c.CODE || '')} · ${_escapeHtml(c.MOBILE_NUMBER || 'No Mobile')} · ${_escapeHtml(c.B2B_CITY || 'No City')}</span>
                 <div class="text-xs mt-1">
                     <span class="${balClass} font-medium">${balance > 0 ? '₹' + balance.toFixed(2) + ' due' : balance < 0 ? '₹' + Math.abs(balance).toFixed(2) + ' in credit' : '₹0.00'}</span>
                 </div>
@@ -189,7 +286,7 @@ const VaultCustomers = (() => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
                 const code = li.dataset.code;
-                const customer = _allB2B.find(c => c.CODE === code);
+                const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code, BRANCH: VaultPage.getActiveBranch() };
                 try {
                     await _renderDetail(customer, code);
                 } catch (err) {
@@ -555,6 +652,210 @@ const VaultCustomers = (() => {
         modal.classList.remove('hidden');
     }
 
+    // ── Tab Rendering and Computations ────────────────────────────────────────
+    function _calculateUnpaidInvoices(entries) {
+        const invoices = [];
+        let totalPayments = 0;
+
+        entries.forEach(e => {
+            const debit = +(e.debit || e.DEBIT || 0);
+            const credit = +(e.credit || e.CREDIT || 0);
+            if (debit > 0) {
+                invoices.push({
+                    date: e.date || e.ENTRY_DATE || '',
+                    reference: e.reference || e.INV_NUMBER || '',
+                    description: e.description || '',
+                    amount: debit,
+                    unpaid: debit
+                });
+            }
+            totalPayments += credit;
+        });
+
+        let remainingPayments = totalPayments;
+        for (const inv of invoices) {
+            if (remainingPayments >= inv.unpaid) {
+                remainingPayments -= inv.unpaid;
+                inv.unpaid = 0;
+            } else {
+                inv.unpaid -= remainingPayments;
+                remainingPayments = 0;
+                break;
+            }
+        }
+        return invoices.filter(inv => inv.unpaid > 0);
+    }
+
+    function _calculateAging(entries) {
+        const invoices = _calculateUnpaidInvoices(entries);
+        const today = new Date();
+        const aging = { current: 0, thirty: 0, sixty: 0, ninety: 0, total: 0 };
+
+        invoices.forEach(inv => {
+            const invDate = new Date(inv.date);
+            const diffTime = Math.abs(today - invDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 30) {
+                aging.current += inv.unpaid;
+            } else if (diffDays <= 60) {
+                aging.thirty += inv.unpaid;
+            } else if (diffDays <= 90) {
+                aging.sixty += inv.unpaid;
+            } else {
+                aging.ninety += inv.unpaid;
+            }
+            aging.total += inv.unpaid;
+        });
+        return aging;
+    }
+
+    function _renderTabContent() {
+        const container = document.getElementById('custStatementBody');
+        if (!container) return;
+
+        if (_activeTab === 'transactions') {
+            container.innerHTML = _renderStatementTable(_currentStmtEntries, _currentStmtBalance);
+        } else if (_activeTab === 'unpaid') {
+            const unpaidInvoices = _calculateUnpaidInvoices(_currentStmtEntries);
+            container.innerHTML = _renderUnpaidTable(unpaidInvoices);
+        } else if (_activeTab === 'summary') {
+            const summary = _computeSummaryFromStatement(_currentStmtEntries);
+            container.innerHTML = _renderSummaryView(summary, _currentStmtBalance);
+        } else if (_activeTab === 'aging') {
+            const aging = _calculateAging(_currentStmtEntries);
+            container.innerHTML = _renderAgingView(aging);
+        }
+    }
+
+    function _renderUnpaidTable(unpaidInvoices) {
+        if (!unpaidInvoices || !unpaidInvoices.length) {
+            return `<div class="text-center py-8 text-gray-400 text-sm">No unpaid invoices found. All clear! 🎉</div>`;
+        }
+
+        const totalUnpaid = unpaidInvoices.reduce((s, e) => s + e.unpaid, 0);
+
+        return `
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
+                            <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Invoice Ref</th>
+                            <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Description</th>
+                            <th class="px-3 py-2 text-right font-medium text-gray-500 uppercase">Original Amount</th>
+                            <th class="px-3 py-2 text-right font-medium text-gray-500 uppercase">Unpaid / Due</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${unpaidInvoices.map(inv => {
+                            return `<tr class="hover:bg-gray-50">
+                                <td class="px-3 py-2 whitespace-nowrap">${inv.date ? fmtDate(inv.date, 'date') : ''}</td>
+                                <td class="px-3 py-2 text-blue-800 font-medium">${_escapeHtml(inv.reference || '—')}</td>
+                                <td class="px-3 py-2 max-w-[200px] truncate" title="${_escapeHtml(inv.description)}">${_escapeHtml(inv.description || '—')}</td>
+                                <td class="px-3 py-2 text-right text-gray-600">₹${inv.amount.toFixed(2)}</td>
+                                <td class="px-3 py-2 text-right font-bold text-red-600">₹${inv.unpaid.toFixed(2)}</td>
+                            </tr>`;
+                        }).join('')}
+                        <tr class="bg-gray-50 font-bold text-gray-800">
+                            <td class="px-3 py-2" colspan="3"></td>
+                            <td class="px-3 py-2 text-right">Total Unpaid:</td>
+                            <td class="px-3 py-2 text-right text-red-600">₹${totalUnpaid.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>`;
+    }
+
+    function _renderSummaryView(summary, outstanding) {
+        return `
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                        <div class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Total Invoiced</div>
+                        <div class="text-2xl font-bold text-blue-900">₹${summary.totalInvoiced.toFixed(2)}</div>
+                        <div class="text-xs text-gray-500 mt-1">${summary.invoiceCount} invoices issued</div>
+                    </div>
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                        <div class="text-xs font-semibold text-green-600 uppercase tracking-wider mb-1">Total Receipts</div>
+                        <div class="text-2xl font-bold text-green-900">₹${summary.totalPaid.toFixed(2)}</div>
+                        <div class="text-xs text-gray-500 mt-1">${summary.paymentCount} payments recorded</div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                        <div class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Net Outstanding</div>
+                        <div class="text-2xl font-bold ${outstanding > 0 ? 'text-red-700' : 'text-green-700'}">₹${outstanding.toFixed(2)}</div>
+                        <div class="text-xs text-gray-500 mt-1">${outstanding > 0 ? 'Amount due from customer' : outstanding < 0 ? 'Credit balance' : 'Fully settled'}</div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 border rounded-xl p-4">
+                    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Activity Breakdown</h4>
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <div class="flex justify-between py-1 border-b">
+                            <span>Average Invoice Value:</span>
+                            <span class="font-medium text-gray-800">₹${summary.invoiceCount > 0 ? (summary.totalInvoiced / summary.invoiceCount).toFixed(2) : '0.00'}</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b">
+                            <span>Average Payment Value:</span>
+                            <span class="font-medium text-gray-800">₹${summary.paymentCount > 0 ? (summary.totalPaid / summary.paymentCount).toFixed(2) : '0.00'}</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span>Receipt/Invoice Ratio:</span>
+                            <span class="font-medium text-gray-800">${summary.totalInvoiced > 0 ? ((summary.totalPaid / summary.totalInvoiced) * 100).toFixed(1) + '%' : '0.0%'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function _renderAgingView(aging) {
+        return `
+            <div class="p-6 space-y-6">
+                <div class="overflow-x-auto border rounded-xl bg-white shadow-sm">
+                    <table class="min-w-full text-xs divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-500 uppercase tracking-wider">Current (0-30 Days)</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-500 uppercase tracking-wider">30-60 Days</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-500 uppercase tracking-wider">60-90 Days</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-500 uppercase tracking-wider">Over 90 Days</th>
+                                <th class="px-4 py-3 text-center font-bold text-gray-700 uppercase tracking-wider bg-gray-100">Total Outstanding</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 text-sm">
+                            <tr class="hover:bg-gray-50 text-center font-medium">
+                                <td class="px-4 py-4 text-green-600">₹${aging.current.toFixed(2)}</td>
+                                <td class="px-4 py-4 text-amber-600">₹${aging.thirty.toFixed(2)}</td>
+                                <td class="px-4 py-4 text-orange-600">₹${aging.sixty.toFixed(2)}</td>
+                                <td class="px-4 py-4 text-red-600 font-bold">₹${aging.ninety.toFixed(2)}</td>
+                                <td class="px-4 py-4 font-extrabold text-indigo-900 bg-indigo-50/50">₹${aging.total.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="text-xs text-gray-400 bg-gray-50 rounded-lg p-3 border">
+                    💡 **Aging Method**: FIFO (First-In, First-Out) matching of receipts against oldest invoices. Outstandings are grouped by calendar age from the invoice date.
+                </div>
+            </div>`;
+    }
+
+    function setTab(tabName) {
+        _activeTab = tabName;
+        const tabs = ['transactions', 'unpaid', 'summary', 'aging'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`tab-${t}`);
+            if (btn) {
+                if (t === tabName) {
+                    btn.className = 'py-2.5 px-3 text-center border-b-2 font-semibold text-xs border-indigo-500 text-indigo-600 transition-colors';
+                } else {
+                    btn.className = 'py-2.5 px-3 text-center border-b-2 font-semibold text-xs border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors';
+                }
+            }
+        });
+        _renderTabContent();
+    }
+
     // ── Detail view ─────────────────────────────────────────────────────────
     async function _renderDetail(customer, code) {
         VaultPage.showDetail(true);
@@ -565,6 +866,10 @@ const VaultCustomers = (() => {
 
         // Fetch statement from Manager.io
         const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
+        _currentCustomer = customer;
+        _currentCode = code;
+        _currentStmtEntries = stmtEntries;
+        _currentStmtBalance = stmtBalance;
 
         // Compute summary from statement data
         let summary;
@@ -608,10 +913,30 @@ const VaultCustomers = (() => {
                 <div class="detail-card">
                     <div class="detail-card-header flex flex-wrap justify-between items-center gap-2">
                         <h3 class="font-semibold text-gray-700">${_escapeHtml(customer?.B2B_NAME || code)}</h3>
-                        <div class="flex flex-wrap gap-2">
-                            <button onclick="VaultCustomers._printStatement('${_escapeHtml(code)}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print
-                            </button>
+                        <div class="flex flex-wrap gap-2 relative">
+                            <div class="relative inline-block text-left" id="custPrintDropdown">
+                                <button onclick="event.stopPropagation(); document.getElementById('custPrintMenu').classList.toggle('hidden')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1 border">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> 🖨️ Print Report...
+                                </button>
+                                <div id="custPrintMenu" class="hidden absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 divide-y divide-gray-100 border border-gray-100">
+                                    <div class="py-1">
+                                        <button onclick="VaultCustomers._printStatement('${_escapeHtml(code)}')" class="group flex items-center px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left font-medium">
+                                            📝 Statements (Transactions)
+                                        </button>
+                                        <button onclick="VaultCustomers._printUnpaidStatement('${_escapeHtml(code)}')" class="group flex items-center px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left font-medium">
+                                            ❌ Statements (Unpaid Invoices)
+                                        </button>
+                                    </div>
+                                    <div class="py-1">
+                                        <button onclick="VaultCustomers._printCustomerSummary('${_escapeHtml(code)}')" class="group flex items-center px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left font-medium">
+                                            📊 Customer Summary
+                                        </button>
+                                        <button onclick="VaultCustomers._printAgedReceivables('${_escapeHtml(code)}')" class="group flex items-center px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left font-medium">
+                                            ⏳ Aged Receivables
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="detail-card-body">
@@ -675,7 +1000,7 @@ const VaultCustomers = (() => {
                 <!-- Statement Card -->
                 <div class="detail-card">
                     <div class="detail-card-header flex flex-wrap justify-between items-center gap-2">
-                        <h3 class="font-semibold text-gray-700">Statement (${stmtEntries.length} entries)</h3>
+                        <h3 class="font-semibold text-gray-700">Customer Reports</h3>
                         <div class="flex flex-wrap items-center gap-2 text-xs">
                             <input type="date" id="custStmtFilterStart" class="form-input text-xs w-32" value="${_stmtFilterStart}">
                             <span class="text-gray-400">—</span>
@@ -684,9 +1009,28 @@ const VaultCustomers = (() => {
                             <button id="custStmtResetBtn" class="btn-ghost btn-xs">Reset</button>
                         </div>
                     </div>
+                    
+                    <!-- Tabs Navigation -->
+                    <div class="border-b border-gray-200 bg-gray-50/50">
+                        <nav class="flex -mb-px px-2" aria-label="Tabs">
+                            <button id="tab-transactions" onclick="VaultCustomers.setTab('transactions')" class="py-2.5 px-3 text-center border-b-2 font-semibold text-xs transition-colors ${_activeTab === 'transactions' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}">
+                                Statements (Transactions)
+                            </button>
+                            <button id="tab-unpaid" onclick="VaultCustomers.setTab('unpaid')" class="py-2.5 px-3 text-center border-b-2 font-semibold text-xs transition-colors ${_activeTab === 'unpaid' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}">
+                                Statements (Unpaid Invoices)
+                            </button>
+                            <button id="tab-summary" onclick="VaultCustomers.setTab('summary')" class="py-2.5 px-3 text-center border-b-2 font-semibold text-xs transition-colors ${_activeTab === 'summary' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}">
+                                Customer Summary
+                            </button>
+                            <button id="tab-aging" onclick="VaultCustomers.setTab('aging')" class="py-2.5 px-3 text-center border-b-2 font-semibold text-xs transition-colors ${_activeTab === 'aging' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}">
+                                Aged Receivables
+                            </button>
+                        </nav>
+                    </div>
+
                     <div class="detail-card-body p-0">
                         <div id="custStatementBody">
-                            ${_renderStatementTable(stmtEntries, outstanding)}
+                            <!-- Populated dynamically by _renderTabContent() -->
                         </div>
                     </div>
                 </div>
@@ -700,10 +1044,9 @@ const VaultCustomers = (() => {
                 _stmtFilterStart = document.getElementById('custStmtFilterStart').value;
                 _stmtFilterEnd = document.getElementById('custStmtFilterEnd').value;
                 const { entries: newEntries, balance: newBal } = await _fetchStatement(code, branch);
-                document.getElementById('custStatementBody').innerHTML = _renderStatementTable(newEntries, newBal);
-                // Update header count
-                const h3 = view.querySelector('.detail-card:last-child .detail-card-header h3');
-                if (h3) h3.textContent = `Statement (${newEntries.length} entries)`;
+                _currentStmtEntries = newEntries;
+                _currentStmtBalance = newBal;
+                _renderTabContent();
             };
         }
         if (resetBtn) {
@@ -714,11 +1057,14 @@ const VaultCustomers = (() => {
                 _stmtFilterStart = fy.start;
                 _stmtFilterEnd = fy.end;
                 const { entries: newEntries, balance: newBal } = await _fetchStatement(code, branch);
-                document.getElementById('custStatementBody').innerHTML = _renderStatementTable(newEntries, newBal);
-                const h3 = view.querySelector('.detail-card:last-child .detail-card-header h3');
-                if (h3) h3.textContent = `Statement (${newEntries.length} entries)`;
+                _currentStmtEntries = newEntries;
+                _currentStmtBalance = newBal;
+                _renderTabContent();
             };
         }
+
+        // Render the active tab content initially
+        _renderTabContent();
 
         VaultPage.showDetailPane();
     }
@@ -785,23 +1131,138 @@ const VaultCustomers = (() => {
         const branch = customer.BRANCH || '';
         const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
 
-        const mappedEntries = stmtEntries.map(e => {
-            const debit = +(e.debit || 0);
-            const credit = +(e.credit || 0);
-            const isPmt = credit > 0;
+        VaultPrint.printStatement(customer, code, stmtEntries, stmtBalance, 'Customer');
+    }
+
+    // ── Print statement (unpaid invoices) ──────────────────────────────────
+    async function _printUnpaidStatement(code) {
+        const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
+        const branch = customer.BRANCH || '';
+        const { entries: stmtEntries } = await _fetchStatement(code, branch);
+
+        const invoices = [];
+        let totalPayments = 0;
+
+        stmtEntries.forEach(e => {
+            const debit = +(e.debit || e.DEBIT || 0);
+            const credit = +(e.credit || e.CREDIT || 0);
+            if (debit > 0) {
+                invoices.push({
+                    date: e.date || e.ENTRY_DATE || '',
+                    reference: e.reference || e.INV_NUMBER || '',
+                    amount: debit,
+                    unpaid: debit
+                });
+            }
+            totalPayments += credit;
+        });
+
+        let remainingPayments = totalPayments;
+        for (const inv of invoices) {
+            if (remainingPayments >= inv.unpaid) {
+                remainingPayments -= inv.unpaid;
+                inv.unpaid = 0;
+            } else {
+                inv.unpaid -= remainingPayments;
+                remainingPayments = 0;
+                break;
+            }
+        }
+
+        const unpaidEntries = invoices.filter(inv => inv.unpaid > 0).map(inv => {
             return {
-                ENTRY_DATE: e.date || '',
-                ENTRY_TYPE: isPmt ? 'PAYMENT' : 'INVOICE',
-                INV_NUMBER: e.reference || '',
-                DEBIT: debit,
-                CREDIT: credit,
-                BALANCE: +(e.balance || 0),
+                ENTRY_DATE: inv.date,
+                ENTRY_TYPE: 'INVOICE',
+                INV_NUMBER: inv.reference,
+                DEBIT: inv.amount,
+                CREDIT: 0,
+                BALANCE: inv.unpaid,
                 STATUS: 'ACTIVE'
             };
         });
 
-        VaultPrint.printStatement(customer, code, mappedEntries, stmtBalance, 'Customer');
+        const totalUnpaid = unpaidEntries.reduce((s, e) => s + e.BALANCE, 0);
+        VaultPrint.printStatement(customer, code, unpaidEntries, totalUnpaid, 'Unpaid Invoices');
     }
+
+    // ── Print customer summary ──────────────────────────────────────────────
+    async function _printCustomerSummary(code) {
+        const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
+        const branch = customer.BRANCH || '';
+        const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
+
+        let summary;
+        if (stmtEntries.length > 0) {
+            summary = _computeSummaryFromStatement(stmtEntries);
+        } else {
+            summary = { invoiceCount: 0, paymentCount: 0, totalInvoiced: 0, totalPaid: 0, balance: 0 };
+        }
+        VaultPrint.printCustomerSummary(customer, code, summary, stmtBalance, 'Customer');
+    }
+
+    // ── Print aged receivables (FIFO aging calculation) ─────────────────────
+    async function _printAgedReceivables(code) {
+        const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
+        const branch = customer.BRANCH || '';
+        const { entries: stmtEntries } = await _fetchStatement(code, branch);
+
+        const invoices = [];
+        let totalPayments = 0;
+
+        stmtEntries.forEach(e => {
+            const debit = +(e.debit || e.DEBIT || 0);
+            const credit = +(e.credit || e.CREDIT || 0);
+            if (debit > 0) {
+                invoices.push({
+                    date: e.date || e.ENTRY_DATE || '',
+                    reference: e.reference || e.INV_NUMBER || '',
+                    amount: debit,
+                    unpaid: debit
+                });
+            }
+            totalPayments += credit;
+        });
+
+        let remainingPayments = totalPayments;
+        for (const inv of invoices) {
+            if (remainingPayments >= inv.unpaid) {
+                remainingPayments -= inv.unpaid;
+                inv.unpaid = 0;
+            } else {
+                inv.unpaid -= remainingPayments;
+                remainingPayments = 0;
+                break;
+            }
+        }
+
+        const today = new Date();
+        const aging = { current: 0, thirty: 0, sixty: 0, ninety: 0, total: 0 };
+
+        invoices.filter(inv => inv.unpaid > 0).forEach(inv => {
+            const invDate = new Date(inv.date);
+            const diffTime = Math.abs(today - invDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 30) {
+                aging.current += inv.unpaid;
+            } else if (diffDays <= 60) {
+                aging.thirty += inv.unpaid;
+            } else if (diffDays <= 90) {
+                aging.sixty += inv.unpaid;
+            } else {
+                aging.ninety += inv.unpaid;
+            }
+            aging.total += inv.unpaid;
+        });
+
+        VaultPrint.printAgedReceivables(customer, code, aging, 'Aged Receivables');
+    }
+
+    // Register click outside print dropdown close handler
+    window.addEventListener('click', () => {
+        const menu = document.getElementById('custPrintMenu');
+        if (menu) menu.classList.add('hidden');
+    });
 
     // ── Helper to get customer object ───────────────────────────────────────
     function _getCustomer(code) {
@@ -826,6 +1287,16 @@ const VaultCustomers = (() => {
         _injectListPane();
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
+
+        if (!window.__vaultCacheKeys) {
+            try {
+                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+            } catch (e) {
+                console.error('[VaultCustomers] Failed to fetch cache keys:', e);
+                window.__vaultCacheKeys = {};
+            }
+        }
+
         const data = await getAppData();
         if (data) {
             _allB2B    = Object.values(data.B2B    || {});
@@ -840,6 +1311,7 @@ const VaultCustomers = (() => {
     return {
         load,
         search,
+        setTab,
         _printStatement,
         _getCustomer,
         _openRecordReceipt,

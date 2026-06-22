@@ -112,12 +112,61 @@ const VaultSuppliers = (() => {
         }
     }
 
-    // ── Statement fetching from Manager.io API ──────────────────────────────
+    function _getLocalLedgerFallback(code, start, end, direction = 'INWARD') {
+        let localEntries = _allLedger.filter(e =>
+            e.CODE === code && e.DIRECTION === direction
+        );
+        if (start) {
+            localEntries = localEntries.filter(e => e.ENTRY_DATE >= start);
+        }
+        if (end) {
+            localEntries = localEntries.filter(e => e.ENTRY_DATE <= end);
+        }
+        localEntries.sort((a, b) =>
+            (a.ENTRY_DATE || '').localeCompare(b.ENTRY_DATE || '') ||
+            (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0)
+        );
+
+        return localEntries.map(e => {
+            let desc = '';
+            try {
+                const parsed = JSON.parse(e.NARRATION || '{}');
+                desc = parsed.narration || parsed.description || e.NARRATION || '';
+            } catch (_) {
+                desc = e.NARRATION || '';
+            }
+
+            const debit = +(e.DEBIT || 0);
+            const credit = +(e.CREDIT || 0);
+
+            return {
+                date: e.ENTRY_DATE || '',
+                ENTRY_DATE: e.ENTRY_DATE || '',
+                description: desc,
+                reference: e.INV_NUMBER || e.INVOICE_ID || '',
+                INV_NUMBER: e.INV_NUMBER || e.INVOICE_ID || '',
+                debit: debit,
+                DEBIT: debit,
+                credit: credit,
+                CREDIT: credit,
+                balance: +(e.BALANCE || 0),
+                BALANCE: +(e.BALANCE || 0),
+                ENTRY_TYPE: e.ENTRY_TYPE || (debit > 0 ? 'PAYMENT' : 'INVOICE'),
+                STATUS: e.STATUS || 'ACTIVE'
+            };
+        });
+    }
+
+    // ── Statement fetching from Manager.io API (with local ledger fallback) ──
     async function _fetchStatement(code, branch) {
         const start = document.getElementById('suppStmtFilterStart')?.value || _stmtFilterStart;
         const end   = document.getElementById('suppStmtFilterEnd')?.value   || _stmtFilterEnd;
         const clientCode = _getClientCodeForBranch(branch);
-        if (!clientCode) return { entries: [], balance: 0 };
+        if (!clientCode) {
+            const fallbackEntries = _getLocalLedgerFallback(code, start, end, 'INWARD');
+            const balance = fallbackEntries.length > 0 ? fallbackEntries[fallbackEntries.length - 1].balance : _getLatestBalance(code);
+            return { entries: fallbackEntries, balance };
+        }
 
         const params = new URLSearchParams();
         if (start) params.set('startDate', start);
@@ -127,35 +176,66 @@ const VaultSuppliers = (() => {
         try {
             const url = `/api/manager/supplier-statement/${encodeURIComponent(branch)}/${encodeURIComponent(code)}?${params.toString()}`;
             const res = await callApi(url, {}, 'GET');
+            if (res && res.detail) {
+                throw new Error(res.detail);
+            }
             const entries = res.statement || res.transactions || [];
             const balance = entries.length > 0 ? (entries[entries.length - 1].balance || 0) : 0;
-            return { entries, balance };
+            const mapped = entries.map(e => {
+                const debit = +(e.debit || 0);
+                const credit = +(e.credit || 0);
+                const isPmt = debit > 0;
+                return {
+                    date: e.date || '',
+                    ENTRY_DATE: e.date || '',
+                    description: e.description || '',
+                    reference: e.reference || '',
+                    INV_NUMBER: e.reference || '',
+                    debit: debit,
+                    DEBIT: debit,
+                    credit: credit,
+                    CREDIT: credit,
+                    balance: +(e.balance || 0),
+                    BALANCE: +(e.balance || 0),
+                    ENTRY_TYPE: isPmt ? 'PAYMENT' : 'INVOICE',
+                    STATUS: 'ACTIVE'
+                };
+            });
+            return { entries: mapped, balance };
         } catch (err) {
-            console.error('[VaultSuppliers] Failed to fetch statement:', err);
-            return { entries: [], balance: 0 };
+            console.warn('[VaultSuppliers] Manager.io statement failed, falling back to local ledger:', err);
+            const fallbackEntries = _getLocalLedgerFallback(code, start, end, 'INWARD');
+            const balance = fallbackEntries.length > 0 ? fallbackEntries[fallbackEntries.length - 1].balance : _getLatestBalance(code);
+            return { entries: fallbackEntries, balance };
         } finally {
             window.setLoading?.(false);
         }
     }
 
-    // ── List render ──────────────────────────────────────────────────────────
+    // ── List render (populated from Manager.io cache keys) ───────────────────
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        let suppliers = _allB2B.filter(c => c.CODE && c.B2B_TYPE === 'VENDOR');
-        const activeBranch = VaultPage.getActiveBranch();
-        if (activeBranch) {
-            suppliers = suppliers.filter(c => (c.BRANCH || '').toLowerCase() === activeBranch.toLowerCase());
+        const activeBranch = (VaultPage.getActiveBranch() || '').toLowerCase();
+        if (!activeBranch) {
+            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">Please select a branch first.</li>`;
+            return;
         }
-        if (q) {
-            suppliers = suppliers.filter(c =>
-                (c.CODE || '').toLowerCase().includes(q) ||
-                (c.B2B_NAME || '').toLowerCase().includes(q) ||
-                (c.MOBILE_NUMBER || '').toLowerCase().includes(q) ||
-                (c.B2B_CITY || '').toLowerCase().includes(q)
+
+        const bKeys = window.__vaultCacheKeys?.[activeBranch] || {};
+        const cacheSuppliers = Object.keys(bKeys.suppliers || {});
+
+        let suppliers = cacheSuppliers.map(name => {
+            const localSupp = _allB2B.find(c =>
+                c.CODE === name ||
+                c.B2B_NAME === name ||
+                (c.CODE || '').toLowerCase() === name.toLowerCase() ||
+                (c.B2B_NAME || '').toLowerCase() === name.toLowerCase()
             );
-        }
+            return localSupp || { CODE: name, B2B_NAME: name, BRANCH: VaultPage.getActiveBranch() };
+        });
+
         // Also include carrier vendors from LEDGER that have INWARD entries
         const carrierCodes = new Set(
             _allLedger.filter(e =>
@@ -170,6 +250,15 @@ const VaultSuppliers = (() => {
             }
         });
 
+        if (q) {
+            suppliers = suppliers.filter(c =>
+                (c.CODE || '').toLowerCase().includes(q) ||
+                (c.B2B_NAME || '').toLowerCase().includes(q) ||
+                (c.MOBILE_NUMBER || '').toLowerCase().includes(q) ||
+                (c.B2B_CITY || '').toLowerCase().includes(q)
+            );
+        }
+
         // Sort by outstanding balance descending
         suppliers.sort((a, b) => {
             const balA = Math.abs(_getLatestBalance(a.CODE));
@@ -179,6 +268,8 @@ const VaultSuppliers = (() => {
 
         if (!suppliers.length) {
             ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No suppliers found.</li>`;
+            const statusEl = document.getElementById('suppListStatus');
+            if (statusEl) statusEl.textContent = '0 suppliers';
             return;
         }
 
@@ -194,7 +285,7 @@ const VaultSuppliers = (() => {
                 : '';
             return `<li data-code="${_escapeHtml(c.CODE)}" class="p-3 rounded-lg cursor-pointer hover:bg-orange-50 border border-gray-200 transition-colors">
                 <strong class="text-orange-800 block text-sm">${_escapeHtml(c.B2B_NAME || c.CODE)}${tag}</strong>
-                <span class="text-xs text-gray-500">${_escapeHtml(c.CODE || '')} · ${_escapeHtml(c.MOBILE_NUMBER || '')} · ${_escapeHtml(c.B2B_CITY || '')}</span>
+                <span class="text-xs text-gray-500">${_escapeHtml(c.CODE || '')} · ${_escapeHtml(c.MOBILE_NUMBER || 'No Mobile')} · ${_escapeHtml(c.B2B_CITY || 'No City')}</span>
                 <div class="text-xs mt-1">
                     <span class="${balClass} font-medium">${balance > 0 ? '₹' + balance.toFixed(2) + ' owed' : balance < 0 ? '₹' + Math.abs(balance).toFixed(2) + ' in debit' : '₹0.00'}</span>
                 </div>
@@ -206,7 +297,7 @@ const VaultSuppliers = (() => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
                 const code = li.dataset.code;
-                const supplier = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code, _isCarrier: true };
+                const supplier = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code, BRANCH: VaultPage.getActiveBranch(), _isCarrier: true };
                 try {
                     await _renderDetail(supplier, code);
                 } catch (err) {
@@ -798,22 +889,7 @@ const VaultSuppliers = (() => {
         const branch = supplier.BRANCH || '';
         const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
 
-        const mappedEntries = stmtEntries.map(e => {
-            const debit = +(e.debit || 0);
-            const credit = +(e.credit || 0);
-            const isPmt = debit > 0;
-            return {
-                ENTRY_DATE: e.date || '',
-                ENTRY_TYPE: isPmt ? 'PAYMENT' : 'INVOICE',
-                INV_NUMBER: e.reference || '',
-                DEBIT: debit,
-                CREDIT: credit,
-                BALANCE: +(e.balance || 0),
-                STATUS: 'ACTIVE'
-            };
-        });
-
-        VaultPrint.printStatement(supplier, code, mappedEntries, stmtBalance, 'Supplier');
+        VaultPrint.printStatement(supplier, code, stmtEntries, stmtBalance, 'Supplier');
     }
 
     // ── Helper to get supplier object ───────────────────────────────────────
@@ -839,6 +915,16 @@ const VaultSuppliers = (() => {
         _injectListPane();
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
+
+        if (!window.__vaultCacheKeys) {
+            try {
+                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+            } catch (e) {
+                console.error('[VaultSuppliers] Failed to fetch cache keys:', e);
+                window.__vaultCacheKeys = {};
+            }
+        }
+
         const data = await getAppData();
         if (data) {
             _allB2B    = Object.values(data.B2B    || {});

@@ -135,17 +135,20 @@ const VaultPage = (() => {
         const bar = document.getElementById('vaultBranchSelectorBar');
         if (bar) bar.classList.add('hidden');
         
-        // Clean up Billing specific UI items from shared list header
-        document.getElementById('vbUnbilledBtn')?.remove();
-        document.getElementById('vbFilterBtn')?.remove();
-        
-        // Clean up Sales Invoice specific UI items from shared list header
-        document.getElementById('siFilterBtn')?.remove();
-        document.getElementById('siStatus')?.remove();
-
-        // Clean up Quotations specific UI items from shared list header
-        document.getElementById('quotFilterBtn')?.remove();
-        document.getElementById('quotStatus')?.remove();
+        // Clean up module-specific UI items from shared list header
+        const idsToRemove = [
+            'vbUnbilledBtn', 'vbFilterBtn',
+            'siFilterBtn', 'siStatus',
+            'quotFilterBtn', 'quotStatus',
+            'cnFilterBtn', 'cnStatus',
+            'dnFilterBtn', 'dnStatus',
+            'pbFilterBtn', 'pbStatus',
+            'rptFilterBtn', 'rptStatus',
+            'chqFilterBtn', 'chqStatus',
+            'invFilterBtn',
+            'custListStatus', 'suppListStatus'
+        ];
+        idsToRemove.forEach(id => document.getElementById(id)?.remove());
     }
 
     function _showListPane() {
@@ -211,7 +214,7 @@ const VaultPage = (() => {
 
         // Determine which tile group this belongs to
         const receiptsTiles   = ['receipts', 'payments'];
-        const journalTiles    = ['journal-entries', 'credit-notes', 'opening-balances'];
+        const journalTiles    = ['journal-entries', 'opening-balances'];
         const purchasesTiles  = ['purchase-bills', 'suppliers'];
         const expenseTiles    = ['expense-claims', 'petty-cash', 'staff-advances', 'branch-advances'];
         const gstTiles        = ['gstr1', 'gstr3b', 'gst-filing', 'gstr2b', 'tds', 'tcs', 'tds-certs', 'purchase-register'];

@@ -883,6 +883,202 @@ const VaultPrint = (() => {
         _openPrintWindow('Payroll Summary', body);
     }
 
+    function printCustomerSummary(client, code, summary, balance, title) {
+        const body = `
+            <div class="hdr">
+                <div class="hdr-l">${title.toUpperCase()} SUMMARY</div>
+                <div class="hdr-r">
+                    <div><strong>Code:</strong> ${code || 'N/A'}</div>
+                    <div><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
+                </div>
+            </div>
+            <div style="padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:20px">
+                <div style="font-size:16px;font-weight:bold;color:#1a1a2e">${_esc(client?.B2B_NAME || client?.CODE || code)}</div>
+                <div style="font-size:11px;color:#666">${client?.B2B_ADDRESS || ''} ${client?.B2B_CITY ? ', ' + client.B2B_CITY : ''} ${client?.MOBILE_NUMBER ? '· ' + client.MOBILE_NUMBER : ''}</div>
+            </div>
+            
+            <h3 style="margin-bottom:15px;color:#333;border-b:1px solid #eee;padding-bottom:5px">Financial Summary</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:25px">
+                <tbody>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee;font-weight:500">Total Charged (Invoiced)</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;color:#1e3a8a">₹${summary.totalInvoiced.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee;font-weight:500">Total Received (Receipts)</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;color:#15803d">₹${summary.totalPaid.toFixed(2)}</td>
+                    </tr>
+                    <tr style="background:#f8fafc">
+                        <td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold">Net Outstanding Balance</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;font-size:14px;color:${balance > 0 ? '#b91c1c' : '#15803d'}">₹${balance.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="font-size:11px;color:#888;text-align:center;margin-top:40px">
+                This is a system-generated customer summary report as of ${new Date().toLocaleDateString()}.
+            </div>
+        `;
+        _openPrintWindow(`${title} Summary - ${code || ''}`, body);
+    }
+
+    function printSupplierSummary(client, code, summary, balance, title) {
+        const body = `
+            <div class="hdr">
+                <div class="hdr-l">${title.toUpperCase()} SUMMARY</div>
+                <div class="hdr-r">
+                    <div><strong>Code:</strong> ${code || 'N/A'}</div>
+                    <div><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
+                </div>
+            </div>
+            <div style="padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:20px">
+                <div style="font-size:16px;font-weight:bold;color:#1a1a2e">${_esc(client?.B2B_NAME || client?.CODE || code)}</div>
+                <div style="font-size:11px;color:#666">${client?.B2B_ADDRESS || ''} ${client?.B2B_CITY ? ', ' + client.B2B_CITY : ''} ${client?.MOBILE_NUMBER ? '· ' + client.MOBILE_NUMBER : ''}</div>
+            </div>
+            
+            <h3 style="margin-bottom:15px;color:#333;border-b:1px solid #eee;padding-bottom:5px">Financial Summary</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:25px">
+                <tbody>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee;font-weight:500">Total Owed (Purchases)</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;color:#b91c1c">₹${summary.totalInvoiced.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee;font-weight:500">Total Paid (Payments)</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;color:#15803d">₹${summary.totalPaid.toFixed(2)}</td>
+                    </tr>
+                    <tr style="background:#f8fafc">
+                        <td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold">Net Outstanding Balance</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;font-size:14px;color:${balance > 0 ? '#b91c1c' : '#15803d'}">₹${balance.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="font-size:11px;color:#888;text-align:center;margin-top:40px">
+                This is a system-generated supplier summary report as of ${new Date().toLocaleDateString()}.
+            </div>
+        `;
+        _openPrintWindow(`${title} Summary - ${code || ''}`, body);
+    }
+
+    function printAgedReceivables(client, code, aging, title) {
+        const body = `
+            <div class="hdr">
+                <div class="hdr-l">${title.toUpperCase()}</div>
+                <div class="hdr-r">
+                    <div><strong>Code:</strong> ${code || 'N/A'}</div>
+                    <div><strong>As of Date:</strong> ${new Date().toLocaleDateString()}</div>
+                </div>
+            </div>
+            <div style="padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:20px">
+                <div style="font-size:16px;font-weight:bold;color:#1a1a2e">${_esc(client?.B2B_NAME || client?.CODE || code)}</div>
+                <div style="font-size:11px;color:#666">${client?.B2B_ADDRESS || ''} ${client?.B2B_CITY ? ', ' + client.B2B_CITY : ''} ${client?.MOBILE_NUMBER ? '· ' + client.MOBILE_NUMBER : ''}</div>
+            </div>
+            
+            <h3 style="margin-bottom:15px;color:#333;border-b:1px solid #eee;padding-bottom:5px">Aging Breakdown</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:25px">
+                <thead>
+                    <tr style="background:#f1f5f9;text-align:left">
+                        <th style="padding:10px;font-size:11px;color:#475569">Period</th>
+                        <th class="tr" style="padding:10px;font-size:11px;color:#475569">Outstanding Amount</th>
+                        <th class="tr" style="padding:10px;font-size:11px;color:#475569">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">0 - 30 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500">₹${aging.current.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.current / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">31 - 60 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500">₹${aging.thirty.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.thirty / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">61 - 90 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500">₹${aging.sixty.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.sixty / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">Over 90 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500;color:#b91c1c">₹${aging.ninety.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.ninety / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr style="background:#f8fafc;font-weight:bold">
+                        <td style="padding:10px">Total Outstanding</td>
+                        <td class="tr" style="padding:10px;font-size:14px;color:#b91c1c">₹${aging.total.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px">100.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="font-size:11px;color:#888;text-align:center;margin-top:40px">
+                Aged receivables are calculated on a FIFO allocation basis as of ${new Date().toLocaleDateString()}.
+            </div>
+        `;
+        _openPrintWindow(`${title} - ${code || ''}`, body);
+    }
+
+    function printAgedPayables(client, code, aging, title) {
+        const body = `
+            <div class="hdr">
+                <div class="hdr-l">${title.toUpperCase()}</div>
+                <div class="hdr-r">
+                    <div><strong>Code:</strong> ${code || 'N/A'}</div>
+                    <div><strong>As of Date:</strong> ${new Date().toLocaleDateString()}</div>
+                </div>
+            </div>
+            <div style="padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:20px">
+                <div style="font-size:16px;font-weight:bold;color:#1a1a2e">${_esc(client?.B2B_NAME || client?.CODE || code)}</div>
+                <div style="font-size:11px;color:#666">${client?.B2B_ADDRESS || ''} ${client?.B2B_CITY ? ', ' + client.B2B_CITY : ''} ${client?.MOBILE_NUMBER ? '· ' + client.MOBILE_NUMBER : ''}</div>
+            </div>
+            
+            <h3 style="margin-bottom:15px;color:#333;border-b:1px solid #eee;padding-bottom:5px">Aging Breakdown</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:25px">
+                <thead>
+                    <tr style="background:#f1f5f9;text-align:left">
+                        <th style="padding:10px;font-size:11px;color:#475569">Period</th>
+                        <th class="tr" style="padding:10px;font-size:11px;color:#475569">Outstanding Amount</th>
+                        <th class="tr" style="padding:10px;font-size:11px;color:#475569">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">0 - 30 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500">₹${aging.current.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.current / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">31 - 60 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500">₹${aging.thirty.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.thirty / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">61 - 90 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500">₹${aging.sixty.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.sixty / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid #eee">Over 90 Days</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;font-weight:500;color:#b91c1c">₹${aging.ninety.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px;border-bottom:1px solid #eee;color:#64748b">${aging.total > 0 ? ((aging.ninety / aging.total) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                    <tr style="background:#f8fafc;font-weight:bold">
+                        <td style="padding:10px">Total Outstanding</td>
+                        <td class="tr" style="padding:10px;font-size:14px;color:#b91c1c">₹${aging.total.toFixed(2)}</td>
+                        <td class="tr" style="padding:10px">100.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="font-size:11px;color:#888;text-align:center;margin-top:40px">
+                Aged payables are calculated on a FIFO allocation basis as of ${new Date().toLocaleDateString()}.
+            </div>
+        `;
+        _openPrintWindow(`${title} - ${code || ''}`, body);
+    }
+
     // ── Public API ──────────────────────────────────────────────────────────
     return {
         printDocument,
@@ -900,6 +1096,10 @@ const VaultPrint = (() => {
         printStatement,
         printCashHolderStatement,
         printPayrollSummary,
+        printCustomerSummary,
+        printSupplierSummary,
+        printAgedReceivables,
+        printAgedPayables,
     };
 })();
 
