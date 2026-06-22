@@ -779,15 +779,28 @@ const VaultCustomers = (() => {
             </div>`;
     }
 
-    // ── Print statement (uses LEDGER data as fallback) ─────────────────────
-    function _printStatement(code) {
+    // ── Print statement (uses live Manager.io statement data) ───────────────
+    async function _printStatement(code) {
         const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
-        const entries = _allLedger.filter(e =>
-            e.CODE === code && e.DIRECTION === 'OUTWARD'
-        ).sort((a, b) => (a.ENTRY_DATE || 0) - (a.ENTRY_DATE || 0) ||
-                           (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0));
-        const balance = _getLatestBalance(code);
-        VaultPrint.printStatement(customer, code, entries, balance, 'Customer');
+        const branch = customer.BRANCH || '';
+        const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
+
+        const mappedEntries = stmtEntries.map(e => {
+            const debit = +(e.debit || 0);
+            const credit = +(e.credit || 0);
+            const isPmt = credit > 0;
+            return {
+                ENTRY_DATE: e.date || '',
+                ENTRY_TYPE: isPmt ? 'PAYMENT' : 'INVOICE',
+                INV_NUMBER: e.reference || '',
+                DEBIT: debit,
+                CREDIT: credit,
+                BALANCE: +(e.balance || 0),
+                STATUS: 'ACTIVE'
+            };
+        });
+
+        VaultPrint.printStatement(customer, code, mappedEntries, stmtBalance, 'Customer');
     }
 
     // ── Helper to get customer object ───────────────────────────────────────

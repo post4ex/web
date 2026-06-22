@@ -517,6 +517,7 @@ const VaultDebitNotes = (() => {
     // ── Edit via Manager.io PUT ──────────────────────────────────────────────
     async function _openEditPaneFromDetail(noteKey, branchCode, evt) {
         const btn = evt?.target?.closest('button');
+        const oldHtml = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '...'; }
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
@@ -846,7 +847,7 @@ const VaultDebitNotes = (() => {
         } catch (err) {
             view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
         } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = ''; }
+            if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
         }
     }
 
