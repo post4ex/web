@@ -259,7 +259,6 @@ async function verifyAndFetchAppData(clearAll = false) {
 
         if (result.status === 'success') {
             const incomingData = result.data || {};
-            const noTimeFilter = new Set(CONSTANTS.SYNC_NO_TIME_FILTER || []);
             let syncErrors  = [];
             let successCount = 0;
 
@@ -268,7 +267,7 @@ async function verifyAndFetchAppData(clearAll = false) {
             try {
                 for (const [sheetName, sheetData] of Object.entries(incomingData)) {
                     try {
-                        if (clearAll || noTimeFilter.has(sheetName)) {
+                        if (clearAll) {
                             await window.appDB.clearSheet(sheetName);
                         }
                         if (Object.keys(sheetData).length > 0) {
@@ -285,6 +284,7 @@ async function verifyAndFetchAppData(clearAll = false) {
                 for (const delta of window._sseBuffer) { await _applyDelta(delta); }
                 window._sseBuffer = [];
             }
+
 
             if (result.meta?.sync_from_ms && window.appDB)
                 await window.appDB.setMetadata('syncFromMs', result.meta.sync_from_ms).catch(() => {});
@@ -421,7 +421,7 @@ async function getAppData(sheetName = null) {
     try {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
-        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'];
         const result  = {};
         const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
         sheets.forEach((s, i) => result[s] = results[i]);

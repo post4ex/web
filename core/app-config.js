@@ -69,7 +69,7 @@ const CONSTANTS = {
         'ACCOUNTANT': 2, 'MANAGER': 1, 'STAFF': 1, 'CLIENT': 1, 'GUEST': 0
     },
 
-    SYNC_NO_TIME_FILTER: ['BRANCHES', 'MODES', 'CARRIERS', 'RATES', 'B2B', 'B2B2C'],
+    // All collections now have TIME_STAMP — no time-filter exemptions needed
 
     KEYS: {
         LOGIN:          'loginData',
