@@ -83,13 +83,21 @@ const AdminRegistrations = (() => {
         const editableKeys = Object.keys(reg).filter(k => !SKIP.has(k) && !READONLY.has(k));
         const { cc, num } = _splitMobile(reg.MOBILE);
 
-        const readonlyHtml = [...READONLY].filter(k => reg[k] != null).map(k => `
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">${k}</label>
-                <p class="text-sm text-gray-800 px-3 py-2 bg-gray-50 border border-gray-200 rounded">${reg[k] || '—'}</p>
-            </div>`).join('');
+        // View-only: read-only fields displayed as labeled text
+        const viewOnlyFields = [...Object.keys(reg)].filter(k => !SKIP.has(k)).map(k => {
+            let val = reg[k] || '—';
+            let extraClass = '';
+            if (k === 'ROLE') extraClass = 'font-medium text-indigo-600';
+            if (k === 'STATUS') extraClass = 'font-medium ' + (reg[k] === 'ACTIVE' ? 'text-green-600' : 'text-red-500');
+            return `
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500">${k}</span>
+                    <span class="text-sm ${extraClass}">${val}</span>
+                </div>`;
+        }).join('');
 
-        const fieldHtml = editableKeys.map(f => {
+        // Edit-only: form inputs
+        const editOnlyFields = editableKeys.map(f => {
             if (f === 'MOBILE') return `
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">MOBILE</label>
@@ -97,7 +105,6 @@ const AdminRegistrations = (() => {
                         <input name="MOBILE_CC"  value="${cc}"  class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC">
                         <input name="MOBILE_NUM" value="${num}" class="form-input text-sm flex-1" placeholder="Number">
                     </div>
-                    <p class="text-xs text-gray-400 mt-0.5">CC - Number</p>
                 </div>`;
             if (SELECT_FIELDS[f]) return `
                 <div>
@@ -114,20 +121,33 @@ const AdminRegistrations = (() => {
         }).join('');
 
         view.innerHTML = `
-            <div class="detail-card">
+            <div class="detail-card mode-view" id="registrationDetailCard">
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
                         <h2 class="text-base font-bold text-gray-800">${reg.USER || '—'}</h2>
                         <p class="text-xs text-gray-500">${reg.NAME || ''}</p>
                     </div>
-                    ${canAct ? `<button id="declineRegBtn" class="btn-danger btn-sm">Decline</button>` : ''}
+                    <div class="flex gap-2">
+                        ${canAct ? `
+                            <button id="editApproveBtn" class="view-only btn btn-sm">Approve & Edit</button>
+                            <button id="declineRegBtn" class="view-only btn-danger btn-sm">Decline</button>
+                            <button id="cancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>
+                        ` : ''}
+                    </div>
                 </div>
                 <div class="detail-card-body">
-                    <form id="approveRegForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        ${readonlyHtml}
-                        ${fieldHtml}
+                    <!-- View Mode: Read-only content -->
+                    <div class="view-only space-y-3">
+                        <div class="grid grid-cols-2 gap-4">
+                            ${viewOnlyFields}
+                        </div>
+                        ${canAct ? `<button id="quickApproveBtn" class="btn btn-sm w-full mt-4">✓ Quick Approve (Use Submitted Defaults)</button>` : ''}
+                    </div>
+                    <!-- Edit Mode: Editable form -->
+                    <form id="approveRegForm" class="edit-only grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        ${editOnlyFields}
                         ${canAct ? `<div class="sm:col-span-2 flex justify-end">
-                            <button type="submit" class="btn btn-sm">✓ Approve</button>
+                            <button type="submit" class="btn btn-sm">✓ Confirm & Approve</button>
                         </div>` : ''}
                     </form>
                 </div>
@@ -135,7 +155,44 @@ const AdminRegistrations = (() => {
 
         if (!canAct) view.querySelectorAll('input,select').forEach(el => el.disabled = true);
 
-        view.querySelector('#approveRegForm').addEventListener('submit', e => {
+        // ── Event: Approve & Edit ────────────────────────────────────────────
+        view.querySelector('#editApproveBtn')?.addEventListener('click', () => {
+            const card = document.getElementById('registrationDetailCard');
+            if (card) card.className = 'detail-card mode-edit';
+        });
+
+        // ── Event: Cancel ────────────────────────────────────────────────────
+        view.querySelector('#cancelEditBtn')?.addEventListener('click', () => {
+            const card = document.getElementById('registrationDetailCard');
+            if (card) card.className = 'detail-card mode-view';
+        });
+
+        // ── Event: Quick Approve ─────────────────────────────────────────────
+        view.querySelector('#quickApproveBtn')?.addEventListener('click', async () => {
+            if (!canAct) return;
+            // Gather default values from reg
+            const fields = {};
+            editableKeys.forEach(key => {
+                fields[key] = reg[key] != null ? reg[key] : '';
+            });
+            fields.MOBILE = _joinMobile(cc, num);
+            AdminPage.requireSudo(async sudoToken => {
+                try {
+                    await AdminAPI.approveRegistration(reg.id, fields, sudoToken);
+                    removeById(reg.id);
+                    AdminPage.showDetail(false);
+                    const uRes = await AdminAPI.listUsers();
+                    const cnt = document.getElementById('cnt-users');
+                    if (cnt) cnt.textContent = (uRes.data || []).length;
+                    showNotification('✅ Registration approved', 'success');
+                } catch (err) {
+                    showNotification('❌ ' + err.message, 'error');
+                }
+            });
+        });
+
+        // ── Event: Confirm & Approve (form submit) ──────────────────────────
+        view.querySelector('#approveRegForm')?.addEventListener('submit', e => {
             if (!canAct) return;
             e.preventDefault();
             const f = e.target;
@@ -153,7 +210,6 @@ const AdminRegistrations = (() => {
                     await AdminAPI.approveRegistration(reg.id, fields, sudoToken);
                     removeById(reg.id);
                     AdminPage.showDetail(false);
-                    // refresh user count on tiles
                     const uRes = await AdminAPI.listUsers();
                     const cnt = document.getElementById('cnt-users');
                     if (cnt) cnt.textContent = (uRes.data || []).length;
@@ -164,6 +220,7 @@ const AdminRegistrations = (() => {
             });
         });
 
+        // ── Event: Decline ───────────────────────────────────────────────────
         view.querySelector('#declineRegBtn')?.addEventListener('click', async () => {
             if (!canAct) return;
             if (!confirm(`Decline registration for "${reg.NAME || reg.EMAIL}"?`)) return;

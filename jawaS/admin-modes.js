@@ -29,7 +29,7 @@ const AdminModes = (() => {
             li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200 text-sm';
             li.textContent = `${mode.MODE} - ${mode.SHORT || ''}`;
             li.dataset.mode = mode.MODE;
-            li.addEventListener('click', () => _populateFormForEdit(mode.MODE));
+            li.addEventListener('click', () => _showViewMode(mode));
             ul.appendChild(li);
         });
     }
@@ -157,6 +157,56 @@ const AdminModes = (() => {
         document.getElementById('modesResponseMsg').classList.add('hidden');
     }
 
+    // ── View mode: read-only detail (Plan 7) ─────────────────────────────────
+    function _showViewMode(mode) {
+        if (!mode) return;
+        const view = document.getElementById('detailView');
+        if (!view) return;
+
+        // Build zone display
+        let zoneHtml = '';
+        for (let i = 1; i <= 14; i++) {
+            const val = mode[`Z${i}`];
+            zoneHtml += `<div><span class="block text-xs font-semibold text-gray-500">Z${i}</span><span class="text-sm">${val || '—'}</span></div>`;
+        }
+
+        const canEdit = _can('ADMIN');
+        view.innerHTML = `
+            <div class="detail-card mode-view" id="modeDetailCard">
+                <div class="detail-card-header flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">${mode.MODE}</h2>
+                        <p class="text-xs text-gray-500">${mode.SHORT || ''}</p>
+                    </div>
+                    ${canEdit ? `
+                    <div class="flex gap-2">
+                        <button id="modeEditBtn" class="view-only btn btn-sm">Edit</button>
+                        <button id="modeCancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>
+                    </div>` : ''}
+                </div>
+                <div class="detail-card-body">
+                    <div class="view-only space-y-3">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div><span class="block text-xs font-semibold text-gray-500">Short Name</span><span class="text-sm">${mode.SHORT || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">VOL INGR</span><span class="text-sm">${mode.VOL_INGR || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">MIN WT</span><span class="text-sm">${mode.MIN_WT || '—'}</span></div>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 mt-3">Zone Service Availability</h3>
+                            <div class="grid grid-cols-4 md:grid-cols-7 gap-3">${zoneHtml}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        if (canEdit) {
+            view.querySelector('#modeEditBtn')?.addEventListener('click', () => {
+                _injectDetailPane();  // Restore form HTML from the detail pane
+                _populateFormForEdit(mode.MODE);
+            });
+        }
+    }
+
     // ── Populate form for edit (exact match to Mode.html populateFormForEdit) ─
     function _populateFormForEdit(modeId) {
         const mode = _allModes.find(m => m.MODE === modeId);
@@ -173,6 +223,27 @@ const AdminModes = (() => {
         modeInput.classList.add('bg-gray-200', 'cursor-not-allowed');
         document.getElementById('modesSubmitText').textContent = `Update Mode ${modeId}`;
         document.getElementById('modesDeleteBtn').classList.toggle('hidden', !_can('MASTER'));
+
+        // Switch to edit mode
+        const card = document.getElementById('modeDetailCard');
+        if (card) {
+            card.className = 'detail-card mode-edit';
+            // The form inside is initialised via _injectDetailPane - need to re-zone
+        } else {
+            // Fallback: inject full detail pane
+            _injectDetailPane();
+            // Repopulate form
+            const form2 = document.getElementById('modesForm');
+            for (const key in mode) {
+                const input = form2.querySelector(`[name="${key}"]`);
+                if (input) input.value = mode[key] || '';
+            }
+            const mi = document.getElementById('modesMode');
+            mi.readOnly = true;
+            mi.classList.add('bg-gray-200', 'cursor-not-allowed');
+            document.getElementById('modesSubmitText').textContent = `Update Mode ${modeId}`;
+            document.getElementById('modesDeleteBtn').classList.toggle('hidden', !_can('MASTER'));
+        }
 
         // highlight list item
         document.querySelectorAll('#modesList li').forEach(li =>

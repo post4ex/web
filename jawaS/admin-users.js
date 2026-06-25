@@ -96,6 +96,17 @@ const AdminUsers = (() => {
         const canEdit   = AdminPage.can('ADMIN');
         const canDelete = AdminPage.can('MASTER');
 
+        // ── Self-lockout check: cannot toggle own account ─────────────────────
+        const isSelf = u.USER === (getUser?.()?.USER || '');
+        const canToggle = canEdit && !isSelf;
+
+        let toggleBtnHtml = '';
+        if (canToggle) {
+            const btnClass = u.STATUS === 'ACTIVE' ? 'btn-danger' : 'btn';
+            const btnLabel = u.STATUS === 'ACTIVE' ? 'Deactivate' : 'Activate';
+            toggleBtnHtml = `<button id="toggleUserStatusBtn" class="${btnClass} btn-sm ml-2">${btnLabel}</button>`;
+        }
+
         // Build fields from actual user keys
         const readonlyFields = Object.keys(u).filter(k => READONLY_FIELDS.has(k));
         const editableFields  = Object.keys(u).filter(k => !SKIP_FIELDS.has(k) && !READONLY_FIELDS.has(k));
@@ -136,7 +147,11 @@ const AdminUsers = (() => {
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
                         <h2 class="text-base font-bold text-gray-800">${u.USER}</h2>
-                        <p class="text-xs text-gray-500">${u.NAME || ''}</p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="status-badge ${ROLE_COLORS[u.ROLE] || 'bg-gray-100 text-gray-600'}">${u.ROLE}</span>
+                            <span class="${u.STATUS === 'ACTIVE' ? 'text-green-600' : 'text-red-500'} text-xs font-semibold">${u.STATUS || ''}</span>
+                            ${toggleBtnHtml}
+                        </div>
                     </div>
                     ${canDelete ? `<button id="deleteUserBtn" class="btn-danger btn-sm">Delete</button>` : ''}
                 </div>
@@ -153,6 +168,31 @@ const AdminUsers = (() => {
 
         if (!canEdit) view.querySelectorAll('input,select').forEach(el => el.disabled = true);
 
+        // ── Status Toggle Button ──────────────────────────────────────────────
+        view.querySelector('#toggleUserStatusBtn')?.addEventListener('click', () => {
+            if (!canToggle) return;
+            const newStatus = u.STATUS === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+            const actionWord = u.STATUS === 'ACTIVE' ? 'deactivate' : 'activate';
+
+            if (!confirm(`Are you sure you want to ${actionWord} user "${u.USER}"?`)) return;
+
+            AdminPage.requireSudo(async sudoToken => {
+                try {
+                    const payload = { STATUS: newStatus, CASCADED_BLOCK: false };
+                    await AdminAPI.updateUser(u.USER, sudoToken, payload);
+
+                    u.STATUS = newStatus;
+                    u.CASCADED_BLOCK = false;
+                    showNotification('✅ User status updated to ' + newStatus, 'success');
+                    _renderDetail(u);
+                    renderList(_users);
+                } catch (err) {
+                    showNotification('❌ ' + err.message, 'error');
+                }
+            });
+        });
+
+        // ── Edit Form Submit ──────────────────────────────────────────────────
         view.querySelector('#editUserForm').addEventListener('submit', e => {
             if (!canEdit) return;
             e.preventDefault();
@@ -165,7 +205,12 @@ const AdminUsers = (() => {
                     if (newVal !== (u.MOBILE || '')) fields.MOBILE = newVal;
                 } else {
                     const el = f.elements[field];
-                    if (el && el.value !== (u[field] || '')) fields[field] = el.value;
+                    if (el && el.value !== (u[field] || '')) {
+                        fields[field] = el.value;
+                        if (field === 'STATUS') {
+                            fields.CASCADED_BLOCK = false;
+                        }
+                    }
                 }
             });
 
@@ -190,6 +235,7 @@ const AdminUsers = (() => {
             });
         });
 
+        // ── Delete Button ─────────────────────────────────────────────────────
         view.querySelector('#deleteUserBtn')?.addEventListener('click', () => {
             if (!canDelete) return;
             if (!confirm(`Delete user "${u.USER}"? This cannot be undone.`)) return;

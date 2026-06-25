@@ -505,6 +505,27 @@ function showCustomerView(customer) {
                 </div>
             </div>
             <div class="border-b pb-4">
+                <h3 class="text-md font-semibold text-indigo-600 mb-3">Usage & Credit</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div><span class="font-semibold text-gray-600">Credit Limit:</span> ${customer.CREDIT_LIMIT ? '₹' + parseFloat(customer.CREDIT_LIMIT).toLocaleString('en-IN') : '—'}</div>
+                    <div><span class="font-semibold text-gray-600">Billed Usage:</span> <span class="text-amber-700">${customer.BILLED_USAGE != null ? '₹' + parseFloat(customer.BILLED_USAGE).toLocaleString('en-IN') : '—'}</span></div>
+                    <div><span class="font-semibold text-gray-600">Unbilled Usage:</span> <span class="text-amber-700">${customer.UNBILLED_USAGE != null ? '₹' + parseFloat(customer.UNBILLED_USAGE).toLocaleString('en-IN') : '—'}</span></div>
+                    ${(() => {
+                        const creditLimit = parseFloat(customer.CREDIT_LIMIT || 0);
+                        const billedUsage = parseFloat(customer.BILLED_USAGE || 0);
+                        const unbilledUsage = parseFloat(customer.UNBILLED_USAGE || 0);
+                        const remainingCredit = creditLimit - (billedUsage + unbilledUsage);
+                        if (creditLimit === 0) {
+                            return `<div class="col-span-3"><span class="font-semibold text-gray-600">Remaining Credit:</span> <span class="text-gray-500 font-semibold">No Credit Limit</span></div>`;
+                        } else if (remainingCredit <= 0) {
+                            return `<div class="col-span-3"><span class="font-semibold text-gray-600">Remaining Credit:</span> <span class="text-red-600 font-bold">₹0 (Over limit by ₹${Math.abs(remainingCredit).toLocaleString('en-IN')})</span></div>`;
+                        } else {
+                            return `<div class="col-span-3"><span class="font-semibold text-gray-600">Remaining Credit:</span> <span class="text-green-600 font-semibold">₹${remainingCredit.toLocaleString('en-IN')}</span></div>`;
+                        }
+                    })()}
+                </div>
+            </div>
+            <div class="border-b pb-4">
                 <h3 class="text-md font-semibold text-indigo-600 mb-3">Charges & Settings</h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div><span class="font-semibold text-gray-600">Weight Change:</span> ${customer.WEIGHT_CHANGE || '-'}</div>

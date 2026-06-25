@@ -51,6 +51,7 @@ const AdminBranches = (() => {
         'BRANCH_UPI', 'BRANCH_UPI_NAME',
         'BRANCH_BANK_AC', 'BRANCH_IFSC', 'BRANCH_BANK_NAME',
         'BRANCH_GEO_TEG',
+        '__CREDIT_SECTION__',
     ];
     // Read-only on edit (key field)
     const READONLY_ON_EDIT = new Set(['BRANCH_CODE']);
@@ -145,6 +146,55 @@ const AdminBranches = (() => {
         const isEdit = !!b;
         const { cc, num } = _splitMobile(b?.BRANCH_MOBILE);
 
+        const cl = parseFloat(b?.CREDIT_LIMIT || 0);
+        const ul = parseFloat(b?.USED_LIMIT || 0);
+        const uu = parseFloat(b?.UNBILLED_USAGE || 0);
+        const remaining = cl - (ul + uu);
+        
+        let remainingLimitHtml = '';
+        if (cl === 0) {
+            remainingLimitHtml = '<span class="text-gray-500 font-semibold text-xs">No Credit Limit</span>';
+        } else if (remaining <= 0) {
+            remainingLimitHtml = '<span class="text-red-600 font-bold text-xs">₹0 (Over limit by ₹' + Math.abs(remaining).toLocaleString('en-IN') + ')</span>';
+        } else {
+            remainingLimitHtml = '<span class="text-green-600 font-semibold text-xs">₹' + remaining.toLocaleString('en-IN') + '</span>';
+        }
+
+        const viewHtml = isEdit ? `
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-b pb-3 mb-3">
+                <div><span class="font-semibold text-gray-500 block text-xs">Credit Limit:</span> ${cl > 0 ? '₹' + cl.toLocaleString('en-IN') : '—'}</div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Used Limit:</span> <span class="text-amber-700 font-medium">₹${ul.toLocaleString('en-IN')}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Unbilled Usage:</span> <span class="text-amber-700 font-medium">₹${uu.toLocaleString('en-IN')}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Remaining Limit:</span> ${remainingLimitHtml}</div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                <div><span class="font-semibold text-gray-500 block text-xs">Branch Code</span><span class="font-medium text-gray-800">${b.BRANCH_CODE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Branch Name</span><span>${b.BRANCH_NAME || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Status</span><span>${b.BRANCH_STATUS || 'Active'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">GSTIN</span><span>${b.BRANCH_GSTIN || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">PAN</span><span>${b.BRANCH_PAN || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Address</span><span>${b.BRANCH_ADDRESS || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Landmark</span><span>${b.BRANCH_LANDMARK || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Pincode</span><span>${b.BRANCH_PINCODE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">City</span><span>${b.BRANCH_CITY || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">State</span><span>${b.BRANCH_STATE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Code State</span><span>${b.CODE_STATE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">GST Code</span><span>${b.GST_CODE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Mobile</span><span>${b.BRANCH_MOBILE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Email</span><span>${b.BRANCH_EMAIL || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Manager</span><span>${b.BRANCH_MANAGER || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Manager Phone</span><span>${b.BRANCH_MANAGER_PHONE || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Open Time</span><span>${b.BRANCH_OPEN_TIME || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Close Time</span><span>${b.BRANCH_CLOSE_TIME || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">UPI</span><span>${b.BRANCH_UPI || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">UPI Name</span><span>${b.BRANCH_UPI_NAME || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Bank Account</span><span>${b.BRANCH_BANK_AC || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">IFSC</span><span>${b.BRANCH_IFSC || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Bank Name</span><span>${b.BRANCH_BANK_NAME || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Geotag</span><span>${b.BRANCH_GEO_TEG || '—'}</span></div>
+                <div><span class="font-semibold text-gray-500 block text-xs">Cross Limit</span><span>${b.CROSS_LIMIT || 'No'}</span></div>
+            </div>` : '';
+
         const fieldHtml = FIELDS.map(f => {
             if (f === '__STATE_ROW__') return `
                 <div class="sm:col-span-2 grid grid-cols-3 gap-3">
@@ -176,6 +226,44 @@ const AdminBranches = (() => {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             <span data-geo-label>GPS</span>
                         </button>
+                    </div>
+                </div>`;
+            if (f === '__CREDIT_SECTION__') return `
+                <div class="sm:col-span-2 border-t pt-3 mt-2">
+                    <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">Credit & Exposure</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">CREDIT_LIMIT</label>
+                            <input name="CREDIT_LIMIT" type="number" step="any" value="${b?.CREDIT_LIMIT || ''}" class="form-input text-sm" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">CROSS_LIMIT</label>
+                            <select name="CROSS_LIMIT" class="form-input text-sm">
+                                <option value="No" ${b?.CROSS_LIMIT === 'No' ? 'selected' : ''}>No</option>
+                                <option value="Yes" ${b?.CROSS_LIMIT === 'Yes' ? 'selected' : ''}>Yes</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">USED_LIMIT</label>
+                            <input name="USED_LIMIT" type="number" step="any" value="${b?.USED_LIMIT || ''}" class="form-input text-sm bg-gray-100" readonly placeholder="Auto-calc">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">UNBILLED_USAGE</label>
+                            <input name="UNBILLED_USAGE" type="number" step="any" value="${b?.UNBILLED_USAGE || ''}" class="form-input text-sm bg-gray-100" readonly placeholder="Auto-calc">
+                        </div>
+                        ${b ? `
+                        <div class="col-span-4 text-sm">
+                            <span class="font-semibold text-gray-600">Remaining Limit: </span>
+                            ${(() => {
+                                const cl = parseFloat(b.CREDIT_LIMIT || 0);
+                                const ul = parseFloat(b.USED_LIMIT || 0);
+                                const uu = parseFloat(b.UNBILLED_USAGE || 0);
+                                const remaining = cl - (ul + uu);
+                                if (cl === 0) return '<span class="text-gray-500 font-semibold">No Credit Limit</span>';
+                                if (remaining <= 0) return '<span class="text-red-600 font-bold">₹0 (Over limit by ₹' + Math.abs(remaining).toLocaleString('en-IN') + ')</span>';
+                                return '<span class="text-green-600 font-semibold">₹' + remaining.toLocaleString('en-IN') + '</span>';
+                            })()}
+                        </div>` : ''}
                     </div>
                 </div>`;
             if (f === 'BRANCH_STATUS') return `
@@ -238,22 +326,48 @@ const AdminBranches = (() => {
         }).join('');
 
         view.innerHTML = `
-            <div class="detail-card">
+            <div class="detail-card ${isEdit ? 'mode-view' : 'mode-edit'}" id="branchDetailCard">
                 <div class="detail-card-header flex justify-between items-center">
-                    <h2 class="text-base font-bold text-gray-800">${isEdit ? b.BRANCH_CODE : 'New Branch'}</h2>
-                    ${isEdit ? `<button id="deleteBranchBtn" class="btn-danger btn-sm">Delete</button>` : ''}
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">${isEdit ? b.BRANCH_CODE : 'New Branch'}</h2>
+                        <p class="text-xs text-gray-500">${isEdit ? (b.BRANCH_NAME || '') : ''}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        ${isEdit && canEdit ? `<button id="branchEditBtn" class="view-only btn btn-sm">Edit Branch</button>` : ''}
+                        ${isEdit && canDelete ? `<button id="deleteBranchBtn" class="view-only btn-danger btn-sm">Delete</button>` : ''}
+                        ${isEdit && canEdit ? `<button id="branchCancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>` : ''}
+                    </div>
                 </div>
                 <div class="detail-card-body">
-                    <form id="branchForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- View Mode: Read-only details -->
+                    <div class="view-only space-y-3">
+                        ${viewHtml}
+                    </div>
+
+                    <!-- Edit Mode: Form -->
+                    <form id="branchForm" class="edit-only grid grid-cols-1 sm:grid-cols-2 gap-4">
                         ${fieldHtml}
+                        ${canEdit ? `
                         <div class="sm:col-span-2 flex justify-end">
                             <button type="submit" class="btn btn-sm">
                                 ${isEdit ? 'Save Changes' : 'Create Branch'}
                             </button>
-                        </div>
+                        </div>` : ''}
                     </form>
                 </div>
             </div>`;
+
+        // Wire View Mode Edit click
+        view.querySelector('#branchEditBtn')?.addEventListener('click', () => {
+            const card = document.getElementById('branchDetailCard');
+            if (card) card.className = 'detail-card mode-edit';
+        });
+
+        // Wire Edit Mode Cancel click
+        view.querySelector('#branchCancelEditBtn')?.addEventListener('click', () => {
+            const card = document.getElementById('branchDetailCard');
+            if (card) card.className = 'detail-card mode-view';
+        });
 
         // Geo tag GPS capture
         const geoBtn = view.querySelector('#branchGeoBtn');
@@ -312,13 +426,6 @@ const AdminBranches = (() => {
             }
         });
 
-        const canEdit   = AdminPage.can('ADMIN');
-        const canDelete = AdminPage.can('MASTER');
-
-        // hide Save if not ADMIN
-        if (!canEdit) view.querySelector('button[type=submit]')?.classList.add('hidden');
-        // hide Delete if not MASTER
-        if (isEdit && !canDelete) view.querySelector('#deleteBranchBtn')?.classList.add('hidden');
         // disable inputs if not ADMIN
         if (!canEdit) view.querySelectorAll('input,select').forEach(el => el.disabled = true);
 
@@ -353,6 +460,11 @@ const AdminBranches = (() => {
                     data.BRANCH_MOBILE = _joinMobile(f.MOBILE_CC?.value, f.MOBILE_NUM?.value);
                 } else if (field === 'BRANCH_MANAGER_PHONE') {
                     data.BRANCH_MANAGER_PHONE = _joinMobile(f.MGR_PHONE_CC?.value, f.MGR_PHONE_NUM?.value);
+                } else if (field === '__CREDIT_SECTION__') {
+                    ['CREDIT_LIMIT', 'USED_LIMIT', 'UNBILLED_USAGE', 'CROSS_LIMIT'].forEach(sf => {
+                        const el = f.elements[sf];
+                        if (el) data[sf] = el.value.trim();
+                    });
                 } else {
                     const el = f.elements[field];
                     if (el) data[field] = el.value.trim();

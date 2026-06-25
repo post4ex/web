@@ -31,7 +31,7 @@ const AdminCarriers = (() => {
             li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
             li.innerHTML = `<strong class="text-indigo-700">${carrier.COMPANY_CODE}</strong> - ${carrier.COMPANY_NAME || 'Unnamed'}`;
             li.dataset.companyCode = carrier.COMPANY_CODE;
-            li.addEventListener('click', () => _populateFormForEdit(carrier.COMPANY_CODE));
+            li.addEventListener('click', () => _showViewMode(carrier));
             ul.appendChild(li);
         });
     }
@@ -149,6 +149,56 @@ const AdminCarriers = (() => {
         document.getElementById('deleteCarrierBtn')?.classList.add('hidden');
     }
 
+    // ── View mode: read-only detail (Plan 7) ─────────────────────────────────
+    function _showViewMode(carrier) {
+        if (!carrier) return;
+        const view = document.getElementById('detailView');
+        if (!view) return;
+
+        const canEdit = _can('ADMIN');
+        view.innerHTML = `
+            <div class="detail-card mode-view" id="carrierDetailCard">
+                <div class="detail-card-header flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">${carrier.COMPANY_CODE}</h2>
+                        <p class="text-xs text-gray-500">${carrier.COMPANY_NAME || ''}</p>
+                    </div>
+                    ${canEdit ? `
+                    <div class="flex gap-2">
+                        <button id="carrierEditBtn" class="view-only btn btn-sm">Edit</button>
+                        <button id="carrierCancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>
+                    </div>` : ''}
+                </div>
+                <div class="detail-card-body">
+                    <div class="view-only space-y-3">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div><span class="block text-xs font-semibold text-gray-500">Company Code</span><span class="text-sm">${carrier.COMPANY_CODE || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Company Name</span><span class="text-sm">${carrier.COMPANY_NAME || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">GSTIN</span><span class="text-sm">${carrier.GSTIN || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Transport ID</span><span class="text-sm">${carrier.TRANSPORT_ID || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Address</span><span class="text-sm">${carrier.COMPANY_ADDRESS || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Pincode</span><span class="text-sm">${carrier.COMPANY_PINCODE || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">City</span><span class="text-sm">${carrier.COMPANY_CITY || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">State</span><span class="text-sm">${carrier.COMPANY_STATE || '—'}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        if (canEdit) {
+            view.querySelector('#carrierEditBtn')?.addEventListener('click', () => {
+                _injectDetailPane();  // Restore form HTML from the detail pane
+                _populateFormForEdit(carrier.COMPANY_CODE);
+            });
+            view.querySelector('#carrierCancelEditBtn')?.addEventListener('click', () => {
+                _showViewMode(carrier);
+            });
+        }
+
+        AdminPage.showDetail(true);
+        AdminPage.showDetailPane();
+    }
+
     // ── populateFormForEdit ───────────────────────────────────────────────────
     function _populateFormForEdit(companyCode) {
         const carrier = _allCarriers.find(c => c.COMPANY_CODE === companyCode);
@@ -165,6 +215,25 @@ const AdminCarriers = (() => {
         codeEl.classList.add('bg-gray-200', 'cursor-not-allowed');
         document.getElementById('carriersSubmitText').textContent = `Update Carrier ${companyCode}`;
         if (_can('MASTER')) document.getElementById('deleteCarrierBtn')?.classList.remove('hidden');
+
+        // Switch to edit mode on the detail card
+        const card = document.getElementById('carrierDetailCard');
+        if (card) {
+            card.className = 'detail-card mode-edit';
+        } else {
+            // Fallback: inject full detail pane
+            _injectDetailPane();
+            const form2 = document.getElementById('carriersForm');
+            for (const key in carrier) {
+                const input2 = form2.querySelector(`[name="${key}"]`);
+                if (input2) input2.value = carrier[key] || '';
+            }
+            const ce = document.getElementById('carriersCode');
+            ce.readOnly = true;
+            ce.classList.add('bg-gray-200', 'cursor-not-allowed');
+            document.getElementById('carriersSubmitText').textContent = `Update Carrier ${companyCode}`;
+            if (_can('MASTER')) document.getElementById('deleteCarrierBtn')?.classList.remove('hidden');
+        }
 
         document.querySelectorAll('#carriersList li').forEach(li =>
             li.classList.toggle('bg-indigo-50', li.dataset.companyCode === companyCode)

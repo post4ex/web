@@ -142,31 +142,58 @@ const AdminHolidays = (() => {
                 <span class="text-gray-300 text-xs">${b.CODE_STATE || ''}</span>
             </label>`).join('');
 
+        // ── View mode: read-only labels ───────────────────────────────────────
+        const typeColor = h?.HOLIDAY_TYPE === 'National' ? 'bg-red-50 text-red-700' :
+                          h?.HOLIDAY_TYPE === 'Regional' ? 'bg-blue-50 text-blue-700' :
+                          h?.HOLIDAY_TYPE === 'Optional' ? 'bg-gray-100 text-gray-600' :
+                          'bg-purple-50 text-purple-700';
+
         view.innerHTML = `
-            <div class="detail-card">
+            <div class="detail-card ${isEdit ? 'mode-view' : ''}" id="holidayDetailCard">
                 <div class="detail-card-header flex justify-between items-center">
-                    <h2 class="text-base font-bold text-gray-800">${isEdit ? h.HOLIDAY_NAME : 'New Holiday'}</h2>
-                    ${isEdit && canEdit ? `<button id="holidayDeleteBtn" class="btn-danger btn-sm">Delete</button>` : ''}
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">${isEdit ? h.HOLIDAY_NAME : 'New Holiday'}</h2>
+                        ${isEdit ? `<span class="text-xs ${typeColor} px-1.5 py-0.5 rounded">${h.HOLIDAY_TYPE || ''}</span>` : ''}
+                    </div>
+                    ${isEdit && canEdit ? `
+                    <div class="flex gap-2">
+                        <button id="holidayEditBtn" class="view-only btn btn-sm">Edit</button>
+                        <button id="holidayDeleteBtn" class="view-only btn-danger btn-sm">Delete</button>
+                        <button id="holidayCancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>
+                    </div>` : ''}
                 </div>
                 <div class="detail-card-body">
-                    <form id="holidayForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- View Mode: read-only -->
+                    <div class="view-only space-y-3">
+                        ${isEdit ? `
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><span class="block text-xs font-semibold text-gray-500">Holiday Name</span><span class="text-sm">${h.HOLIDAY_NAME || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Date</span><span class="text-sm">${_fmtDisplay(h.HOLIDAY_DATE)}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Year</span><span class="text-sm">${h.YEAR || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">States</span><span class="text-sm">${(h.STATE_CODE || '').split(',').filter(Boolean).join(', ') || 'All States'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Open Branches</span><span class="text-sm">${(h.OPEN_BRANCHES || '').split(',').filter(Boolean).join(', ') || 'None'}</span></div>
+                        </div>` : ''}
+                    </div>
+
+                    <!-- Edit Mode: editable form -->
+                    <form id="holidayForm" class="edit-only grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Holiday Name *</label>
-                            <input name="HOLIDAY_NAME" required value="${h?.HOLIDAY_NAME || ''}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <input name="HOLIDAY_NAME" required value="${h?.HOLIDAY_NAME || ''}" class="form-input text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Date *</label>
-                            <input name="HOLIDAY_DATE" type="date" required value="${_msToInput(h?.HOLIDAY_DATE)}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <input name="HOLIDAY_DATE" type="date" required value="${_msToInput(h?.HOLIDAY_DATE)}" class="form-input text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                            <select name="HOLIDAY_TYPE" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <select name="HOLIDAY_TYPE" class="form-input text-sm">
                                 ${HOLIDAY_TYPES.map(t => `<option ${h?.HOLIDAY_TYPE === t ? 'selected' : ''}>${t}</option>`).join('')}
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Year</label>
-                            <input name="YEAR" value="${h?.YEAR || new Date().getFullYear()}" class="form-input text-sm" ${!canEdit ? 'disabled' : ''}>
+                            <input name="YEAR" value="${h?.YEAR || new Date().getFullYear()}" class="form-input text-sm">
                         </div>
 
                         <!-- States -->
@@ -200,6 +227,17 @@ const AdminHolidays = (() => {
                     </form>
                 </div>
             </div>`;
+
+        // ── View/Edit toggling ─────────────────────────────────────────────────
+        if (isEdit && canEdit) {
+            view.querySelector('#holidayEditBtn')?.addEventListener('click', () => {
+                const card = document.getElementById('holidayDetailCard');
+                if (card) card.className = 'detail-card mode-edit';
+            });
+            view.querySelector('#holidayCancelEditBtn')?.addEventListener('click', () => {
+                _renderDetail(_holidays[_selected]);
+            });
+        }
 
         if (canEdit) {
             view.querySelector('#holidayForm').addEventListener('submit', async e => {

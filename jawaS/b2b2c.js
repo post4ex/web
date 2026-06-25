@@ -268,6 +268,35 @@ const B2B2CModule = (() => {
                         <div><span class="font-semibold text-gray-600">ODA:</span> ${client.ODA || '-'}</div>
                     </div>
                 </div>
+                ${(() => {
+                    if (!parent) return '';
+                    const parentCredit = parseFloat(parent.CREDIT_LIMIT || 0);
+                    const parentBilled = parseFloat(parent.BILLED_USAGE || 0);
+                    const parentUnbilled = parseFloat(parent.UNBILLED_USAGE || 0);
+                    const parentRemaining = parentCredit - (parentBilled + parentUnbilled);
+                    let statusClass, statusText;
+                    if (parentCredit === 0) {
+                        statusClass = 'text-gray-500';
+                        statusText = 'No Credit Limit';
+                    } else if (parentRemaining <= 0) {
+                        statusClass = 'text-red-600 font-bold';
+                        statusText = '₹0 (Over limit by ₹' + Math.abs(parentRemaining).toLocaleString('en-IN') + ')';
+                    } else {
+                        statusClass = 'text-green-600 font-semibold';
+                        statusText = '₹' + parentRemaining.toLocaleString('en-IN');
+                    }
+                    return `
+                <div class="border-b pb-4">
+                    <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Parent Client Credit</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div><span class="font-semibold text-gray-600">Parent Client:</span> ${parentName}</div>
+                        <div><span class="font-semibold text-gray-600">Credit Limit:</span> ${parentCredit > 0 ? '₹' + parentCredit.toLocaleString('en-IN') : '—'}</div>
+                        <div><span class="font-semibold text-gray-600">Billed Usage:</span> <span class="text-amber-700">${parentBilled > 0 ? '₹' + parentBilled.toLocaleString('en-IN') : '₹0'}</span></div>
+                        <div><span class="font-semibold text-gray-600">Unbilled Usage:</span> <span class="text-amber-700">${parentUnbilled > 0 ? '₹' + parentUnbilled.toLocaleString('en-IN') : '₹0'}</span></div>
+                        <div class="col-span-3"><span class="font-semibold text-gray-600">Available Credit:</span> <span class="${statusClass}">${statusText}</span></div>
+                    </div>
+                </div>`;
+                })()}
                 <div>
                     <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Linked Orders (Crossover)</h3>
                     <div class="grid grid-cols-2 gap-3 text-sm">
