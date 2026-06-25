@@ -24,10 +24,37 @@ const AdminB2B2C = (() => {
 
         AdminPage.showDetail(true);
         document.getElementById('detailView').innerHTML = `
-            <div class="detail-card">
+            <!-- B2B2C Read-Only Details Card -->
+            <div id="b2b2cViewContainer" class="detail-card hidden">
                 <div class="detail-card-header flex justify-between items-center">
-                    <h2 class="text-base font-bold text-gray-800">B2B2C Client</h2>
-                    <button id="b2b2cDeleteBtn" class="hidden btn-danger btn-sm">Delete</button>
+                    <h2 class="text-base font-bold text-gray-800">B2B2C Client Details</h2>
+                    <div class="flex gap-2">
+                        <button id="b2b2cEditCustomerBtn" class="btn btn-sm">Edit</button>
+                        <button id="b2b2cDeleteBtn" class="btn-danger btn-sm">Delete</button>
+                    </div>
+                </div>
+                <div class="detail-card-body">
+                    <!-- Delete confirm inline -->
+                    <div id="b2b2cDeleteConfirm" class="hidden border border-red-200 bg-red-50 rounded-lg p-3 mb-4">
+                        <p class="text-sm text-red-700 font-medium mb-3">Delete <span id="b2b2cClientToDelete" class="font-bold"></span>? This cannot be undone.</p>
+                        <div class="flex gap-3">
+                            <button id="b2b2cConfirmDeleteBtn" type="button" class="btn-danger btn-sm flex items-center">
+                                Yes, Delete
+                                <div id="b2b2cDeleteSpinner" class="hidden ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </button>
+                            <button id="b2b2cCancelDeleteBtn" type="button" class="btn-ghost btn-sm">Cancel</button>
+                        </div>
+                    </div>
+                    
+                    <div id="b2b2cViewContent"></div>
+                </div>
+            </div>
+
+            <!-- B2B2C Form Card -->
+            <div id="b2b2cEditContainer" class="detail-card hidden">
+                <div class="detail-card-header flex justify-between items-center">
+                    <h2 id="b2b2cFormTitle" class="text-base font-bold text-gray-800">B2B2C Client Form</h2>
+                    <button type="button" id="b2b2cCancelEditBtn" class="btn-ghost btn-sm">Cancel</button>
                 </div>
                 <div class="detail-card-body">
                     <form id="b2b2cForm" class="space-y-4">
@@ -143,18 +170,6 @@ const AdminB2B2C = (() => {
                                     <label class="block text-xs font-medium text-gray-600 mb-1">ODA</label>
                                     <input name="ODA" id="b2b2cOda" class="form-input text-sm readonly-input" readonly>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Delete confirm -->
-                        <div id="b2b2cDeleteConfirm" class="hidden border border-red-200 bg-red-50 rounded-lg p-3">
-                            <p class="text-sm text-red-700 font-medium mb-3">Delete <span id="b2b2cClientToDelete" class="font-bold"></span>? This cannot be undone.</p>
-                            <div class="flex gap-3">
-                                <button id="b2b2cConfirmDeleteBtn" type="button" class="btn-danger btn-sm flex items-center">
-                                    Yes, Delete
-                                    <div id="b2b2cDeleteSpinner" class="hidden ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                </button>
-                                <button id="b2b2cCancelDeleteBtn" type="button" class="btn-ghost btn-sm">Cancel</button>
                             </div>
                         </div>
 

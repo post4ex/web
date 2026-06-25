@@ -72,7 +72,7 @@ const AdminClients = (() => {
         ul.innerHTML = entries.map(c => `
             <li data-code="${c.CODE}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
                 <strong class="text-indigo-700 block text-sm">${c.B2B_NAME || 'Unnamed'}</strong>
-                <span class="text-xs text-gray-500">${c.CODE}
+                <span class="text-xs text-gray-500">${c.CODE} (${c.BRANCH || '—'})
                     <span class="ml-2 px-1.5 py-0.5 rounded text-xs font-semibold ${
                         c.STATUS === 'ACTIVE'  ? 'bg-green-100 text-green-700' :
                         c.STATUS === 'BLOCKED' ? 'bg-red-100 text-red-700' :
@@ -552,6 +552,89 @@ const AdminClients = (() => {
         if (!isDetails && _currentCode) _generateRateForm(_currentCode);
     }
 
+    // ── B2B Overview ──────────────────────────────────────────────────────────
+    function _showB2bOverview() {
+        document.getElementById('clientsViewContainer').classList.remove('hidden');
+        document.getElementById('clientsEditContainer').classList.add('hidden');
+        document.getElementById('clientsDeleteConfirm').classList.add('hidden');
+
+        document.getElementById('clientsEditBtn').classList.add('hidden');
+        document.getElementById('clientsDeleteBtn').classList.add('hidden');
+        document.getElementById('clientsPrintBtn').classList.add('hidden');
+        document.getElementById('clientsEmailBtn').classList.add('hidden');
+
+        const headerTitle = document.getElementById('clientsViewTitle');
+        if (headerTitle) headerTitle.textContent = 'B2B Customers Overview';
+
+        const customers = Object.values(_allCustomers).filter(c => c.STATUS !== 'DELETED');
+
+        let html = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse text-left mobile-cards-table">
+                    <thead>
+                        <tr class="bg-gray-100 border-b border-gray-200">
+                            <th class="p-3 font-semibold text-gray-700">Code</th>
+                            <th class="p-3 font-semibold text-gray-700">B2B Name</th>
+                            <th class="p-3 font-semibold text-gray-700">Branch</th>
+                            <th class="p-3 font-semibold text-gray-700">Type</th>
+                            <th class="p-3 font-semibold text-gray-700">Status</th>
+                            <th class="p-3 font-semibold text-gray-700">Usage</th>
+                            <th class="p-3 font-semibold text-gray-700">Crossover (Clients / Orders)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (customers.length === 0) {
+            html += `<tr><td colspan="7" class="p-4 text-center text-gray-500">No customers found.</td></tr>`;
+        } else {
+            customers.forEach(c => {
+                const xo = c.CROSSOVER || {};
+                let b2b2c_cnt = parseInt(xo.B2B2C || xo.b2b2c) || 0;
+                let ord_cnt = parseInt(xo.ORDERS || xo.orders || xo.order || xo.ORDER) || 0;
+
+                let limit = parseFloat(c.CREDIT_LIMIT) || 0;
+                let used = parseFloat(c.USED_LIMIT) || 0;
+                let pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
+                let usageText = limit > 0 ? `₹${used.toLocaleString('en-IN')} / ₹${limit.toLocaleString('en-IN')} (${pct}%)` : `₹${used.toLocaleString('en-IN')} / —`;
+
+                html += `
+                    <tr class="border-b hover:bg-indigo-50 cursor-pointer transition-colors" data-code="${c.CODE}">
+                        <td class="p-3 font-mono font-bold text-indigo-600" data-label="Code">${c.CODE}</td>
+                        <td class="p-3" data-label="B2B Name">${c.B2B_NAME || '-'}</td>
+                        <td class="p-3" data-label="Branch">${c.BRANCH || '-'}</td>
+                        <td class="p-3" data-label="Type"><span class="px-2 py-0.5 text-xs rounded bg-gray-100">${c.B2B_TYPE || '-'}</span></td>
+                        <td class="p-3" data-label="Status">
+                            <span class="px-2 py-0.5 text-xs rounded font-semibold ${c.STATUS === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${c.STATUS || '-'}</span>
+                        </td>
+                        <td class="p-3 font-mono text-xs" data-label="Usage">${usageText}</td>
+                        <td class="p-3 text-xs text-gray-500" data-label="Crossover">B2B2C: <strong>${b2b2c_cnt}</strong> | Orders: <strong>${ord_cnt}</strong></td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        document.getElementById('clientsViewContent').innerHTML = html;
+
+        document.getElementById('clientsViewContent').querySelectorAll('tbody tr').forEach(tr => {
+            const code = tr.dataset.code;
+            if (code) {
+                tr.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    _selectClient(code);
+                });
+            }
+        });
+
+        AdminPage.showDetail(true);
+        AdminPage.showDetailPane();
+    }
+
     // ── Client selection → show read-only view ────────────────────────────────
     function _selectClient(code) {
         const c = _allCustomers[code];
@@ -738,7 +821,7 @@ const AdminClients = (() => {
         const codeEl = document.getElementById('clientsCode');
         codeEl.readOnly = false;
         document.getElementById('clientsSubmitText').textContent = 'Save Customer';
-        document.getElementById('clientsCancelBtn').classList.add('hidden');
+        document.getElementById('clientsCancelBtn').classList.remove('hidden');
         const ratesTab = document.getElementById('clientsTabRates');
         ratesTab.disabled = true;
         _switchTab('details');
@@ -1127,7 +1210,7 @@ const AdminClients = (() => {
             document.getElementById('clientsDeleteConfirm').classList.add('hidden');
             document.getElementById('clientsViewContainer').classList.add('hidden');
             _currentCode = null; _isUpdate = false;
-            AdminPage.showDetail(false);
+            _showB2bOverview();
             _msg('Client deleted.', 'success');
         } catch (err) {
             if (err.message !== 'cancelled') _viewMsg(err.message, 'error');
@@ -1158,8 +1241,10 @@ const AdminClients = (() => {
                 // back to view
                 document.getElementById('clientsEditContainer').classList.add('hidden');
                 document.getElementById('clientsViewContainer').classList.remove('hidden');
+                _selectClient(_currentCode);
             } else {
-                AdminPage.showDetail(false);
+                _currentCode = null;
+                _showB2bOverview();
             }
         });
         document.getElementById('clientsForm').addEventListener('submit', _handleSubmit);
@@ -1189,6 +1274,9 @@ const AdminClients = (() => {
         _allModes     = data.MODES  ? Object.values(data.MODES) : [];
         _allRates     = data.RATES  || {};
         _renderList(_allCustomers);
+        if (!_currentCode) {
+            _showB2bOverview();
+        }
     }
 
     function load() {

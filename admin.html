@@ -43,6 +43,15 @@
         .svc-table td{display:flex;justify-content:space-between;padding:3px 0;border:none;max-width:100%;white-space:normal;font-size:11px}
         .svc-table td::before{content:attr(data-label);font-weight:600;color:#6b7280;text-transform:uppercase;font-size:10px;flex-shrink:0;margin-right:8px}
     }
+    @media(max-width:768px){
+        .mobile-cards-table, .mobile-cards-table thead, .mobile-cards-table tbody, .mobile-cards-table th, .mobile-cards-table td, .mobile-cards-table tr { display: block; }
+        .mobile-cards-table thead { display: none; }
+        .mobile-cards-table tr { background: #fff; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.15s, box-shadow 0.15s; }
+        .mobile-cards-table tr:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .mobile-cards-table td { display: flex; justify-content: space-between; padding: 0.35rem 0; border: none; border-bottom: 1px solid #f3f4f6; font-size: 0.825rem; white-space: normal; max-width: 100%; overflow: visible; text-overflow: clip; }
+        .mobile-cards-table td:last-child { border-bottom: none; }
+        .mobile-cards-table td::before { content: attr(data-label); font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.725rem; margin-right: 1rem; flex-shrink: 0; }
+    }
     </style>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
     <script>

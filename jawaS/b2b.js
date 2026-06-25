@@ -21,6 +21,14 @@ const SIMPLIFIED_ZONES = [
 const PERCENT_FIELDS        = ['%_TOPAY_IF', '%_COD_IF', '%_FOV_IF', 'FUEL_CHARGES', 'DEV_CHARGES'];
 const TEXT_FIELDS_UPPERCASE = ['B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE', 'ID_GST_PAN_ADHAR'];
 
+// OTP action constants
+const OTP_ACTION = {
+    NEW_CLIENT:    'new_client',
+    UPDATE_CLIENT: 'update_client',
+    DELETE_CLIENT: 'delete_client',
+    SAVE_RATES:    'save_rates',
+};
+
 // Pincode auto-fill
 const _pincodeInput = document.getElementById('b2b_pincode');
 if (_pincodeInput) {
@@ -54,6 +62,7 @@ let allModes     = [];
 let allRates     = {};
 let currentCode  = null;
 let isUpdateMode = false;
+let _pendingOtpConfirm = null; // Stores the onConfirm callback for the active OTP session
 
 // =============================================================================
 // UI REFS
@@ -92,19 +101,130 @@ const ui = {
     printCustomerBtn:       document.getElementById('printCustomerBtn'),
     emailCustomerBtn:       document.getElementById('emailCustomerBtn'),
     editCustomerBtn:        document.getElementById('editCustomerBtn'),
+    cancelEditCustomerBtn:  document.getElementById('cancelEditCustomerBtn'),
     softDeleteCustomerBtn:  document.getElementById('softDeleteCustomerBtn'),
-    sendOtpBtn:             document.getElementById('sendOtpBtn'),
-    deleteOtpInput:         document.getElementById('deleteOtpInput'),
     submitRatesButton:      document.getElementById('submitRatesButton'),
     ratesButtonText:        document.getElementById('ratesButtonText'),
     ratesSpinner:           document.getElementById('ratesSpinner'),
-    deleteModal:            document.getElementById('deleteModal'),
-    customerToDeleteSpan:   document.getElementById('customerToDelete'),
-    cancelDeleteBtn:        document.getElementById('cancelDeleteBtn'),
-    confirmDeleteBtn:       document.getElementById('confirmDeleteBtn'),
-    deleteSpinner:          document.getElementById('deleteSpinner'),
+    // Generalized OTP modal
+    otpModal:               document.getElementById('otpModal'),
+    otpModalTitle:          document.getElementById('otpModalTitle'),
+    otpModalDesc:           document.getElementById('otpModalDesc'),
+    otpInput:               document.getElementById('otpInput'),
+    otpSendBtn:             document.getElementById('otpSendBtn'),
+    otpVerifyBtn:           document.getElementById('otpVerifyBtn'),
+    otpCancelBtn:           document.getElementById('otpCancelBtn'),
+    otpModalSpinner:        document.getElementById('otpModalSpinner'),
+    otpModalError:          document.getElementById('otpModalError'),
     responseMessage:        document.getElementById('responseMessage'),
 };
+
+// =============================================================================
+// OTP MODAL — GENERALIZED VERIFICATION FLOW
+// =============================================================================
+
+/**
+ * Opens the OTP verification modal and orchestrates the send-verify-confirm flow.
+ *
+ * @param {string}   action     - OTP action: 'new_client' | 'update_client' | 'delete_client' | 'save_rates'
+ * @param {string}   title      - Modal heading text (e.g. "Confirm Delete")
+ * @param {string}   desc       - Modal description (e.g. "Delete customer AGWL?")
+ * @param {string}   code       - B2B client CODE to associate with the OTP
+ * @param {Function} onConfirm  - Async callback(writeToken) that runs after OTP verification succeeds
+ */
+function openOtpModal(action, title, desc, code, onConfirm) {
+    ui.otpModalTitle.textContent = title;
+    ui.otpModalDesc.textContent  = desc;
+    ui.otpInput.value = '';
+    ui.otpModalError.classList.add('hidden');
+    ui.otpModalSpinner.classList.add('hidden');
+    ui.otpSendBtn.disabled = false;
+    ui.otpSendBtn.textContent = 'Send OTP';
+
+    // Reset pending callback
+    _pendingOtpConfirm = null;
+
+    ui.otpModal.classList.remove('hidden');
+
+    // ── Send OTP button ─────────────────────────────────────────────────
+    ui.otpSendBtn.onclick = async () => {
+        ui.otpSendBtn.disabled = true;
+        ui.otpSendBtn.textContent = 'Sending...';
+        try {
+            await b2bSendOtp(code, action);
+            showOtpModalError(false, 'OTP sent to your email. Enter it below.');
+            // Wire up confirm on pressing Enter in the OTP input
+            ui.otpInput.focus();
+            ui.otpModalDesc.textContent = desc + ' (OTP sent)';
+        } catch (err) {
+            showOtpModalError(true, err.message || 'Failed to send OTP');
+        } finally {
+            ui.otpSendBtn.disabled = false;
+            ui.otpSendBtn.textContent = 'Resend OTP';
+        }
+    };
+
+    // ── OTP input keydown — Enter triggers verify ───────────────────────
+    ui.otpInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            _executeOtpVerify(action, code, onConfirm);
+        }
+    };
+
+    // Store action/code/onConfirm on the verify button for easy access
+    ui.otpVerifyBtn.dataset.action = action;
+    ui.otpVerifyBtn.dataset.code   = code;
+    ui.otpVerifyBtn._onConfirm     = onConfirm;
+}
+
+/**
+ * Internal: verifies the OTP and calls onConfirm with the write_token.
+ */
+async function _executeOtpVerify(action, code, onConfirm) {
+    const otp = ui.otpInput.value.trim();
+    if (!otp) {
+        showOtpModalError(true, 'Please enter the OTP first.');
+        return;
+    }
+
+    ui.otpModalSpinner.classList.remove('hidden');
+    ui.otpInput.disabled = true;
+    ui.otpSendBtn.disabled = true;
+    ui.otpModalError.classList.add('hidden');
+
+    try {
+        const verifyResult = await b2bVerifyOtp(code, action, otp);
+        const writeToken = verifyResult.write_token;
+        if (!writeToken) {
+            throw new Error('No write token received from server.');
+        }
+        // OTP verified — close modal and execute the confirmed action
+        ui.otpModal.classList.add('hidden');
+        await onConfirm(writeToken);
+    } catch (err) {
+        showOtpModalError(true, err.message || 'OTP verification failed. Try again.');
+        ui.otpInput.disabled = false;
+        ui.otpSendBtn.disabled = false;
+    } finally {
+        ui.otpModalSpinner.classList.add('hidden');
+    }
+}
+
+function showOtpModalError(isError, message) {
+    ui.otpModalError.textContent = message;
+    ui.otpModalError.className = `text-sm mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
+    ui.otpModalError.classList.remove('hidden');
+}
+
+function closeOtpModal() {
+    ui.otpModal.classList.add('hidden');
+    ui.otpInput.disabled = false;
+    ui.otpInput.value = '';
+    ui.otpModalError.classList.add('hidden');
+    ui.otpModalSpinner.classList.add('hidden');
+    _pendingOtpConfirm = null;
+}
 
 // =============================================================================
 // VIEW HELPERS
@@ -129,6 +249,7 @@ function showListView() {
     } else {
         ui.customerListContainer.classList.remove('hidden');
         ui.customerFormContainer.classList.remove('hidden');
+        showB2bOverview();
     }
 }
 
@@ -180,6 +301,9 @@ function handleDataLoaded(data) {
     if (data.B2B) {
         allCustomers = data.B2B;
         renderCustomerList(allCustomers);
+        if (!currentCode) {
+            showB2bOverview();
+        }
     } else {
         ui.customerLoader.textContent = 'No B2B customers found.';
     }
@@ -225,7 +349,7 @@ function renderCustomerList(customers) {
         if (!cust.CODE) return;
         const li = document.createElement('li');
         li.className = '';
-        li.innerHTML = `<strong>${cust.B2B_NAME || 'Unnamed'}</strong><span class="sv-item-sub">${cust.CODE}</span>`;
+        li.innerHTML = `<strong>${cust.B2B_NAME || 'Unnamed'}</strong><span class="sv-item-sub">${cust.CODE} (${cust.BRANCH || '—'})</span>`;
         li.dataset.code = cust.CODE;
         li.addEventListener('click', () => populateFormForEdit(cust.CODE));
         ui.customerList.appendChild(li);
@@ -263,9 +387,92 @@ function resetFormsAndTabs() {
 // =============================================================================
 // CUSTOMER VIEW (read-only)
 // =============================================================================
+function showB2bOverview() {
+    ui.customerViewContainer.classList.remove('hidden');
+    ui.customerEditContainer.classList.add('hidden');
+
+    ui.editCustomerBtn.classList.add('hidden');
+    ui.softDeleteCustomerBtn.classList.add('hidden');
+    ui.printCustomerBtn.classList.add('hidden');
+    ui.emailCustomerBtn.classList.add('hidden');
+
+    const headerTitle = ui.customerViewContainer.querySelector('h1');
+    if (headerTitle) headerTitle.textContent = 'B2B Customers Overview';
+
+    const customers = Object.values(allCustomers).filter(c => c.STATUS !== 'DELETED');
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse text-left mobile-cards-table">
+                <thead>
+                    <tr class="bg-gray-100 border-b border-gray-200">
+                        <th class="p-3 font-semibold text-gray-700">Code</th>
+                        <th class="p-3 font-semibold text-gray-700">B2B Name</th>
+                        <th class="p-3 font-semibold text-gray-700">Branch</th>
+                        <th class="p-3 font-semibold text-gray-700">Type</th>
+                        <th class="p-3 font-semibold text-gray-700">Status</th>
+                        <th class="p-3 font-semibold text-gray-700">Usage</th>
+                        <th class="p-3 font-semibold text-gray-700">Crossover (Clients / Orders)</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    if (customers.length === 0) {
+        html += `<tr><td colspan="7" class="p-4 text-center text-gray-500">No customers found.</td></tr>`;
+    } else {
+        customers.forEach(c => {
+            const xo = c.CROSSOVER || {};
+            let b2b2c_cnt = parseInt(xo.B2B2C || xo.b2b2c) || 0;
+            let ord_cnt = parseInt(xo.ORDERS || xo.orders || xo.order || xo.ORDER) || 0;
+
+            let limit = parseFloat(c.CREDIT_LIMIT) || 0;
+            let used = parseFloat(c.USED_LIMIT) || 0;
+            let pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
+            let usageText = limit > 0 ? `₹${used.toLocaleString('en-IN')} / ₹${limit.toLocaleString('en-IN')} (${pct}%)` : `₹${used.toLocaleString('en-IN')} / —`;
+
+            html += `
+                <tr class="border-b hover:bg-indigo-50 cursor-pointer transition-colors" data-code="${c.CODE}">
+                    <td class="p-3 font-mono font-bold text-indigo-600" data-label="Code">${c.CODE}</td>
+                    <td class="p-3" data-label="B2B Name">${c.B2B_NAME || '-'}</td>
+                    <td class="p-3" data-label="Branch">${c.BRANCH || '-'}</td>
+                    <td class="p-3" data-label="Type"><span class="px-2 py-0.5 text-xs rounded bg-gray-100">${c.B2B_TYPE || '-'}</span></td>
+                    <td class="p-3" data-label="Status">
+                        <span class="px-2 py-0.5 text-xs rounded font-semibold ${c.STATUS === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${c.STATUS || '-'}</span>
+                    </td>
+                    <td class="p-3 font-mono text-xs" data-label="Usage">${usageText}</td>
+                    <td class="p-3 text-xs text-gray-500" data-label="Crossover">B2B2C: <strong>${b2b2c_cnt}</strong> | Orders: <strong>${ord_cnt}</strong></td>
+                </tr>
+            `;
+        });
+    }
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    ui.customerViewContent.innerHTML = html;
+
+    ui.customerViewContent.querySelectorAll('tbody tr').forEach(tr => {
+        const code = tr.dataset.code;
+        if (code) {
+            tr.addEventListener('click', () => populateFormForEdit(code));
+        }
+    });
+}
+
 function showCustomerView(customer) {
     ui.customerViewContainer.classList.remove('hidden');
     ui.customerEditContainer.classList.add('hidden');
+
+    ui.editCustomerBtn.classList.remove('hidden');
+    ui.softDeleteCustomerBtn.classList.remove('hidden');
+    ui.printCustomerBtn.classList.remove('hidden');
+    ui.emailCustomerBtn.classList.remove('hidden');
+
+    const headerTitle = ui.customerViewContainer.querySelector('h1');
+    if (headerTitle) headerTitle.textContent = 'Customer Details';
 
     const customerRates = Object.values(allRates).filter(r => r.CODE === customer.CODE);
 
@@ -377,8 +584,24 @@ function switchToEditMode() {
     switchTab('details');
 }
 
+function cancelCustomerEdit() {
+    if (currentCode) {
+        const customer = allCustomers[currentCode];
+        if (customer) {
+            showCustomerView(customer);
+            return;
+        }
+    }
+    resetFormsAndTabs();
+    showB2bOverview();
+    if (isMobile()) {
+        ui.customerListContainer.classList.remove('hidden');
+        ui.customerFormContainer.classList.add('hidden');
+    }
+}
+
 // =============================================================================
-// CUSTOMER FORM SUBMIT
+// CUSTOMER FORM SUBMIT — with OTP flow
 // =============================================================================
 async function handleCustomerSubmit(e) {
     e.preventDefault();
@@ -396,34 +619,42 @@ async function handleCustomerSubmit(e) {
             : (value || '');
     });
 
-    ui.customerSpinner.classList.remove('hidden');
-    ui.submitCustomerButton.disabled = true;
-    ui.customerButtonText.textContent = 'Processing...';
+    const code     = submitData.CODE;
+    const action   = isUpdateMode ? OTP_ACTION.UPDATE_CLIENT : OTP_ACTION.NEW_CLIENT;
+    const title    = isUpdateMode ? `Confirm Update: ${code}` : `Confirm Create: ${code}`;
+    const desc     = isUpdateMode
+        ? `Update customer "${submitData.B2B_NAME || code}" (${code})?`
+        : `Create new customer "${submitData.B2B_NAME || code}" (${code})?`;
 
-    try {
-        const result = await b2bWrite(submitData, isUpdateMode ? currentCode : null);
-        showResponseMessage(result.message || 'Customer saved successfully.', 'success');
+    openOtpModal(action, title, desc, code, async (writeToken) => {
+        ui.customerSpinner.classList.remove('hidden');
+        ui.submitCustomerButton.disabled = true;
+        ui.customerButtonText.textContent = 'Processing...';
 
+        try {
+            const result = await b2bWrite(submitData, isUpdateMode ? currentCode : null, writeToken);
+            showResponseMessage(result.message || 'Customer saved successfully.', 'success');
 
-        if (!isUpdateMode) {
-            currentCode  = submitData.CODE;
-            isUpdateMode = true;
-            ui.codeInput.value = currentCode;
-            ui.codeInput.readOnly = true;
-            ui.codeInput.classList.add('readonly-input');
-            ui.formTitle.textContent          = `Edit Customer: ${currentCode}`;
-            ui.customerButtonText.textContent = 'Update Customer';
-            ui.deleteCustomerButton.classList.remove('hidden');
-            ui.tabRateList.disabled = false;
-            ui.rateListCodeSpan.textContent = currentCode;
+            if (!isUpdateMode) {
+                currentCode  = code;
+                isUpdateMode = true;
+                ui.codeInput.value = currentCode;
+                ui.codeInput.readOnly = true;
+                ui.codeInput.classList.add('readonly-input');
+                ui.formTitle.textContent          = `Edit Customer: ${currentCode}`;
+                ui.customerButtonText.textContent = 'Update Customer';
+                ui.deleteCustomerButton.classList.remove('hidden');
+                ui.tabRateList.disabled = false;
+                ui.rateListCodeSpan.textContent = currentCode;
+            }
+        } catch (err) {
+            showResponseMessage(err.message, 'error');
+        } finally {
+            ui.customerSpinner.classList.add('hidden');
+            ui.submitCustomerButton.disabled = false;
+            ui.customerButtonText.textContent = isUpdateMode ? 'Update Customer' : 'Submit New Customer';
         }
-    } catch (err) {
-        showResponseMessage(err.message, 'error');
-    } finally {
-        ui.customerSpinner.classList.add('hidden');
-        ui.submitCustomerButton.disabled = false;
-        ui.customerButtonText.textContent = isUpdateMode ? 'Update Customer' : 'Submit New Customer';
-    }
+    });
 }
 
 // =============================================================================
@@ -656,7 +887,7 @@ function setDefaultRates() {
 }
 
 // =============================================================================
-// RATE FORM SUBMIT
+// RATE FORM SUBMIT — with OTP flow
 // =============================================================================
 async function handleRateSubmit(e) {
     e.preventDefault();
@@ -705,58 +936,47 @@ async function handleRateSubmit(e) {
 
     if (!rates.length) { showResponseMessage('No rate data entered.', 'error'); return; }
 
-    ui.ratesSpinner.classList.remove('hidden');
-    ui.submitRatesButton.disabled = true;
-    ui.ratesButtonText.textContent = 'Saving...';
+    // Open OTP modal for rate save
+    const code  = currentCode;
+    const title = `Confirm Rate Save: ${code}`;
+    const desc  = `Save ${rates.length} rate entries for customer "${allCustomers[code]?.B2B_NAME || code}" (${code})?`;
 
-    try {
-        await b2bWriteRateList(currentCode, rates);
-        showResponseMessage('Rates saved successfully.', 'success');
-    } catch (err) {
-        showResponseMessage(err.message, 'error');
-    } finally {
-        ui.ratesSpinner.classList.add('hidden');
-        ui.submitRatesButton.disabled = false;
-        ui.ratesButtonText.textContent = 'Save All Rates';
-    }
+    openOtpModal(OTP_ACTION.SAVE_RATES, title, desc, code, async (writeToken) => {
+        ui.ratesSpinner.classList.remove('hidden');
+        ui.submitRatesButton.disabled = true;
+        ui.ratesButtonText.textContent = 'Saving...';
+
+        try {
+            await b2bWriteRateList(code, rates, writeToken);
+            showResponseMessage('Rates saved successfully.', 'success');
+        } catch (err) {
+            showResponseMessage(err.message, 'error');
+        } finally {
+            ui.ratesSpinner.classList.add('hidden');
+            ui.submitRatesButton.disabled = false;
+            ui.ratesButtonText.textContent = 'Save All Rates';
+        }
+    });
 }
 
 // =============================================================================
-// DELETE HANDLERS
+// DELETE HANDLERS — uses generalized OTP modal
 // =============================================================================
-async function handleSendOtp() {
-    if (!currentCode) return;
-    ui.sendOtpBtn.disabled = true;
-    ui.sendOtpBtn.textContent = 'Sending...';
-    try {
-        await b2bSendDeleteOtp(currentCode);
-        showResponseMessage('OTP sent to your email.', 'success');
-    } catch (err) {
-        showResponseMessage(err.message, 'error');
-    } finally {
-        ui.sendOtpBtn.disabled = false;
-        ui.sendOtpBtn.textContent = 'Send OTP';
-    }
-}
+function openDeleteConfirm(code) {
+    const customer = allCustomers[code];
+    const name     = customer?.B2B_NAME || code;
+    const title    = `Confirm Delete: ${code}`;
+    const desc     = `Delete customer "${name}" (${code})? This will mark them as DELETED in both Supabase and Manager.io.`;
 
-async function handleConfirmDelete() {
-    const otp = ui.deleteOtpInput.value.trim();
-    if (!otp) { showResponseMessage('Please enter OTP.', 'error'); return; }
-
-    ui.deleteSpinner.classList.remove('hidden');
-    ui.confirmDeleteBtn.disabled = true;
-
-    try {
-        await b2bDelete(currentCode, otp);
-        ui.deleteModal.classList.add('hidden');
-        showListView();
-    } catch (err) {
-        ui.deleteModal.classList.add('hidden');
-        showResponseMessage(err.message, 'error');
-    } finally {
-        ui.deleteSpinner.classList.add('hidden');
-        ui.confirmDeleteBtn.disabled = false;
-    }
+    openOtpModal(OTP_ACTION.DELETE_CLIENT, title, desc, code, async (writeToken) => {
+        try {
+            await b2bDelete(code, writeToken);
+            closeOtpModal();
+            showListView();
+        } catch (err) {
+            showResponseMessage(err.message, 'error');
+        }
+    });
 }
 
 // =============================================================================
@@ -778,27 +998,42 @@ ui.searchCustomerInput.addEventListener('input', (e) => {
 ui.newCustomerBtn.addEventListener('click', () => { resetFormsAndTabs(); showFormView(); });
 ui.backToListBtn.addEventListener('click', showListView);
 ui.editCustomerBtn.addEventListener('click', switchToEditMode);
+ui.cancelEditCustomerBtn.addEventListener('click', cancelCustomerEdit);
 ui.printCustomerBtn.addEventListener('click', () => showResponseMessage('Print template coming soon.', 'info'));
 ui.emailCustomerBtn.addEventListener('click', () => showResponseMessage('Email template coming soon.', 'info'));
 
+// Read-only view "Delete" button → OTP delete
 ui.softDeleteCustomerBtn.addEventListener('click', () => {
-    if (!currentCode) return;
-    const name = allCustomers[currentCode]?.B2B_NAME || currentCode;
-    ui.customerToDeleteSpan.textContent = `${name} (${currentCode})`;
-    ui.deleteOtpInput.value = '';
-    ui.deleteModal.classList.remove('hidden');
+    if (currentCode) openDeleteConfirm(currentCode);
 });
 
+// Edit form "Delete Customer" button → OTP delete
 ui.deleteCustomerButton.addEventListener('click', () => {
-    if (!currentCode) return;
-    const name = ui.clientNameInput.value || currentCode;
-    ui.customerToDeleteSpan.textContent = `${name} (${currentCode})`;
-    ui.deleteModal.classList.remove('hidden');
+    if (currentCode) openDeleteConfirm(currentCode);
 });
 
-ui.cancelDeleteBtn.addEventListener('click', () => ui.deleteModal.classList.add('hidden'));
-ui.sendOtpBtn.addEventListener('click', handleSendOtp);
-ui.confirmDeleteBtn.addEventListener('click', handleConfirmDelete);
+// OTP modal: Verify button triggers the OTP verification
+ui.otpVerifyBtn.addEventListener('click', () => {
+    // _pendingOtpConfirm is set when openOtpModal is called
+    // The action/code/onConfirm are captured in the openOtpModal closure
+    // We need to trigger verification. Since _executeOtpVerify is not exported,
+    // we trigger the same logic by calling the internal flow.
+    // The verify action is stored in otpVerifyBtn's dataset during openOtpModal
+    const action = ui.otpVerifyBtn.dataset.action;
+    const code   = ui.otpVerifyBtn.dataset.code;
+    const onConfirm = ui.otpVerifyBtn._onConfirm;
+    if (action && code && onConfirm) {
+        _executeOtpVerify(action, code, onConfirm);
+    }
+});
+
+// OTP modal cancel
+ui.otpCancelBtn.addEventListener('click', closeOtpModal);
+
+// Close modal on overlay click (click outside modal-content)
+ui.otpModal.addEventListener('click', (e) => {
+    if (e.target === ui.otpModal) closeOtpModal();
+});
 
 ui.gstIncCheck.addEventListener('change', () => {
     ui.gstIncHidden.value = ui.gstIncCheck.checked ? 'Y' : 'N';

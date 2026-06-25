@@ -161,6 +161,10 @@ fields.pincode.addEventListener('input', async () => {
     }
 });
 
+fields.mobile.addEventListener('input', () => {
+    fields.mobile.value = fields.mobile.value.replace(/\D/g, '').slice(0, 10);
+});
+
 cancelBtn.addEventListener('click', closeModal);
 overlay.addEventListener('click', closeModal);
 
@@ -178,6 +182,11 @@ saveBtn.addEventListener('click', async () => {
         errorEl.classList.remove('hidden');
         return;
     }
+    if (mobile.length !== 10) {
+        errorEl.textContent = 'Mobile number must be exactly 10 digits.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
     if (!fields.city.value) {
         errorEl.textContent = 'Pincode not resolved — enter a valid pincode.';
         errorEl.classList.remove('hidden');
@@ -191,7 +200,7 @@ saveBtn.addEventListener('click', async () => {
 
     const payload = {
         NAME:        name,
-        MOBILE:      mobile,
+        MOBILE:      '91' + mobile,
         ADDRESS:     address,
         PINCODE:     pincode,
         EMAIL:       fields.email.value.trim() || null,

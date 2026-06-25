@@ -8,6 +8,7 @@ const B2B2CModule = (() => {
     let allClients = {};
     let allParentClients = {};
     let isUpdateMode = false;
+    let currentUid = null;
     let ui = {};
 
     function _bindUI() {
@@ -19,7 +20,7 @@ const B2B2CModule = (() => {
             spinner:                    document.getElementById('b2b2cSpinner'),
             responseMessage:            document.getElementById('b2b2cResponseMsg'),
             clientList:                 document.getElementById('b2b2cClientList'),
-            searchClientInput:          document.getElementById('b2b2cSearchClient'),
+            searchClientInput:          document.getElementById('listSearch'),
             newClientBtn:               document.getElementById('b2b2cNewClientBtn'),
             uidInput:                   document.getElementById('b2b2cUid'),
             mobileCCInput:              document.getElementById('b2b2cMobileCC'),
@@ -48,6 +49,13 @@ const B2B2CModule = (() => {
             codeHiddenInput:            document.getElementById('b2b2cCode'),
             branchInput:                document.getElementById('b2b2cBranch'),
             branchDataList:             document.getElementById('b2b2cBranchList'),
+            
+            // View / Edit Pane Elements
+            viewContainer:              document.getElementById('b2b2cViewContainer'),
+            viewContent:                document.getElementById('b2b2cViewContent'),
+            editContainer:              document.getElementById('b2b2cEditContainer'),
+            editCustomerBtn:            document.getElementById('b2b2cEditCustomerBtn'),
+            cancelEditBtn:              document.getElementById('b2b2cCancelEditBtn'),
         };
     }
 
@@ -70,10 +78,16 @@ const B2B2CModule = (() => {
     // ── Data loading ──────────────────────────────────────────────────────────
     function _handleDataLoaded(event) {
         const appData = event.detail.data;
-        if (appData?.B2B2C) { allClients = appData.B2B2C; _renderClientList(allClients); }
         if (appData?.B2B)      { allParentClients = appData.B2B; _populateParentList(appData.B2B); }
         if (appData?.BRANCHES) _populateBranchList(appData.BRANCHES);
         if (appData?.CARRIERS) _populateCarrierList(appData.CARRIERS);
+        if (appData?.B2B2C) {
+            allClients = appData.B2B2C;
+            _renderClientList(allClients);
+            if (!currentUid) {
+                _showB2b2cOverview();
+            }
+        }
     }
 
     // ── List rendering ────────────────────────────────────────────────────────
@@ -90,8 +104,10 @@ const B2B2CModule = (() => {
             const li = document.createElement('li');
             li.dataset.uid = uid;
             li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
-            li.innerHTML = `<strong class="text-indigo-700 block text-sm">${c.NAME || 'Unnamed'}</strong><span class="text-xs text-gray-600">${uid}</span>`;
-            li.addEventListener('click', () => _populateFormForEdit(uid));
+            const parent = allParentClients[c.CODE];
+            const parentName = parent ? (parent.B2B_NAME || c.CODE) : (c.CODE || 'N/A');
+            li.innerHTML = `<strong class="text-indigo-700 block text-sm">${c.NAME || 'Unnamed'}</strong><span class="text-xs text-gray-500">${parentName}</span>`;
+            li.addEventListener('click', () => _selectClientForView(uid));
             ui.clientList.appendChild(li);
         });
     }
@@ -134,6 +150,181 @@ const B2B2CModule = (() => {
     }
 
     // ── Form logic ────────────────────────────────────────────────────────────
+    function _showB2b2cOverview() {
+        ui.viewContainer.classList.remove('hidden');
+        ui.editContainer.classList.add('hidden');
+
+        ui.editCustomerBtn.classList.add('hidden');
+        ui.deleteButton.classList.add('hidden');
+
+        const headerTitle = ui.viewContainer.querySelector('h2');
+        if (headerTitle) headerTitle.textContent = 'B2B2C Clients Overview';
+
+        const clients = Object.values(allClients);
+
+        let html = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse text-left mobile-cards-table">
+                    <thead>
+                        <tr class="bg-gray-100 border-b border-gray-200">
+                            <th class="p-3 font-semibold text-gray-700">UID</th>
+                            <th class="p-3 font-semibold text-gray-700">Name</th>
+                            <th class="p-3 font-semibold text-gray-700">Mobile</th>
+                            <th class="p-3 font-semibold text-gray-700">Branch</th>
+                            <th class="p-3 font-semibold text-gray-700">Parent Code</th>
+                            <th class="p-3 font-semibold text-gray-700">Crossover (Consignor / Consignee)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (clients.length === 0) {
+            html += `<tr><td colspan="6" class="p-4 text-center text-gray-500">No clients found.</td></tr>`;
+        } else {
+            clients.forEach(c => {
+                const crossover = c.CROSSOVER || {};
+                let consignor_cnt = parseInt(crossover.CONSIGNOR) || 0;
+                let consignee_cnt = parseInt(crossover.CONSIGNEE) || 0;
+
+                html += `
+                    <tr class="border-b hover:bg-indigo-50 cursor-pointer transition-colors" data-uid="${c.UID}">
+                        <td class="p-3 font-mono font-bold text-indigo-600" data-label="UID">${c.UID}</td>
+                        <td class="p-3" data-label="Name">${c.NAME || '-'}</td>
+                        <td class="p-3" data-label="Mobile">${c.MOBILE || '-'}</td>
+                        <td class="p-3" data-label="Branch">${c.BRANCH || '-'}</td>
+                        <td class="p-3 font-mono" data-label="Parent Code">${c.CODE || '-'}</td>
+                        <td class="p-3 text-xs text-gray-500" data-label="Crossover">Consignor: <strong>${consignor_cnt}</strong> | Consignee: <strong>${consignee_cnt}</strong></td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        ui.viewContent.innerHTML = html;
+
+        ui.viewContent.querySelectorAll('tbody tr').forEach(tr => {
+            const uid = tr.dataset.uid;
+            if (uid) {
+                tr.addEventListener('click', () => _selectClientForView(uid));
+            }
+        });
+    }
+
+    function _showClientView(client) {
+        ui.viewContainer.classList.remove('hidden');
+        ui.editContainer.classList.add('hidden');
+
+        ui.editCustomerBtn.classList.remove('hidden');
+        ui.deleteButton.classList.remove('hidden');
+
+        const headerTitle = ui.viewContainer.querySelector('h2');
+        if (headerTitle) headerTitle.textContent = 'B2B2C Client Details';
+
+        const parent = allParentClients[client.CODE];
+        const parentName = parent ? `${parent.B2B_NAME} (${client.CODE})` : (client.CODE || '-');
+
+        const crossover = client.CROSSOVER || {};
+        let consignor_cnt = crossover.CONSIGNOR || 0;
+        let consignee_cnt = crossover.CONSIGNEE || 0;
+
+        let html = `
+            <div class="space-y-6">
+                <div class="border-b pb-4">
+                    <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Core Information</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div><span class="font-semibold text-gray-600">UID:</span> ${client.UID || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Name:</span> ${client.NAME || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Mobile:</span> ${client.MOBILE || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Email:</span> ${client.EMAIL || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Branch:</span> ${client.BRANCH || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Parent Client:</span> ${parentName}</div>
+                        <div><span class="font-semibold text-gray-600">GSTIN:</span> ${client.GSTIN || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">PAN:</span> ${client.PAN || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Aadhaar:</span> ${client.AADHAAR || '-'}</div>
+                    </div>
+                </div>
+                <div class="border-b pb-4">
+                    <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Address & Pincode</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div class="col-span-2 md:col-span-3"><span class="font-semibold text-gray-600">Address:</span> ${client.ADDRESS || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Pincode:</span> ${client.PINCODE || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">City:</span> ${client.CITY || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">State:</span> ${client.STATE || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Zone:</span> ${client.ZONE || '-'}</div>
+                    </div>
+                </div>
+                <div class="border-b pb-4">
+                    <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Service Details</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div><span class="font-semibold text-gray-600">Carrier:</span> ${client.CARRIER || '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Express TAT:</span> ${client.EXPRESS_TAT !== undefined ? client.EXPRESS_TAT : '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Airline TAT:</span> ${client.AIRLINE_TAT !== undefined ? client.AIRLINE_TAT : '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Surface TAT:</span> ${client.SURFACE_TAT !== undefined ? client.SURFACE_TAT : '-'}</div>
+                        <div><span class="font-semibold text-gray-600">Premium TAT:</span> ${client.PREMIUM_TAT !== undefined ? client.PREMIUM_TAT : '-'}</div>
+                        <div><span class="font-semibold text-gray-600">ODA:</span> ${client.ODA || '-'}</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Linked Orders (Crossover)</h3>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="font-semibold text-gray-600">Consignor Orders:</span> ${consignor_cnt}</div>
+                        <div><span class="font-semibold text-gray-600">Consignee Orders:</span> ${consignee_cnt}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        ui.viewContent.innerHTML = html;
+    }
+
+    function _selectClientForView(uid) {
+        const client = allClients[uid];
+        if (!client) return;
+        currentUid = uid;
+        ui.deleteConfirm.classList.add('hidden');
+        ui.deleteButton.classList.remove('hidden');
+
+        _showClientView(client);
+
+        // show detail pane
+        AdminPage.showDetail(true);
+        AdminPage.showDetailPane?.();
+    }
+
+    function _switchToEditMode() {
+        if (!currentUid) return;
+        const client = allClients[currentUid];
+        if (!client) return;
+
+        ui.viewContainer.classList.add('hidden');
+        ui.editContainer.classList.remove('hidden');
+        _populateFormForEdit(currentUid);
+    }
+
+    function _cancelEdit() {
+        if (currentUid) {
+            const client = allClients[currentUid];
+            if (client) {
+                _showClientView(client);
+                return;
+            }
+        }
+        _resetForm();
+        _showB2b2cOverview();
+    }
+
+    function _newClient() {
+        currentUid = null;
+        _resetForm();
+        ui.viewContainer.classList.add('hidden');
+        ui.editContainer.classList.remove('hidden');
+        AdminPage.showDetail(true);
+        AdminPage.showDetailPane?.();
+    }
+
     function _populateFormForEdit(uid) {
         const client = allClients[uid];
         if (!client) return;
@@ -169,11 +360,6 @@ const B2B2CModule = (() => {
         ui.uidInput.readOnly = true;
         ui.uidInput.classList.add('readonly-input');
         ui.buttonText.textContent = `Update Client ${uid}`;
-        ui.deleteButton.classList.remove('hidden');
-
-        // show detail pane
-        AdminPage.showDetail(true);
-        AdminPage.showDetailPane?.();
     }
 
     function _resetForm() {
@@ -185,7 +371,6 @@ const B2B2CModule = (() => {
         ui.uidInput.readOnly = true;
         ui.uidInput.classList.add('readonly-input');
         ui.buttonText.textContent = 'Submit New Client';
-        ui.deleteButton.classList.add('hidden');
         ui.deleteConfirm.classList.add('hidden');
         ui.pincodeStatus.innerHTML = '';
         _clearPincodeFields();
@@ -269,7 +454,7 @@ const B2B2CModule = (() => {
         const isDelete = action === 'delete';
         _setLoading(true, isDelete ? 'delete' : 'submit');
         try {
-            const uid = ui.uidInput.value;
+            const uid = isDelete ? currentUid : ui.uidInput.value;
             let result;
             if (isDelete) {
                 result = await b2b2cDelete(uid);
@@ -288,7 +473,16 @@ const B2B2CModule = (() => {
             }
 
             const msg = isDelete ? 'Contact deleted.' : isUpdateMode ? 'Contact updated.' : `Contact created. UID: ${result.uid}`;
-            _resetForm();
+            if (isDelete) {
+                currentUid = null;
+                _resetForm();
+                _showB2b2cOverview();
+            } else {
+                const targetUid = isUpdateMode ? uid : result.uid;
+                setTimeout(() => {
+                    _selectClientForView(targetUid);
+                }, 100);
+            }
             _showMsg(msg, 'success');
         } catch (err) {
             _showMsg(err.message, 'error');
@@ -378,11 +572,7 @@ const B2B2CModule = (() => {
                 ui.parentClientResultsContainer.classList.add('hidden');
         });
 
-        ui.newClientBtn.addEventListener('click', () => {
-            _resetForm();
-            AdminPage.showDetail(true);
-            AdminPage.showDetailPane?.();
-        });
+        ui.newClientBtn.addEventListener('click', _newClient);
 
         ui.pincodeInput.addEventListener('input', async () => {
             ui.pincodeStatus.innerHTML = '';
@@ -392,10 +582,10 @@ const B2B2CModule = (() => {
         });
 
         ui.deleteButton.addEventListener('click', () => {
-            const uid  = ui.uidInput.value;
-            const name = ui.form.querySelector('[name="NAME"]').value;
-            if (!uid) return;
-            ui.clientToDeleteSpan.textContent = `${name} (${uid})`;
+            if (!currentUid) return;
+            const client = allClients[currentUid];
+            if (!client) return;
+            ui.clientToDeleteSpan.textContent = `${client.NAME} (${currentUid})`;
             ui.deleteConfirm.classList.remove('hidden');
             ui.deleteButton.classList.add('hidden');
         });
@@ -406,6 +596,9 @@ const B2B2CModule = (() => {
         });
 
         ui.confirmDeleteBtn.addEventListener('click', () => _handleRequest('delete'));
+
+        ui.editCustomerBtn.addEventListener('click', _switchToEditMode);
+        ui.cancelEditBtn.addEventListener('click', _cancelEdit);
 
         ui.form.addEventListener('submit', e => {
             e.preventDefault();
