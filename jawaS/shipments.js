@@ -164,7 +164,8 @@ function handleTileClick(tile) {
     activeTatFilter  = null;
     tatTrackStatuses.clear();
     shipmentsDataMap.forEach((s, ref) => {
-        if (s.state) tatTrackStatuses.set(ref, s.state);
+        const state = s.state || s.STATE;
+        if (state) tatTrackStatuses.set(ref, state);
     });
     document.getElementById('tatQuickFilters').style.display = 'none';
     document.getElementById('tatQuickFilters').innerHTML = '';
@@ -500,7 +501,7 @@ function applyFilters() {
                     // Refresh tracking history if it was previously loaded
                     const historyEl = document.getElementById('liveTrackingHistory');
                     if (historyEl && historyEl.innerHTML && !historyEl.innerHTML.includes('Loading')) {
-                        renderTrackingHistory(currentOrder);
+                        _fetchAndRenderTracking(currentOrder, false, true);
                     }
                     // Update the selected state on the list item
                     ui.shipmentList.querySelectorAll('li.selected').forEach(li => li.classList.remove('selected'));
@@ -876,7 +877,7 @@ function _sortMovements(movements) {
     }).map(x => x.m);
 }
 
-async function _fetchAndRenderTracking(order, live = false) {
+async function _fetchAndRenderTracking(order, live = false, silent = false) {
     const statusEl  = document.getElementById('liveTrackingStatus');
     if (!statusEl) return;
 
@@ -885,7 +886,9 @@ async function _fetchAndRenderTracking(order, live = false) {
         return;
     }
 
-    statusEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Fetching live status…</p>`;
+    if (!silent) {
+        statusEl.innerHTML = `<p class="text-xs text-gray-400 animate-pulse">Fetching live status…</p>`;
+    }
 
     try {
         let result;
@@ -903,7 +906,10 @@ async function _fetchAndRenderTracking(order, live = false) {
             }
         }
 
-        const s = result.shipment || {};
+        const rawShipment = result.shipment || {};
+        const s = Object.fromEntries(
+            Object.entries(rawShipment).map(([k, v]) => [k.toLowerCase(), v])
+        );
         const movements = _sortMovements(result.movements || []);
         const lastMov = movements[0] || {};
         window._lastTrackingResult = { ...result, movements };

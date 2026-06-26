@@ -362,11 +362,19 @@ window.trackShipment = async function (ref) {
     if (shipment) {
         // shipment already in IDB — just fetch movements from app cache
         const json = await callApi(`/api/movements?ref=${encodeURIComponent(ref)}`, {}, 'GET');
-        return { shipment, movements: json.movements };
+        const normShipment = Object.fromEntries(
+            Object.entries(shipment).map(([k, v]) => [k.toLowerCase(), v])
+        );
+        return { shipment: normShipment, movements: json.movements };
     }
     // fallback — shipment not in IDB yet, get both from app cache via API
     const json = await callApi(`/api/movements?ref=${encodeURIComponent(ref)}`, {}, 'GET');
     if (json.status === 'error') throw new Error(json.message || 'Tracking failed');
+    if (json.shipment) {
+        json.shipment = Object.fromEntries(
+            Object.entries(json.shipment).map(([k, v]) => [k.toLowerCase(), v])
+        );
+    }
     return json;  // {shipment, movements}
 };
 
@@ -380,6 +388,11 @@ window.trackShipmentLive = async function (ref) {
     });
     const json = await res.json();
     if (!res.ok || json.status === 'error') throw new Error(json.message || json.detail || 'Tracking failed');
+    if (json.shipment) {
+        json.shipment = Object.fromEntries(
+            Object.entries(json.shipment).map(([k, v]) => [k.toLowerCase(), v])
+        );
+    }
     return json;  // {shipment, movements}
 };
 
