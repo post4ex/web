@@ -52,6 +52,8 @@
         .mobile-cards-table td:last-child { border-bottom: none; }
         .mobile-cards-table td::before { content: attr(data-label); font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.725rem; margin-right: 1rem; flex-shrink: 0; }
     }
+    .detail-card.mode-view .edit-only { display: none !important; }
+    .detail-card.mode-edit .view-only { display: none !important; }
     </style>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
     <script>
@@ -295,6 +297,15 @@
                 <input name="addUserOtp" required class="form-input" placeholder="Enter OTP" maxlength="6" autocomplete="one-time-code">
                 <button type="submit" class="btn w-full">Confirm</button>
             </form>
+        </div>
+    </div>
+
+    <!-- ── GPS Loading Overlay ── -->
+    <div id="gpsOverlay" class="modal-overlay hidden">
+        <div class="modal-content text-center max-w-xs" style="background:#fff;border-radius:.5rem;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent mx-auto mb-4"></div>
+            <p class="text-sm font-semibold text-gray-800">Fetching GPS Location...</p>
+            <p class="text-xs text-gray-500 mt-1">Please keep your device still.</p>
         </div>
     </div>
 

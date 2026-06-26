@@ -104,7 +104,7 @@ const AdminUsers = (() => {
         if (canToggle) {
             const btnClass = u.STATUS === 'ACTIVE' ? 'btn-danger' : 'btn';
             const btnLabel = u.STATUS === 'ACTIVE' ? 'Deactivate' : 'Activate';
-            toggleBtnHtml = `<button id="toggleUserStatusBtn" class="${btnClass} btn-sm ml-2">${btnLabel}</button>`;
+            toggleBtnHtml = `<button id="toggleUserStatusBtn" class="${btnClass} btn-sm">${btnLabel}</button>`;
         }
 
         // Build fields from actual user keys
@@ -150,10 +150,12 @@ const AdminUsers = (() => {
                         <div class="flex items-center gap-2 mt-0.5">
                             <span class="status-badge ${ROLE_COLORS[u.ROLE] || 'bg-gray-100 text-gray-600'}">${u.ROLE}</span>
                             <span class="${u.STATUS === 'ACTIVE' ? 'text-green-600' : 'text-red-500'} text-xs font-semibold">${u.STATUS || ''}</span>
-                            ${toggleBtnHtml}
                         </div>
                     </div>
-                    ${canDelete ? `<button id="deleteUserBtn" class="btn-danger btn-sm">Delete</button>` : ''}
+                    <div class="flex gap-2 items-center">
+                        ${toggleBtnHtml}
+                        ${canDelete ? `<button id="deleteUserBtn" class="btn-danger btn-sm">Delete</button>` : ''}
+                    </div>
                 </div>
                 <div class="detail-card-body">
                     <form id="editUserForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">

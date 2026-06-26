@@ -150,10 +150,10 @@ const AdminAttendance = (() => {
                 </div>
                 <div class="relative">
                     <label class="block text-xs font-medium text-gray-600 mb-1">In Time</label>
-                    <input type="time" name="IN_TIME" id="attInTime" class="form-input text-sm pr-10" readonly>
+                    <input type="time" name="IN_TIME" id="attInTime" class="form-input text-sm pr-10 bg-gray-100 cursor-not-allowed" readonly>
                     <input type="hidden" name="GEO_TAG_IN_TIME" id="attGeoIn">
                     <input type="hidden" name="IN_TIME_DIST"    id="attDistIn">
-                    <button type="button" id="attNowIn" class="absolute right-1 bottom-1 text-xs bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300">Now</button>
+                    <button type="button" id="attNowIn" class="absolute right-1 bottom-1 text-xs bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300">Mark</button>
                 </div>
                 <div class="col-span-2 sm:col-span-4">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
@@ -170,10 +170,10 @@ const AdminAttendance = (() => {
             formContent = `
                 <div class="relative">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Out Time</label>
-                    <input type="time" name="OUT_TIME" id="attOutTime" class="form-input text-sm pr-10" readonly>
+                    <input type="time" name="OUT_TIME" id="attOutTime" class="form-input text-sm pr-10 bg-gray-100 cursor-not-allowed" readonly>
                     <input type="hidden" name="GEO_TAG_OUT_TIME" id="attGeoOut">
                     <input type="hidden" name="OUT_TIME_DIST"    id="attDistOut">
-                    <button type="button" id="attNowOut" class="absolute right-1 bottom-1 text-xs bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300">Now</button>
+                    <button type="button" id="attNowOut" class="absolute right-1 bottom-1 text-xs bg-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-300">Mark</button>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Overtime Hrs</label>
@@ -408,11 +408,11 @@ const AdminAttendance = (() => {
                             return;
                         }
                         if (!raw.IN_TIME) {
-                            showNotification('❌ Use the "Now" button to record In Time.', 'error');
+                            showNotification('❌ Use the "Mark" button to record In Time.', 'error');
                             return;
                         }
                         if (!raw.GEO_TAG_IN_TIME || raw.GEO_TAG_IN_TIME === 'Unavailable') {
-                            showNotification('❌ GPS location required. Use the "Now" button.', 'error');
+                            showNotification('❌ GPS location required. Use the "Mark" button.', 'error');
                             return;
                         }
                     }
@@ -422,11 +422,11 @@ const AdminAttendance = (() => {
                         return;
                     }
                     if (!raw.OUT_TIME) {
-                        showNotification('❌ Use the "Now" button to record Out Time.', 'error');
+                        showNotification('❌ Use the "Mark" button to record Out Time.', 'error');
                         return;
                     }
                     if (!raw.GEO_TAG_OUT_TIME || raw.GEO_TAG_OUT_TIME === 'Unavailable') {
-                        showNotification('❌ GPS location required. Use the "Now" button.', 'error');
+                        showNotification('❌ GPS location required. Use the "Mark" button.', 'error');
                         return;
                     }
                 }
@@ -549,9 +549,14 @@ const AdminAttendance = (() => {
         timeInput.value = new Date().toTimeString().slice(0, 5);
         timeInput.setAttribute('readonly', true);
         timeInput.dispatchEvent(new Event('input'));
+        
+        const overlay = document.getElementById('gpsOverlay');
         geoGetPosition({
-            onStart:   () => {},
+            onStart:   () => {
+                if (overlay) overlay.classList.remove('hidden');
+            },
             onSuccess: coords => {
+                if (overlay) overlay.classList.add('hidden');
                 geoInput.value = coords;
                 const branch = _branches[staffMember?.BRANCH];
                 if (!branch?.BRANCH_GEO_TEG) return;
@@ -559,6 +564,7 @@ const AdminAttendance = (() => {
                 if (dist !== null) distInput.value = dist;
             },
             onError: msg => {
+                if (overlay) overlay.classList.add('hidden');
                 geoInput.value = 'Unavailable';
                 showNotification('⚠️ ' + msg, 'warning');
             },

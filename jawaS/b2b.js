@@ -391,6 +391,12 @@ function showB2bOverview() {
     ui.customerViewContainer.classList.remove('hidden');
     ui.customerEditContainer.classList.add('hidden');
 
+    if (isMobile()) {
+        ui.customerListContainer.classList.remove('hidden');
+        ui.customerFormContainer.classList.add('hidden');
+        ui.customerFormContainer.classList.remove('block');
+    }
+
     ui.editCustomerBtn.classList.add('hidden');
     ui.softDeleteCustomerBtn.classList.add('hidden');
     ui.printCustomerBtn.classList.add('hidden');

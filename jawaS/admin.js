@@ -461,7 +461,7 @@ const AdminPage = (() => {
         _tryLoad();
     });
 
-    return { openAddUserModal, getSudo, requireSudo, showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can };
+    return { openAddUserModal, getSudo, requireSudo, showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, getActiveTile: () => _activeTile };
 })();
 
 window.AdminPage = AdminPage;

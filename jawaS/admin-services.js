@@ -79,6 +79,7 @@ const AdminServices = (() => {
 
     // ── Render service list ──────────────────────────────────────────────────
     function _renderList() {
+        if (window.AdminPage && window.AdminPage.getActiveTile() !== 'services') return;
         const ul  = document.getElementById('adminList');
         const msg = document.getElementById('listMsg');
         msg.textContent = '';
@@ -106,13 +107,21 @@ const AdminServices = (() => {
 
     // ── Ping all ─────────────────────────────────────────────────────────────
     async function _pingAll() {
+        if (window.AdminPage && window.AdminPage.getActiveTile() !== 'services') {
+            clearInterval(_autoRefreshTimer);
+            return;
+        }
         try {
             const res = await ServicesAPI.pingAll();
             _statuses = res.data || {};
-            _renderList();
+            if (window.AdminPage && window.AdminPage.getActiveTile() === 'services') {
+                _renderList();
+            }
             if (_activeService) _refreshStatusCard(_activeService);
         } catch (e) {
-            document.getElementById('listMsg').textContent = 'Status fetch failed: ' + e.message;
+            if (window.AdminPage && window.AdminPage.getActiveTile() === 'services') {
+                document.getElementById('listMsg').textContent = 'Status fetch failed: ' + e.message;
+            }
         }
     }
 
