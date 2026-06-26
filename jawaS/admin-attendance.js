@@ -71,12 +71,27 @@ const AdminAttendance = (() => {
         const existing  = _attendance[attId];
         const hasIn     = !!(existing?.IN_TIME);
         const hasOut    = !!(existing?.OUT_TIME);
+        const currentUser = getUser();
+        const isSelf    = s.STAFF_CODE === currentUser.CODE || s.STAFF_CODE === currentUser.USER;
         const canAdmin  = AdminPage.can('ADMIN');
-        const canDelete = AdminPage.can('ADMIN');
+        const canDelete = AdminPage.can('ADMIN') && !isSelf;
 
         // ── View Mode: read-only summary ─────────────────────────────────────
         let viewContent = '';
-        if (!hasIn && !hasOut) {
+        const isLeave = existing?.STATUS === 'Leave' || !!existing?.LEAVE_TYPE;
+        if (isLeave) {
+            viewContent = `
+                <div class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p class="text-sm text-orange-700 font-semibold">🏖 On Leave (${existing.LEAVE_TYPE || 'Leave'})</p>
+                    ${existing.REMARKS ? `<p class="text-xs text-gray-500 mt-1">Remarks: ${existing.REMARKS}</p>` : ''}
+                    ${existing.APPROVED_BY ? `<p class="text-xs text-gray-400 mt-1">Approved by: ${existing.APPROVED_BY}</p>` : ''}
+                </div>
+                ${canAdmin && !isSelf ? `
+                <div class="flex gap-2 mt-4">
+                    <button id="attModifyBtn" class="btn btn-sm">Modify Leave</button>
+                    <button id="attDeleteBtn" class="btn-danger btn-sm">Delete Record</button>
+                </div>` : ''}`;
+        } else if (!hasIn && !hasOut) {
             viewContent = `
                 <p class="text-sm text-gray-500 italic">No attendance recorded for today.</p>
                 <button id="attRecordBtn" class="btn btn-sm mt-2">Record Attendance</button>`;
@@ -104,7 +119,7 @@ const AdminAttendance = (() => {
                     ${existing.APPROVED_BY ? `<div><span class="block text-xs font-semibold text-gray-500">Approved By</span><span class="text-sm">${existing.APPROVED_BY}</span></div>` : ''}
                 </div>
                 <div class="flex gap-2">
-                    <button id="attModifyBtn" class="btn btn-sm">Modify Attendance</button>
+                    ${(!isSelf) ? '<button id="attModifyBtn" class="btn btn-sm">Modify Attendance</button>' : ''}
                     ${canDelete ? '<button id="attDeleteBtn" class="btn-danger btn-sm">Delete Record</button>' : ''}
                 </div>`;
         }
@@ -116,21 +131,21 @@ const AdminAttendance = (() => {
             formContent = `
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                    <select name="STATUS" class="form-input text-sm">
-                        ${ATT_STATUSES.map(o => `<option>${o}</option>`).join('')}
+                    <select name="STATUS" class="form-input text-sm" ${isSelf ? 'disabled' : ''}>
+                        ${ATT_STATUSES.map(o => `<option ${existing?.STATUS === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Shift</label>
-                    <select name="SHIFT" class="form-input text-sm">
-                        ${ATT_SHIFTS.map(o => `<option>${o}</option>`).join('')}
+                    <select name="SHIFT" class="form-input text-sm" ${(isSelf || existing?.SHIFT) ? 'disabled' : ''}>
+                        ${ATT_SHIFTS.map(o => `<option ${existing?.SHIFT === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Leave Type</label>
-                    <select name="LEAVE_TYPE" class="form-input text-sm">
+                    <select name="LEAVE_TYPE" class="form-input text-sm" ${isSelf ? 'disabled' : ''}>
                         <option value="">N/A</option>
-                        ${ATT_LEAVE_TYPES.map(o => `<option>${o}</option>`).join('')}
+                        ${ATT_LEAVE_TYPES.map(o => `<option ${existing?.LEAVE_TYPE === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
                 </div>
                 <div class="relative">
@@ -142,7 +157,7 @@ const AdminAttendance = (() => {
                 </div>
                 <div class="col-span-2 sm:col-span-4">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                    <input type="text" name="REMARKS" class="form-input text-sm" placeholder="Any notes…">
+                    <input type="text" name="REMARKS" value="${existing?.REMARKS || ''}" class="form-input text-sm" placeholder="Any notes…">
                 </div>
                 <div class="col-span-2 sm:col-span-4 flex justify-end">
                     <button type="submit" id="attSubmitBtn" class="btn btn-sm flex items-center gap-2">
@@ -162,19 +177,19 @@ const AdminAttendance = (() => {
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Overtime Hrs</label>
-                    <input type="number" name="OVERTIME_HRS" min="0" step="0.5" value="${existing?.OVERTIME_HRS || ''}" class="form-input text-sm" ${!canAdmin ? 'disabled' : ''} placeholder="0">
+                    <input type="number" name="OVERTIME_HRS" min="0" step="0.5" value="${existing?.OVERTIME_HRS || ''}" class="form-input text-sm" ${(!canAdmin || isSelf) ? 'disabled' : ''} placeholder="0">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Late Mins</label>
-                    <input type="number" name="LATE_MINS" min="0" value="${existing?.LATE_MINS || ''}" class="form-input text-sm" ${!canAdmin ? 'disabled' : ''} placeholder="0">
+                    <input type="number" name="LATE_MINS" min="0" value="${existing?.LATE_MINS || ''}" class="form-input text-sm" ${(!canAdmin || isSelf) ? 'disabled' : ''} placeholder="0">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Approved By</label>
-                    <input type="text" name="APPROVED_BY" value="${existing?.APPROVED_BY || ''}" class="form-input text-sm" ${!canAdmin ? 'disabled' : ''} placeholder="Manager code">
+                    <input type="text" name="APPROVED_BY" value="${existing?.APPROVED_BY || ''}" class="form-input text-sm" ${(!canAdmin || isSelf) ? 'disabled' : ''} placeholder="Manager code">
                 </div>
                 <div class="col-span-2 sm:col-span-4">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                    <input type="text" name="REMARKS" class="form-input text-sm" placeholder="Any notes…">
+                    <input type="text" name="REMARKS" value="${existing?.REMARKS || ''}" class="form-input text-sm" placeholder="Any notes…">
                 </div>
                 <div class="col-span-2 sm:col-span-4 flex justify-end">
                     <button type="submit" id="attSubmitBtn" class="btn btn-sm flex items-center gap-2">
@@ -187,19 +202,19 @@ const AdminAttendance = (() => {
             formContent = `
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                    <select name="STATUS" class="form-input text-sm">
+                    <select name="STATUS" class="form-input text-sm" ${isSelf ? 'disabled' : ''}>
                         ${ATT_STATUSES.map(o => `<option ${existing?.STATUS === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Shift</label>
-                    <select name="SHIFT" class="form-input text-sm">
+                    <select name="SHIFT" class="form-input text-sm" ${isSelf ? 'disabled' : ''}>
                         ${ATT_SHIFTS.map(o => `<option ${existing?.SHIFT === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Leave Type</label>
-                    <select name="LEAVE_TYPE" class="form-input text-sm">
+                    <select name="LEAVE_TYPE" class="form-input text-sm" ${isSelf ? 'disabled' : ''}>
                         <option value="">N/A</option>
                         ${ATT_LEAVE_TYPES.map(o => `<option ${existing?.LEAVE_TYPE === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
@@ -287,7 +302,7 @@ const AdminAttendance = (() => {
             view.querySelector('#attNowOut')?.addEventListener('click', () => _setNow(view.querySelector('#attOutTime'), view.querySelector('#attGeoOut'), view.querySelector('#attDistOut'), s));
         });
 
-        // Modify Attendance (both In & Out done)
+        // Modify Attendance (both In & Out done, or Leave set)
         view.querySelector('#attModifyBtn')?.addEventListener('click', () => {
             const card = document.getElementById('attDetailCard');
             if (card) card.className = 'detail-card mode-edit';
@@ -327,8 +342,8 @@ const AdminAttendance = (() => {
         });
 
         // ── Wire Edit Mode Form Submit ───────────────────────────────────────
-        if (hasOut) {
-            // Both done — form already has all fields, just handle submit
+        if (hasOut || isLeave) {
+            // Both done or Leave — form already has all fields, just handle submit
             view.querySelector('#attForm').addEventListener('submit', async e => {
                 e.preventDefault();
                 const raw = Object.fromEntries(new FormData(e.target));
@@ -341,9 +356,9 @@ const AdminAttendance = (() => {
                 const data = {
                     IN_TIME:       toTimeMs(raw.IN_TIME),
                     OUT_TIME:      toTimeMs(raw.OUT_TIME),
-                    STATUS:        raw.STATUS,
-                    SHIFT:         raw.SHIFT || '',
-                    LEAVE_TYPE:    raw.LEAVE_TYPE || '',
+                    STATUS:        raw.STATUS !== undefined ? raw.STATUS : (existing?.STATUS || 'Present'),
+                    SHIFT:         raw.SHIFT !== undefined ? raw.SHIFT : (existing?.SHIFT || ''),
+                    LEAVE_TYPE:    raw.LEAVE_TYPE !== undefined ? raw.LEAVE_TYPE : (existing?.LEAVE_TYPE || ''),
                     OVERTIME_HRS:  parseFloat(raw.OVERTIME_HRS) || 0,
                     LATE_MINS:     parseInt(raw.LATE_MINS) || 0,
                     APPROVED_BY:   raw.APPROVED_BY || '',
@@ -382,23 +397,30 @@ const AdminAttendance = (() => {
             view.querySelector('#attForm').addEventListener('submit', async e => {
                 e.preventDefault();
 
-                if (!navigator.geolocation) {
-                    showNotification('❌ GPS not available on this device. Attendance cannot be submitted.', 'error');
-                    return;
-                }
-
                 const raw = Object.fromEntries(new FormData(e.target));
 
                 if (!hasIn) {
-                    if (!raw.IN_TIME) {
-                        showNotification('❌ Use the "Now" button to record In Time.', 'error');
-                        return;
-                    }
-                    if (!raw.GEO_TAG_IN_TIME || raw.GEO_TAG_IN_TIME === 'Unavailable') {
-                        showNotification('❌ GPS location required. Use the "Now" button.', 'error');
-                        return;
+                    // Check if it's setting leave or shift only (without check-in)
+                    const isLeaveOrShiftOnly = raw.STATUS === 'Leave' || !!raw.LEAVE_TYPE || (raw.SHIFT && !raw.IN_TIME);
+                    if (!isLeaveOrShiftOnly) {
+                        if (!navigator.geolocation) {
+                            showNotification('❌ GPS not available on this device. Attendance cannot be submitted.', 'error');
+                            return;
+                        }
+                        if (!raw.IN_TIME) {
+                            showNotification('❌ Use the "Now" button to record In Time.', 'error');
+                            return;
+                        }
+                        if (!raw.GEO_TAG_IN_TIME || raw.GEO_TAG_IN_TIME === 'Unavailable') {
+                            showNotification('❌ GPS location required. Use the "Now" button.', 'error');
+                            return;
+                        }
                     }
                 } else {
+                    if (!navigator.geolocation) {
+                        showNotification('❌ GPS not available on this device. Attendance cannot be submitted.', 'error');
+                        return;
+                    }
                     if (!raw.OUT_TIME) {
                         showNotification('❌ Use the "Now" button to record Out Time.', 'error');
                         return;
@@ -432,9 +454,9 @@ const AdminAttendance = (() => {
                     IN_TIME:       toTimeMs(raw.IN_TIME),
                     GEO_TAG_IN:    raw.GEO_TAG_IN_TIME || '',
                     IN_TIME_DIST:  parseFloat(raw.IN_TIME_DIST) || 0,
-                    STATUS:        raw.STATUS,
-                    SHIFT:         raw.SHIFT || '',
-                    LEAVE_TYPE:    raw.LEAVE_TYPE || '',
+                    STATUS:        raw.STATUS !== undefined ? raw.STATUS : (existing?.STATUS || 'Present'),
+                    SHIFT:         raw.SHIFT !== undefined ? raw.SHIFT : (existing?.SHIFT || ''),
+                    LEAVE_TYPE:    raw.LEAVE_TYPE !== undefined ? raw.LEAVE_TYPE : (existing?.LEAVE_TYPE || ''),
                     REMARKS:       raw.REMARKS || '',
                     ATTEN_DATE:    new Date(today).getTime(),
                     STAFF_CODE:    s.STAFF_CODE,

@@ -30,6 +30,8 @@ const AdminRegistrations = (() => {
     async function load() {
         const msg = document.getElementById('listMsg');
         const ul  = document.getElementById('adminList');
+        const searchEl = document.getElementById('listSearch');
+        if (searchEl) searchEl.placeholder = 'Search registrations…';
         try {
             const res = await AdminAPI.fetchRegistrations();
             _regs = res.data || [];
@@ -46,10 +48,10 @@ const AdminRegistrations = (() => {
         }
     }
 
-    function _renderList() {
+    function _renderList(regs = _regs) {
         const ul = document.getElementById('adminList');
         if (!ul) return;
-        ul.innerHTML = _regs.map(r => `
+        ul.innerHTML = regs.map(r => `
             <li data-id="${r.id}" class="${_selected === r.id ? 'selected' : ''}">
                 <strong>${r.USER || r.EMAIL?.split('@')[0] || '—'}</strong>
                 <span class="client-info">${r.NAME || ''}</span>
@@ -60,6 +62,16 @@ const AdminRegistrations = (() => {
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => _selectReg(li.dataset.id))
         );
+    }
+
+    function search(q) {
+        const lq = q.toLowerCase();
+        const filtered = _regs.filter(r =>
+            (r.USER || '').toLowerCase().includes(lq) ||
+            (r.NAME || '').toLowerCase().includes(lq) ||
+            (r.EMAIL || '').toLowerCase().includes(lq)
+        );
+        _renderList(filtered);
     }
 
     function _selectReg(id) {
@@ -250,7 +262,7 @@ const AdminRegistrations = (() => {
         if (cnt) cnt.textContent = _regs.length;
     }
 
-    return { load, removeById };
+    return { load, removeById, search };
 })();
 
 window.AdminRegistrations = AdminRegistrations;

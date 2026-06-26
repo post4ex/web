@@ -73,6 +73,7 @@ const AdminShifts = (() => {
         const view = document.getElementById('detailView');
         if (!view) return;
 
+        const today     = new Date().toISOString().split('T')[0];
         const allRecs = Object.values(_attendance)
             .filter(r => r.STAFF_CODE === s.STAFF_CODE)
             .sort((a, b) => b.ATTEN_DATE - a.ATTEN_DATE);
@@ -87,6 +88,9 @@ const AdminShifts = (() => {
         // Leave summary counts
         const leaveCounts = {};
         leaveRecs.forEach(r => { leaveCounts[r.LEAVE_TYPE || 'Unspecified'] = (leaveCounts[r.LEAVE_TYPE || 'Unspecified'] || 0) + 1; });
+
+        const currentUser = getUser();
+        const isSelf = s.STAFF_CODE === currentUser.CODE || s.STAFF_CODE === currentUser.USER;
 
         view.innerHTML = `
             <div class="detail-card">
@@ -106,6 +110,73 @@ const AdminShifts = (() => {
                         ${!Object.keys(shiftCounts).length && !Object.keys(leaveCounts).length
                             ? '<span class="text-xs text-gray-400">No shift or leave records found.</span>' : ''}
                     </div>
+
+                    <!-- Actions for managers to assign shift/leave -->
+                    ${!isSelf ? `
+                    <div class="bg-purple-50 p-3 rounded-lg border border-purple-100 space-y-3">
+                        <span class="text-xs font-semibold text-purple-700 block">Manage Shift / Leave</span>
+                        <div class="flex gap-2">
+                            <button id="btnShowShiftForm" class="btn btn-sm bg-purple-600 text-white hover:bg-purple-700 font-medium rounded-md px-3 py-1.5 text-xs transition-colors">Assign Shift</button>
+                            <button id="btnShowLeaveForm" class="btn btn-sm bg-orange-500 text-white hover:bg-orange-600 font-medium rounded-md px-3 py-1.5 text-xs transition-colors">Record Leave</button>
+                        </div>
+                        
+                        <!-- Shift Form (hidden by default) -->
+                        <form id="formAssignShift" class="hidden space-y-2 border-t border-purple-200 pt-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">From Date</label>
+                                    <input type="date" name="from_date" class="form-input text-xs py-1" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">To Date</label>
+                                    <input type="date" name="to_date" class="form-input text-xs py-1" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500">Shift</label>
+                                <select name="shift_val" class="form-input text-xs py-1" required>
+                                    <option value="Morning">Morning</option>
+                                    <option value="Evening">Evening</option>
+                                    <option value="Night">Night</option>
+                                </select>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button type="button" id="btnCancelShift" class="btn-ghost text-xs py-1 px-3">Cancel</button>
+                                <button type="submit" class="btn btn-sm py-1 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors">Save Shift</button>
+                            </div>
+                        </form>
+
+                        <!-- Leave Form (hidden by default) -->
+                        <form id="formRecordLeave" class="hidden space-y-2 border-t border-purple-200 pt-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">From Date</label>
+                                    <input type="date" name="from_date" class="form-input text-xs py-1" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">To Date</label>
+                                    <input type="date" name="to_date" class="form-input text-xs py-1" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500">Leave Type</label>
+                                <select name="leave_type" class="form-input text-xs py-1" required>
+                                    <option value="Sick">Sick</option>
+                                    <option value="Casual">Casual</option>
+                                    <option value="Earned">Earned</option>
+                                    <option value="Unpaid">Unpaid</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500">Remarks</label>
+                                <input type="text" name="leave_remarks" class="form-input text-xs py-1" placeholder="Optional notes…">
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button type="button" id="btnCancelLeave" class="btn-ghost text-xs py-1 px-3">Cancel</button>
+                                <button type="submit" class="btn btn-sm py-1 px-3 text-xs bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-md transition-colors">Save Leave</button>
+                            </div>
+                        </form>
+                    </div>` : ''}
 
                     <!-- Tabs -->
                     <div class="flex border-b">
@@ -214,6 +285,169 @@ const AdminShifts = (() => {
             view.querySelector('#tabShifts').className = 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700';
             _renderLeaves();
         });
+
+        // Wire Action Events
+        if (!isSelf) {
+            const fromDateInputs = view.querySelectorAll('input[name="from_date"]');
+            const toDateInputs = view.querySelectorAll('input[name="to_date"]');
+            fromDateInputs.forEach(inp => inp.value = today);
+            toDateInputs.forEach(inp => inp.value = today);
+
+            const btnShowShift = view.querySelector('#btnShowShiftForm');
+            const btnShowLeave = view.querySelector('#btnShowLeaveForm');
+            const formShift = view.querySelector('#formAssignShift');
+            const formLeave = view.querySelector('#formRecordLeave');
+
+            btnShowShift?.addEventListener('click', () => {
+                formShift.classList.remove('hidden');
+                formLeave.classList.add('hidden');
+            });
+            btnShowLeave?.addEventListener('click', () => {
+                formLeave.classList.remove('hidden');
+                formShift.classList.add('hidden');
+            });
+            view.querySelector('#btnCancelShift')?.addEventListener('click', () => {
+                formShift.classList.add('hidden');
+            });
+            view.querySelector('#btnCancelLeave')?.addEventListener('click', () => {
+                formLeave.classList.add('hidden');
+            });
+
+            // Form Submit: Shift
+            formShift?.addEventListener('submit', async e => {
+                e.preventDefault();
+                const raw = Object.fromEntries(new FormData(e.target));
+                
+                const [yf, mf, df] = raw.from_date.split('-').map(Number);
+                const [yt, mt, dt] = raw.to_date.split('-').map(Number);
+
+                const fromDate = new Date(yf, mf - 1, df);
+                const toDate = new Date(yt, mt - 1, dt);
+
+                if (toDate < fromDate) {
+                    showNotification('❌ To Date cannot be earlier than From Date', 'error');
+                    return;
+                }
+
+                const diffDays = Math.ceil(Math.abs(toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
+                if (diffDays > 31) {
+                    showNotification('❌ Maximum date range allowed is 31 days', 'error');
+                    return;
+                }
+
+                const btn = formShift.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = 'Saving…';
+
+                try {
+                    const dates = [];
+                    let curr = new Date(fromDate);
+                    while (curr <= toDate) {
+                        const y = curr.getFullYear();
+                        const m = String(curr.getMonth() + 1).padStart(2, '0');
+                        const d = String(curr.getDate()).padStart(2, '0');
+                        dates.push(`${y}-${m}-${d}`);
+                        curr.setDate(curr.getDate() + 1);
+                    }
+
+                    // Run API calls in parallel
+                    await Promise.all(dates.map(async dateStr => {
+                        const attId = `${s.STAFF_CODE}-${dateStr}`;
+                        const existing = _attendance[attId];
+                        const data = {
+                            SHIFT: raw.shift_val,
+                            STATUS: existing?.STATUS || 'Absent',
+                            ATTEN_DATE: new Date(dateStr).getTime(),
+                            STAFF_CODE: s.STAFF_CODE,
+                            STAFF_NAME: s.STAFF_NAME,
+                            BRANCH: s.BRANCH,
+                            ATTENDANCE_ID: attId,
+                        };
+                        const payload = { data };
+                        if (existing?.id) payload.record_id = existing.id;
+                        const res = await callApi('/api/writeAttendance', payload, 'POST');
+                        _attendance[attId] = res.record || { ...existing, ...data };
+                    }));
+
+                    showNotification(`✅ Shift assigned for ${diffDays} days`, 'success');
+                    _renderDetail(s);
+                } catch (err) {
+                    showNotification('❌ ' + err.message, 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            });
+
+            // Form Submit: Leave
+            formLeave?.addEventListener('submit', async e => {
+                e.preventDefault();
+                const raw = Object.fromEntries(new FormData(e.target));
+                
+                const [yf, mf, df] = raw.from_date.split('-').map(Number);
+                const [yt, mt, dt] = raw.to_date.split('-').map(Number);
+
+                const fromDate = new Date(yf, mf - 1, df);
+                const toDate = new Date(yt, mt - 1, dt);
+
+                if (toDate < fromDate) {
+                    showNotification('❌ To Date cannot be earlier than From Date', 'error');
+                    return;
+                }
+
+                const diffDays = Math.ceil(Math.abs(toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
+                if (diffDays > 31) {
+                    showNotification('❌ Maximum date range allowed is 31 days', 'error');
+                    return;
+                }
+
+                const btn = formLeave.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = 'Saving…';
+
+                try {
+                    const dates = [];
+                    let curr = new Date(fromDate);
+                    while (curr <= toDate) {
+                        const y = curr.getFullYear();
+                        const m = String(curr.getMonth() + 1).padStart(2, '0');
+                        const d = String(curr.getDate()).padStart(2, '0');
+                        dates.push(`${y}-${m}-${d}`);
+                        curr.setDate(curr.getDate() + 1);
+                    }
+
+                    // Run API calls in parallel
+                    await Promise.all(dates.map(async dateStr => {
+                        const attId = `${s.STAFF_CODE}-${dateStr}`;
+                        const existing = _attendance[attId];
+                        const data = {
+                            STATUS: 'Leave',
+                            LEAVE_TYPE: raw.leave_type,
+                            REMARKS: raw.leave_remarks || '',
+                            ATTEN_DATE: new Date(dateStr).getTime(),
+                            STAFF_CODE: s.STAFF_CODE,
+                            STAFF_NAME: s.STAFF_NAME,
+                            BRANCH: s.BRANCH,
+                            ATTENDANCE_ID: attId,
+                        };
+                        const payload = { data };
+                        if (existing?.id) payload.record_id = existing.id;
+                        const res = await callApi('/api/writeAttendance', payload, 'POST');
+                        _attendance[attId] = res.record || { ...existing, ...data };
+                    }));
+
+                    showNotification(`✅ Leave recorded for ${diffDays} days`, 'success');
+                    _renderDetail(s);
+                } catch (err) {
+                    showNotification('❌ ' + err.message, 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            });
+        }
     }
 
     // ── Data ──────────────────────────────────────────────────────────────────

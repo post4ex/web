@@ -90,6 +90,10 @@ const AdminModes = (() => {
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             <span>Delete</span>
                         </button>
+                        <button type="button" id="modesCancelBtn"
+                            class="btn-ghost px-8 py-3 flex items-center justify-center">
+                            <span>Cancel</span>
+                        </button>
                     </div>
                 </form>
                 <div id="modesResponseMsg" class="mt-6 text-center p-4 rounded-lg text-sm hidden"></div>
@@ -162,6 +166,11 @@ const AdminModes = (() => {
         if (!mode) return;
         const view = document.getElementById('detailView');
         if (!view) return;
+
+        // highlight list item
+        document.querySelectorAll('#modesList li').forEach(li =>
+            li.classList.toggle('bg-indigo-50', li.dataset.mode === mode.MODE)
+        );
 
         // Build zone display
         let zoneHtml = '';
@@ -309,8 +318,7 @@ const AdminModes = (() => {
     // ── Bind events ───────────────────────────────────────────────────────────
     function _bindEvents() {
         document.getElementById('modesForm').addEventListener('submit', e => {
-            e.preventDefault();
-            _handleRequest('submit');
+            e.preventDefault(); _handleRequest('submit');
         });
         document.getElementById('modesDeleteBtn').addEventListener('click', () => {
             const modeId = document.getElementById('modesMode').value;
@@ -324,6 +332,12 @@ const AdminModes = (() => {
         document.getElementById('modesConfirmDeleteBtn').addEventListener('click', () =>
             _handleRequest('delete')
         );
+        document.getElementById('modesCancelBtn')?.addEventListener('click', () => {
+            const modeId = document.getElementById('modesMode').value;
+            const mode = _allModes.find(m => m.MODE === modeId);
+            if (mode) _showViewMode(mode);
+            else AdminPage.showDetail(false);
+        });
     }
 
     // ── Load ──────────────────────────────────────────────────────────────────

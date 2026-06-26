@@ -103,7 +103,7 @@ const B2B2CModule = (() => {
             const c = clients[uid];
             const li = document.createElement('li');
             li.dataset.uid = uid;
-            li.className = 'p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200';
+            li.className = `p-3 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors border border-gray-200 ${uid === currentUid ? 'bg-indigo-100 border-indigo-300' : ''}`;
             const parent = allParentClients[c.CODE];
             const parentName = parent ? (parent.B2B_NAME || c.CODE) : (c.CODE || 'N/A');
             li.innerHTML = `<strong class="text-indigo-700 block text-sm">${c.NAME || 'Unnamed'}</strong><span class="text-xs text-gray-500">${parentName}</span>`;
@@ -317,6 +317,17 @@ const B2B2CModule = (() => {
         ui.deleteButton.classList.remove('hidden');
 
         _showClientView(client);
+
+        // highlight in side list
+        if (ui.clientList) {
+            ui.clientList.querySelectorAll('li').forEach(li => {
+                if (li.dataset.uid === uid) {
+                    li.classList.add('bg-indigo-100', 'border-indigo-300');
+                } else {
+                    li.classList.remove('bg-indigo-100', 'border-indigo-300');
+                }
+            });
+        }
 
         // show detail pane
         AdminPage.showDetail(true);

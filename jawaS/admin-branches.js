@@ -72,6 +72,8 @@ const AdminBranches = (() => {
     // ── Public API ────────────────────────────────────────────────────────────
     async function load() {
         const msg = document.getElementById('listMsg');
+        const searchEl = document.getElementById('listSearch');
+        if (searchEl) searchEl.placeholder = 'Search branches…';
         try {
             const raw = await getAppData('BRANCHES');
             _branches = Object.values(raw || {});
@@ -144,6 +146,8 @@ const AdminBranches = (() => {
         const view = document.getElementById('detailView');
         if (!view) return;
         const isEdit = !!b;
+        const canEdit = AdminPage.can('ADMIN');
+        const canDelete = AdminPage.can('ADMIN');
         const { cc, num } = _splitMobile(b?.BRANCH_MOBILE);
 
         const cl = parseFloat(b?.CREDIT_LIMIT || 0);

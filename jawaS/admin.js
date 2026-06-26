@@ -246,6 +246,7 @@ const AdminPage = (() => {
     function _initSearch() {
         document.getElementById('listSearch').addEventListener('input', e => {
             if (_activeTile === 'users') AdminUsers.search(e.target.value);
+            else if (_activeTile === 'registrations') AdminRegistrations.search(e.target.value);
             else if (_activeTile === 'services') AdminServices.search(e.target.value);
             else if (_activeTile === 'branches') AdminBranches.search(e.target.value);
             else if (_activeTile === 'staff') AdminStaff.search(e.target.value);

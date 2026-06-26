@@ -109,11 +109,15 @@ const AdminCarriers = (() => {
                                 class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                         </div>
                     </div>
-                    <div class="mt-8 text-center">
+                    <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
                         <button type="submit" id="carriersSubmitBtn"
-                            class="btn px-8 py-3 flex items-center justify-center mx-auto disabled:opacity-45">
+                            class="btn px-8 py-3 flex items-center justify-center disabled:opacity-45">
                             <span id="carriersSubmitText">Submit New Carrier</span>
                             <div id="carriersSpinner" class="spinner hidden ml-3" style="width:24px;height:24px;"></div>
+                        </button>
+                        <button type="button" id="carriersCancelBtn"
+                            class="btn-ghost px-8 py-3 flex items-center justify-center">
+                            <span>Cancel</span>
                         </button>
                     </div>
                 </form>
@@ -154,6 +158,11 @@ const AdminCarriers = (() => {
         if (!carrier) return;
         const view = document.getElementById('detailView');
         if (!view) return;
+
+        // Highlight in side list
+        document.querySelectorAll('#carriersList li').forEach(li =>
+            li.classList.toggle('bg-indigo-50', li.dataset.companyCode === carrier.COMPANY_CODE)
+        );
 
         const canEdit = _can('ADMIN');
         view.innerHTML = `
@@ -243,6 +252,7 @@ const AdminCarriers = (() => {
     }
 
     function openAddPane() {
+        _injectDetailPane();
         _resetForm();
         AdminPage.showDetail(true);
         AdminPage.showDetailPane();
@@ -350,6 +360,12 @@ const AdminCarriers = (() => {
         document.getElementById('carriersConfirmDeleteBtn').addEventListener('click', () =>
             _handleRequest('delete')
         );
+        document.getElementById('carriersCancelBtn')?.addEventListener('click', () => {
+            const code = document.getElementById('carriersCode').value;
+            const carrier = _allCarriers.find(c => c.COMPANY_CODE === code);
+            if (carrier) _showViewMode(carrier);
+            else AdminPage.showDetail(false);
+        });
     }
 
     // ── Load ──────────────────────────────────────────────────────────────────
