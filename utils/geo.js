@@ -15,10 +15,21 @@ function geoGetPosition({ onStart, onSuccess, onError, decimals = 6 } = {}) {
         onError?.('GPS not supported on this device');
         return;
     }
+    
+    // Show global loading indicator
+    document.documentElement.classList.add('needs-sync');
+    
     onStart?.();
 
-    const _toCoords = pos =>
-        `${pos.coords.latitude.toFixed(decimals)},${pos.coords.longitude.toFixed(decimals)}`;
+    const _toCoords = pos => {
+        document.documentElement.classList.remove('needs-sync');
+        return `${pos.coords.latitude.toFixed(decimals)},${pos.coords.longitude.toFixed(decimals)}`;
+    };
+
+    const _errCallback = err => {
+        document.documentElement.classList.remove('needs-sync');
+        onError?.(err);
+    };
 
     const _errMsg = err => err.code === 1
         ? 'Location permission denied — allow it in browser settings.'
@@ -38,7 +49,7 @@ function geoGetPosition({ onStart, onSuccess, onError, decimals = 6 } = {}) {
             // Low-acc also failed — try high accuracy as last resort
             navigator.geolocation.getCurrentPosition(
                 pos => onSuccess?.(_toCoords(pos)),
-                err2 => onError?.(_errMsg(err2)),
+                err2 => _errCallback(_errMsg(err2)),
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
             );
         },

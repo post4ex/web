@@ -85,10 +85,10 @@ const AdminUsers = (() => {
             li.classList.toggle('selected', li.dataset.user === username)
         );
         AdminPage.showDetailPane();
-        _renderDetail(u);
+        _renderDetail(u, true); // directly opens edit pane
     }
 
-    function _renderDetail(u) {
+    function _renderDetail(u, forceEdit = false) {
         AdminPage.showDetail(true);
         const view = document.getElementById('detailView');
         if (!view) return;
@@ -107,7 +107,15 @@ const AdminUsers = (() => {
             toggleBtnHtml = `<button id="toggleUserStatusBtn" class="${btnClass} btn-sm">${btnLabel}</button>`;
         }
 
-        // Build fields from actual user keys
+        // Build view fields from actual user keys
+        const viewFields = Object.keys(u).filter(k => !SKIP_FIELDS.has(k));
+        const viewHtml = viewFields.map(f => `
+            <div>
+                <span class="block text-xs font-semibold text-gray-500">${f}</span>
+                <span class="text-sm text-gray-800">${u[f] || '—'}</span>
+            </div>`).join('');
+
+        // Build edit fields from actual user keys
         const readonlyFields = Object.keys(u).filter(k => READONLY_FIELDS.has(k));
         const editableFields  = Object.keys(u).filter(k => !SKIP_FIELDS.has(k) && !READONLY_FIELDS.has(k));
 
@@ -143,7 +151,7 @@ const AdminUsers = (() => {
         }).join('');
 
         view.innerHTML = `
-            <div class="detail-card">
+            <div class="detail-card ${forceEdit ? 'mode-edit' : 'mode-view'}" id="userDetailCard">
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
                         <h2 class="text-base font-bold text-gray-800">${u.USER}</h2>
@@ -153,12 +161,20 @@ const AdminUsers = (() => {
                         </div>
                     </div>
                     <div class="flex gap-2 items-center">
-                        ${toggleBtnHtml}
-                        ${canDelete ? `<button id="deleteUserBtn" class="btn-danger btn-sm">Delete</button>` : ''}
+                        ${canEdit ? `<button id="userEditBtn" class="view-only btn btn-sm">Edit User</button>` : ''}
+                        ${toggleBtnHtml ? `<span class="view-only">${toggleBtnHtml}</span>` : ''}
+                        ${canDelete ? `<button id="deleteUserBtn" class="view-only btn-danger btn-sm">Delete</button>` : ''}
+                        ${canEdit ? `<button id="userCancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>` : ''}
                     </div>
                 </div>
                 <div class="detail-card-body">
-                    <form id="editUserForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- View Mode -->
+                    <div class="view-only grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        ${viewHtml}
+                    </div>
+
+                    <!-- Edit Mode -->
+                    <form id="editUserForm" class="edit-only grid grid-cols-1 sm:grid-cols-2 gap-4">
                         ${readonlyHtml}
                         ${fieldHtml}
                         ${canEdit ? `<div class="sm:col-span-2 flex justify-end">
@@ -169,6 +185,18 @@ const AdminUsers = (() => {
             </div>`;
 
         if (!canEdit) view.querySelectorAll('input,select').forEach(el => el.disabled = true);
+
+        // Wire View Mode Edit click
+        view.querySelector('#userEditBtn')?.addEventListener('click', () => {
+            const card = document.getElementById('userDetailCard');
+            if (card) card.className = 'detail-card mode-edit';
+        });
+
+        // Wire Edit Mode Cancel click
+        view.querySelector('#userCancelEditBtn')?.addEventListener('click', () => {
+            const card = document.getElementById('userDetailCard');
+            if (card) card.className = 'detail-card mode-view';
+        });
 
         // ── Status Toggle Button ──────────────────────────────────────────────
         view.querySelector('#toggleUserStatusBtn')?.addEventListener('click', () => {
@@ -186,7 +214,7 @@ const AdminUsers = (() => {
                     u.STATUS = newStatus;
                     u.CASCADED_BLOCK = false;
                     showNotification('✅ User status updated to ' + newStatus, 'success');
-                    _renderDetail(u);
+                    _renderDetail(u, false);
                     renderList(_users);
                 } catch (err) {
                     showNotification('❌ ' + err.message, 'error');
@@ -229,7 +257,7 @@ const AdminUsers = (() => {
                     await AdminAPI.updateUser(u.USER, sudoToken, fields);
                     Object.assign(u, fields);
                     showNotification('✅ User updated', 'success');
-                    _renderDetail(u);
+                    _renderDetail(u, false);
                     renderList(_users);
                 } catch (err) {
                     showNotification('❌ ' + err.message, 'error');

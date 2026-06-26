@@ -550,13 +550,9 @@ const AdminAttendance = (() => {
         timeInput.setAttribute('readonly', true);
         timeInput.dispatchEvent(new Event('input'));
         
-        const overlay = document.getElementById('gpsOverlay');
         geoGetPosition({
-            onStart:   () => {
-                if (overlay) overlay.classList.remove('hidden');
-            },
+            onStart:   () => {},
             onSuccess: coords => {
-                if (overlay) overlay.classList.add('hidden');
                 geoInput.value = coords;
                 const branch = _branches[staffMember?.BRANCH];
                 if (!branch?.BRANCH_GEO_TEG) return;
@@ -564,7 +560,6 @@ const AdminAttendance = (() => {
                 if (dist !== null) distInput.value = dist;
             },
             onError: msg => {
-                if (overlay) overlay.classList.add('hidden');
                 geoInput.value = 'Unavailable';
                 showNotification('⚠️ ' + msg, 'warning');
             },
