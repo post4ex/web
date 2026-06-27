@@ -182,6 +182,43 @@
                             <label for="companyState" class="block mb-2 text-sm font-medium text-gray-700">State</label>
                             <input type="text" id="companyState" name="COMPANY_STATE" class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5" placeholder="State" readonly>
                         </div>
+
+                        <!-- Contact & Account Details Section -->
+                        <div class="md:col-span-6 border-t pt-6 mt-4">
+                            <h3 class="text-lg font-medium text-indigo-600 mb-4">Contact & Account Details</h3>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="email" class="block mb-2 text-sm font-medium text-gray-700">Email</label>
+                            <input type="email" id="email" name="EMAIL" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="email@example.com">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="mobile" class="block mb-2 text-sm font-medium text-gray-700">Company Mobile</label>
+                            <input type="text" id="mobile" name="MOBILE" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="91XXXXXXXXXX" maxlength="12">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="contactPerson" class="block mb-2 text-sm font-medium text-gray-700">Contact Person</label>
+                            <input type="text" id="contactPerson" name="CONTACT_PERSON" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="Contact Person Name">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="contactMobile" class="block mb-2 text-sm font-medium text-gray-700">Contact Mobile</label>
+                            <input type="text" id="contactMobile" name="CONTACT_MOBILE" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="91XXXXXXXXXX" maxlength="12">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="bankName" class="block mb-2 text-sm font-medium text-gray-700">Bank Name</label>
+                            <input type="text" id="bankName" name="BANK_NAME" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="Bank Name">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="bankAc" class="block mb-2 text-sm font-medium text-gray-700">Bank Account No.</label>
+                            <input type="text" id="bankAc" name="BANK_AC" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="Account Number">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="ifsc" class="block mb-2 text-sm font-medium text-gray-700">IFSC Code</label>
+                            <input type="text" id="ifsc" name="IFSC" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="IFSC Code" maxlength="11">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="upi" class="block mb-2 text-sm font-medium text-gray-700">UPI ID</label>
+                            <input type="text" id="upi" name="UPI" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="UPI ID">
+                        </div>
                     </div>
                     <div class="mt-8 text-center"><button type="submit" id="submitButton" class="btn px-8 py-3 flex items-center justify-center mx-auto disabled:opacity-45"><span id="buttonText">Submit New Carrier</span><div id="spinner" class="spinner hidden ml-3"></div></button></div>
                 </form>

@@ -108,6 +108,51 @@ const AdminCarriers = (() => {
                             <input type="text" id="carriersState" name="COMPANY_STATE" placeholder="State" readonly
                                 class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                         </div>
+
+                        <!-- Contact & Account Details Section -->
+                        <div class="md:col-span-6 border-t pt-6 mt-4">
+                            <h3 class="text-lg font-medium text-indigo-600 mb-4">Contact & Account Details</h3>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Email</label>
+                            <input type="email" name="EMAIL" placeholder="email@example.com"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Company Mobile</label>
+                            <input type="text" name="MOBILE" placeholder="91XXXXXXXXXX" maxlength="12"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Contact Person</label>
+                            <input type="text" name="CONTACT_PERSON" placeholder="Contact Person Name"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Contact Mobile</label>
+                            <input type="text" name="CONTACT_MOBILE" placeholder="91XXXXXXXXXX" maxlength="12"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Bank Name</label>
+                            <input type="text" name="BANK_NAME" placeholder="Bank Name"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Bank Account No.</label>
+                            <input type="text" name="BANK_AC" placeholder="Account Number"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">IFSC Code</label>
+                            <input type="text" name="IFSC" placeholder="IFSC Code" maxlength="11"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">UPI ID</label>
+                            <input type="text" name="UPI" placeholder="UPI ID"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
                     </div>
                     <div class="mt-8 flex justify-center items-center gap-4 flex-wrap">
                         <button type="submit" id="carriersSubmitBtn"
@@ -189,6 +234,14 @@ const AdminCarriers = (() => {
                             <div><span class="block text-xs font-semibold text-gray-500">Pincode</span><span class="text-sm">${carrier.COMPANY_PINCODE || '—'}</span></div>
                             <div><span class="block text-xs font-semibold text-gray-500">City</span><span class="text-sm">${carrier.COMPANY_CITY || '—'}</span></div>
                             <div><span class="block text-xs font-semibold text-gray-500">State</span><span class="text-sm">${carrier.COMPANY_STATE || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Email</span><span class="text-sm">${carrier.EMAIL || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Company Mobile</span><span class="text-sm">${carrier.MOBILE || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Contact Person</span><span class="text-sm">${carrier.CONTACT_PERSON || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Contact Mobile</span><span class="text-sm">${carrier.CONTACT_MOBILE || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Bank Name</span><span class="text-sm">${carrier.BANK_NAME || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Bank Account No.</span><span class="text-sm">${carrier.BANK_AC || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">IFSC Code</span><span class="text-sm">${carrier.IFSC || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">UPI ID</span><span class="text-sm">${carrier.UPI || '—'}</span></div>
                         </div>
                     </div>
                 </div>
