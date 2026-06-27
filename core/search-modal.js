@@ -9,6 +9,7 @@ const CUSTOM_CARRIERS = [
     { value: 'shiprocket', label: 'Shiprocket',      type: 'slug' },
     { value: 'bigship',    label: 'Bigship',         type: 'slug' },
     { value: 'airways',    label: 'Airways Courier', type: 'slug' },
+    { value: 'stcourier',  label: 'ST Courier',      type: 'slug' },
     { value: 'tc',         label: 'TrackCourier',    type: 'tc'   },
     { value: '17track',    label: '17Track',         type: '17t'  },
 ];

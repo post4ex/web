@@ -220,6 +220,29 @@
                             <input type="text" id="upi" name="UPI" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" placeholder="UPI ID">
                         </div>
                     </div>
+                    <!-- MODES & ZONES Section -->
+                    <div class="md:col-span-6 border-t pt-6 mt-4">
+                        <h3 class="text-lg font-medium text-indigo-600 mb-4">Service Modes &amp; Zones</h3>
+                    </div>
+                    <!-- MODES Checklist -->
+                    <div class="md:col-span-6">
+                        <label class="block mb-2 text-sm font-medium text-gray-700">Transport Modes</label>
+                        <div id="modesChecklist" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 p-3 border rounded-lg bg-gray-50">
+                            <span class="text-xs text-gray-400 col-span-full">Loading modes...</span>
+                        </div>
+                    </div>
+                    <!-- ZONES Checklist -->
+                    <div class="md:col-span-6">
+                        <label class="block mb-2 text-sm font-medium text-gray-700">Serviceable Zones</label>
+                        <div id="zonesChecklist" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 p-3 border rounded-lg bg-gray-50">
+                            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="zone-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="REGIONAL"><span>REGIONAL</span></label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="zone-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="NCR"><span>NCR</span></label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="zone-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="NORTH"><span>NORTH</span></label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="zone-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="METRO"><span>METRO</span></label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="zone-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="ROI"><span>ROI</span></label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="zone-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="EAST"><span>EAST</span></label>
+                        </div>
+                    </div>
                     <div class="mt-8 text-center"><button type="submit" id="submitButton" class="btn px-8 py-3 flex items-center justify-center mx-auto disabled:opacity-45"><span id="buttonText">Submit New Carrier</span><div id="spinner" class="spinner hidden ml-3"></div></button></div>
                 </form>
                 <div id="responseMessage" class="mt-6 text-center p-4 rounded-lg text-sm hidden"></div>
@@ -304,6 +327,8 @@
             };
             allCarriers = Object.values(event.detail.data.CARRIERS);
             renderCarrierList(allCarriers);
+            // Populate MODES checklist from appData if available
+            if (event.detail.data.MODES) _populateModesChecklist(Object.values(event.detail.data.MODES));
         };
         window.addEventListener('appDataLoaded', handleDataLoaded);
         window.addEventListener('appDataRefreshed', handleDataLoaded);
@@ -334,6 +359,23 @@
                     input.value = carrier[key] || '';
                 }
             }
+            // Populate MODES checkboxes
+            _populateModesChecklist();
+            const modesArr = _parseJsonField(carrier.MODES);
+            if (Array.isArray(modesArr)) {
+                modesArr.forEach(m => {
+                    const cb = document.querySelector(`#modesChecklist input[value="${m}"]`);
+                    if (cb) cb.checked = true;
+                });
+            }
+            // Populate ZONES checkboxes
+            const zonesArr = _parseJsonField(carrier.ZONES);
+            if (Array.isArray(zonesArr)) {
+                zonesArr.forEach(z => {
+                    const cb = document.querySelector(`#zonesChecklist input[value="${z}"]`);
+                    if (cb) cb.checked = true;
+                });
+            }
             isUpdateMode = true;
             ui.companyCodeInput.readOnly = true;
             ui.companyCodeInput.classList.add('bg-gray-200', 'cursor-not-allowed');
@@ -341,6 +383,39 @@
             ui.deleteCarrierBtn.classList.remove('hidden');
             showFormView();
         };
+
+        // Helper: parse JSON string/array field from Supabase
+        function _parseJsonField(val) {
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string') {
+                try { const parsed = JSON.parse(val); return Array.isArray(parsed) ? parsed : []; }
+                catch (_) { return []; }
+            }
+            return [];
+        }
+
+        // Populate MODES checklist from appData.MODES collection
+        function _populateModesChecklist(modesList) {
+            const wrap = document.getElementById('modesChecklist');
+            if (!wrap) return;
+            // Get modes from appData if not passed in
+            if (!modesList) {
+                try {
+                    const appData = JSON.parse(localStorage.getItem('appData') || '{}');
+                    modesList = appData.MODES ? Object.values(appData.MODES) : [];
+                } catch (_) { modesList = []; }
+            }
+            if (!modesList || !modesList.length) {
+                wrap.innerHTML = '<span class="text-xs text-gray-400 col-span-full">No modes available</span>';
+                return;
+            }
+            wrap.innerHTML = modesList.map(mode => `
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" class="mode-cb h-4 w-4 text-indigo-600 border-gray-300 rounded" value="${mode.MODE || mode.SHORT}">
+                    <span>${mode.MODE || mode.SHORT}</span>
+                </label>
+            `).join('');
+        }
 
         const resetForm = () => {
             ui.form.reset();
@@ -351,6 +426,9 @@
             ui.deleteCarrierBtn.classList.add('hidden');
             ui.pincodeStatus.innerHTML = '';
             ui.responseMessage.classList.add('hidden');
+            // Uncheck all MODES and ZONES checkboxes
+            document.querySelectorAll('#modesChecklist input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.querySelectorAll('#zonesChecklist input[type="checkbox"]').forEach(cb => cb.checked = false);
         };
 
         ui.searchCarrierInput.addEventListener('input', (e) => {
@@ -430,6 +508,14 @@
             const data = {};
             if (action === 'submit') {
                  new FormData(ui.form).forEach((value, key) => { data[key] = value; });
+                 // Collect MODES checkboxes as JSON array
+                 const modesArr = [];
+                 document.querySelectorAll('#modesChecklist input[type="checkbox"]:checked').forEach(cb => modesArr.push(cb.value));
+                 data.MODES = modesArr.length ? modesArr : [];
+                 // Collect ZONES checkboxes as JSON array
+                 const zonesArr = [];
+                 document.querySelectorAll('#zonesChecklist input[type="checkbox"]:checked').forEach(cb => zonesArr.push(cb.value));
+                 data.ZONES = zonesArr.length ? zonesArr : [];
             } else if (action === 'delete') {
                 data.COMPANY_CODE = ui.companyCodeInput.value;
             }
@@ -488,6 +574,10 @@
                     renderCarrierList(allCarriers);
                 } else {
                      document.getElementById('carrierLoader').textContent = 'No carriers found.';
+                }
+                // Populate MODES checklist from appData
+                if (appData && appData.MODES) {
+                    _populateModesChecklist(Object.values(appData.MODES));
                 }
             } catch (e) {
                  document.getElementById('carrierLoader').textContent = 'Could not load carriers.';
