@@ -12,10 +12,7 @@ const VaultDebitNotes = (() => {
     // ── Date helpers ──────────────────────────────────────────────────────────
     const _toDateStr = (ms) => {
         if (!ms) return '';
-        const d = new Date(ms);
-        return d.getFullYear() + '-' +
-               String(d.getMonth() + 1).padStart(2, '0') + '-' +
-               String(d.getDate()).padStart(2, '0');
+        return fmtDate(ms, 'input');
     };
 
     function getCurrentFYRange() {
@@ -56,7 +53,7 @@ const VaultDebitNotes = (() => {
                                      (e.BRANCH || '').toLowerCase().includes(q);
                 if (!matchSearch) return false;
             }
-            const d = _toDateStr(e.IO_TIMESTAMP);
+            const d = _toDateStr(e.DOX_DATE);
             if (_filterStart && d < _filterStart) return false;
             if (_filterEnd && d > _filterEnd) return false;
             if (_filterBranch && (e.BRANCH || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
@@ -64,8 +61,8 @@ const VaultDebitNotes = (() => {
         });
 
         filtered.sort((a, b) => {
-            const tsA = a.IO_TIMESTAMP || 0;
-            const tsB = b.IO_TIMESTAMP || 0;
+            const tsA = a.DOX_DATE || 0;
+            const tsB = b.DOX_DATE || 0;
             if (tsA !== tsB) return tsB - tsA;
             return (b.DOX_REF || '').localeCompare(a.DOX_REF || '');
         });
@@ -80,7 +77,7 @@ const VaultDebitNotes = (() => {
             return;
         }
         ul.innerHTML = filtered.map(e => {
-            const dateStr = _toDateStr(e.IO_TIMESTAMP);
+            const dateStr = _toDateStr(e.DOX_DATE);
             const amount = parseFloat(e.AMOUNT || 0);
             return `<li data-key="${e.DOX_KEY}" class="p-3 rounded-lg cursor-pointer hover:bg-red-50 border border-gray-200 transition-colors">
                 <strong class="text-red-700 block text-sm">${e.DOX_REF || 'N/A'} — ${e.B2B || 'N/A'}</strong>
@@ -143,7 +140,7 @@ const VaultDebitNotes = (() => {
 
             const note = _allNotes.find(n => n.DOX_KEY === noteKey);
             const ref = res.Reference || note?.DOX_REF || noteKey;
-            const date = res.IssueDate || _toDateStr(note?.IO_TIMESTAMP) || '';
+            const date = res.IssueDate || _toDateStr(note?.DOX_DATE) || '';
             const supplierCode = note?.B2B || '';
 
             // Resolve supplier name from B2B or carriers

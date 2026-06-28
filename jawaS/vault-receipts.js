@@ -13,10 +13,7 @@ const VaultReceipts = (() => {
     // ── Date helpers ──────────────────────────────────────────────────────────
     const _toDateStr = (ms) => {
         if (!ms) return '';
-        const d = new Date(ms);
-        return d.getFullYear() + '-' +
-               String(d.getMonth() + 1).padStart(2, '0') + '-' +
-               String(d.getDate()).padStart(2, '0');
+        return fmtDate(ms, 'input');
     };
     let _bankAcctsCache = {};  // clientCode → [{key, name, actualBalance}]
     let _customersCache = {};  // clientCode → [{key, name}]
@@ -167,7 +164,7 @@ const VaultReceipts = (() => {
                     (item.BRANCH || '').toLowerCase().includes(q);
                 if (!match) return false;
             }
-            const d = _toDateStr(item.IO_TIMESTAMP);
+            const d = _toDateStr(item.DOX_DATE);
             if (_filterStart && d < _filterStart) return false;
             if (_filterEnd && d > _filterEnd) return false;
             if (_filterBranch && (item.BRANCH || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
@@ -175,8 +172,8 @@ const VaultReceipts = (() => {
         });
 
         filtered.sort((a, b) => {
-            const tsA = a.IO_TIMESTAMP || 0;
-            const tsB = b.IO_TIMESTAMP || 0;
+            const tsA = a.DOX_DATE || 0;
+            const tsB = b.DOX_DATE || 0;
             if (tsA !== tsB) return tsB - tsA;
             return (b.DOX_REF || '').localeCompare(a.DOX_REF || '');
         });
@@ -194,7 +191,7 @@ const VaultReceipts = (() => {
 
         const label = _activeMode === 'receipts' ? '📥' : '📤';
         ul.innerHTML = filtered.map(item => {
-            const dateStr = _toDateStr(item.IO_TIMESTAMP);
+            const dateStr = _toDateStr(item.DOX_DATE);
             const amount = parseFloat(item.AMOUNT || 0);
             return `<li data-key="${item.DOX_KEY}" data-branch="${item.BRANCH || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
                 <strong class="text-green-700 block text-sm">${label} ${_escapeHtml(item.DOX_REF || 'N/A')} — ${_escapeHtml(item.B2B || '')}</strong>

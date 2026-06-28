@@ -38,11 +38,19 @@ const VaultJournal = (() => {
 
     // ── List ──────────────────────────────────────────────────────────────
     function _getEntries() {
+        const branch = VaultPage.getActiveBranch();
         if (_activeJournalType === 'RECURRING') {
-            return _allLedger.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING');
+            return _allLedger.filter(e => 
+                e.ENTRY_TYPE === 'JOURNAL' && 
+                e.JOURNAL_TYPE === 'RECURRING' &&
+                (!branch || (e.BRANCH || '').toLowerCase() === branch.toLowerCase())
+            );
         }
         const doxType = _activeJournalType === 'OPENING_BALANCE' ? 'Opening Balance' : 'Journal Entry';
-        return _allJournals.filter(h => h.DOX_TYPE === doxType);
+        return _allJournals.filter(h => 
+            h.DOX_TYPE === doxType &&
+            (!branch || (h.BRANCH || '').toLowerCase() === branch.toLowerCase())
+        );
     }
 
     function _renderList() {

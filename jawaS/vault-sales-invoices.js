@@ -12,10 +12,7 @@ const VaultSalesInvoices = (() => {
     // ── Date helpers ──────────────────────────────────────────────────────────
     const _toDateStr = (ms) => {
         if (!ms) return '';
-        const d = new Date(ms);
-        return d.getFullYear() + '-' +
-               String(d.getMonth() + 1).padStart(2, '0') + '-' +
-               String(d.getDate()).padStart(2, '0');
+        return fmtDate(ms, 'input');
     };
 
     function getCurrentFYRange() {
@@ -59,7 +56,7 @@ const VaultSalesInvoices = (() => {
                 if (!matchSearch) return false;
             }
             // Date range (FY/Filterform range)
-            const d = _toDateStr(e.IO_TIMESTAMP);
+            const d = _toDateStr(e.DOX_DATE);
             if (_filterStart && d < _filterStart) return false;
             if (_filterEnd && d > _filterEnd) return false;
             // Branch
@@ -69,8 +66,8 @@ const VaultSalesInvoices = (() => {
         });
 
         filtered.sort((a, b) => {
-            const tsA = a.IO_TIMESTAMP || 0;
-            const tsB = b.IO_TIMESTAMP || 0;
+            const tsA = a.DOX_DATE || 0;
+            const tsB = b.DOX_DATE || 0;
             if (tsA !== tsB) return tsB - tsA;
             return (b.DOX_REF || '').localeCompare(a.DOX_REF || '');
         });
@@ -86,7 +83,7 @@ const VaultSalesInvoices = (() => {
             return;
         }
         ul.innerHTML = filtered.map(e => {
-            const dateStr = _toDateStr(e.IO_TIMESTAMP);
+            const dateStr = _toDateStr(e.DOX_DATE);
             const amount = parseFloat(e.AMOUNT || 0);
             return `<li data-key="${e.DOX_KEY}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
                 <strong class="text-indigo-700 block text-sm">${e.DOX_REF || 'N/A'} — ${e.B2B || 'N/A'}</strong>
@@ -162,7 +159,7 @@ const VaultSalesInvoices = (() => {
             const inv = _allInvoices.find(i => i.DOX_KEY === invoiceKey);
 
             const ref = res.Reference || inv?.DOX_REF || invoiceKey;
-            const issueDate = res.IssueDate || _toDateStr(inv?.IO_TIMESTAMP) || '';
+            const issueDate = res.IssueDate || _toDateStr(inv?.DOX_DATE) || '';
             const customerCode = inv?.B2B || '';
             const description = res.Description || '';
 

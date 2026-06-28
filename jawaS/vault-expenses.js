@@ -193,12 +193,15 @@ const VaultExpenses = (() => {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
 
+        const branch = VaultPage.getActiveBranch();
         const accounts = {};
         _allLedger.forEach(e => {
             const acct = (e.ACCOUNT || '').toLowerCase();
             if (acct.includes('cash in hand') || acct.includes('petty cash')) {
-                if (!accounts[e.ACCOUNT]) accounts[e.ACCOUNT] = [];
-                accounts[e.ACCOUNT].push(e);
+                if (!branch || (e.BRANCH || '').toLowerCase() === branch.toLowerCase()) {
+                    if (!accounts[e.ACCOUNT]) accounts[e.ACCOUNT] = [];
+                    accounts[e.ACCOUNT].push(e);
+                }
             }
         });
 
@@ -317,12 +320,15 @@ const VaultExpenses = (() => {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
 
+        const branch = VaultPage.getActiveBranch();
         const grouped = {};
         _allLedger.forEach(e => {
             const acct = (e.ACCOUNT || '').toLowerCase();
             if (acct.includes('staff advance') && e.STAFF_CODE) {
-                if (!grouped[e.STAFF_CODE]) grouped[e.STAFF_CODE] = [];
-                grouped[e.STAFF_CODE].push(e);
+                if (!branch || (e.BRANCH || '').toLowerCase() === branch.toLowerCase()) {
+                    if (!grouped[e.STAFF_CODE]) grouped[e.STAFF_CODE] = [];
+                    grouped[e.STAFF_CODE].push(e);
+                }
             }
         });
 

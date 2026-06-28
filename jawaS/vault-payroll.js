@@ -781,7 +781,11 @@ const VaultPayroll = (() => {
         const data = await getAppData();
         if (!data) return;
 
-        _allStaff = Object.values(data.STAFF || {});
+        const activeBranch = VaultPage.getActiveBranch();
+        const rawStaff = Object.values(data.STAFF || {});
+        _allStaff = rawStaff.filter(s =>
+            !activeBranch || (s.BRANCH || '').toLowerCase() === activeBranch.toLowerCase()
+        );
         _allAttendance = Object.values(data.ATTENDANCE || {});
         _allBranches = Object.values(data.BRANCHES || {});
         _allLedger = Object.values(data.LEDGER || {});
