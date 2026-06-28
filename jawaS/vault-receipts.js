@@ -1,25 +1,23 @@
 // ============================================================================
-// VAULT-RECEIPTS.JS — Manager.io native payments tile
+// VAULT-RECEIPTS.JS — Receipts & Payments from IDB HEADER store
 // Tiles: receipts (💰), payments (💸)
-// API:
-//   GET  /api/manager/all-receipts           — cross-branch receipt list
-//   GET  /api/manager/all-payments            — cross-branch payment list
-//   GET  /api/manager/receipt-details/{b}/{k} — receipt form detail
-//   GET  /api/manager/payment-details/{b}/{k} — payment form detail
-//   POST /api/manager/receipts?code=XXX       — create receipt
-//   POST /api/manager/payments?code=XXX       — create payment
-//   DELETE /api/manager/receipts/{k}?code=XXX — void receipt
-//   DELETE /api/manager/payments/{k}?code=XXX — void payment
-//   GET  /api/manager/bank-accounts?code=XXX  — bank/cash accounts
-//   GET  /api/manager/customers?code=XXX      — customers (for dropdown)
-//   GET  /api/manager/cache/keys?categories=suppliers — suppliers (for dropdown)
+// Data source: IDB HEADER (filtered by DOX_TYPE === 'Receipt' / 'Payment')
+// Detail: Manager.io API + IDB LEDGER for GL postings
 // ============================================================================
 
 const VaultReceipts = (() => {
 
     let _activeMode     = 'receipts'; // 'receipts' | 'payments'
-    let _receiptsList   = [];
-    let _paymentsList   = [];
+    let _allItems       = [];
+
+    // ── Date helpers ──────────────────────────────────────────────────────────
+    const _toDateStr = (ms) => {
+        if (!ms) return '';
+        const d = new Date(ms);
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    };
     let _bankAcctsCache = {};  // clientCode → [{key, name, actualBalance}]
     let _customersCache = {};  // clientCode → [{key, name}]
     let _suppliersCache = {};  // clientCode → [{key, name}]
@@ -29,15 +27,7 @@ const VaultReceipts = (() => {
     function _can(role) { return window.VaultPage?.can(role); }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
-    function _entityLabel() {
-        return _activeMode === 'receipts' ? 'Customer' : 'Supplier';
-    }
-    function _entityKey() {
-        return _activeMode === 'receipts' ? 'Customer' : 'Supplier';
-    }
-    function _entityListKey() {
-        return _activeMode === 'receipts' ? 'customer' : 'supplier';
-    }
+
 
     function _escapeHtml(str) {
         if (!str) return '';
@@ -56,7 +46,6 @@ const VaultReceipts = (() => {
     let _filterStart = _fyRange.start;
     let _filterEnd   = _fyRange.end;
     let _filterBranch = '';
-    let _filterStatus = '';
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
     async function _ensureBankAccounts(code) {
@@ -141,25 +130,26 @@ const VaultReceipts = (() => {
         document.getElementById('vaultListMsg').textContent = '';
         document.getElementById('vaultList').innerHTML = '';
         const label = _activeMode === 'receipts' ? 'ref, customer' : 'ref, supplier';
-        document.getElementById('vaultSearch').placeholder = `Search by ${label}, branch…`;
+        document.getElementById('vaultSearch').placeholder = 'Search by ref, name, branch…';
     }
 
     async function _fetchList() {
-        const branchSelect = document.getElementById('vaultBranchSelect');
-        const branch = branchSelect ? branchSelect.value : '';
         window.setLoading?.(true, `Loading ${_activeMode}...`, 'list');
         try {
-            if (_activeMode === 'receipts') {
-                const res = await callApi(`/api/manager/all-receipts?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`, {}, 'GET');
-                _receiptsList = res.receipts || [];
-            } else {
-                const res = await callApi(`/api/manager/all-payments?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`, {}, 'GET');
-                _paymentsList = res.payments || [];
+            if (!window.appDB) {
+                document.getElementById('vaultListMsg').textContent = 'IDB not available. Please wait for sync to complete.';
+                return;
             }
+            const branch = VaultPage.getActiveBranch();
+            const targetType = _activeMode === 'receipts' ? 'Receipt' : 'Payment';
+            const rawHeaders = await window.appDB.getSheet('HEADER');
+            _allItems = Object.values(rawHeaders || {}).filter(h =>
+                h.DOX_TYPE === targetType &&
+                (!branch || (h.BRANCH || '').toLowerCase() === branch.toLowerCase())
+            );
         } catch (err) {
             console.error('[VaultReceipts] Failed to fetch list:', err);
-            if (_activeMode === 'receipts') _receiptsList = [];
-            else _paymentsList = [];
+            _allItems = [];
         } finally {
             window.setLoading?.(false);
         }
@@ -168,36 +158,29 @@ const VaultReceipts = (() => {
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const items = _activeMode === 'receipts' ? _receiptsList : _paymentsList;
+        const items = _allItems;
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         const filtered = items.filter(item => {
-            // Text search
             if (q) {
-                const entity = item[_entityListKey()] || {};
-                const match = (item.reference || '').toLowerCase().includes(q) ||
-                    (entity.name || '').toLowerCase().includes(q) ||
-                    (item.date || '').includes(q) ||
-                    (item.branch || '').toLowerCase().includes(q);
+                const match = (item.DOX_REF || '').toLowerCase().includes(q) ||
+                    (item.B2B || '').toLowerCase().includes(q) ||
+                    (item.BRANCH || '').toLowerCase().includes(q);
                 if (!match) return false;
             }
-            // Date range
-            const d = item.date || '';
+            const d = _toDateStr(item.IO_TIMESTAMP);
             if (_filterStart && d < _filterStart) return false;
             if (_filterEnd && d > _filterEnd) return false;
-            // Branch
-            if (_filterBranch && (item.branch || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
-            // Status (has amount vs zero)
-            if (_filterStatus) {
-                const amt = item.total?.value || 0;
-                if (_filterStatus === 'hasamount' && amt <= 0) return false;
-                if (_filterStatus === 'zero' && amt > 0) return false;
-            }
+            if (_filterBranch && (item.BRANCH || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
             return true;
         });
 
-        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        filtered.sort((a, b) => {
+            const tsA = a.IO_TIMESTAMP || 0;
+            const tsB = b.IO_TIMESTAMP || 0;
+            if (tsA !== tsB) return tsB - tsA;
+            return (b.DOX_REF || '').localeCompare(a.DOX_REF || '');
+        });
 
-        // Update status label
         const statusEl = document.getElementById('rptStatus');
         if (statusEl) {
             const totalLabel = _activeMode === 'receipts' ? 'Receipts' : 'Payments';
@@ -210,13 +193,12 @@ const VaultReceipts = (() => {
         }
 
         const label = _activeMode === 'receipts' ? '📥' : '📤';
-        ul.innerHTML = filtered.slice(0, 100).map(item => {
-            const amount = item.total?.value || 0;
-            const entity = item[_entityListKey()] || {};
-            const entityDisplay = _escapeHtml(entity.name || '');
-            return `<li data-key="${item.key}" data-branch="${item.branch || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
-                <strong class="text-green-700 block text-sm">${label} ${_escapeHtml(item.reference || 'N/A')} — ${entityDisplay}</strong>
-                <span class="text-xs text-gray-500">₹${amount.toFixed(2)} · ${_escapeHtml(item.date || '')} · ${_escapeHtml(item.branch || '')}</span>
+        ul.innerHTML = filtered.map(item => {
+            const dateStr = _toDateStr(item.IO_TIMESTAMP);
+            const amount = parseFloat(item.AMOUNT || 0);
+            return `<li data-key="${item.DOX_KEY}" data-branch="${item.BRANCH || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
+                <strong class="text-green-700 block text-sm">${label} ${_escapeHtml(item.DOX_REF || 'N/A')} — ${_escapeHtml(item.B2B || '')}</strong>
+                <span class="text-xs text-gray-500">₹${amount.toFixed(2)} · ${dateStr || ''} · ${_escapeHtml(item.BRANCH || '')}</span>
             </li>`;
         }).join('');
 
@@ -367,6 +349,45 @@ const VaultReceipts = (() => {
                         </details>
                     </div>
                 </div>`;
+        
+        // Append GL Postings from IDB LEDGER
+        try {
+            const ledgerRaw = await window.appDB.getSheet('LEDGER');
+            const docEntries = Object.values(ledgerRaw || {}).filter(e => e.DOX_KEY === key);
+            if (docEntries.length > 0) {
+                const glHtml = `
+                    <details class="border border-slate-100 rounded-lg mt-4 bg-slate-50/50">
+                        <summary class="p-3 font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-all select-none text-sm">
+                            📒 General Ledger Postings (${docEntries.length} entries)
+                        </summary>
+                        <div class="p-4 overflow-x-auto border-t">
+                            <table class="w-full text-xs divide-y divide-slate-200">
+                                <thead>
+                                    <tr class="text-left font-bold text-slate-400 uppercase">
+                                        <th class="py-2">Account</th>
+                                        <th class="py-2 text-right">Debit (₹)</th>
+                                        <th class="py-2 text-right">Credit (₹)</th>
+                                        <th class="py-2 pl-4">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    ${docEntries.map(e => `
+                                        <tr class="hover:bg-white/50 transition-colors">
+                                            <td class="py-2 font-medium text-slate-700">${e.ACCOUNT || ''}</td>
+                                            <td class="py-2 text-right text-emerald-600 font-medium">${e.DEBIT ? '₹' + parseFloat(e.DEBIT).toFixed(2) : '—'}</td>
+                                            <td class="py-2 text-right text-rose-600 font-medium">${e.CREDIT ? '₹' + parseFloat(e.CREDIT).toFixed(2) : '—'}</td>
+                                            <td class="py-2 pl-4 text-slate-500">${e.DESCRIPTION || ''}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>`;
+                view.querySelector('.detail-card-body').insertAdjacentHTML('beforeend', glHtml);
+            }
+        } catch (glErr) {
+            console.warn('Failed to load GL postings:', glErr);
+        }
         } catch (err) {
             view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
         } finally {
@@ -540,9 +561,9 @@ const VaultReceipts = (() => {
             if (res.status === 'deleted' || res.status === 204) {
                 // Remove from local list
                 if (_activeMode === 'receipts') {
-                    _receiptsList = _receiptsList.filter(r => r.key !== key);
+                    _allItems = _allItems.filter(r => r.DOX_KEY !== key);
                 } else {
-                    _paymentsList = _paymentsList.filter(p => p.key !== key);
+                    _allItems = _allItems.filter(r => r.DOX_KEY !== key);
                 }
                 _renderList();
                 VaultPage.showDetail(false);
@@ -589,7 +610,7 @@ const VaultReceipts = (() => {
                             <input name="date" type="date" required class="form-input text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">${_entityLabel()} *</label>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">${_activeMode === 'receipts' ? 'Customer' : 'Supplier'} *</label>
                             <select name="entity_key" required class="form-input text-sm" id="rptEntitySelect" disabled>
                                 <option value="">— Select branch first —</option>
                             </select>
@@ -669,7 +690,7 @@ const VaultReceipts = (() => {
                 bankSelect.disabled = false;
 
                 // Populate entities (customers or suppliers)
-                entitySelect.innerHTML = `<option value="">— Select ${_entityLabel()} —</option>`;
+                entitySelect.innerHTML = `<option value="">— Select ${_activeMode === 'receipts' ? 'Customer' : 'Supplier'} —</option>`;
                 entities.forEach(e => {
                     const opt = document.createElement('option');
                     opt.value = e.key;
@@ -835,14 +856,6 @@ const VaultReceipts = (() => {
                                 <option value="">All Branches</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block font-semibold text-gray-600 mb-1">Amount</label>
-                            <select id="rptFilterStatus" class="form-input text-xs">
-                                <option value="">All</option>
-                                <option value="hasamount">Has Amount</option>
-                                <option value="zero">Zero Amount</option>
-                            </select>
-                        </div>
                     </div>
                     <div class="flex justify-end gap-2 pt-3 border-t">
                         <button id="rptResetBtn" class="btn-ghost btn-sm">Reset</button>
@@ -856,7 +869,6 @@ const VaultReceipts = (() => {
                 _filterStart = document.getElementById('rptFilterStart').value;
                 _filterEnd = document.getElementById('rptFilterEnd').value;
                 _filterBranch = document.getElementById('rptFilterBranch').value;
-                _filterStatus = document.getElementById('rptFilterStatus').value;
                 modal.classList.add('hidden');
                 await _fetchList();
                 _renderList();
@@ -867,11 +879,9 @@ const VaultReceipts = (() => {
                 document.getElementById('rptFilterStart').value = range.start;
                 document.getElementById('rptFilterEnd').value = range.end;
                 document.getElementById('rptFilterBranch').value = '';
-                document.getElementById('rptFilterStatus').value = '';
                 _filterStart = range.start;
                 _filterEnd = range.end;
                 _filterBranch = '';
-                _filterStatus = '';
                 await _fetchList();
                 _renderList();
             };

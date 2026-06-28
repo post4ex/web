@@ -1,16 +1,16 @@
 // ============================================================================
-// VAULT-JOURNAL.JS — Journal entries with multi-line Dr/Cr support
-// Tiles: journal-entries, opening-balances, recurring
-// API: POST /api/ledger/journal, POST /api/ledger/journal/multi
+// VAULT-JOURNAL.JS — Journal entries & Opening Balances from IDB HEADER
+// Tiles: journal-entries (HEADER), opening-balances (HEADER), recurring (LEDGER)
+// Data source: IDB HEADER (DOX_TYPE filter) + IDB LEDGER (GL Postings)
+// Create/Edit/Delete/Print: Manager.io API (TODO — forms show Coming Soon)
 // ============================================================================
 
 const VaultJournal = (() => {
 
-    let _allLedger  = [];
-    let _allB2B     = [];
-    let _allCOA     = [];
+    let _allJournals = [];    // HEADER entries for journals & OB
+    let _allLedger   = [];    // LEDGER entries (GL Postings + recurring)
+    let _allB2B      = [];
     let _activeJournalType = 'JOURNAL';
-    let _coaMap     = {};
 
     // ── Recurring templates ───────────────────────────────────────────────
     let _recurringTemplates = [];
@@ -21,17 +21,6 @@ const VaultJournal = (() => {
             try { return { ...JSON.parse(t.NARRATION || '{}'), entry_id: t.ENTRY_ID, code: t.CODE }; }
             catch { return null; }
         }).filter(Boolean);
-    }
-
-    // ── COA cache ─────────────────────────────────────────────────────────
-    async function _loadCoaCache() {
-        // TODO: load COA from Manager.io cache keys
-    }
-
-    function _coaName(code) {
-        if (!code) return '';
-        const a = _coaMap[code];
-        return a ? `${a.code} — ${a.name}` : code;
     }
 
 
@@ -49,12 +38,11 @@ const VaultJournal = (() => {
 
     // ── List ──────────────────────────────────────────────────────────────
     function _getEntries() {
-        return _allLedger.filter(e => {
-            if (_activeJournalType === 'JOURNAL') return e.ENTRY_TYPE === 'JOURNAL' && (!e.JOURNAL_TYPE || e.JOURNAL_TYPE === 'JOURNAL' || e.JOURNAL_TYPE === 'ADJUSTMENT');
-            if (_activeJournalType === 'OPENING_BALANCE') return e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'OPENING_BALANCE';
-            if (_activeJournalType === 'RECURRING') return e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING';
-            return false;
-        });
+        if (_activeJournalType === 'RECURRING') {
+            return _allLedger.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING');
+        }
+        const doxType = _activeJournalType === 'OPENING_BALANCE' ? 'Opening Balance' : 'Journal Entry';
+        return _allJournals.filter(h => h.DOX_TYPE === doxType);
     }
 
     function _renderList() {
@@ -63,44 +51,57 @@ const VaultJournal = (() => {
         const entries = _getEntries();
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         const filtered = q
-            ? entries.filter(e =>
-                (e.CODE || '').toLowerCase().includes(q) ||
-                (e.NARRATION || '').toLowerCase().includes(q) ||
-                (e.JOURNAL_TYPE || '').toLowerCase().includes(q)
-              )
+            ? entries.filter(e => {
+                const ref = (e.DOX_REF || e.CODE || '').toLowerCase();
+                const desc = (e.DOX_DESCRIPTION || e.NARRATION || '').toLowerCase();
+                const b2b = (e.B2B || '').toLowerCase();
+                return ref.includes(q) || desc.includes(q) || b2b.includes(q);
+              })
             : entries;
-        filtered.sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
+        filtered.sort((a, b) => (b.IO_TIMESTAMP || b.TIME_STAMP || 0) - (a.IO_TIMESTAMP || a.TIME_STAMP || 0));
         if (!filtered.length) {
             ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">No ${_label()} found.</li>`;
             return;
         }
-        // De-duplicate by TXN_ID — show only the first row per transaction
-        const seenTxn = new Set();
+
+        // For HEADER-based (journal/OB), use DOX_KEY; for recurring (LEDGER-based), dedupe by TXN_ID
+        const seenKey = new Set();
         const unique = filtered.filter(e => {
-            const txn = e.TXN_ID || e.ENTRY_ID;
-            if (seenTxn.has(txn)) return false;
-            seenTxn.add(txn);
+            const key = e.DOX_KEY || e.TXN_ID || e.ENTRY_ID;
+            if (seenKey.has(key)) return false;
+            seenKey.add(key);
             return true;
         });
+
         const typeIcons = { 'OPENING_BALANCE': '🗂️', 'ADJUSTMENT': '✏️', 'JOURNAL': '✏️', 'RECURRING': '🔄' };
+        const isRecurring = _activeJournalType === 'RECURRING';
+
         ul.innerHTML = unique.slice(0, 50).map(e => {
+            const key = e.DOX_KEY || e.TXN_ID || e.ENTRY_ID;
+            const ref = isRecurring ? (e.CODE || '') : (e.DOX_REF || e.B2B || '');
+            const narration = isRecurring ? (e.NARRATION || '') : (e.DOX_DESCRIPTION || '');
+            const amount = isRecurring ? Math.max(+e.DEBIT || 0, +e.CREDIT || 0) : +e.AMOUNT || 0;
+            const dateVal = isRecurring ? e.ENTRY_DATE : e.IO_TIMESTAMP;
             const icon = typeIcons[e.JOURNAL_TYPE] || '✏️';
-            const statusColor = e.STATUS === 'ACTIVE' ? 'text-green-700' :
-                                e.STATUS === 'PENDING' ? 'text-yellow-700' :
-                                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700';
-            const balance = (+e.DEBIT || 0) - (+e.CREDIT || 0);
-            const balClass = balance >= 0 ? 'text-green-600' : 'text-red-600';
-            return `<li data-txn="${e.TXN_ID || e.ENTRY_ID}" class="p-3 rounded-lg cursor-pointer hover:bg-purple-50 border border-gray-200 transition-colors">
+            const statusColor = isRecurring ? (
+                e.STATUS === 'ACTIVE' ? 'text-green-700' :
+                e.STATUS === 'PENDING' ? 'text-yellow-700' :
+                e.STATUS === 'VOID' ? 'text-red-700' : 'text-gray-700'
+            ) : 'text-gray-700';
+            const statusText = isRecurring ? (e.STATUS || '') : '';
+
+            return `<li data-key="${key}" class="p-3 rounded-lg cursor-pointer hover:bg-purple-50 border border-gray-200 transition-colors">
                 <div class="flex items-start justify-between">
                     <div>
-                        <strong class="text-purple-700 block text-sm">${icon} ${e.CODE || ''}</strong>
-                        <span class="text-xs text-gray-500">${e.NARRATION ? (e.NARRATION.length > 60 ? e.NARRATION.slice(0, 60) + '…' : e.NARRATION) : ''}</span>
+                        <strong class="text-purple-700 block text-sm">${icon} ${ref}</strong>
+                        <span class="text-xs text-gray-500">${narration ? (narration.length > 60 ? narration.slice(0, 60) + '…' : narration) : ''}</span>
                     </div>
-                    <span class="${statusColor} text-xs font-medium">${e.STATUS || ''}</span>
+                    ${statusText ? `<span class="${statusColor} text-xs font-medium">${statusText}</span>` : `<span class="text-sm font-semibold text-gray-700">₹${amount.toFixed(2)}</span>`}
                 </div>
                 <div class="text-xs text-gray-400 mt-1 flex justify-between">
-                    <span>${e.ENTRY_DATE ? fmtDate(e.ENTRY_DATE, 'date') : ''} · ${e.JOURNAL_TYPE || 'JOURNAL'}</span>
-                    ${e.JOURNAL_TYPE === 'OPENING_BALANCE' ? `<span class="${balClass} font-medium">₹${Math.abs(balance).toFixed(2)} ${balance >= 0 ? 'Dr' : 'Cr'}</span>` : ''}
+                    <span>${dateVal ? fmtDate(dateVal, 'date') : ''} · ${isRecurring ? (e.JOURNAL_TYPE || 'RECURRING') : (e.DOX_TYPE || _label())}</span>
+                    ${!isRecurring ? `<span class="font-medium">₹${amount.toFixed(2)}</span>` : ''}
+                    ${e.BRANCH ? `<span class="text-gray-400">${e.BRANCH}</span>` : ''}
                 </div>
             </li>`;
         }).join('');
@@ -108,37 +109,65 @@ const VaultJournal = (() => {
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                _renderDetail(li.dataset.txn);
+                _renderDetail(li.dataset.key);
             })
         );
     }
 
-    function _printEntry(txnId) {
-        const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
-        if (rows.length) VaultPrint.printJournal(rows);
+    function _printEntry(key) {
+        if (_activeJournalType === 'RECURRING') {
+            const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === key);
+            if (rows.length) VaultPrint.printJournal(rows);
+        } else {
+            const hdr = _allJournals.find(h => h.DOX_KEY === key);
+            if (hdr) {
+                const rows = _allLedger.filter(e => e.DOX_KEY === key);
+                if (rows.length) VaultPrint.printJournal(rows);
+            }
+        }
     }
 
     function search() { _renderList(); }
 
-    // ── Detail (multi-line aware) ──────────────────────────────────────────
-    function _renderDetail(txnId) {
-        if (!txnId) return;
+    // ── Detail (multi-line aware) — HEADER + GL Postings from LEDGER ──────
+    function _renderDetail(key) {
+        if (!key) return;
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
-        const entry = rows[0];
-        if (!entry) return;
-        const isActive = entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING';
-        const isVoid = entry.STATUS === 'VOID';
-        const isMulti = rows.length > 2;
+
+        const isRecurring = _activeJournalType === 'RECURRING';
+        let entry = null;
+        let rows = [];
+
+        if (isRecurring) {
+            // Recurring reads from LEDGER (JOURNAL_TYPE === 'RECURRING')
+            rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === key);
+            entry = rows[0];
+        } else {
+            // HEADER-based: find the HEADER entry, then fetch GL Postings from LEDGER by DOX_KEY
+            entry = _allJournals.find(h => h.DOX_KEY === key);
+            if (entry) {
+                rows = _allLedger.filter(e => e.DOX_KEY === key);
+            }
+        }
+
+        if (!entry) {
+            view.innerHTML = '<div class="text-center text-gray-400 py-8">Entry not found.</div>';
+            VaultPage.showDetailPane();
+            return;
+        }
+
         const totalDr = rows.reduce((s, r) => s + (+r.DEBIT || 0), 0);
         const totalCr = rows.reduce((s, r) => s + (+r.CREDIT || 0), 0);
-        const printBtn = isActive ? `<button onclick="VaultJournal._printEntry('${txnId}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>` : '';
+        const isActive = isRecurring ? (entry.STATUS === 'ACTIVE' || entry.STATUS === 'PENDING') : true;
+        const isVoid = isRecurring ? (entry.STATUS === 'VOID') : false;
+
+        const printBtn = isActive ? `<button onclick="VaultJournal._printEntry('${key}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>` : '';
 
         view.innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">Journal Detail ${isMulti ? '(Multi-line)' : ''}</h3>
+                    <h3 class="font-semibold text-gray-700">${isRecurring ? 'Recurring Entry' : (entry.DOX_TYPE || 'Journal')} Detail${rows.length > 2 ? ' (Multi-line)' : ''}</h3>
                     <div class="flex gap-2 items-center">
                         ${isVoid ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">VOID</span>' : ''}
                         ${printBtn}
@@ -148,19 +177,20 @@ const VaultJournal = (() => {
                 <div class="detail-card-body">
                     <!-- Header info -->
                     <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-lg mb-3">
-                        <div><span class="text-gray-500">Code:</span> <span class="font-semibold">${entry.CODE || 'N/A'}</span></div>
-                        <div><span class="text-gray-500">Date:</span> ${entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE) : 'N/A'}</div>
-                        <div><span class="text-gray-500">Type:</span> ${entry.JOURNAL_TYPE || 'JOURNAL'}</div>
-                        <div><span class="text-gray-500">Status:</span> <span class="font-medium">${entry.STATUS || 'N/A'}</span></div>
+                        <div><span class="text-gray-500">${isRecurring ? 'Code:' : 'Ref:'}</span> <span class="font-semibold">${isRecurring ? (entry.CODE || 'N/A') : (entry.DOX_REF || entry.B2B || 'N/A')}</span></div>
+                        <div><span class="text-gray-500">Date:</span> ${isRecurring ? (entry.ENTRY_DATE ? fmtDate(entry.ENTRY_DATE) : 'N/A') : (entry.IO_TIMESTAMP ? fmtDate(entry.IO_TIMESTAMP) : 'N/A')}</div>
+                        <div><span class="text-gray-500">Type:</span> ${isRecurring ? (entry.JOURNAL_TYPE || 'RECURRING') : (entry.DOX_TYPE || 'JOURNAL')}</div>
+                        ${isRecurring ? `<div><span class="text-gray-500">Status:</span> <span class="font-medium">${entry.STATUS || 'N/A'}</span></div>` : ''}
                         <div><span class="text-gray-500">Total Dr:</span> ₹${totalDr.toFixed(2)}</div>
                         <div><span class="text-gray-500">Total Cr:</span> ₹${totalCr.toFixed(2)}</div>
-                        ${entry.BALANCE ? `<div><span class="text-gray-500">Balance:</span> ₹${(+entry.BALANCE||0).toFixed(2)}</div>` : ''}
                         <div><span class="text-gray-500">Branch:</span> ${entry.BRANCH || 'N/A'}</div>
+                        ${!isRecurring && entry.DOX_DESCRIPTION ? `<div class="col-span-2"><span class="text-gray-500">Narration:</span> ${entry.DOX_DESCRIPTION}</div>` : ''}
+                        ${isRecurring && entry.NARRATION ? `<div class="col-span-2"><span class="text-gray-500">Narration:</span> ${entry.NARRATION}</div>` : ''}
                     </div>
 
-                    <!-- Line items table -->
+                    <!-- GL Postings table -->
                     <div class="text-xs mb-3">
-                        <div class="font-semibold text-gray-600 mb-2">Line Items (${rows.length})</div>
+                        <div class="font-semibold text-gray-600 mb-2">GL Postings (${rows.length})</div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full text-xs divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
@@ -173,11 +203,10 @@ const VaultJournal = (() => {
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-100">
                                     ${rows.map((r, i) => {
-                                        const coa = r.COA_DR || r.COA_CR;
-                                        const coaName = coa ? _coaName(coa) : '';
-                                        return `<tr class="${r.STATUS === 'VOID' ? 'line-through text-gray-400' : ''}">
+                                        const coa = r.COA_DR || r.COA_CR || '';
+                                        return `<tr class="${isRecurring && r.STATUS === 'VOID' ? 'line-through text-gray-400' : ''}">
                                             <td class="px-3 py-1.5 text-gray-400">${i + 1}</td>
-                                            <td class="px-3 py-1.5 font-medium text-gray-700">${coaName || '(auto)'}</td>
+                                            <td class="px-3 py-1.5 font-medium text-gray-700">${coa || '(auto)'}</td>
                                             <td class="px-3 py-1.5 text-right font-medium text-red-600">${(+r.DEBIT||0) > 0 ? '₹' + (+r.DEBIT).toFixed(2) : ''}</td>
                                             <td class="px-3 py-1.5 text-right font-medium text-green-600">${(+r.CREDIT||0) > 0 ? '₹' + (+r.CREDIT).toFixed(2) : ''}</td>
                                         </tr>`;
@@ -194,19 +223,21 @@ const VaultJournal = (() => {
                         </div>
                     </div>
 
-                    <!-- Narration -->
-                    ${entry.NARRATION ? `<div class="text-sm text-gray-700 bg-white border rounded-lg p-3 mb-3">📝 ${entry.NARRATION}</div>` : ''}
-
                     <!-- Audit info -->
                     <details class="mt-2">
                         <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Audit Info</summary>
                         <div class="grid grid-cols-2 gap-3 text-xs text-gray-500 mt-2 p-3 border rounded-lg">
-                            <div>TXN ID: <span class="font-mono">${entry.TXN_ID || 'N/A'}</span></div>
-                            <div>FY: ${entry.FY || 'N/A'}</div>
-                            <div>Created: ${entry.USER_NAME || 'N/A'}</div>
-                            <div>Rows: ${rows.length}</div>
-                            ${entry.APPROVED_BY ? `<div>Approved: ${entry.APPROVED_BY}</div>` : ''}
-                            ${entry.VOID_REASON ? `<div class="col-span-2 text-red-600">Void: ${entry.VOID_REASON}</div>` : ''}
+                            ${isRecurring ? `
+                                <div>TXN ID: <span class="font-mono">${entry.TXN_ID || 'N/A'}</span></div>
+                                <div>FY: ${entry.FY || 'N/A'}</div>
+                                <div>Created: ${entry.USER_NAME || 'N/A'}</div>
+                                ${entry.APPROVED_BY ? `<div>Approved: ${entry.APPROVED_BY}</div>` : ''}
+                                ${entry.VOID_REASON ? `<div class="col-span-2 text-red-600">Void: ${entry.VOID_REASON}</div>` : ''}
+                            ` : `
+                                <div>DOX_KEY: <span class="font-mono">${entry.DOX_KEY || 'N/A'}</span></div>
+                                <div>Branch: ${entry.BRANCH || 'N/A'}</div>
+                                <div>Rows: ${rows.length}</div>
+                            `}
                         </div>
                     </details>
                 </div>
@@ -215,7 +246,7 @@ const VaultJournal = (() => {
     }
 
     // ── Multi-line form ───────────────────────────────────────────────────
-    function openAddPane() {
+    async function openAddPane() {
         // Route to dedicated form for opening balances
         if (_activeJournalType === 'OPENING_BALANCE') {
             _openOpeningBalanceForm();
@@ -223,6 +254,20 @@ const VaultJournal = (() => {
         }
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
+
+        // Show a loading state first
+        view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-gray-400 text-sm">Loading form data…</div></div>`;
+        VaultPage.showDetailPane();
+
+        // Ensure cache keys are loaded
+        if (!window.__vaultCacheKeys) {
+            try {
+                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+            } catch (err) {
+                console.error("Failed to load cache keys inside form:", err);
+                window.__vaultCacheKeys = {};
+            }
+        }
 
         view.innerHTML = `
             <div class="detail-card">
@@ -233,7 +278,7 @@ const VaultJournal = (() => {
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Client Code *</label>
-                                <input name="code" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="jrCodeList">
+                                <input name="code" id="jrCodeInput" required class="form-input text-sm uppercase" placeholder="e.g. AGWL" list="jrCodeList">
                                 <datalist id="jrCodeList"></datalist>
                             </div>
                             <div>
@@ -242,8 +287,7 @@ const VaultJournal = (() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
-                                <input name="branch" class="form-input text-sm uppercase" placeholder="Optional" list="jrBranchList">
-                                <datalist id="jrBranchList"></datalist>
+                                <input name="branch" class="form-input text-sm bg-gray-100" placeholder="Auto-populated" readonly>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
@@ -312,6 +356,36 @@ const VaultJournal = (() => {
         _addLineRow(tbody);
         _recalcLines();
 
+        // Listen for Client Code changes to auto-populate branch and COA dropdown options
+        const codeInput = document.getElementById('jrCodeInput');
+        codeInput.addEventListener('change', () => {
+            const code = codeInput.value.trim().toUpperCase();
+            if (!code) return;
+            const b2b = _allB2B.find(c => c.CODE === code);
+            if (b2b) {
+                const branch = (b2b.BRANCH || '').toLowerCase();
+                document.querySelector('[name="branch"]').value = branch.toUpperCase();
+
+                // Update COA select options for all existing line rows on-the-fly
+                const branchKeys = window.__vaultCacheKeys?.[branch] || {};
+                const coaMap = branchKeys.coa || {};
+                const coaList = Object.entries(coaMap).sort((a, b) => a[0].localeCompare(b[0]));
+                const coaOptions = `<option value="">— Select COA —</option>` +
+                    coaList.map(([name, key]) => `<option value="${key}">${name}</option>`).join('');
+
+                document.querySelectorAll('.coa-select').forEach(select => {
+                    const currentVal = select.value;
+                    select.innerHTML = coaOptions;
+                    select.value = currentVal;
+                });
+            }
+        });
+
+        // Trigger change once if code is already pre-filled
+        if (codeInput.value) {
+            codeInput.dispatchEvent(new Event('change'));
+        }
+
         // Add line button
         document.getElementById('jrAddLine').addEventListener('click', () => {
             _addLineRow(tbody);
@@ -362,29 +436,30 @@ const VaultJournal = (() => {
                 return;
             }
 
-            const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                // TODO: migrate journal creation to Manager.io
-                alert('Coming soon — creating journal entries through Manager.io');
-                return;
-                const res = await callApi('/api/ledger/journal/multi', {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    narration: data.narration,
-                    branch: data.branch || '',
-                    lines: lines.map(l => ({ coa_code: l.coa_code, debit: l.debit, credit: l.credit })),
-                }, 'POST');
+                const payload = {
+                    Date: data.entry_date,
+                    Reference: null,
+                    Narration: data.narration,
+                    Lines: lines.map(l => ({
+                        Account: l.coa_code,
+                        Debit: l.debit || 0,
+                        Credit: l.credit || 0
+                    }))
+                };
+
+                const res = await callApi(`/api/manager/journal-entries?code=${encodeURIComponent(data.code)}`, payload, 'POST');
+                const refNum = res.Reference || res.reference || 'created';
+
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ ${_label()} saved (${res.line_count} lines). Balance: ₹${(+res.balance).toFixed(2)}`;
+                resp.textContent = `✅ ${_label()} ${refNum} saved successfully in Manager.io.`;
                 resp.classList.remove('hidden');
                 e.target.reset();
                 tbody.innerHTML = '';
                 _addLineRow(tbody);
                 _addLineRow(tbody);
                 _recalcLines();
-                const appData = await getAppData();
-                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
-                _renderList();
+                await load();
             } catch (err) {
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
                 resp.textContent = '❌ ' + (err.message || 'Failed');
@@ -566,9 +641,17 @@ const VaultJournal = (() => {
 
     function _addLineRow(tbody, lineData) {
         const idx = tbody.children.length + 1;
-        const coaOptions = _allCOA.map(a =>
-            `<option value="${a.code}">${a.code} — ${a.name}</option>`
-        ).join('');
+        
+        // Resolve coa options based on currently entered code/branch
+        const codeInput = document.getElementById('jrCodeInput');
+        const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
+        const b2b = _allB2B.find(c => c.CODE === code);
+        const branch = b2b ? (b2b.BRANCH || '').toLowerCase() : (VaultPage.getActiveBranch() || '').toLowerCase();
+        
+        const branchKeys = window.__vaultCacheKeys?.[branch] || {};
+        const coaMap = branchKeys.coa || {};
+        const coaList = Object.entries(coaMap).sort((a, b) => a[0].localeCompare(b[0]));
+        const coaOptions = coaList.map(([name, key]) => `<option value="${key}">${name}</option>`).join('');
 
         const tr = document.createElement('tr');
         tr.className = 'line-row';
@@ -936,7 +1019,6 @@ const VaultJournal = (() => {
     async function _loadRecurring() {
         _activeJournalType = 'RECURRING';
         _injectListPane();
-        await _loadCoaCache();
         const data = await getAppData();
         if (data?.LEDGER) {
             _allLedger = Object.values(data.LEDGER);
@@ -951,20 +1033,24 @@ const VaultJournal = (() => {
     // ── Load ──────────────────────────────────────────────────────────────
     async function load() {
         _injectListPane();
-        await _loadCoaCache();
         const data = await getAppData();
+        if (data?.HEADER) {
+            _allJournals = Object.values(data.HEADER);
+        }
         if (data?.LEDGER) {
             _allLedger = Object.values(data.LEDGER);
-            if (data.B2B) _allB2B = Object.values(data.B2B);
-            _renderList();
         }
+        if (data?.B2B) {
+            _allB2B = Object.values(data.B2B);
+        }
+        _renderList();
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
     }
 
     function setType(type) { _activeJournalType = type; }
 
-    return { load, search, openAddPane, setType, _handleDelete, _loadRecurring, _openRecurringForm, _renderDetailById: (txnId) => _renderDetail(txnId), _printEntry };
+    return { load, search, openAddPane, setType, _handleDelete, _loadRecurring, _openRecurringForm, _renderDetailById: (key) => _renderDetail(key), _printEntry };
 })();
 
 window.VaultJournal = VaultJournal;

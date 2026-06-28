@@ -290,6 +290,16 @@ async function verifyAndFetchAppData(clearAll = false) {
                 await window.appDB.setMetadata('syncFromMs', result.meta.sync_from_ms).catch(() => {});
             await window.appDB.setMetadata('lastSyncTime', Date.now()).catch(() => {});
 
+            // Store backend flags into IDB metadata (backend is the authority on what layers exist)
+            // 'true'  = layer already covered by initial sync (or window doesn't exist today)
+            // 'false' = layer has data — frontend should sync it
+            // 'n/a'   = role has no access — skip permanently
+            if (result.flags && window.appDB) {
+                for (const [flagKey, flagValue] of Object.entries(result.flags)) {
+                    await window.appDB.setMetadata(flagKey, flagValue).catch(() => {});
+                }
+            }
+
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
             if (hasNewData) _scheduleRefresh();
@@ -329,18 +339,36 @@ async function verifyAndFetchAppData(clearAll = false) {
     }
 }
 
+function getLayerValue(layerKey) {
+    const name = layerKey.replace(/^bg_/, '').replace(/_done$/, '');
+    if (name === '3m') return 3;
+    if (name === '6m') return 6;
+    if (name === '9m') return 9;
+    if (name === 'last_fy') return 10;
+    if (name === '2nd_fy') return 20;
+    if (name === '3rd_fy') return 30;
+    if (name.endsWith('th_fy')) {
+        const num = parseInt(name.replace('th_fy', '')) || 0;
+        return num * 10;
+    }
+    return 999;
+}
+
 async function getSyncFlags() {
     if (!window.appDB) return {};
-    const bg_3m = await window.appDB.getMetadata('bg_3m_done').catch(() => null);
-    const bg_6m = await window.appDB.getMetadata('bg_6m_done').catch(() => null);
-    const bg_last_fy = await window.appDB.getMetadata('bg_last_fy_done').catch(() => null);
-    const bg_2nd_fy = await window.appDB.getMetadata('bg_2nd_fy_done').catch(() => null);
-    return {
-        bg_3m_done: !!bg_3m,
-        bg_6m_done: !!bg_6m,
-        bg_last_fy_done: !!bg_last_fy,
-        bg_2nd_fy_done: !!bg_2nd_fy
-    };
+    try {
+        const metadata = await window.appDB.getAllMetadata();
+        const flags = {};
+        for (const item of metadata) {
+            if (item.key.startsWith('bg_') && item.key.endsWith('_done')) {
+                flags[item.key] = item.value;
+            }
+        }
+        return flags;
+    } catch (e) {
+        console.warn('[getSyncFlags] error:', e);
+        return {};
+    }
 }
 
 async function syncLayer(layer) {
@@ -364,7 +392,10 @@ async function syncLayer(layer) {
             
             // Verify counts match (Use >= check to prevent race condition blocks from real-time events / SSE updates)
             let allMatch = true;
-            for (const [col, layerCount] of Object.entries(result.counts || {})) {
+            for (const [col, layers] of Object.entries(result.counts || {})) {
+                const layerCount = layers[layer];
+                if (layerCount === undefined) continue;
+                
                 const idbRecs = await window.appDB.getSheet(col);
                 const idbCount = Object.keys(idbRecs).length;
                 if (idbCount < layerCount) {
@@ -391,11 +422,14 @@ async function runBackgroundSync() {
     
     const flags = await getSyncFlags();
     
-    // Process layers in order
-    if (!flags.bg_3m_done)     await syncLayer('3m');
-    if (!flags.bg_6m_done)     await syncLayer('6m');
-    if (!flags.bg_last_fy_done) await syncLayer('last_fy');
-    if (!flags.bg_2nd_fy_done) await syncLayer('2nd_fy');
+    // Sort flag keys by their order
+    const bgKeys = Object.keys(flags).filter(k => flags[k] === false);
+    bgKeys.sort((a, b) => getLayerValue(a) - getLayerValue(b));
+    
+    for (const key of bgKeys) {
+        const layer = key.replace(/^bg_/, '').replace(/_done$/, '');
+        await syncLayer(layer);
+    }
 }
 
 // fetchFile — fetch a private /api/file/... URL with auth and return a blob URL

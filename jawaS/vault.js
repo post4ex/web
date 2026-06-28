@@ -14,9 +14,7 @@ const VaultPage = (() => {
     // Minimum role to see each tile
     const TILE_MIN_ROLE = {
         'sales-invoices':    'MANAGER',
-        'quotations':        'CLIENT',
         'credit-notes':      'MANAGER',
-        'delivery-notes':    'CLIENT',
         'customers':         'CLIENT',
         'service-items':     'MANAGER',
         'product-items':     'MANAGER',
@@ -42,16 +40,8 @@ const VaultPage = (() => {
         'recurring':         'ACCOUNTANT',
         'opening-balances':  'ACCOUNTANT',
         'pending-approvals': 'ACCOUNTANT',
-        'gstr1':             'ACCOUNTANT',
-        'gstr3b':            'ACCOUNTANT',
-        'gstr2b':            'ACCOUNTANT',
-        'tds':               'ACCOUNTANT',
-        'tcs':               'ACCOUNTANT',
-        'tds-certs':         'ACCOUNTANT',
-        'gst-filing':        'ACCOUNTANT',
-        'purchase-register': 'ACCOUNTANT',
+        'taxes':             'MANAGER',
         'summary':           'MANAGER',
-        'reports':           'ACCOUNTANT',
         'close-fy':          'ACCOUNTANT',
         'bank-recon':        'ACCOUNTANT',
         'bulk-import':       'ACCOUNTANT',
@@ -59,9 +49,7 @@ const VaultPage = (() => {
 
     const TILE_LABELS = {
         'sales-invoices':    'Sales Invoices',
-        'quotations':        'Quotations',
         'credit-notes':      'Credit Notes',
-        'delivery-notes':    'Delivery Notes',
         'customers':         'Customers',
         'service-items':     'Service Items',
         'product-items':     'Product Items',
@@ -87,16 +75,8 @@ const VaultPage = (() => {
         'recurring':         'Recurring Entries',
         'opening-balances':  'Opening Balances',
         'pending-approvals': 'Pending Approvals',
-        'gstr1':             'GSTR-1',
-        'gstr3b':            'GSTR-3B',
-        'gstr2b':            'GSTR-2B Recon',
-        'tds':               'TDS',
-        'tcs':               'TCS',
-        'tds-certs':         'TDS Certificates',
-        'gst-filing':        'GST Filing',
-        'purchase-register': 'Purchase Register',
+        'taxes':             'Taxes',
         'summary':           'Summary',
-        'reports':           'Reports',
         'close-fy':          'Close FY',
         'bank-recon':        'Bank Recon',
         'bulk-import':       'Bulk Import',
@@ -217,13 +197,27 @@ const VaultPage = (() => {
         const journalTiles    = ['journal-entries', 'opening-balances'];
         const purchasesTiles  = ['purchase-bills', 'suppliers'];
         const expenseTiles    = ['expense-claims', 'petty-cash', 'staff-advances', 'branch-advances'];
-        const gstTiles        = ['gstr1', 'gstr3b', 'gst-filing', 'gstr2b', 'tds', 'tcs', 'tds-certs', 'purchase-register'];
         const summaryTiles    = ['summary', 'reports', 'bank-recon', 'bulk-import'];
         const directViewTiles = [];  // No tiles bypass list pane anymore
 
         // Show + Add button for roles that can record (not for billing or read-only tiles)
         const canRecord = _can(VAULT_PERMISSIONS.C) && name !== 'billing' && !directViewTiles.includes(name);
         document.getElementById('vaultAddBtn').classList.toggle('hidden', !canRecord);
+
+        // Show + wire the Report button for eligible tiles
+        const reportEligibleTiles = [
+            'sales-invoices', 'credit-notes', 'debit-notes', 'purchase-bills',
+            'receipts', 'payments', 'cheques', 'bank-accounts',
+            'customers', 'suppliers', 'employees', 'payroll',
+            'expense-claims', 'petty-cash', 'staff-advances', 'branch-advances',
+            'journal-entries', 'taxes'
+        ];
+        const hasReport = reportEligibleTiles.includes(name);
+        const reportBtn = document.getElementById('vaultReportBtn');
+        if (reportBtn) {
+            reportBtn.classList.toggle('hidden', !hasReport);
+            reportBtn.onclick = () => _openReportModal(name);
+        }
 
         // Wire the Add button for each module
         document.getElementById('vaultAddBtn').onclick = null;
@@ -246,6 +240,10 @@ const VaultPage = (() => {
             document.getElementById('vaultAddBtn').onclick = () => VaultJournal.openAddPane();
             await VaultJournal.load();
         }
+        else if (name === 'taxes') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultTaxes.load();
+        }
         else if (name === 'suppliers') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultSuppliers.load();
@@ -255,15 +253,10 @@ const VaultPage = (() => {
             await VaultPurchases.load();
         }
         else if (expenseTiles.includes(name)) {
-            const isCash = name === 'petty-cash';
-            VaultExpenses.setType(isCash ? 'cash' : 'expense');
+            VaultExpenses.setType(name);
             document.getElementById('vaultAddBtn').onclick = () => VaultExpenses.openAddPane();
+            document.getElementById('vaultAddBtn').classList.toggle('hidden', name !== 'expense-claims');
             await VaultExpenses.load();
-        }
-        else if (gstTiles.includes(name)) {
-            VaultGst.setTile(name);
-            document.getElementById('vaultAddBtn').classList.add('hidden');
-            await VaultGst.load();
         }
         else if (name === 'wallet') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
@@ -289,14 +282,7 @@ const VaultPage = (() => {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultCustomers.load();
         }
-        else if (name === 'quotations') {
-            document.getElementById('vaultAddBtn').onclick = () => VaultQuotations.openAddPane();
-            await VaultQuotations.load();
-        }
-        else if (name === 'delivery-notes') {
-            document.getElementById('vaultAddBtn').onclick = () => VaultDeliveryNotes.openAddPane();
-            await VaultDeliveryNotes.load();
-        }
+
         else if (name === 'service-items') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultServiceItems.load();
@@ -346,8 +332,7 @@ const VaultPage = (() => {
             if (name === 'summary') {
                 VaultSummary.setView('summary');
                 await VaultSummary.load();
-            } else if (name === 'reports') {
-                VaultSummary.showReports();
+
             } else if (name === 'bank-recon') {
                 VaultSummary._showBankRecon();
             } else if (name === 'bulk-import') {
@@ -494,9 +479,356 @@ const VaultPage = (() => {
         }
     }
 
+    function _ensureReportModal() {
+        if (document.getElementById('reportPeriodModal')) return;
+        const modal = document.createElement('div');
+        modal.id = 'reportPeriodModal';
+        modal.className = 'modal-overlay hidden';
+        modal.style.position = 'fixed';
+        modal.style.inset = '0';
+        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '1000';
+        modal.innerHTML = `
+            <div class="modal-content space-y-4 max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-5 w-full mx-4">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h2 class="text-base font-bold text-gray-800">📊 Generate Report</h2>
+                    <button onclick="document.getElementById('reportPeriodModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-700 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="space-y-3 text-xs">
+                    <p id="reportTargetLabel" class="font-medium text-gray-600 bg-gray-50 p-2.5 rounded border"></p>
+                    <div>
+                        <label class="block font-semibold text-gray-600 mb-1">Select Period</label>
+                        <select id="reportPeriodSelect" class="form-input text-xs">
+                            <option value="3m">3 Months</option>
+                            <option value="6m">6 Months</option>
+                            <option value="last_fy">Last FY</option>
+                            <option value="custom">Custom Date Range</option>
+                        </select>
+                    </div>
+                    <div id="reportCustomDates" class="grid grid-cols-2 gap-3 text-xs hidden">
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">Start Date</label>
+                            <input type="date" id="reportStartDate" class="form-input text-xs">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-600 mb-1">End Date</label>
+                            <input type="date" id="reportEndDate" class="form-input text-xs">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t">
+                    <button onclick="document.getElementById('reportPeriodModal').classList.add('hidden')" class="px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button id="reportGenerateConfirmBtn" class="px-4 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Generate</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('reportPeriodSelect').addEventListener('change', (e) => {
+            const custom = e.target.value === 'custom';
+            document.getElementById('reportCustomDates').classList.toggle('hidden', !custom);
+        });
+    }
+
+    function _openReportModal(tileName) {
+        _ensureReportModal();
+        const selectedLi = document.querySelector('#vaultList li.selected');
+        const code = selectedLi?.dataset.code || selectedLi?.dataset.key;
+        
+        let targetLabel = '';
+        let targetName = '';
+        if (selectedLi) {
+            targetName = selectedLi.querySelector('strong')?.textContent || code || '';
+            targetLabel = `Generating Report for selected item: <strong>${_escapeHtml(targetName)}</strong>`;
+        } else {
+            targetLabel = `Generating Report for: <strong>All Items in ${_escapeHtml(TILE_LABELS[tileName] || tileName)}</strong>`;
+        }
+        
+        document.getElementById('reportTargetLabel').innerHTML = targetLabel;
+        document.getElementById('reportPeriodSelect').value = '3m';
+        document.getElementById('reportCustomDates').classList.add('hidden');
+        document.getElementById('reportStartDate').value = '';
+        document.getElementById('reportEndDate').value = '';
+        
+        const modal = document.getElementById('reportPeriodModal');
+        modal.classList.remove('hidden');
+        
+        document.getElementById('reportGenerateConfirmBtn').onclick = async () => {
+            modal.classList.add('hidden');
+            await _buildReport(tileName, code || '', targetName);
+        };
+    }
+
+    const _escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+
+    function _toDateStr(ms) {
+        if (!ms) return '';
+        const d = new Date(ms);
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+
+    async function _buildReport(tileName, selectedId, selectedName) {
+        window.setLoading?.(true, 'Generating report...', 'detail');
+        try {
+            const period = document.getElementById('reportPeriodSelect').value;
+            let start = '';
+            let end = '';
+            
+            const today = new Date();
+            if (period === '3m') {
+                const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+                start = _toDateStr(d);
+                end = _toDateStr(today);
+            } else if (period === '6m') {
+                const d = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+                start = _toDateStr(d);
+                end = _toDateStr(today);
+            } else if (period === 'last_fy') {
+                const currentYear = today.getFullYear();
+                let fyStartYear = currentYear;
+                if (today.getMonth() < 3) fyStartYear = currentYear - 1;
+                start = (fyStartYear - 1) + '-04-01';
+                end = fyStartYear + '-03-31';
+            } else {
+                start = document.getElementById('reportStartDate').value;
+                end = document.getElementById('reportEndDate').value;
+            }
+            
+            if (!start || !end) {
+                alert('Please select valid start and end dates.');
+                return;
+            }
+            
+            const headerRaw = await window.appDB.getSheet('HEADER');
+            const ledgerRaw = await window.appDB.getSheet('LEDGER');
+            
+            const headers = Object.values(headerRaw || {});
+            const ledger = Object.values(ledgerRaw || {});
+            
+            const branch = getActiveBranch();
+            const branchLower = (branch || '').toLowerCase();
+            
+            let title = `${TILE_LABELS[tileName] || tileName} Report`;
+            let sub = `${start} to ${end}`;
+            if (branch) sub += ` · Branch: ${branch.toUpperCase()}`;
+            if (selectedName) sub += ` · Filter: ${selectedName}`;
+            
+            let html = '';
+            
+            if (tileName === 'sales-invoices' || tileName === 'purchase-bills' || tileName === 'credit-notes' || tileName === 'debit-notes' || tileName === 'expense-claims' || tileName === 'payroll') {
+                const typeMap = {
+                    'sales-invoices': 'Sales Invoice',
+                    'purchase-bills': 'Purchase Invoice',
+                    'credit-notes': 'Credit Note',
+                    'debit-notes': 'Debit Note',
+                    'expense-claims': 'Expense Claim',
+                    'payroll': 'Payslip'
+                };
+                const doxType = typeMap[tileName];
+                let list = headers.filter(h => 
+                    h.DOX_TYPE === doxType &&
+                    (!branchLower || (h.BRANCH || '').toLowerCase() === branchLower) &&
+                    _toDateStr(+h.TIME_STAMP) >= start &&
+                    _toDateStr(+h.TIME_STAMP) <= end
+                );
+                
+                if (selectedId) {
+                    list = list.filter(h => h.DOX_KEY === selectedId);
+                }
+                
+                list.sort((a,b) => (+a.TIME_STAMP || 0) - (+b.TIME_STAMP || 0));
+                
+                let total = 0;
+                const rows = list.map(h => {
+                    const amt = +(h.AMOUNT || 0);
+                    total += amt;
+                    return `<tr>
+                        <td class="px-2 py-1">${_toDateStr(+h.TIME_STAMP)}</td>
+                        <td class="px-2 py-1 font-mono">${_escapeHtml(h.DOX_REF || '')}</td>
+                        <td class="px-2 py-1">${_escapeHtml(h.B2B || '')}</td>
+                        <td class="px-2 py-1 max-w-[200px] truncate" title="${_escapeHtml(h.DOX_DESCRIPTION || '')}">${_escapeHtml(h.DOX_DESCRIPTION || '—')}</td>
+                        <td class="px-2 py-1 text-right">₹${amt.toFixed(2)}</td>
+                    </tr>`;
+                }).join('');
+                
+                html = `
+                    <div class="space-y-4 font-sans">
+                        <table class="min-w-full text-xs divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Ref</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Name</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Description</th>
+                                    <th class="px-2 py-1 text-right font-medium text-gray-500 uppercase">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y bg-white">
+                                ${rows || '<tr><td colspan="5" class="text-center py-4 text-gray-400">No records found.</td></tr>'}
+                            </tbody>
+                        </table>
+                        <div class="text-right font-semibold text-sm border-t pt-3">
+                            Total Amount: <span class="text-indigo-700">₹${total.toFixed(2)}</span>
+                        </div>
+                    </div>`;
+            } 
+            else if (tileName === 'receipts' || tileName === 'payments' || tileName === 'cheques') {
+                let list = headers.filter(h => 
+                    (tileName === 'receipts' ? h.DOX_TYPE === 'Receipt' : tileName === 'payments' ? h.DOX_TYPE === 'Payment' : (h.DOX_TYPE === 'Receipt' || h.DOX_TYPE === 'Payment')) &&
+                    (!branchLower || (h.BRANCH || '').toLowerCase() === branchLower) &&
+                    _toDateStr(+h.TIME_STAMP) >= start &&
+                    _toDateStr(+h.TIME_STAMP) <= end
+                );
+                
+                if (tileName === 'cheques') {
+                    list = list.filter(h => h.PAYMENT_MODE === 'cheque');
+                }
+                
+                if (selectedId) {
+                    list = list.filter(h => h.DOX_KEY === selectedId);
+                }
+                
+                list.sort((a,b) => (+a.TIME_STAMP || 0) - (+b.TIME_STAMP || 0));
+                
+                let total = 0;
+                const rows = list.map(h => {
+                    const amt = +(h.AMOUNT || 0);
+                    total += amt;
+                    return `<tr>
+                        <td class="px-2 py-1">${_toDateStr(+h.TIME_STAMP)}</td>
+                        <td class="px-2 py-1 font-mono">${_escapeHtml(h.DOX_REF || '')}</td>
+                        <td class="px-2 py-1">${_escapeHtml(h.DOX_TYPE || '')}</td>
+                        <td class="px-2 py-1">${_escapeHtml(h.B2B || '')}</td>
+                        <td class="px-2 py-1 max-w-[200px] truncate" title="${_escapeHtml(h.DOX_DESCRIPTION || '')}">${_escapeHtml(h.DOX_DESCRIPTION || '—')}</td>
+                        <td class="px-2 py-1 text-right">₹${amt.toFixed(2)}</td>
+                    </tr>`;
+                }).join('');
+                
+                html = `
+                    <div class="space-y-4 font-sans">
+                        <table class="min-w-full text-xs divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Ref</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Name</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Description</th>
+                                    <th class="px-2 py-1 text-right font-medium text-gray-500 uppercase">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y bg-white">
+                                ${rows || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No records found.</td></tr>'}
+                            </tbody>
+                        </table>
+                        <div class="text-right font-semibold text-sm border-t pt-3">
+                            Total Amount: <span class="text-indigo-700">₹${total.toFixed(2)}</span>
+                        </div>
+                    </div>`;
+            }
+            else {
+                let list = ledger.filter(e => 
+                    (!branchLower || (e.BRANCH || '').toLowerCase() === branchLower) &&
+                    _toDateStr(+e.TXN_DATE) >= start &&
+                    _toDateStr(+e.TXN_DATE) <= end
+                );
+                
+                if (selectedId) {
+                    list = list.filter(e => e.CODE === selectedId || e.STAFF_CODE === selectedId || e.BANK_ACCOUNT_KEY === selectedId);
+                }
+                
+                if (tileName === 'customers') list = list.filter(e => e.ACCOUNT === 'Accounts receivable');
+                else if (tileName === 'suppliers') list = list.filter(e => e.ACCOUNT === 'Accounts payable');
+                else if (tileName === 'staff-advances') list = list.filter(e => e.ACCOUNT && e.ACCOUNT.toLowerCase().includes('staff advance'));
+                else if (tileName === 'petty-cash') list = list.filter(e => e.ACCOUNT && (e.ACCOUNT.toLowerCase().includes('cash in hand') || e.ACCOUNT.toLowerCase().includes('petty cash')));
+                else if (tileName === 'branch-advances') list = list.filter(e => e.ACCOUNT && e.ACCOUNT.toLowerCase().includes('branch advance'));
+                
+                list.sort((a,b) => (+a.TXN_DATE || 0) - (+b.TXN_DATE || 0) || (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0));
+                
+                let totDebit = 0, totCredit = 0;
+                const rows = list.map(e => {
+                    const dr = +(e.DEBIT || 0);
+                    const cr = +(e.CREDIT || 0);
+                    totDebit += dr;
+                    totCredit += cr;
+                    return `<tr>
+                        <td class="px-2 py-1">${_toDateStr(+e.TXN_DATE)}</td>
+                        <td class="px-2 py-1 font-mono">${_escapeHtml(e.DOX_REF || '')}</td>
+                        <td class="px-2 py-1">${_escapeHtml(e.ACCOUNT || '')}</td>
+                        <td class="px-2 py-1 max-w-[200px] truncate" title="${_escapeHtml(e.DESCRIPTION || '')}">${_escapeHtml(e.DESCRIPTION || '—')}</td>
+                        <td class="px-2 py-1 text-right text-green-600">${dr > 0 ? '₹' + dr.toFixed(2) : ''}</td>
+                        <td class="px-2 py-1 text-right text-red-600">${cr > 0 ? '₹' + cr.toFixed(2) : ''}</td>
+                    </tr>`;
+                }).join('');
+                
+                html = `
+                    <div class="space-y-4 font-sans">
+                        <table class="min-w-full text-xs divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Ref</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Account</th>
+                                    <th class="px-2 py-1 text-left font-medium text-gray-500 uppercase">Description</th>
+                                    <th class="px-2 py-1 text-right font-medium text-gray-500 uppercase">Debit</th>
+                                    <th class="px-2 py-1 text-right font-medium text-gray-500 uppercase">Credit</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y bg-white">
+                                ${rows || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No records found.</td></tr>'}
+                            </tbody>
+                        </table>
+                        <div class="grid grid-cols-2 gap-3 text-right font-semibold text-sm border-t pt-3">
+                            <div>Total Debit: <span class="text-green-700">₹${totDebit.toFixed(2)}</span></div>
+                            <div>Total Credit: <span class="text-red-700">₹${totCredit.toFixed(2)}</span></div>
+                        </div>
+                    </div>`;
+            }
+            
+            _showDetail(true);
+            const view = document.getElementById('vaultDetailView');
+            view.innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-card-header flex justify-between items-center border-b pb-3 mb-4">
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-lg">📊 ${_escapeHtml(title)}</h3>
+                            <span class="text-xs text-gray-500">${_escapeHtml(sub)}</span>
+                        </div>
+                        <button onclick="window.print()" class="btn btn-sm btn-primary flex items-center gap-1.5 shadow">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                            </svg>
+                            <span>Print</span>
+                        </button>
+                    </div>
+                    <div class="detail-card-body">
+                        ${html}
+                    </div>
+                </div>
+            `;
+            _showDetailPane();
+            
+        } catch (err) {
+            console.error('[Vault] Failed to build report:', err);
+            alert('Failed to generate report: ' + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', _init);
 
-    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch };
+    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch, openReportModal: _openReportModal };
 })();
 
 window.VaultPage = VaultPage;

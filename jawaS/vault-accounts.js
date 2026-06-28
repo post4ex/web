@@ -11,12 +11,21 @@
 const VaultAccounts = (() => {
 
     let _chequesList = [];
+    let _bankAccounts = [];
     let _allLedger = [];
     let _allBranches = [];
     let _allCarriers = [];
     let _b2bList = [];
     let _b2bMap = new Map();
     let _activeTile = 'cheques';
+
+    const _toDateStr = (ms) => {
+        if (!ms) return '';
+        const d = new Date(ms);
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    };
 
     // ── Filter state ────────────────────────────────────────────────────────────
     function getCurrentFYRange() {
@@ -545,73 +554,115 @@ const VaultAccounts = (() => {
     // BANK ACCOUNTS TILE (unchanged — uses appData ledger)
     // ========================================================================
 
-    function _computeBankBalance(code) {
-        let balance = 0;
-        const entries = _allLedger.filter(e => e.STATUS === 'ACTIVE' && e.CODE === code);
-        entries.forEach(e => {
-            if (e.DIRECTION === 'OUTWARD') balance += (+e.DEBIT||0) - (+e.CREDIT||0);
-            else balance += (+e.CREDIT||0) - (+e.DEBIT||0);
+    // ========================================================================
+    // BANK ACCOUNTS TILE (Live API + local LEDGER statement fallback)
+    // ========================================================================
+
+    function _enrichBankAccount(acct) {
+        const codeUpper = (acct.code || '').trim().toUpperCase();
+        const branchInfo = _allBranches.find(b => (b.BRANCH_CODE || '').trim().toUpperCase() === codeUpper);
+        if (branchInfo) {
+            acct.type = 'Branch';
+            acct.account = branchInfo.BRANCH_BANK_AC || '';
+            acct.ifsc = branchInfo.BRANCH_IFSC || '';
+            acct.upi = branchInfo.BRANCH_UPI || '';
+            acct.upiName = branchInfo.BRANCH_UPI_NAME || '';
+            return acct;
+        }
+        const carrierInfo = _allCarriers.find(c => (c.COMPANY_CODE || '').trim().toUpperCase() === codeUpper);
+        if (carrierInfo) {
+            acct.type = 'Carrier';
+            acct.account = carrierInfo.BANK_AC || '';
+            acct.ifsc = carrierInfo.IFSC || '';
+            acct.upi = carrierInfo.UPI || '';
+            acct.upiName = '';
+            return acct;
+        }
+        acct.type = 'General';
+        acct.account = '';
+        acct.ifsc = '';
+        acct.upi = '';
+        acct.upiName = '';
+        return acct;
+    }
+
+    async function _fetchBankAccounts() {
+        const branch = VaultPage.getActiveBranch();
+        const clientCode = _getClientCodeForBranch(branch);
+        if (!clientCode) {
+            _bankAccounts = [];
+            return;
+        }
+        window.setLoading?.(true, 'Loading bank accounts...', 'list');
+        try {
+            const res = await callApi(`/api/manager/bank-accounts?code=${encodeURIComponent(clientCode)}`, {}, 'GET');
+            const list = res.bankAndCashAccounts || [];
+            _bankAccounts = list.map(a => _enrichBankAccount(a));
+        } catch (err) {
+            console.error('[VaultAccounts] Failed to fetch bank accounts:', err);
+            _bankAccounts = [];
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
+    function _renderBankAccountStatement(acctKey, acctName, currentBalance) {
+        const entries = _allLedger.filter(e => e.BANK_ACCOUNT_KEY === acctKey)
+            .sort((a, b) => (+a.TXN_DATE || 0) - (+b.TXN_DATE || 0) || (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0));
+
+        if (!entries.length) {
+            return '<div class="text-xs text-gray-400 text-center py-4">No transactions for this account in local ledger.</div>';
+        }
+
+        // Calculate running balance backwards starting from current balance
+        let runningBalance = currentBalance;
+        const mapped = [...entries].reverse().map(e => {
+            const debit = +(e.DEBIT || 0);
+            const credit = +(e.CREDIT || 0);
+            const rowBal = runningBalance;
+            runningBalance -= (debit - credit);
+            return {
+                date: _toDateStr(+e.TXN_DATE),
+                desc: e.DESCRIPTION || '',
+                ref: e.DOX_REF || '',
+                debit: debit,
+                credit: credit,
+                balance: rowBal
+            };
         });
-        return balance;
-    }
 
-    function _getBankAccounts() {
-        const branchAccounts = (_allBranches || []).filter(b => b.BRANCH_BANK_NAME || b.BRANCH_UPI).map(b => ({
-            type: 'Branch',
-            name: b.BRANCH_NAME || b.BRANCH_CODE || '',
-            code: b.BRANCH_CODE || '',
-            bank: b.BRANCH_BANK_NAME || '',
-            account: b.BRANCH_BANK_AC || '',
-            ifsc: b.BRANCH_IFSC || '',
-            upi: b.BRANCH_UPI || '',
-            upiName: b.BRANCH_UPI_NAME || '',
-            balance: _computeBankBalance(b.BRANCH_CODE),
-            raw: b,
-        }));
+        mapped.reverse();
 
-        const carrierAccounts = (_allCarriers || []).filter(c => c.BANK_NAME || c.UPI).map(c => ({
-            type: 'Carrier',
-            name: c.COMPANY_NAME || c.COMPANY_CODE || '',
-            code: c.COMPANY_CODE || '',
-            bank: c.BANK_NAME || '',
-            account: c.BANK_AC || '',
-            ifsc: c.IFSC || '',
-            upi: c.UPI || '',
-            upiName: '',
-            balance: _computeBankBalance(c.COMPANY_CODE),
-            raw: c,
-        }));
-
-        return [...branchAccounts, ...carrierAccounts];
-    }
-
-    function _renderBankAccountStatement(code, name) {
-        const entries = _allLedger.filter(e => e.CODE === code && e.STATUS === 'ACTIVE')
-            .sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
-        if (!entries.length) return '<div class="text-xs text-gray-400 text-center py-4">No transactions for this account.</div>';
-        return `<div class="text-xs mt-1">
-            <div class="font-semibold text-gray-600 mb-2">Recent Transactions</div>
-            <div class="space-y-1 max-h-64 overflow-y-auto">
-                ${entries.slice(0, 25).map(e => {
-                    const amt = (+e.DEBIT||0) - (+e.CREDIT||0);
-                    const dirLabel = amt >= 0 ? 'Dr' : 'Cr';
-                    const absAmt = Math.abs(amt);
-                    return `<div class="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
-                        <div>
-                            <span class="${amt >= 0 ? 'text-red-600' : 'text-green-600'} font-medium">${dirLabel} ₹${absAmt.toFixed(2)}</span>
-                            <span class="text-gray-400 ml-2">${e.ENTRY_DATE ? _fmt(e.ENTRY_DATE, 'date') : ''}</span>
-                        </div>
-                        <span class="text-gray-500 text-xs">${e.NARRATION ? (e.NARRATION.length > 30 ? e.NARRATION.slice(0, 30) + '…' : e.NARRATION) : e.ENTRY_TYPE || ''}</span>
-                    </div>`;
-                }).join('')}
-            </div>
-        </div>`;
-    }
-
-    function _fmt(v, t) {
-        if (!v) return 'N/A';
-        try { return (typeof fmtDate === 'function') ? fmtDate(v, t) : new Date(v).toLocaleDateString(); }
-        catch { return String(v); }
+        return `
+            <div class="text-xs mt-4">
+                <div class="font-semibold text-gray-600 mb-2">Recent Transactions (Local Ledger)</div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-2 py-1.5 text-left font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-2 py-1.5 text-left font-medium text-gray-500 uppercase">Description</th>
+                                <th class="px-2 py-1.5 text-left font-medium text-gray-500 uppercase">Ref</th>
+                                <th class="px-2 py-1.5 text-right font-medium text-gray-500 uppercase">Debit</th>
+                                <th class="px-2 py-1.5 text-right font-medium text-gray-500 uppercase">Credit</th>
+                                <th class="px-2 py-1.5 text-right font-medium text-gray-500 uppercase">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${mapped.slice(-50).map(m => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-2 py-1.5 whitespace-nowrap">${m.date}</td>
+                                    <td class="px-2 py-1.5 truncate max-w-[150px]" title="${_escapeHtml(m.desc)}">${_escapeHtml(m.desc || '—')}</td>
+                                    <td class="px-2 py-1.5 text-gray-400 font-mono">${_escapeHtml(m.ref)}</td>
+                                    <td class="px-2 py-1.5 text-right text-green-600">${m.debit > 0 ? '₹' + m.debit.toFixed(2) : ''}</td>
+                                    <td class="px-2 py-1.5 text-right text-red-600">${m.credit > 0 ? '₹' + m.credit.toFixed(2) : ''}</td>
+                                    <td class="px-2 py-1.5 text-right font-medium">₹${m.balance.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
     }
 
     function _copyToClipboard(text, label) {
@@ -632,7 +683,8 @@ const VaultAccounts = (() => {
     function _renderBankAccountDetail(acct) {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        const balClass = acct.balance >= 0 ? 'text-green-600' : 'text-red-600';
+        const balance = parseFloat(acct.actualBalance || acct.balance || 0);
+        const balClass = balance >= 0 ? 'text-green-600' : 'text-red-600';
         const upiLink = acct.upi ? `upi://pay?pa=${encodeURIComponent(acct.upi)}${acct.upiName ? '&pn=' + encodeURIComponent(acct.upiName) : ''}` : '';
         const qrUrl = upiLink ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}` : '';
 
@@ -640,16 +692,16 @@ const VaultAccounts = (() => {
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
-                        <h3 class="font-semibold text-gray-700">🏛️ ${acct.bank}</h3>
-                        <span class="text-xs px-2 py-0.5 rounded-full ${acct.type === 'Branch' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">${acct.type}</span>
+                        <h3 class="font-semibold text-gray-700">🏛️ ${_escapeHtml(acct.name || 'N/A')}</h3>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${acct.type === 'Branch' ? 'bg-blue-100 text-blue-700' : acct.type === 'Carrier' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}">${acct.type}</span>
                     </div>
-                    <span class="font-semibold ${balClass} text-lg">₹${acct.balance.toFixed(2)}</span>
+                    <span class="font-semibold ${balClass} text-lg">₹${balance.toFixed(2)}</span>
                 </div>
                 <div class="detail-card-body">
                     <!-- Entity info -->
                     <div class="grid grid-cols-1 gap-3 text-sm mb-4 bg-gray-50 p-3 rounded-lg">
-                        <div><span class="text-gray-500">Entity:</span> <span class="font-semibold">${acct.name}</span></div>
-                        <div><span class="text-gray-500">Code:</span> <span class="font-mono text-xs">${acct.code}</span></div>
+                        <div><span class="text-gray-500">Name:</span> <span class="font-semibold">${_escapeHtml(acct.name || '')}</span></div>
+                        <div><span class="text-gray-500">Code:</span> <span class="font-mono text-xs">${_escapeHtml(acct.code || '')}</span></div>
                     </div>
 
                     <!-- Bank Details with Copy buttons -->
@@ -688,12 +740,12 @@ const VaultAccounts = (() => {
 
                     <!-- Balance & Summary -->
                     <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 rounded-lg p-3 mb-4">
-                        <div><span class="text-gray-500">Ledger Balance:</span> <span class="font-semibold ${balClass}">₹${acct.balance.toFixed(2)}</span></div>
-                        <div><span class="text-gray-500">Bank:</span> ${acct.bank}</div>
+                        <div><span class="text-gray-500">Live Balance:</span> <span class="font-semibold ${balClass}">₹${balance.toFixed(2)}</span></div>
+                        <div><span class="text-gray-500">Key:</span> <span class="font-mono text-xs">${acct.key}</span></div>
                     </div>
 
                     <!-- Statement -->
-                    ${_renderBankAccountStatement(acct.code, acct.name)}
+                    ${_renderBankAccountStatement(acct.key, acct.name, balance)}
                 </div>
             </div>`;
         VaultPage.showDetailPane();
@@ -704,20 +756,18 @@ const VaultAccounts = (() => {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
 
-        const allAccounts = _getBankAccounts();
         const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
         const filtered = q
-            ? allAccounts.filter(a =>
-                (a.bank || '').toLowerCase().includes(q) ||
+            ? _bankAccounts.filter(a =>
                 (a.name || '').toLowerCase().includes(q) ||
                 (a.code || '').toLowerCase().includes(q) ||
                 (a.account || '').toLowerCase().includes(q) ||
                 (a.ifsc || '').toLowerCase().includes(q) ||
                 (a.upi || '').toLowerCase().includes(q)
               )
-            : allAccounts;
-        const total = allAccounts.length;
-        const totalBalance = allAccounts.reduce((s, a) => s + a.balance, 0);
+            : _bankAccounts;
+        const total = _bankAccounts.length;
+        const totalBalance = _bankAccounts.reduce((s, a) => s + parseFloat(a.actualBalance || a.balance || 0), 0);
 
         if (!filtered.length) {
             ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">${q ? 'No matching accounts.' : 'No bank accounts found.'}</li>`;
@@ -731,14 +781,15 @@ const VaultAccounts = (() => {
         </div>`;
 
         ul.innerHTML = filtered.map(a => {
-            const balClass = a.balance >= 0 ? 'text-green-600' : 'text-red-600';
-            return `<li data-code="${a.code}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
+            const balance = parseFloat(a.actualBalance || a.balance || 0);
+            const balClass = balance >= 0 ? 'text-green-600' : 'text-red-600';
+            return `<li data-key="${a.key}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
                 <div class="flex items-start justify-between">
                     <div>
-                        <strong class="text-gray-800 block text-sm">${a.bank || 'N/A'}</strong>
-                        <span class="text-xs text-gray-500">${a.name} · ${a.type}</span>
+                        <strong class="text-gray-800 block text-sm">${_escapeHtml(a.name || 'N/A')}</strong>
+                        <span class="text-xs text-gray-500">${_escapeHtml(a.code || '')} · ${a.type}</span>
                     </div>
-                    <span class="font-semibold ${balClass} text-sm">₹${a.balance.toFixed(2)}</span>
+                    <span class="font-semibold ${balClass} text-sm">₹${balance.toFixed(2)}</span>
                 </div>
                 <div class="flex gap-2 text-xs mt-1">
                     ${a.account ? `<span class="font-mono text-gray-400">${a.account}</span>` : ''}
@@ -751,7 +802,7 @@ const VaultAccounts = (() => {
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                const acct = allAccounts.find(a => a.code === li.dataset.code);
+                const acct = _bankAccounts.find(a => a.key === li.dataset.key);
                 if (acct) _renderBankAccountDetail(acct);
             })
         );
@@ -787,6 +838,7 @@ const VaultAccounts = (() => {
         } else if (_activeTile === 'bank-accounts') {
             _injectListPane('Search bank, entity, account…');
             document.getElementById('vaultAddBtn').classList.add('hidden');
+            await _fetchBankAccounts();
             _renderBankAccounts();
         }
     }

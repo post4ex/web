@@ -108,6 +108,17 @@ class AppDatabase {
     });
   }
 
+  async getAllMetadata() {
+    if (!this.db) throw new Error('Database not initialized');
+    const transaction = this.db.transaction(['_metadata'], 'readonly');
+    const store = transaction.objectStore('_metadata');
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async putSheet(sheetName, data) {
     if (!this.db || !data || typeof data !== 'object') return;
     

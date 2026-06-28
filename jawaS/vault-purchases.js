@@ -1,13 +1,22 @@
 // ============================================================================
-// VAULT-PURCHASES.JS — Purchase Bills via Manager.io API
+// VAULT-PURCHASES.JS — Purchase Bills from IDB HEADER store
 // Tile: purchase-bills
-// Data source: Manager.io /purchase-invoices endpoint
+// Data source: IDB HEADER (filtered by DOX_TYPE === 'Purchase Invoice')
+// Detail: Manager.io API + IDB LEDGER for GL postings
 // ============================================================================
 
 const VaultPurchases = (() => {
 
     let _allInvoices = [];
-    let _b2bMap      = new Map();
+
+    // ── Date helpers ──────────────────────────────────────────────────────────
+    const _toDateStr = (ms) => {
+        if (!ms) return '';
+        const d = new Date(ms);
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    };
 
     function getCurrentFYRange() {
         const now = new Date();
@@ -26,7 +35,6 @@ const VaultPurchases = (() => {
     let _filterStart = _fyRange.start;
     let _filterEnd   = _fyRange.end;
     let _filterBranch = '';
-    let _filterStatus = '';
 
     // ── List pane ─────────────────────────────────────────────────────────────
     function _injectListPane() {
@@ -43,25 +51,23 @@ const VaultPurchases = (() => {
 
         const filtered = _allInvoices.filter(e => {
             if (q) {
-                const matchSearch = (e.reference || '').toLowerCase().includes(q) ||
-                                     (e.supplier || '').toLowerCase().includes(q) ||
-                                     (e.description || '').toLowerCase().includes(q) ||
-                                     (e.branch || '').toLowerCase().includes(q);
+                const matchSearch = (e.DOX_REF || '').toLowerCase().includes(q) ||
+                                     (e.B2B || '').toLowerCase().includes(q) ||
+                                     (e.BRANCH || '').toLowerCase().includes(q);
                 if (!matchSearch) return false;
             }
-            const d = e.date || '';
+            const d = _toDateStr(e.IO_TIMESTAMP);
             if (_filterStart && d < _filterStart) return false;
             if (_filterEnd && d > _filterEnd) return false;
-            if (_filterBranch && (e.branch || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
-            if (_filterStatus && (e.status || '').toLowerCase() !== _filterStatus.toLowerCase()) return false;
+            if (_filterBranch && (e.BRANCH || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
             return true;
         });
 
         filtered.sort((a, b) => {
-            const dateA = a.date || '';
-            const dateB = b.date || '';
-            if (dateA !== dateB) return dateB.localeCompare(dateA);
-            return (b.reference || '').localeCompare(a.reference || '');
+            const tsA = a.IO_TIMESTAMP || 0;
+            const tsB = b.IO_TIMESTAMP || 0;
+            if (tsA !== tsB) return tsB - tsA;
+            return (b.DOX_REF || '').localeCompare(a.DOX_REF || '');
         });
 
         const statusEl = document.getElementById('pbStatus');
@@ -74,24 +80,18 @@ const VaultPurchases = (() => {
             return;
         }
         ul.innerHTML = filtered.map(e => {
-            const amount = typeof e.amount === 'object' ? (e.amount?.value || 0) : (+e.amount || 0);
-            const status = e.status || '';
-            const statusColor = status.toUpperCase() === 'ACTIVE' ? 'text-green-700' :
-                                status.toUpperCase() === 'OVERDUE' ? 'text-red-700' : 'text-gray-700';
-            return `<li data-key="${e.key}" class="p-3 rounded-lg cursor-pointer hover:bg-orange-50 border border-gray-200 transition-colors">
-                <strong class="text-orange-700 block text-sm">${e.reference || 'N/A'} — ${e.supplier || 'N/A'}</strong>
-                <span class="text-xs text-gray-500">₹${(+amount).toFixed(2)} · ${e.date || ''} · ${e.branch || ''}</span>
-                <div class="text-xs mt-1">
-                    <span class="${statusColor} font-medium">${status || 'N/A'}</span>
-                    <span class="text-gray-400"> · ${e.description || ''}</span>
-                </div>
+            const dateStr = _toDateStr(e.IO_TIMESTAMP);
+            const amount = parseFloat(e.AMOUNT || 0);
+            return `<li data-key="${e.DOX_KEY}" class="p-3 rounded-lg cursor-pointer hover:bg-orange-50 border border-gray-200 transition-colors">
+                <strong class="text-orange-700 block text-sm">${e.DOX_REF || 'N/A'} — ${e.B2B || 'N/A'}</strong>
+                <span class="text-xs text-gray-500">₹${amount.toFixed(2)} · ${dateStr || 'N/A'} · ${e.BRANCH || ''}</span>
             </li>`;
         }).join('');
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
                 li.classList.add('selected');
-                _renderDetail(_allInvoices.find(n => n.key === li.dataset.key));
+                _renderDetail(_allInvoices.find(n => n.DOX_KEY === li.dataset.key));
             })
         );
     }
@@ -141,16 +141,10 @@ const VaultPurchases = (() => {
                 getAppData()
             ]);
 
-            if (appData?.B2B) {
-                Object.values(appData.B2B).forEach(c => {
-                    if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
-                });
-            }
-
-            const inv = _allInvoices.find(i => i.key === invKey);
-            const ref = res.Reference || inv?.reference || invKey;
-            const date = res.IssueDate || inv?.date || '';
-            const supplierCode = inv?.supplier || '';
+            const inv = _allInvoices.find(i => i.DOX_KEY === invKey);
+            const ref = res.Reference || inv?.DOX_REF || invKey;
+            const date = res.IssueDate || _toDateStr(inv?.IO_TIMESTAMP) || '';
+            const supplierCode = inv?.B2B || '';
 
             // Resolve supplier name from B2B or carriers
             let supplierName = supplierCode;
@@ -330,8 +324,11 @@ const VaultPurchases = (() => {
     // ── Detail view ────────────────────────────────────────────────────────────
     async function _renderDetail(listEntry) {
         if (!listEntry) return;
+        
+        const invoiceKey = listEntry.DOX_KEY || listEntry.key;
+        const branchCode = listEntry.BRANCH || listEntry.branch;
 
-        if (!listEntry.key) {
+        if (!invoiceKey) {
             VaultPage.showDetail(true);
             const view = document.getElementById('vaultDetailView');
             view.innerHTML = `<div class="detail-card">
@@ -351,7 +348,7 @@ const VaultPurchases = (() => {
         window.setLoading?.(true, 'Fetching purchase bill details...', 'detail');
 
         try {
-            const res = await callApi(`/api/manager/purchase-invoice-details/${listEntry.branch}/${listEntry.key}`, {}, 'GET');
+            const res = await callApi(`/api/manager/purchase-invoice-details/${branchCode}/${invoiceKey}`, {}, 'GET');
 
             let totalTaxable = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0;
             (res.Lines || []).forEach(line => {
@@ -388,7 +385,7 @@ const VaultPurchases = (() => {
                 `;
             }).join('');
 
-            const amount = typeof listEntry.amount === 'object' ? (listEntry.amount?.value || 0) : (+listEntry.amount || 0);
+            const amount = parseFloat(listEntry.AMOUNT || 0);
 
             view.innerHTML = `
                 <div class="detail-card">
@@ -397,24 +394,24 @@ const VaultPurchases = (() => {
                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-gray-100 pb-5">
                             <div class="flex-1 min-w-0">
                                 <h1 class="text-xl font-bold text-orange-800 tracking-tight break-words">Purchase Bill</h1>
-                                <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${listEntry.branch || 'N/A'}</span></p>
+                                <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${branchCode || 'N/A'}</span></p>
                             </div>
                             <div class="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                                 <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
                                     <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-orange-50 text-orange-700 uppercase whitespace-nowrap">PURCHASE</span>
-                                    <button onclick="VaultPurchases._printEntry('${listEntry.key}', '${listEntry.branch}')"
+                                    <button onclick="VaultPurchases._printEntry('${invoiceKey}', '${branchCode}')"
                                         class="btn btn-sm flex-1 sm:flex-none min-w-0 justify-center">
                                         <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                                         </svg><span class="truncate">Print</span>
                                     </button>
-                                    <button onclick="VaultPurchases._openEditPaneFromDetail('${listEntry.key}', '${listEntry.branch}', event)"
+                                    <button onclick="VaultPurchases._openEditPaneFromDetail('${invoiceKey}', '${branchCode}', event)"
                                         class="btn btn-sm flex-1 sm:flex-none min-w-0 justify-center">
                                         <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg><span class="truncate">Edit</span>
                                     </button>
-                                    <button onclick="VaultPurchases._handleDelete('${listEntry.key}', '${listEntry.branch}')"
+                                    <button onclick="VaultPurchases._handleDelete('${invoiceKey}', '${branchCode}')"
                                         class="btn-danger btn-sm flex-1 sm:flex-none min-w-0 justify-center">
                                         <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -431,7 +428,7 @@ const VaultPurchases = (() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm">
                             <div>
                                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Supplier</h3>
-                                <p class="font-semibold text-gray-800">${listEntry.supplier || 'N/A'}</p>
+                                <p class="font-semibold text-gray-800">${listEntry.B2B || 'N/A'}</p>
                             </div>
                             <div>
                                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Details</h3>
@@ -506,6 +503,45 @@ const VaultPurchases = (() => {
                         </details>
                     </div>
                 </div>`;
+        
+        // Append GL Postings from IDB LEDGER
+        try {
+            const ledgerRaw = await window.appDB.getSheet('LEDGER');
+            const docEntries = Object.values(ledgerRaw || {}).filter(e => e.DOX_KEY === invoiceKey);
+            if (docEntries.length > 0) {
+                const glHtml = `
+                    <details class="border border-slate-100 rounded-lg mt-4 bg-slate-50/50">
+                        <summary class="p-3 font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-all select-none text-sm">
+                            📒 General Ledger Postings (${docEntries.length} entries)
+                        </summary>
+                        <div class="p-4 overflow-x-auto border-t">
+                            <table class="w-full text-xs divide-y divide-slate-200">
+                                <thead>
+                                    <tr class="text-left font-bold text-slate-400 uppercase">
+                                        <th class="py-2">Account</th>
+                                        <th class="py-2 text-right">Debit (₹)</th>
+                                        <th class="py-2 text-right">Credit (₹)</th>
+                                        <th class="py-2 pl-4">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    ${docEntries.map(e => `
+                                        <tr class="hover:bg-white/50 transition-colors">
+                                            <td class="py-2 font-medium text-slate-700">${e.ACCOUNT || ''}</td>
+                                            <td class="py-2 text-right text-emerald-600 font-medium">${e.DEBIT ? '₹' + parseFloat(e.DEBIT).toFixed(2) : '—'}</td>
+                                            <td class="py-2 text-right text-rose-600 font-medium">${e.CREDIT ? '₹' + parseFloat(e.CREDIT).toFixed(2) : '—'}</td>
+                                            <td class="py-2 pl-4 text-slate-500">${e.DESCRIPTION || ''}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>`;
+                view.querySelector('.detail-card-body').insertAdjacentHTML('beforeend', glHtml);
+            }
+        } catch (glErr) {
+            console.warn('Failed to load GL postings:', glErr);
+        }
         } catch (err) {
             view.innerHTML = `
                 <div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600">
@@ -547,10 +583,6 @@ const VaultPurchases = (() => {
                     window.__vaultCacheKeys = {};
                 }
             }
-
-            if (appData?.B2B) Object.values(appData.B2B).forEach(c => {
-                if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
-            });
 
             const _bKey = (branchCode || '').toLowerCase();
             const _bKeys = window.__vaultCacheKeys?.[_bKey] || {};
@@ -878,10 +910,6 @@ const VaultPurchases = (() => {
                 window.__vaultCacheKeys = {};
             }
         }
-
-        if (appData?.B2B) Object.values(appData.B2B).forEach(c => {
-            if (c.CODE) _b2bMap.set(c.CODE.trim().toUpperCase(), c);
-        });
 
         let defaultBranch = '';
         const firstClient = Object.values(appData?.B2B || {})[0];
@@ -1219,15 +1247,6 @@ const VaultPurchases = (() => {
                                 <option value="">All Branches</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block font-semibold text-gray-600 mb-1">Status</label>
-                            <select id="pbFilterStatus" class="form-input text-xs">
-                                <option value="">All Statuses</option>
-                                <option value="active">Active</option>
-                                <option value="overdue">Overdue</option>
-                                <option value="draft">Draft</option>
-                            </select>
-                        </div>
                     </div>
                     <div class="flex justify-end gap-2 pt-3 border-t">
                         <button id="pbResetBtn" class="btn-ghost btn-sm">Reset</button>
@@ -1241,7 +1260,6 @@ const VaultPurchases = (() => {
                 _filterStart = document.getElementById('pbFilterStart').value;
                 _filterEnd = document.getElementById('pbFilterEnd').value;
                 _filterBranch = document.getElementById('pbFilterBranch').value;
-                _filterStatus = document.getElementById('pbFilterStatus').value;
                 modal.classList.add('hidden');
                 await load();
             };
@@ -1251,12 +1269,10 @@ const VaultPurchases = (() => {
                 document.getElementById('pbFilterStart').value = range.start;
                 document.getElementById('pbFilterEnd').value = range.end;
                 document.getElementById('pbFilterBranch').value = '';
-                document.getElementById('pbFilterStatus').value = '';
 
                 _filterStart = range.start;
                 _filterEnd = range.end;
                 _filterBranch = '';
-                _filterStatus = '';
                 await load();
             };
 
@@ -1294,16 +1310,18 @@ const VaultPurchases = (() => {
 
         window.setLoading?.(true, 'Loading purchase bills...', 'list');
         try {
-            const branch = VaultPage.getActiveBranch();
-            const url = `/api/manager/all-purchase-invoices?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}`;
-            const res = await callApi(url, {}, 'GET');
-            if (res.status === 'success') {
-                _allInvoices = res.purchaseInvoices || [];
-                document.getElementById('vaultListMsg').textContent = '';
-                _renderList();
-            } else {
-                document.getElementById('vaultListMsg').textContent = 'Failed to load purchase bills.';
+            if (!window.appDB) {
+                document.getElementById('vaultListMsg').textContent = 'IDB not available. Please wait for sync to complete.';
+                return;
             }
+            const branch = VaultPage.getActiveBranch();
+            const rawHeaders = await window.appDB.getSheet('HEADER');
+            _allInvoices = Object.values(rawHeaders || {}).filter(h =>
+                h.DOX_TYPE === 'Purchase Invoice' &&
+                (!branch || (h.BRANCH || '').toLowerCase() === branch.toLowerCase())
+            );
+            document.getElementById('vaultListMsg').textContent = '';
+            _renderList();
         } catch (err) {
             document.getElementById('vaultListMsg').textContent = 'Error: ' + (err.message || err);
         } finally {

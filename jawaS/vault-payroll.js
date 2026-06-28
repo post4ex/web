@@ -1,7 +1,11 @@
 // ============================================================================
-// VAULT-PAYROLL.JS — Staff/Employee management + Payroll processing
+// VAULT-PAYROLL.JS — Employee management + Payroll dashboard + Payslips
 // Tiles: employees, payroll
-// API: staff data from cache, /api/write for STAFF
+// Data sources:
+//   Employees:      IDB STAFF (list) + IDB LEDGER (balances by STAFF_CODE)
+//   Payslips:       IDB HEADER (DOX_TYPE === 'Payslip')
+//   Salary structs: IDB LEDGER (legacy JOURNAL + JOURNAL_TYPE='SALARY_STRUCTURE')
+//   Payroll dashbd: Computed from STAFF + LEDGER
 // ============================================================================
 
 const VaultPayroll = (() => {
@@ -9,6 +13,9 @@ const VaultPayroll = (() => {
     let _allStaff = [];
     let _allAttendance = [];
     let _allBranches = [];
+    let _allLedger = [];
+    let _allPayslips = [];
+    let _balanceCache = {};
     let _activeTile = 'employees';
 
     function _can(role) { return window.VaultPage?.can(role); }
@@ -16,6 +23,23 @@ const VaultPayroll = (() => {
         if (!v) return 'N/A';
         try { return (typeof fmtDate === 'function') ? fmtDate(v, t) : new Date(v).toLocaleDateString(); }
         catch { return String(v); }
+    }
+
+    function _toDateStr(ts) {
+        if (!ts) return '—';
+        try {
+            const d = new Date(ts);
+            return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (_) { return '—'; }
+    }
+
+    function _fmtAmt(v) {
+        return '₹' + (parseFloat(v) || 0).toFixed(2);
+    }
+
+    function _escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function _injectListPane(placeholder) {
@@ -37,6 +61,32 @@ const VaultPayroll = (() => {
         const colors = { 'Active': 'bg-green-100 text-green-700', 'Inactive': 'bg-red-100 text-red-700',
             'Resigned': 'bg-yellow-100 text-yellow-700', 'On Leave': 'bg-blue-100 text-blue-700' };
         return `<span class="text-xs px-2 py-0.5 rounded-full ${colors[status] || 'bg-gray-100 text-gray-600'}">${status || 'N/A'}</span>`;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // EMPLOYEE BALANCE COMPUTATION (from LEDGER + BAL_LAST_FY)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    function _computeEmployeeBalances() {
+        _balanceCache = {};
+        (_allLedger || []).forEach(e => {
+            if (!e.STAFF_CODE) return;
+            const debit = +(e.DEBIT || 0);
+            const credit = +(e.CREDIT || 0);
+            if (!_balanceCache[e.STAFF_CODE]) _balanceCache[e.STAFF_CODE] = 0;
+            _balanceCache[e.STAFF_CODE] += (debit - credit);
+        });
+    }
+
+    function _getDisplayBalance(staffEntry) {
+        const opening = +(staffEntry?.BAL_LAST_FY || 0);
+        const running = _balanceCache[staffEntry?.STAFF_CODE] || 0;
+        return opening + running;
+    }
+
+    function _getStaffLedgerEntries(staffCode) {
+        return (_allLedger || []).filter(e => e.STAFF_CODE === staffCode)
+            .sort((a, b) => ((a.IO_TIMESTAMP || '') > (b.IO_TIMESTAMP || '') ? 1 : -1));
     }
 
     // ========================================================================
@@ -61,8 +111,11 @@ const VaultPayroll = (() => {
             ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No employees found.</li>';
             return;
         }
-        ul.innerHTML = sorted.map(s => `
-            <li data-code="${s.STAFF_CODE}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
+        ul.innerHTML = sorted.map(s => {
+            const bal = _getDisplayBalance(s);
+            const balClass = bal >= 0 ? 'text-red-600' : 'text-green-600'; // positive = owes money (Dr)
+            const balStr = bal !== 0 ? `<span class="${balClass} text-xs font-medium">${_fmtAmt(Math.abs(bal))} ${bal >= 0 ? 'Dr' : 'Cr'}</span>` : '';
+            return `<li data-code="${s.STAFF_CODE}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
                 <div class="flex items-start justify-between">
                     <div>
                         <strong class="text-gray-800 block text-sm">${s.STAFF_NAME || 'N/A'}</strong>
@@ -70,11 +123,13 @@ const VaultPayroll = (() => {
                     </div>
                     <div class="flex flex-col items-end gap-1">
                         ${_statusBadge(s.STATUS)}
+                        ${balStr}
                     </div>
                 </div>
                 <div class="mt-1">${_roleBadge(s.ROLE)}</div>
                 ${s.MOBILE ? `<div class="text-xs text-gray-400 mt-1">📞 ${s.MOBILE}</div>` : ''}
-            </li>`).join('');
+            </li>`;
+        }).join('');
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => {
                 ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
@@ -89,13 +144,28 @@ const VaultPayroll = (() => {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
         const branch = _allBranches.find(b => b.BRANCH_CODE === staff.BRANCH);
+        const bal = _getDisplayBalance(staff);
+        const balClass = bal >= 0 ? 'text-red-600' : 'text-green-600';
+        const ledgerEntries = _getStaffLedgerEntries(staff.STAFF_CODE);
+
+        const statementRows = ledgerEntries.slice(-20).map(e => {
+            const debit = +(e.DEBIT || 0);
+            const credit = +(e.CREDIT || 0);
+            return `<tr class="border-b border-gray-100 hover:bg-gray-50/50">
+                <td class="py-1.5 px-2 text-xs text-gray-500">${_toDateStr(e.IO_TIMESTAMP)}</td>
+                <td class="py-1.5 px-2 text-xs text-gray-600">${_escapeHtml(e.NARRATION || '')}</td>
+                <td class="py-1.5 px-2 text-right text-xs text-green-700">${debit ? _fmtAmt(debit) : '—'}</td>
+                <td class="py-1.5 px-2 text-right text-xs text-red-700">${credit ? _fmtAmt(credit) : '—'}</td>
+            </tr>`;
+        }).join('');
+
         view.innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header flex justify-between items-center">
                     <h3 class="font-semibold text-gray-700">👤 Employee Detail</h3>
                     <div class="flex gap-2 items-center">
                         ${_statusBadge(staff.STATUS)}
-                        <button onclick="VaultPayroll._printEmployee('${staff.STAFF_CODE}')" class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>
+                        <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-${bal >= 0 ? 'red' : 'green'}-100 text-${bal >= 0 ? 'red' : 'green'}-700">${_fmtAmt(Math.abs(bal))} ${bal >= 0 ? 'Dr' : 'Cr'}</span>
                     </div>
                 </div>
                 <div class="detail-card-body">
@@ -108,17 +178,17 @@ const VaultPayroll = (() => {
                         <div><span class="text-gray-500">Email:</span> ${staff.EMAIL || 'N/A'}</div>
                         <div><span class="text-gray-500">Branch:</span> ${staff.BRANCH || 'N/A'} ${branch ? '- ' + branch.BRANCH_NAME : ''}</div>
                         <div><span class="text-gray-500">Department:</span> ${staff.DEPARTMENT || 'N/A'}</div>
-                        <div><span class="text-gray-500">Date of Birth:</span> ${staff.DATE_BIRTH ? _fmt(staff.DATE_BIRTH, 'date') : 'N/A'}</div>
-                        <div><span class="text-gray-500">Date of Join:</span> ${staff.DATE_JOIN ? _fmt(staff.DATE_JOIN, 'date') : 'N/A'}</div>
-                        ${staff.DATE_LEAVE ? `<div><span class="text-gray-500">Date of Leave:</span> ${_fmt(staff.DATE_LEAVE, 'date')}</div>` : ''}
+                        <div><span class="text-gray-500">DOB:</span> ${staff.DATE_BIRTH ? _fmt(staff.DATE_BIRTH, 'date') : 'N/A'}</div>
+                        <div><span class="text-gray-500">DOJ:</span> ${staff.DATE_JOIN ? _fmt(staff.DATE_JOIN, 'date') : 'N/A'}</div>
+                        ${staff.DATE_LEAVE ? `<div><span class="text-gray-500">DOL:</span> ${_fmt(staff.DATE_LEAVE, 'date')}</div>` : ''}
                         <div><span class="text-gray-500">Gender:</span> ${staff.GENDER || 'N/A'}</div>
                         <div><span class="text-gray-500">Blood Group:</span> ${staff.BLOOD_GROUP || 'N/A'}</div>
                         <div><span class="text-gray-500">PAN:</span> ${staff.PAN_NUM || 'N/A'}</div>
                         <div><span class="text-gray-500">Aadhaar:</span> ${staff.ADHAR_NUM || 'N/A'}</div>
-                        <div><span class="text-gray-500">EPF UID:</span> ${staff.EPF_UID || 'N/A'}</div>
-                        <div><span class="text-gray-500">ESI UID:</span> ${staff.ESI_UID || 'N/A'}</div>
+                        <div><span class="text-gray-500">EPF:</span> ${staff.EPF_UID || 'N/A'}</div>
+                        <div><span class="text-gray-500">ESI:</span> ${staff.ESI_UID || 'N/A'}</div>
                         <div><span class="text-gray-500">UAN:</span> ${staff.UAN || 'N/A'}</div>
-                        <div><span class="text-gray-500">Emergency Contact:</span> ${staff.EMERGENCY_CONTACT || 'N/A'}</div>
+                        <div><span class="text-gray-500">Emergency:</span> ${staff.EMERGENCY_CONTACT || 'N/A'}</div>
                         ${staff.BANK_NAME ? `<div class="sm:col-span-2 border-t pt-2 mt-2">
                             <div class="text-xs font-semibold text-gray-400 uppercase mb-2">Bank Details</div>
                             <div class="grid grid-cols-2 gap-3">
@@ -129,23 +199,39 @@ const VaultPayroll = (() => {
                         </div>` : ''}
                         ${staff.ADDRESS ? `<div class="sm:col-span-2"><span class="text-gray-500">Address:</span> ${staff.ADDRESS}, ${staff.CITY || ''}, ${staff.STATE || ''} - ${staff.PINCODE || ''}</div>` : ''}
                     </div>
+
+                    <!-- Balance & Recent Transactions -->
+                    ${ledgerEntries.length ? `
+                    <div class="mt-6 border-t pt-4">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">📊 Recent Transactions</h4>
+                        <div class="overflow-hidden border border-gray-100 rounded-lg">
+                            <table class="min-w-full text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="py-2 px-2 text-left font-bold text-gray-500 uppercase">Date</th>
+                                        <th class="py-2 px-2 text-left font-bold text-gray-500 uppercase">Narration</th>
+                                        <th class="py-2 px-2 text-right font-bold text-green-600 uppercase">Debit</th>
+                                        <th class="py-2 px-2 text-right font-bold text-red-600 uppercase">Credit</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white">${statementRows}</tbody>
+                            </table>
+                        </div>
+                        ${ledgerEntries.length > 20 ? `<p class="text-xs text-gray-400 mt-2">Showing last 20 of ${ledgerEntries.length} entries</p>` : ''}
+                    </div>` : ''}
                 </div>
             </div>`;
         VaultPage.showDetailPane();
     }
 
-
-
     // ========================================================================
-    // SALARY STRUCTURE (stored in LEDGER as JOURNAL entries with JOURNAL_TYPE='SALARY_STRUCTURE')
-    // NARRATION contains JSON: { net: 25000, earnings: {basic:12000,...}, deductions: {pf:1800,...} }
+    // SALARY STRUCTURE (stored in LEDGER — legacy, keep until Manager.io)
     // ========================================================================
 
-    let _allLedger = [];
     let _salaryStructures = [];
 
     function _loadSalaryStructures() {
-        _salaryStructures = _allLedger.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY_STRUCTURE' && e.STATUS === 'ACTIVE');
+        _salaryStructures = (_allLedger || []).filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY_STRUCTURE' && e.STATUS === 'ACTIVE');
     }
 
     function _getSalaryForStaff(code) {
@@ -216,9 +302,7 @@ const VaultPayroll = (() => {
             btn.disabled = true;
             const resp = document.getElementById('salResponse');
             try {
-                // Void existing structure if editing
                 if (existingData && existingData.entry_id) {
-                    // TODO: migrate salary structure void + save to Manager.io
                     alert('Coming soon — managing salary structures through Manager.io');
                     return;
                 }
@@ -258,27 +342,11 @@ const VaultPayroll = (() => {
             alert('No active employees have salary structure defined. Set salaries first.');
             return;
         }
-        const month = new Date().toISOString().substring(0, 7); // YYYY-MM
+        const month = new Date().toISOString().substring(0, 7);
         if (!confirm(`Process salary for ${month}? This will create ledger entries for ${withSalary.length} employees.`)) return;
-        let success = 0, failed = 0;
-        for (const staff of withSalary) {
-            const structure = _getSalaryForStaff(staff.STAFF_CODE);
-            try {
-                const data = JSON.parse(structure.NARRATION || '{}');
-                // TODO: migrate salary processing to Manager.io
-                alert('Coming soon — processing payroll through Manager.io');
-                return;
-                success++;
-            } catch { failed++; }
-        }
-        alert(`✅ ${month}: Processed ${success} salaries${failed ? ', failed: ' + failed : ''}`);
-        const freshData = await getAppData();
-        if (freshData?.LEDGER) _allLedger = Object.values(freshData.LEDGER);
-        _loadSalaryStructures();
-        _renderPayrollDashboard();
+        alert('Coming soon — processing payroll through Manager.io');
     }
 
-    // ── Net auto-calc ─────────────────────────────────────────────────────────
     function _calcNet() {
         const ids = ['basic', 'hra', 'conveyance', 'medical', 'special', 'pf', 'esi', 'tds'];
         const vals = {};
@@ -376,11 +444,127 @@ const VaultPayroll = (() => {
     }
 
     // ========================================================================
-    // PAYROLL TILE
+    // PAYROLL TILE — Dashboard + Payslip List
     // ========================================================================
 
+    // ── Payslip list from HEADER ──────────────────────────────────────────────
+    function _renderPayslipList() {
+        const ul = document.getElementById('vaultList');
+        if (!ul) return;
+
+        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
+        const filtered = _allPayslips.filter(e => {
+            if (!q) return true;
+            return (e.DOX_REF || '').toLowerCase().includes(q) ||
+                   (e.B2B || '').toLowerCase().includes(q);
+        }).sort((a, b) => ((b.IO_TIMESTAMP || '') > (a.IO_TIMESTAMP || '') ? 1 : -1));
+
+        if (!filtered.length) {
+            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No payslips found.</li>';
+            return;
+        }
+
+        ul.innerHTML = filtered.map(e => `
+            <li data-key="${e.DOX_KEY}" class="p-3 rounded-lg cursor-pointer hover:bg-green-50 border border-gray-200 transition-colors">
+                <div class="flex items-start justify-between">
+                    <strong class="text-green-700 block text-sm flex-1 min-w-0 truncate">🧾 ${e.DOX_REF || 'N/A'} — ${e.B2B || 'N/A'}</strong>
+                    <span class="text-xs font-semibold text-green-700 shrink-0 ml-2">${_fmtAmt(e.AMOUNT)}</span>
+                </div>
+                <div class="flex justify-between mt-1">
+                    <span class="text-xs text-gray-500">${_toDateStr(e.IO_TIMESTAMP)} · ${e.BRANCH || ''}</span>
+                </div>
+            </li>
+        `).join('');
+
+        ul.querySelectorAll('li').forEach(li =>
+            li.addEventListener('click', () => {
+                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
+                li.classList.add('selected');
+                _renderPayslipDetail(li.dataset.key);
+            })
+        );
+    }
+
+    function _renderPayslipDetail(key) {
+        const entry = _allPayslips.find(e => e.DOX_KEY === key);
+        if (!entry) return;
+
+        VaultPage.showDetail(true);
+        const view = document.getElementById('vaultDetailView');
+
+        view.innerHTML = `
+            <div class="detail-card">
+                <div class="detail-card-body p-6 space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-gray-100 pb-5">
+                        <div>
+                            <h1 class="text-xl font-bold text-green-800 tracking-tight">Payslip</h1>
+                            <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${entry.BRANCH || 'N/A'}</span></p>
+                        </div>
+                        <div class="flex flex-col items-start sm:items-end gap-2">
+                            <span class="text-xl font-bold text-green-700">${_fmtAmt(entry.AMOUNT)}</span>
+                            <p class="text-sm text-gray-500">Ref #: <span class="font-bold text-gray-800">${entry.DOX_REF || 'N/A'}</span></p>
+                            <p class="text-xs text-gray-400">Date: ${_toDateStr(entry.IO_TIMESTAMP)}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm">
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Employee</h3>
+                            <p class="font-semibold text-gray-800">${entry.B2B || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Details</h3>
+                            <p class="text-gray-600">Net Pay: <span class="font-bold text-green-700">${_fmtAmt(entry.AMOUNT)}</span></p>
+                        </div>
+                    </div>
+
+                    <!-- General Ledger Postings -->
+                    <details class="text-xs border border-slate-100 rounded-xl overflow-hidden" id="glPostingsDetails">
+                        <summary class="cursor-pointer font-semibold text-gray-600 bg-slate-50 px-4 py-3 hover:bg-slate-100 transition-colors select-none">
+                            📒 General Ledger Postings
+                        </summary>
+                        <div id="glPostingsContent" class="p-3 text-gray-400 text-xs">Loading…</div>
+                    </details>
+
+                    <script>(async function() {
+                        try {
+                            const ledgerRaw = await window.appDB?.getSheet('LEDGER');
+                            const glEntries = Object.values(ledgerRaw || {}).filter(e => e.DOX_KEY === '${key}');
+                            if (!glEntries.length) {
+                                document.getElementById('glPostingsContent').innerHTML = '<p class="text-gray-400">No ledger entries found.</p>';
+                                return;
+                            }
+                            glEntries.sort((a,b) => (a.IO_TIMESTAMP || '').localeCompare(b.IO_TIMESTAMP || ''));
+                            const rows = glEntries.map(e => '<tr class=\"border-b border-slate-50\">' +
+                                '<td class=\"py-1.5 px-2 text-gray-700\">' + (e.ACCOUNT || '—') + '</td>' +
+                                '<td class=\"py-1.5 px-2 text-right text-green-700 font-medium\">' + ((+e.DEBIT||0) ? '₹'+(+e.DEBIT).toFixed(2) : '—') + '</td>' +
+                                '<td class=\"py-1.5 px-2 text-right text-red-700 font-medium\">' + ((+e.CREDIT||0) ? '₹'+(+e.CREDIT).toFixed(2) : '—') + '</td>' +
+                                '<td class=\"py-1.5 px-2 text-gray-500 text-[10px]\">' + (e.NARRATION || '') + '</td>' +
+                                '</tr>').join('');
+                            document.getElementById('glPostingsContent').innerHTML =
+                                '<table class=\"w-full text-[11px]\"><thead><tr class=\"bg-slate-100 text-gray-500 font-semibold uppercase tracking-wider\">' +
+                                '<th class=\"py-2 px-2 text-left\">Account</th><th class=\"py-2 px-2 text-right\">Debit</th>' +
+                                '<th class=\"py-2 px-2 text-right\">Credit</th><th class=\"py-2 px-2 text-left\">Narration</th>' +
+                                '</tr></thead><tbody>' + rows + '</tbody></table>';
+                        } catch(glErr) {
+                            document.getElementById('glPostingsContent').innerHTML = '<p class=\"text-red-500\">Failed to load GL postings.</p>';
+                            console.error('GL postings error:', glErr);
+                        }
+                    })();</script>
+                </div>
+            </div>`;
+        VaultPage.showDetailPane();
+    }
+
+    function _showPayslipListView() {
+        _injectListPane('Search payslip ref, employee…');
+        document.getElementById('vaultSearch').oninput = () => _renderPayslipList();
+        _renderPayslipList();
+    }
+
+    // ── Salary history (from legacy LEDGER) ──────────────────────────────────
     function _renderSalaryHistory() {
-        const salaryEntries = _allLedger
+        const salaryEntries = (_allLedger || [])
             .filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY' && e.STATUS === 'ACTIVE')
             .sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
 
@@ -392,7 +576,6 @@ const VaultPayroll = (() => {
                 </div>`;
         }
 
-        // Group by month for summary
         const monthMap = {};
         salaryEntries.forEach(e => {
             const d = e.ENTRY_DATE ? new Date(e.ENTRY_DATE) : new Date();
@@ -404,7 +587,6 @@ const VaultPayroll = (() => {
 
         const recentMonths = Object.entries(monthMap).sort().reverse().slice(0, 6);
 
-        // Extract staff name from narration (format: "Salary YYYY-MM - Name - ₹amount")
         function _extractName(narration) {
             const m = (narration || '').match(/Salary \d{4}-\d{2} - (.+?) - ₹/);
             return m ? m[1] : narration;
@@ -417,18 +599,14 @@ const VaultPayroll = (() => {
                     <span class="text-xs text-gray-500">${salaryEntries.length} payments</span>
                 </div>
                 <div class="detail-card-body">
-                    <!-- Monthly summary -->
                     <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
                         ${recentMonths.map(([month, data]) => `
                             <div class="border rounded-lg p-2 text-center bg-green-50">
                                 <div class="text-xs text-gray-500">${month}</div>
                                 <div class="text-sm font-bold text-green-700">₹${data.total.toFixed(2)}</div>
                                 <div class="text-xs text-gray-400">${data.count} emp</div>
-                            </div>
-                        `).join('')}
+                            </div>`).join('')}
                     </div>
-
-                    <!-- Recent payments list -->
                     <div class="text-xs">
                         <div class="font-semibold text-gray-600 mb-2">Recent Payments</div>
                         <div class="space-y-1 max-h-64 overflow-y-auto">
@@ -451,11 +629,11 @@ const VaultPayroll = (() => {
             </div>`;
     }
 
+    // ── Payroll Dashboard ────────────────────────────────────────────────────
     function _renderPayrollDashboard() {
         const view = document.getElementById('vaultDetailView');
         const activeStaff = _allStaff.filter(s => s.STATUS === 'Active');
         const totalStaff = _allStaff.length;
-        const onLeave = _allStaff.filter(s => s.STATUS === 'On Leave').length;
         const branches = [...new Set(_allStaff.map(s => s.BRANCH).filter(Boolean))];
         const withSalary = activeStaff.filter(s => _getSalaryForStaff(s.STAFF_CODE));
         const totalPayroll = withSalary.reduce((sum, s) => {
@@ -464,13 +642,7 @@ const VaultPayroll = (() => {
             catch { return sum; }
         }, 0);
 
-        // Last 30 days attendance summary
-        const now = Date.now();
-        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-        const recentAttendance = _allAttendance.filter(a =>
-            a.ATTEN_DATE && a.ATTEN_DATE >= thirtyDaysAgo
-        );
-        const presentCount = recentAttendance.filter(a => a.STATUS === 'Present' || !a.STATUS).length;
+        const payslipCount = _allPayslips.length;
 
         view.innerHTML = `
             <!-- KPI Cards -->
@@ -492,14 +664,14 @@ const VaultPayroll = (() => {
                     <div class="text-2xl font-bold text-orange-600 mt-1">₹${totalPayroll.toFixed(2)}</div>
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                    <div class="text-xs text-gray-500 uppercase font-semibold">Attendance (30d)</div>
-                    <div class="text-2xl font-bold text-blue-600 mt-1">${presentCount}</div>
+                    <div class="text-xs text-gray-500 uppercase font-semibold">Payslips</div>
+                    <div class="text-2xl font-bold text-green-600 mt-1">${payslipCount}</div>
                 </div>
             </div>
 
-            <!-- Salary Actions -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div class="detail-card">
+            <!-- Actions -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div class="detail-card col-span-2">
                     <div class="detail-card-header flex justify-between items-center">
                         <h3 class="font-semibold text-gray-700">💰 Salary Structures</h3>
                         <span class="text-xs text-gray-500">${withSalary.length} defined</span>
@@ -521,21 +693,24 @@ const VaultPayroll = (() => {
                     <div class="detail-card-body space-y-3">
                         <button onclick="VaultPayroll._processMonthlySalary()" class="w-full p-3 bg-green-50 border border-green-200 rounded-lg text-left hover:bg-green-100 transition-colors">
                             <div class="font-semibold text-green-700">📤 Process Monthly Salary</div>
-                            <div class="text-xs text-gray-500 mt-1">Creates salary entries for all employees with defined salaries</div>
+                            <div class="text-xs text-gray-500 mt-1">Creates salary entries</div>
                         </button>
-                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div class="font-semibold text-blue-700 text-sm">ℹ️ How it works</div>
+                        <button onclick="VaultPayroll._showPayslipListView()" class="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg text-left hover:bg-blue-100 transition-colors">
+                            <div class="font-semibold text-blue-700">🧾 View Payslips</div>
+                            <div class="text-xs text-gray-500 mt-1">${payslipCount} payslips found</div>
+                        </button>
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div class="font-semibold text-gray-700 text-sm">ℹ️ How it works</div>
                             <div class="text-xs text-gray-500 mt-1 space-y-1">
-                                <p>1. Set each employee's monthly salary (earnings - deductions)</p>
+                                <p>1. Set each employee's monthly salary</p>
                                 <p>2. Click "Process Monthly Salary" at month end</p>
-                                <p>3. System creates one ledger entry per employee recording the expense</p>
+                                <p>3. System creates one ledger entry per employee</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Recent Salary Payments -->
             ${_renderSalaryHistory()}
 
             <!-- Branch-wise Staff Count -->
@@ -581,14 +756,13 @@ const VaultPayroll = (() => {
             }).join('');
         };
         _renderSalaryList();
-        // Show detail with instructions
         VaultPage.showDetail(true);
         document.getElementById('vaultDetailView').innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">💰 Salary Setup</h3></div>
                 <div class="detail-card-body text-sm text-gray-600 space-y-2">
                     <p>Select an employee from the list to set their monthly salary.</p>
-                    <p>Enter their earnings (Basic, HRA, etc.) and deductions (PF, ESI, TDS). The net amount is auto-calculated.</p>
+                    <p>Enter earnings (Basic, HRA, etc.) and deductions (PF, ESI, TDS). Net is auto-calculated.</p>
                 </div>
             </div>`;
         VaultPage.showDetailPane();
@@ -598,11 +772,6 @@ const VaultPayroll = (() => {
     // ========================================================================
     // LOAD
     // ========================================================================
-
-    function _printEmployee(staffCode) {
-        const staff = _allStaff.find(s => s.STAFF_CODE === staffCode);
-        if (staff) VaultPrint.printEmployee(staff);
-    }
 
     function search() {
         if (_activeTile === 'employees') _renderList();
@@ -617,14 +786,29 @@ const VaultPayroll = (() => {
         _allBranches = Object.values(data.BRANCHES || {});
         _allLedger = Object.values(data.LEDGER || {});
         _loadSalaryStructures();
+        _computeEmployeeBalances();
 
-        _injectListPane('Search name, code, department…');
-
-        // Wire search input
-        const searchInput = document.getElementById('vaultSearch');
-        if (searchInput) searchInput.oninput = () => search();
+        // Load payslips from HEADER
+        try {
+            if (window.appDB) {
+                const raw = await window.appDB.getSheet('HEADER');
+                const activeBranch = VaultPage.getActiveBranch();
+                _allPayslips = Object.values(raw || {}).filter(h =>
+                    h.DOX_TYPE === 'Payslip' &&
+                    (!activeBranch || (h.BRANCH || '').toLowerCase() === activeBranch.toLowerCase())
+                );
+            } else {
+                _allPayslips = [];
+            }
+        } catch (err) {
+            console.error('[VaultPayroll] Failed to load payslips:', err);
+            _allPayslips = [];
+        }
 
         if (_activeTile === 'employees') {
+            _injectListPane('Search name, code, department…');
+            const searchInput = document.getElementById('vaultSearch');
+            if (searchInput) searchInput.oninput = () => search();
             _renderList();
             document.getElementById('vaultAddBtn').classList.add('hidden');
         } else if (_activeTile === 'payroll') {
@@ -639,7 +823,7 @@ const VaultPayroll = (() => {
 
     function setTile(tile) { _activeTile = tile; }
 
-    return { load, search, setTile, _openSalaryForm, _calcNet, _processMonthlySalary, _showSalaryListView, _printEmployee };
+    return { load, search, setTile, _openSalaryForm, _calcNet, _processMonthlySalary, _showSalaryListView };
 })();
 
 window.VaultPayroll = VaultPayroll;

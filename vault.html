@@ -171,9 +171,7 @@
             <div class="tile-grid">
                 <div class="tile" data-tile="billing"          style="border-color:#fef3c7;"><div class="tile-icon">🧮</div><div class="tile-label">Billing</div></div>
                 <div class="tile" data-tile="sales-invoices"   style="border-color:#dcfce7;"><div class="tile-icon">🧾</div><div class="tile-label">Sales Invoices</div></div>
-                <div class="tile" data-tile="quotations"       style="border-color:#d1fae5;"><div class="tile-icon">📋</div><div class="tile-label">Quotations</div></div>
                 <div class="tile" data-tile="credit-notes"     style="border-color:#fce7f3;"><div class="tile-icon">📝</div><div class="tile-label">Credit Notes</div></div>
-                <div class="tile" data-tile="delivery-notes"   style="border-color:#e0f2fe;"><div class="tile-icon">🚚</div><div class="tile-label">Delivery Notes</div></div>
                 <div class="tile" data-tile="customers"        style="border-color:#ede9fe;"><div class="tile-icon">🤝</div><div class="tile-label">Customers</div></div>
 
             </div>
@@ -219,21 +217,13 @@
                 <div class="tile" data-tile="pending-approvals"  style="border-color:#fee2e2;"><div class="tile-icon">⏳</div><div class="tile-label">Pending Approvals</div></div>
             </div>
 
-            <div class="tile-section"><h2>GST</h2></div>
+            <div class="tile-section"><h2>Taxes</h2></div>
             <div class="tile-grid">
-                <div class="tile" data-tile="gstr1"            style="border-color:#dcfce7;"><div class="tile-icon">🇮🇳</div><div class="tile-label">GSTR-1</div></div>
-                <div class="tile" data-tile="gstr3b"           style="border-color:#d1fae5;"><div class="tile-icon">📊</div><div class="tile-label">GSTR-3B</div></div>
-                <div class="tile" data-tile="gstr2b"           style="border-color:#e0f2fe;"><div class="tile-icon">🔍</div><div class="tile-label">GSTR-2B Recon</div></div>
-                <div class="tile" data-tile="tds"              style="border-color:#ede9fe;"><div class="tile-icon">📑</div><div class="tile-label">TDS</div></div>
-                <div class="tile" data-tile="tcs"              style="border-color:#fce7f3;"><div class="tile-icon">📑</div><div class="tile-label">TCS</div></div>
-                <div class="tile" data-tile="tds-certs"        style="border-color:#f3f4f6;"><div class="tile-icon">🏅</div><div class="tile-label">TDS Certificates</div></div>
-                <div class="tile" data-tile="gst-filing"       style="border-color:#dcfce7;"><div class="tile-icon">🗓️</div><div class="tile-label">GST Filing</div></div>
-                <div class="tile" data-tile="purchase-register"  style="border-color:#fef3c7;"><div class="tile-icon">📋</div><div class="tile-label">Purchase Register</div></div>
+                <div class="tile" data-tile="taxes"          style="border-color:#dcfce7;"><div class="tile-icon">🏷️</div><div class="tile-label">Taxes</div></div>
             </div>
 
             <div class="tile-section"><h2>Reports</h2></div>
             <div class="tile-grid">
-                <div class="tile" data-tile="reports"          style="border-color:#f5f3ff;"><div class="tile-icon">📊</div><div class="tile-label">Reports</div></div>
                 <div class="tile" data-tile="close-fy"         style="border-color:#fef9c3;"><div class="tile-icon">🗂️</div><div class="tile-label">Close FY</div></div>
                 <div class="tile" data-tile="bank-recon"       style="border-color:#fef9c3;"><div class="tile-icon">🏦</div><div class="tile-label">Bank Recon</div></div>
                 <div class="tile" data-tile="bulk-import"      style="border-color:#f0fdf4;"><div class="tile-icon">📥</div><div class="tile-label">Bulk Import</div></div>
@@ -252,6 +242,7 @@
                         </button>
                         <h2 id="splitTitle" class="text-xl font-bold text-gray-800 flex-1"></h2>
                         <button id="vaultAddBtn" class="btn-ghost btn-sm hidden">+ Add</button>
+                        <button id="vaultReportBtn" class="btn-ghost btn-sm hidden" style="margin-left: 8px;">📊 Report</button>
                     </div>
                     <input id="vaultSearch" type="text" placeholder="Search…" class="form-input text-sm">
                 </div>
@@ -337,13 +328,13 @@
     <script src="jawaS/vault-suppliers.js"></script>
     <script src="jawaS/vault-customers.js"></script>
     <script src="jawaS/vault-credit-notes.js"></script>
-    <script src="jawaS/vault-quotations.js"></script>
-    <script src="jawaS/vault-delivery-notes.js"></script>
+    <script src="jawaS/vault-debit-notes.js"></script>
     <script src="jawaS/vault-receipts.js"></script>
     <script src="jawaS/vault-journal.js"></script>
     <script src="jawaS/vault-purchases.js"></script>
     <script src="jawaS/vault-expenses.js"></script>
     <script src="jawaS/vault-gst.js"></script>
+    <script src="jawaS/vault-taxes.js"></script>
     <script src="jawaS/vault-pending-approvals.js"></script>
     <script src="jawaS/vault-summary.js"></script>
     <script src="jawaS/vault-inventory.js"></script>

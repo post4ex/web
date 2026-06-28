@@ -1,6 +1,9 @@
 // ============================================================================
-// VAULT-INVENTORY.JS — Inventory Overview Dashboard (Manager.io)
+// VAULT-INVENTORY.JS — Inventory Overview Dashboard (Live API)
 // Tile: inventory
+// Data source: Manager.io live API (stays live — not migrated to IDB)
+// Rationale: Stock quantities & pricing need real-time accuracy.
+//            Caching in IDB would cause oversell/concurrency issues.
 // API: /api/manager/all-inventory-items, /api/manager/inventory-item-details/{branch}/{key}
 // ============================================================================
 

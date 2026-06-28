@@ -152,8 +152,205 @@ const VaultSummary = (() => {
     async function showDashboard() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Financial summary dashboard is being migrated to Manager.io. Coming soon.</div>';
+        view.innerHTML = `
+            <div class="flex items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span class="ml-3 text-sm text-gray-500 font-medium">Computing summary...</span>
+            </div>
+        `;
         VaultPage.showDetailPane();
+
+        try {
+            const data = await getAppData();
+            if (!data) {
+                view.innerHTML = '<div class="text-center text-gray-400 py-8">No data found.</div>';
+                return;
+            }
+
+            const ledger = Object.values(data.LEDGER || {});
+            const b2b = Object.values(data.B2B || {});
+            const staff = Object.values(data.STAFF || {});
+
+            const branch = VaultPage.getActiveBranch();
+            const branchLower = (branch || '').toLowerCase();
+
+            // 1. Receivables
+            let receivablesSum = 0;
+            const clientBalMap = {};
+            ledger.forEach(e => {
+                if (e.CODE && e.ACCOUNT === 'Accounts receivable' && (!branchLower || (e.BRANCH || '').toLowerCase() === branchLower)) {
+                    clientBalMap[e.CODE] = (clientBalMap[e.CODE] || 0) + (+(e.DEBIT || 0) - +(e.CREDIT || 0));
+                }
+            });
+            b2b.forEach(c => {
+                if (c.B2B_TYPE === 'CLIENT' && c.CODE && (!branchLower || (c.BRANCH || '').toLowerCase() === branchLower)) {
+                    const opening = +(c.BAL_LAST_FY || 0);
+                    const running = clientBalMap[c.CODE] || 0;
+                    receivablesSum += (opening + running);
+                }
+            });
+
+            // 2. Payables
+            let payablesSum = 0;
+            const supplierBalMap = {};
+            ledger.forEach(e => {
+                if (e.CODE && e.ACCOUNT === 'Accounts payable' && (!branchLower || (e.BRANCH || '').toLowerCase() === branchLower)) {
+                    supplierBalMap[e.CODE] = (supplierBalMap[e.CODE] || 0) + (+(e.CREDIT || 0) - +(e.DEBIT || 0));
+                }
+            });
+            b2b.forEach(c => {
+                if ((c.B2B_TYPE === 'SUPPLIER' || c.B2B_TYPE === 'CARRIER') && c.CODE && (!branchLower || (c.BRANCH || '').toLowerCase() === branchLower)) {
+                    const opening = +(c.BAL_LAST_FY || 0);
+                    const running = supplierBalMap[c.CODE] || 0;
+                    payablesSum += (opening + running);
+                }
+            });
+
+            // 3. Bank & Cash balances
+            let bankBalanceSum = 0;
+            let loadedLive = false;
+            
+            const getClientCodeForBranch = (bName) => {
+                const b = bName?.toLowerCase();
+                const found = b2b.find(c => (c.BRANCH || '').toLowerCase() === b);
+                return found ? found.CODE : null;
+            };
+
+            const clientCode = getClientCodeForBranch(branch);
+            if (clientCode) {
+                try {
+                    const res = await callApi(`/api/manager/bank-accounts?code=${encodeURIComponent(clientCode)}`, {}, 'GET');
+                    const list = res.bankAndCashAccounts || [];
+                    list.forEach(a => {
+                        bankBalanceSum += (+a.balance || 0);
+                    });
+                    loadedLive = true;
+                } catch (err) {
+                    console.error('[VaultSummary] Failed to fetch live bank accounts:', err);
+                }
+            }
+
+            if (!loadedLive) {
+                let ledgerBankSum = 0;
+                ledger.forEach(e => {
+                    if ((!branchLower || (e.BRANCH || '').toLowerCase() === branchLower) && e.ACCOUNT && (e.ACCOUNT.toLowerCase().includes('bank') || e.ACCOUNT.toLowerCase().includes('cash'))) {
+                        ledgerBankSum += (+(e.DEBIT || 0) - +(e.CREDIT || 0));
+                    }
+                });
+                bankBalanceSum = ledgerBankSum;
+            }
+
+            // 4. Staff Advances
+            let staffAdvancesSum = 0;
+            const staffBalMap = {};
+            ledger.forEach(e => {
+                if (e.STAFF_CODE && (!branchLower || (e.BRANCH || '').toLowerCase() === branchLower)) {
+                    staffBalMap[e.STAFF_CODE] = (staffBalMap[e.STAFF_CODE] || 0) + (+(e.DEBIT || 0) - +(e.CREDIT || 0));
+                }
+            });
+            staff.forEach(s => {
+                if (s.STAFF_CODE && (!branchLower || (s.BRANCH || '').toLowerCase() === branchLower)) {
+                    const opening = +(s.BAL_LAST_FY || 0);
+                    const running = staffBalMap[s.STAFF_CODE] || 0;
+                    staffAdvancesSum += (opening + running);
+                }
+            });
+
+            const netExposure = bankBalanceSum + receivablesSum - payablesSum;
+
+            view.innerHTML = `
+                <div class="space-y-6 font-sans">
+                    <div class="border-b pb-3">
+                        <h3 class="font-bold text-gray-800 text-lg">🏛️ Financial Dashboard</h3>
+                        <p class="text-xs text-gray-500">Overview of branch cash position and outstanding operations</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Receivables -->
+                        <div id="dashReceivablesCard" class="p-4 bg-gradient-to-br from-red-50 to-white rounded-xl border border-red-200 shadow-sm cursor-pointer hover:shadow transition-all">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Receivables</span>
+                                    <h4 class="text-2xl font-extrabold text-red-600 mt-1">₹${receivablesSum.toFixed(2)}</h4>
+                                </div>
+                                <span class="text-xl">👥</span>
+                            </div>
+                            <span class="text-xs text-gray-400 block mt-2">Outstanding customer balances →</span>
+                        </div>
+
+                        <!-- Payables -->
+                        <div id="dashPayablesCard" class="p-4 bg-gradient-to-br from-green-50 to-white rounded-xl border border-green-200 shadow-sm cursor-pointer hover:shadow transition-all">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Payables</span>
+                                    <h4 class="text-2xl font-extrabold text-green-600 mt-1">₹${payablesSum.toFixed(2)}</h4>
+                                </div>
+                                <span class="text-xl">🤝</span>
+                            </div>
+                            <span class="text-xs text-gray-400 block mt-2">Outstanding supplier obligations →</span>
+                        </div>
+
+                        <!-- Bank & Cash Balance -->
+                        <div id="dashBankCard" class="p-4 bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-200 shadow-sm cursor-pointer hover:shadow transition-all">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Bank & Cash</span>
+                                    <h4 class="text-2xl font-extrabold text-blue-600 mt-1">₹${bankBalanceSum.toFixed(2)}</h4>
+                                </div>
+                                <span class="text-xl">🏦</span>
+                            </div>
+                            <span class="text-xs text-gray-400 block mt-2">Total cash posture in accounts →</span>
+                        </div>
+
+                        <!-- Staff Advances -->
+                        <div id="dashStaffCard" class="p-4 bg-gradient-to-br from-purple-50 to-white rounded-xl border border-purple-200 shadow-sm cursor-pointer hover:shadow transition-all">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Staff Advances</span>
+                                    <h4 class="text-2xl font-extrabold text-purple-600 mt-1">₹${staffAdvancesSum.toFixed(2)}</h4>
+                                </div>
+                                <span class="text-xl">👤</span>
+                            </div>
+                            <span class="text-xs text-gray-400 block mt-2">Outstanding staff advance balances →</span>
+                        </div>
+                    </div>
+
+                    <!-- Net Operational cash posture -->
+                    <div class="p-5 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="font-semibold text-gray-800 text-sm">🛡️ Net Operational Posture</h4>
+                                <span class="text-xs text-gray-500">Bank Balance + Receivables - Payables</span>
+                            </div>
+                            <div class="text-right">
+                                <h3 class="text-2xl font-extrabold ${netExposure >= 0 ? 'text-green-700' : 'text-red-700'}">
+                                    ₹${netExposure.toFixed(2)}
+                                </h3>
+                                <span class="text-xs font-mono text-gray-400 uppercase">${netExposure >= 0 ? 'Surplus' : 'Deficit'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Wire the click navigation
+            document.getElementById('dashReceivablesCard').addEventListener('click', () => {
+                VaultPage.activateTile('customers');
+            });
+            document.getElementById('dashPayablesCard').addEventListener('click', () => {
+                VaultPage.activateTile('suppliers');
+            });
+            document.getElementById('dashBankCard').addEventListener('click', () => {
+                VaultPage.activateTile('bank-accounts');
+            });
+            document.getElementById('dashStaffCard').addEventListener('click', () => {
+                VaultPage.activateTile('employees');
+            });
+
+        } catch (err) {
+            console.error('[VaultSummary] Failed to load dashboard:', err);
+            view.innerHTML = `<div class="text-red-500 text-center py-8">Failed to compile dashboard: ${err.message || err}</div>`;
+        }
     }
 
     // ── TILE: Reports Hub (P&L, Balance Sheet, Aging) ────────────────────────

@@ -1,9 +1,8 @@
 // ============================================================================
-// VAULT-CUSTOMERS.JS — Customers list with Manager.io statement & quick entries
+// VAULT-CUSTOMERS.JS — Customers list from IDB B2B + LEDGER
 // Tile: customers
-// Data source: appData.B2B (list), Manager.io API (statement)
+// Data source: IDB B2B (list, balances), IDB LEDGER (statements)
 // API:
-//   GET  /api/manager/customer-statement/{branch}/{code}  — statement entries
 //   POST /api/manager/receipts?code=XXX                   — record receipt
 //   POST /api/manager/credit-notes?code=XXX               — issue credit note
 //   GET  /api/manager/bank-accounts?code=XXX              — bank accounts dropdown
@@ -63,14 +62,14 @@ const VaultCustomers = (() => {
     // ── Balance precomputation (LEDGER cache, for list view speed) ──────────
     function _precomputeBalances() {
         const cache = {};
-        const sorted = [..._allLedger]
-            .filter(e => e.DIRECTION === 'OUTWARD' && (e.STATUS === 'ACTIVE' || e.STATUS === 'PENDING'))
-            .sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
-        for (const e of sorted) {
-            const code = e.CODE;
-            if (code && !(code in cache)) {
-                cache[code] = +e.BALANCE || 0;
-            }
+        for (const entry of _allLedger) {
+            if (!entry.CODE) continue;
+            if (entry.ACCOUNT !== 'Accounts receivable') continue;
+            
+            const debit = +(entry.DEBIT || 0);
+            const credit = +(entry.CREDIT || 0);
+            if (!cache[entry.CODE]) cache[entry.CODE] = 0;
+            cache[entry.CODE] += (debit - credit);
         }
         _balanceCache = cache;
     }
@@ -78,6 +77,12 @@ const VaultCustomers = (() => {
     function _getLatestBalance(code) {
         if (_balanceCache && code in _balanceCache) return _balanceCache[code];
         return 0;
+    }
+
+    function _getDisplayBalance(b2bEntry) {
+        const opening = +(b2bEntry.BAL_LAST_FY || 0);
+        const running = _balanceCache ? (_balanceCache[b2bEntry.CODE] || 0) : 0;
+        return opening + running;
     }
 
     // ── Branch→client code resolution ───────────────────────────────────────
@@ -122,105 +127,51 @@ const VaultCustomers = (() => {
 
     function _getLocalLedgerFallback(code, start, end, direction = 'OUTWARD') {
         let localEntries = _allLedger.filter(e =>
-            e.CODE === code && e.DIRECTION === direction
+            e.CODE === code && e.ACCOUNT === 'Accounts receivable'
         );
         if (start) {
-            localEntries = localEntries.filter(e => e.ENTRY_DATE >= start);
+            localEntries = localEntries.filter(e => _toDateStr(+e.TXN_DATE) >= start);
         }
         if (end) {
-            localEntries = localEntries.filter(e => e.ENTRY_DATE <= end);
+            localEntries = localEntries.filter(e => _toDateStr(+e.TXN_DATE) <= end);
         }
         localEntries.sort((a, b) =>
-            (a.ENTRY_DATE || '').localeCompare(b.ENTRY_DATE || '') ||
+            (+a.TXN_DATE || 0) - (+b.TXN_DATE || 0) ||
             (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0)
         );
 
         return localEntries.map(e => {
-            let desc = '';
-            try {
-                const parsed = JSON.parse(e.NARRATION || '{}');
-                desc = parsed.narration || parsed.description || e.NARRATION || '';
-            } catch (_) {
-                desc = e.NARRATION || '';
-            }
-
             const debit = +(e.DEBIT || 0);
             const credit = +(e.CREDIT || 0);
 
             return {
-                date: e.ENTRY_DATE || '',
-                ENTRY_DATE: e.ENTRY_DATE || '',
-                description: desc,
-                reference: e.INV_NUMBER || e.INVOICE_ID || '',
-                INV_NUMBER: e.INV_NUMBER || e.INVOICE_ID || '',
+                date: _toDateStr(+e.TXN_DATE),
+                ENTRY_DATE: _toDateStr(+e.TXN_DATE),
+                description: e.DESCRIPTION || '',
+                reference: e.DOX_REF || '',
+                INV_NUMBER: e.DOX_REF || '',
                 debit: debit,
                 DEBIT: debit,
                 credit: credit,
                 CREDIT: credit,
-                balance: +(e.BALANCE || 0),
-                BALANCE: +(e.BALANCE || 0),
-                ENTRY_TYPE: e.ENTRY_TYPE || (credit > 0 ? 'PAYMENT' : 'INVOICE'),
-                STATUS: e.STATUS || 'ACTIVE'
+                balance: 0,
+                BALANCE: 0,
+                ENTRY_TYPE: e.TXN_TYPE || (credit > 0 ? 'PAYMENT' : 'INVOICE'),
+                STATUS: 'ACTIVE'
             };
         });
     }
 
-    // ── Statement fetching from Manager.io API (with local ledger fallback) ──
-    async function _fetchStatement(code, branch) {
+    // ── Statement fetching from local LEDGER ────────────────────────────────
+    function _fetchStatement(code, branch) {
         const start = document.getElementById('custStmtFilterStart')?.value || _stmtFilterStart;
         const end   = document.getElementById('custStmtFilterEnd')?.value   || _stmtFilterEnd;
-        const clientCode = _getClientCodeForBranch(branch);
-        if (!clientCode) {
-            const fallbackEntries = _getLocalLedgerFallback(code, start, end, 'OUTWARD');
-            const balance = fallbackEntries.length > 0 ? fallbackEntries[fallbackEntries.length - 1].balance : _getLatestBalance(code);
-            return { entries: fallbackEntries, balance };
-        }
-
-        const params = new URLSearchParams();
-        if (start) params.set('startDate', start);
-        if (end)   params.set('endDate', end);
-
-        window.setLoading?.(true, 'Loading statement…', 'detail');
-        try {
-            const url = `/api/manager/customer-statement/${encodeURIComponent(branch)}/${encodeURIComponent(code)}?${params.toString()}`;
-            const res = await callApi(url, {}, 'GET');
-            if (res && res.detail) {
-                throw new Error(res.detail);
-            }
-            const entries = res.statement || res.transactions || [];
-            const balance = entries.length > 0 ? (entries[entries.length - 1].balance || 0) : 0;
-            const mapped = entries.map(e => {
-                const debit = +(e.debit || 0);
-                const credit = +(e.credit || 0);
-                const isPmt = credit > 0;
-                return {
-                    date: e.date || '',
-                    ENTRY_DATE: e.date || '',
-                    description: e.description || '',
-                    reference: e.reference || '',
-                    INV_NUMBER: e.reference || '',
-                    debit: debit,
-                    DEBIT: debit,
-                    credit: credit,
-                    CREDIT: credit,
-                    balance: +(e.balance || 0),
-                    BALANCE: +(e.balance || 0),
-                    ENTRY_TYPE: isPmt ? 'PAYMENT' : 'INVOICE',
-                    STATUS: 'ACTIVE'
-                };
-            });
-            return { entries: mapped, balance };
-        } catch (err) {
-            console.warn('[VaultCustomers] Manager.io statement failed, falling back to local ledger:', err);
-            const fallbackEntries = _getLocalLedgerFallback(code, start, end, 'OUTWARD');
-            const balance = fallbackEntries.length > 0 ? fallbackEntries[fallbackEntries.length - 1].balance : _getLatestBalance(code);
-            return { entries: fallbackEntries, balance };
-        } finally {
-            window.setLoading?.(false);
-        }
+        const entries = _getLocalLedgerFallback(code, start, end, 'OUTWARD');
+        const balance = entries.length > 0 ? entries[entries.length - 1].balance : _getLatestBalance(code);
+        return { entries, balance };
     }
 
-    // ── List render (populated from Manager.io cache keys) ───────────────────
+    // ── List render (populated from IndexedDB B2B store directly) ───────────
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
@@ -231,18 +182,10 @@ const VaultCustomers = (() => {
             return;
         }
 
-        const bKeys = window.__vaultCacheKeys?.[activeBranch] || {};
-        const cacheCustomers = Object.keys(bKeys.customers || {});
-
-        let customers = cacheCustomers.map(name => {
-            const localCust = _allB2B.find(c =>
-                c.CODE === name ||
-                c.B2B_NAME === name ||
-                (c.CODE || '').toLowerCase() === name.toLowerCase() ||
-                (c.B2B_NAME || '').toLowerCase() === name.toLowerCase()
-            );
-            return localCust || { CODE: name, B2B_NAME: name, BRANCH: VaultPage.getActiveBranch() };
-        });
+        let customers = _allB2B.filter(c =>
+            c.B2B_TYPE === 'CLIENT' &&
+            (!activeBranch || (c.BRANCH || '').toLowerCase() === activeBranch)
+        );
 
         if (q) {
             customers = customers.filter(c =>
@@ -253,8 +196,8 @@ const VaultCustomers = (() => {
             );
         }
         customers.sort((a, b) => {
-            const balA = Math.abs(_getLatestBalance(a.CODE));
-            const balB = Math.abs(_getLatestBalance(b.CODE));
+            const balA = Math.abs(_getDisplayBalance(a));
+            const balB = Math.abs(_getDisplayBalance(b));
             return balB - balA;
         });
 
@@ -270,7 +213,7 @@ const VaultCustomers = (() => {
         if (statusEl) statusEl.textContent = `${customers.length} customers`;
 
         ul.innerHTML = customers.map(c => {
-            const balance = _getLatestBalance(c.CODE);
+            const balance = _getDisplayBalance(c);
             const balClass = balance > 0 ? 'text-red-600' : balance < 0 ? 'text-green-600' : 'text-gray-500';
             return `<li data-code="${_escapeHtml(c.CODE)}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
                 <strong class="text-blue-800 block text-sm">${_escapeHtml(c.B2B_NAME || c.CODE)}</strong>
@@ -865,7 +808,7 @@ const VaultCustomers = (() => {
         VaultPage.showDetailPane();
 
         // Fetch statement from Manager.io
-        const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
+        const { entries: stmtEntries, balance: stmtBalance } = _fetchStatement(code, branch);
         _currentCustomer = customer;
         _currentCode = code;
         _currentStmtEntries = stmtEntries;
@@ -1043,7 +986,7 @@ const VaultCustomers = (() => {
             applyBtn.onclick = async () => {
                 _stmtFilterStart = document.getElementById('custStmtFilterStart').value;
                 _stmtFilterEnd = document.getElementById('custStmtFilterEnd').value;
-                const { entries: newEntries, balance: newBal } = await _fetchStatement(code, branch);
+                const { entries: newEntries, balance: newBal } = _fetchStatement(code, branch);
                 _currentStmtEntries = newEntries;
                 _currentStmtBalance = newBal;
                 _renderTabContent();
@@ -1056,7 +999,7 @@ const VaultCustomers = (() => {
                 document.getElementById('custStmtFilterEnd').value = fy.end;
                 _stmtFilterStart = fy.start;
                 _stmtFilterEnd = fy.end;
-                const { entries: newEntries, balance: newBal } = await _fetchStatement(code, branch);
+                const { entries: newEntries, balance: newBal } = _fetchStatement(code, branch);
                 _currentStmtEntries = newEntries;
                 _currentStmtBalance = newBal;
                 _renderTabContent();
@@ -1075,14 +1018,27 @@ const VaultCustomers = (() => {
             return `<div class="text-center py-8 text-gray-400 text-sm">No statement entries found for the selected period.</div>`;
         }
 
-        // Compute opening balance (balance of first entry minus its own debit+credit)
-        const first = entries[0];
-        let openingBalance = 0;
-        if (first) {
-            const firstDebit = +(first.debit || first.Debit || 0);
-            const firstCredit = +(first.credit || first.Credit || 0);
-            openingBalance = (+(first.balance || first.Balance || 0)) - firstDebit + firstCredit;
-        }
+        // Use BAL_LAST_FY as opening balance (as of March 31)
+        const b2bEntry = _allB2B.find(b => b.CODE === _currentCode);
+        const openingBalance = +(b2bEntry?.BAL_LAST_FY || 0);
+
+        let runningBalance = openingBalance;
+        const rowsHtml = entries.map(e => {
+            const date = e.date || e.Date || '';
+            const desc = e.description || e.Description || '';
+            const ref = e.transaction || e.reference || e.Reference || '';
+            const debit = +(e.debit || e.Debit || 0);
+            const credit = +(e.credit || e.Credit || 0);
+            runningBalance += (debit - credit);
+            return `<tr class="hover:bg-gray-50">
+                <td class="px-3 py-2 whitespace-nowrap">${date ? fmtDate(date, 'date') : ''}</td>
+                <td class="px-3 py-2 max-w-[200px] truncate" title="${_escapeHtml(desc)}">${_escapeHtml(desc || '—')}</td>
+                <td class="px-3 py-2 text-gray-500">${_escapeHtml(ref)}</td>
+                <td class="px-3 py-2 text-right text-red-600">${debit > 0 ? '₹' + debit.toFixed(2) : ''}</td>
+                <td class="px-3 py-2 text-right text-green-600">${credit > 0 ? '₹' + credit.toFixed(2) : ''}</td>
+                <td class="px-3 py-2 text-right font-medium">₹${runningBalance.toFixed(2)}</td>
+            </tr>`;
+        }).join('');
 
         return `
             <div class="overflow-x-auto">
@@ -1104,22 +1060,7 @@ const VaultCustomers = (() => {
                             <td class="px-3 py-2 text-right font-medium">Opening</td>
                             <td class="px-3 py-2 text-right font-medium">₹${openingBalance.toFixed(2)}</td>
                         </tr>` : ''}
-                        ${entries.map(e => {
-                            const date = e.date || e.Date || '';
-                            const desc = e.description || e.Description || '';
-                            const ref = e.transaction || e.reference || e.Reference || '';
-                            const debit = +(e.debit || e.Debit || 0);
-                            const credit = +(e.credit || e.Credit || 0);
-                            const bal = +(e.balance || e.Balance || 0);
-                            return `<tr class="hover:bg-gray-50">
-                                <td class="px-3 py-2 whitespace-nowrap">${date ? fmtDate(date, 'date') : ''}</td>
-                                <td class="px-3 py-2 max-w-[200px] truncate" title="${_escapeHtml(desc)}">${_escapeHtml(desc || '—')}</td>
-                                <td class="px-3 py-2 text-gray-500">${_escapeHtml(ref)}</td>
-                                <td class="px-3 py-2 text-right text-red-600">${debit > 0 ? '₹' + debit.toFixed(2) : ''}</td>
-                                <td class="px-3 py-2 text-right text-green-600">${credit > 0 ? '₹' + credit.toFixed(2) : ''}</td>
-                                <td class="px-3 py-2 text-right font-medium">₹${bal.toFixed(2)}</td>
-                            </tr>`;
-                        }).join('')}
+                        ${rowsHtml}
                     </tbody>
                 </table>
             </div>`;
@@ -1129,7 +1070,7 @@ const VaultCustomers = (() => {
     async function _printStatement(code) {
         const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
         const branch = customer.BRANCH || '';
-        const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
+        const { entries: stmtEntries, balance: stmtBalance } = _fetchStatement(code, branch);
 
         VaultPrint.printStatement(customer, code, stmtEntries, stmtBalance, 'Customer');
     }
@@ -1138,7 +1079,7 @@ const VaultCustomers = (() => {
     async function _printUnpaidStatement(code) {
         const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
         const branch = customer.BRANCH || '';
-        const { entries: stmtEntries } = await _fetchStatement(code, branch);
+        const { entries: stmtEntries } = _fetchStatement(code, branch);
 
         const invoices = [];
         let totalPayments = 0;
@@ -1189,7 +1130,7 @@ const VaultCustomers = (() => {
     async function _printCustomerSummary(code) {
         const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
         const branch = customer.BRANCH || '';
-        const { entries: stmtEntries, balance: stmtBalance } = await _fetchStatement(code, branch);
+        const { entries: stmtEntries, balance: stmtBalance } = _fetchStatement(code, branch);
 
         let summary;
         if (stmtEntries.length > 0) {
@@ -1204,7 +1145,7 @@ const VaultCustomers = (() => {
     async function _printAgedReceivables(code) {
         const customer = _allB2B.find(c => c.CODE === code) || { CODE: code, B2B_NAME: code };
         const branch = customer.BRANCH || '';
-        const { entries: stmtEntries } = await _fetchStatement(code, branch);
+        const { entries: stmtEntries } = _fetchStatement(code, branch);
 
         const invoices = [];
         let totalPayments = 0;
