@@ -588,14 +588,13 @@ const VaultAccounts = (() => {
 
     async function _fetchBankAccounts() {
         const branch = VaultPage.getActiveBranch();
-        const clientCode = _getClientCodeForBranch(branch);
-        if (!clientCode) {
+        if (!branch) {
             _bankAccounts = [];
             return;
         }
         window.setLoading?.(true, 'Loading bank accounts...', 'list');
         try {
-            const res = await callApi(`/api/manager/bank-accounts?code=${encodeURIComponent(clientCode)}`, {}, 'GET');
+            const res = await callApi(`/api/manager/bank-accounts?branch=${encodeURIComponent(branch)}`, {}, 'GET');
             const list = res.bankAndCashAccounts || [];
             _bankAccounts = list.map(a => _enrichBankAccount(a));
         } catch (err) {

@@ -216,10 +216,9 @@ const VaultSummary = (() => {
                 return found ? found.CODE : null;
             };
 
-            const clientCode = getClientCodeForBranch(branch);
-            if (clientCode) {
+            if (branch) {
                 try {
-                    const res = await callApi(`/api/manager/bank-accounts?code=${encodeURIComponent(clientCode)}`, {}, 'GET');
+                    const res = await callApi(`/api/manager/bank-accounts?branch=${encodeURIComponent(branch)}`, {}, 'GET');
                     const list = res.bankAndCashAccounts || [];
                     list.forEach(a => {
                         bankBalanceSum += (+a.balance || 0);

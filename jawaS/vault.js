@@ -484,13 +484,7 @@ const VaultPage = (() => {
         const modal = document.createElement('div');
         modal.id = 'reportPeriodModal';
         modal.className = 'modal-overlay hidden';
-        modal.style.position = 'fixed';
-        modal.style.inset = '0';
-        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        modal.style.display = 'flex';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
-        modal.style.zIndex = '1000';
+        modal.style.zIndex = '1000'; // Ensure it stays on top
         modal.innerHTML = `
             <div class="modal-content space-y-4 max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-5 w-full mx-4">
                 <div class="flex justify-between items-center border-b pb-3">
