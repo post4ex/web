@@ -38,6 +38,57 @@
         .detail-card-body { padding:1rem; }
 
         .filter-active { background-color:#fca5a5 !important; color:#b91c1c !important; }
+
+        @media print {
+            #header-placeholder,
+            #footer-placeholder,
+            #tilesView,
+            #vaultListPane,
+            .modal-overlay,
+            #reportPeriodModal,
+            #list-loading-overlay,
+            #detail-loading-overlay,
+            button,
+            .btn,
+            .detail-card-header button,
+            #backToListBtn {
+                display: none !important;
+            }
+
+            body {
+                background: #fff !important;
+                color: #000 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            main, .split-view, #vaultDetailPane {
+                display: block !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                height: auto !important;
+            }
+
+            .detail-card {
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .detail-card-header {
+                border-bottom: 2px solid #000 !important;
+                background: transparent !important;
+                padding: 10px 0 !important;
+            }
+
+            .detail-card-body {
+                padding: 10px 0 !important;
+            }
+        }
     </style>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
     <script>

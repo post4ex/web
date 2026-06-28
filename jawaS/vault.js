@@ -5,6 +5,7 @@
 const VaultPage = (() => {
 
     let _activeTile = null;
+    let _tilesScrollTop = 0;
     const _isMobile = () => window.innerWidth < 768;
 
     // ── Role helpers ──────────────────────────────────────────────────────────
@@ -84,7 +85,13 @@ const VaultPage = (() => {
 
     // ── View switching ────────────────────────────────────────────────────────
     function _showTiles() {
-        document.getElementById('tilesView').style.display = 'flex';
+        const tilesView = document.getElementById('tilesView');
+        if (tilesView) {
+            tilesView.style.display = 'flex';
+            setTimeout(() => {
+                tilesView.scrollTop = _tilesScrollTop;
+            }, 0);
+        }
         document.getElementById('splitView').style.display = 'none';
         document.getElementById('vaultDetailPane').style.display = 'none';
         document.getElementById('vaultListPane').style.display = 'flex';
@@ -101,7 +108,11 @@ const VaultPage = (() => {
     }
 
     function _showSplit(title) {
-        document.getElementById('tilesView').style.display = 'none';
+        const tilesView = document.getElementById('tilesView');
+        if (tilesView) {
+            _tilesScrollTop = tilesView.scrollTop;
+            tilesView.style.display = 'none';
+        }
         document.getElementById('splitView').style.display = 'flex';
         document.getElementById('splitTitle').textContent = title;
         _showDetail(false);
