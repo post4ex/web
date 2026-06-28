@@ -296,6 +296,10 @@ async function verifyAndFetchAppData(clearAll = false) {
             // 'n/a'   = role has no access — skip permanently
             if (result.flags && window.appDB) {
                 for (const [flagKey, flagValue] of Object.entries(result.flags)) {
+                    const localVal = await window.appDB.getMetadata(flagKey).catch(() => null);
+                    if ((localVal === true || localVal === 'n/a') && flagValue === false) {
+                        continue;
+                    }
                     await window.appDB.setMetadata(flagKey, flagValue).catch(() => {});
                 }
             }
