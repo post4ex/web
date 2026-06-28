@@ -1017,7 +1017,7 @@ const VaultSalesInvoices = (() => {
                                 ` : ''}
                                 <div class="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-800 text-sm">
                                     <span>Grand Total:</span>
-                                    <span class="text-indigo-800 font-extrabold">₹${(listEntry.AMOUNT || computedGrandTotal).toFixed(2)}</span>
+                                    <span class="text-indigo-800 font-extrabold">₹${parseFloat(listEntry.AMOUNT || computedGrandTotal || 0).toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>
