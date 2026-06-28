@@ -309,6 +309,7 @@ async function verifyAndFetchAppData(clearAll = false) {
                 showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
             } else {
                 showNotification(`✅ Synced`, 'success', 3000);
+                runBackgroundSync().catch(err => console.error('[bgSync] Error:', err));
             }
             window.dispatchEvent(new CustomEvent('syncComplete'));
 
@@ -326,6 +327,75 @@ async function verifyAndFetchAppData(clearAll = false) {
         _showRetryBanner(errorMsg);
         window.dispatchEvent(new CustomEvent('syncComplete'));
     }
+}
+
+async function getSyncFlags() {
+    if (!window.appDB) return {};
+    const bg_3m = await window.appDB.getMetadata('bg_3m_done').catch(() => null);
+    const bg_6m = await window.appDB.getMetadata('bg_6m_done').catch(() => null);
+    const bg_last_fy = await window.appDB.getMetadata('bg_last_fy_done').catch(() => null);
+    const bg_2nd_fy = await window.appDB.getMetadata('bg_2nd_fy_done').catch(() => null);
+    return {
+        bg_3m_done: !!bg_3m,
+        bg_6m_done: !!bg_6m,
+        bg_last_fy_done: !!bg_last_fy,
+        bg_2nd_fy_done: !!bg_2nd_fy
+    };
+}
+
+async function syncLayer(layer) {
+    console.log(`[bgSync] Starting sync for layer: ${layer}`);
+    try {
+        const result = await callApi('/api/fetchBusinessYear', { layer });
+        if (result.status === 'success') {
+            const incomingData = result.data || {};
+            window._syncInProgress = true;
+            try {
+                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
+                    if (Object.keys(sheetData).length > 0) {
+                        await window.appDB.putSheet(sheetName, sheetData);
+                    }
+                }
+            } finally {
+                window._syncInProgress = false;
+                for (const delta of window._sseBuffer) { await _applyDelta(delta); }
+                window._sseBuffer = [];
+            }
+            
+            // Verify counts match (Use >= check to prevent race condition blocks from real-time events / SSE updates)
+            let allMatch = true;
+            for (const [col, layerCount] of Object.entries(result.counts || {})) {
+                const idbRecs = await window.appDB.getSheet(col);
+                const idbCount = Object.keys(idbRecs).length;
+                if (idbCount < layerCount) {
+                    allMatch = false;
+                    break;
+                }
+            }
+            
+            if (allMatch) {
+                await window.appDB.setMetadata(`bg_${layer}_done`, true);
+                console.log(`[bgSync] Layer ${layer} complete ✅`);
+            } else {
+                console.warn(`[bgSync] Layer ${layer} count mismatch (incomplete), will retry`);
+            }
+        }
+    } catch (error) {
+        console.warn(`[bgSync] Layer ${layer} not completed or not authorized:`, error);
+    }
+}
+
+async function runBackgroundSync() {
+    if (!isLoggedIn()) return;
+    if (!window.appDB || !window.appDB.db) return;
+    
+    const flags = await getSyncFlags();
+    
+    // Process layers in order
+    if (!flags.bg_3m_done)     await syncLayer('3m');
+    if (!flags.bg_6m_done)     await syncLayer('6m');
+    if (!flags.bg_last_fy_done) await syncLayer('last_fy');
+    if (!flags.bg_2nd_fy_done) await syncLayer('2nd_fy');
 }
 
 // fetchFile — fetch a private /api/file/... URL with auth and return a blob URL
