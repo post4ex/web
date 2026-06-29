@@ -74,8 +74,42 @@ const VaultSuppliers = (() => {
         return 0;
     }
 
+    function _getOpeningBalance(b2bEntry) {
+        if (!b2bEntry) return 0;
+        
+        let earliestTxn = null;
+        for (const entry of _allLedger) {
+            if (entry.CODE === b2bEntry.CODE && entry.ACCOUNT === 'Accounts payable') {
+                const txnDateStr = _toDateStr(+entry.TXN_DATE);
+                if (!earliestTxn || txnDateStr < earliestTxn) {
+                    earliestTxn = txnDateStr;
+                }
+            }
+        }
+        
+        if (!earliestTxn) {
+            return +(b2bEntry.BAL_LAST_FY || 0);
+        }
+        
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        let fyStartYear = currentYear;
+        if (today.getMonth() < 3) fyStartYear = currentYear - 1;
+        
+        const dec1 = `${fyStartYear}-12-01`;
+        const aug1 = `${fyStartYear}-08-01`;
+        
+        if (earliestTxn >= dec1) {
+            return +(b2bEntry.BAL_T2 || 0);
+        } else if (earliestTxn >= aug1) {
+            return +(b2bEntry.BAL_T1 || 0);
+        }
+        
+        return +(b2bEntry.BAL_LAST_FY || 0);
+    }
+
     function _getDisplayBalance(b2bEntry) {
-        const opening = +(b2bEntry.BAL_LAST_FY || 0);
+        const opening = _getOpeningBalance(b2bEntry);
         const running = _balanceCache ? (_balanceCache[b2bEntry.CODE] || 0) : 0;
         return opening + running;
     }
@@ -777,9 +811,9 @@ const VaultSuppliers = (() => {
             return `<div class="text-center py-8 text-gray-400 text-sm">No statement entries found for the selected period.</div>`;
         }
 
-        // Use BAL_LAST_FY as opening balance (as of March 31)
+        // Use dynamic opening balance snapping depending on synced ledger range
         const b2bEntry = _allB2B.find(b => b.CODE === _currentSupplierCode);
-        const openingBalance = +(b2bEntry?.BAL_LAST_FY || 0);
+        const openingBalance = _getOpeningBalance(b2bEntry);
 
         let runningBalance = openingBalance;
         const rowsHtml = entries.map(e => {

@@ -174,6 +174,57 @@ const VaultSummary = (() => {
             const branch = VaultPage.getActiveBranch();
             const branchLower = (branch || '').toLowerCase();
 
+            const toDateStr = (ms) => {
+                if (!ms) return '';
+                const d = new Date(+ms);
+                if (isNaN(d.getTime())) return '';
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
+
+            const getOpeningBalance = (record, type) => {
+                if (!record) return 0;
+                
+                let earliestTxn = null;
+                const accountFilter = type === 'CLIENT' ? 'Accounts receivable' : (type === 'SUPPLIER' ? 'Accounts payable' : null);
+                
+                for (const entry of ledger) {
+                    if (type === 'STAFF') {
+                        if (entry.STAFF_CODE === record.STAFF_CODE) {
+                            const dateStr = toDateStr(entry.IO_TIMESTAMP || entry.TXN_DATE);
+                            if (!earliestTxn || dateStr < earliestTxn) earliestTxn = dateStr;
+                        }
+                    } else {
+                        if (entry.CODE === record.CODE && entry.ACCOUNT === accountFilter) {
+                            const dateStr = toDateStr(entry.IO_TIMESTAMP || entry.TXN_DATE);
+                            if (!earliestTxn || dateStr < earliestTxn) earliestTxn = dateStr;
+                        }
+                    }
+                }
+                
+                if (!earliestTxn) {
+                    return +(record.BAL_LAST_FY || 0);
+                }
+                
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                let fyStartYear = currentYear;
+                if (today.getMonth() < 3) fyStartYear = currentYear - 1;
+                
+                const dec1 = `${fyStartYear}-12-01`;
+                const aug1 = `${fyStartYear}-08-01`;
+                
+                if (earliestTxn >= dec1) {
+                    return +(record.BAL_T2 || 0);
+                } else if (earliestTxn >= aug1) {
+                    return +(record.BAL_T1 || 0);
+                }
+                
+                return +(record.BAL_LAST_FY || 0);
+            };
+
             // 1. Receivables
             let receivablesSum = 0;
             const clientBalMap = {};
@@ -184,7 +235,7 @@ const VaultSummary = (() => {
             });
             b2b.forEach(c => {
                 if (c.B2B_TYPE === 'CLIENT' && c.CODE && (!branchLower || (c.BRANCH || '').toLowerCase() === branchLower)) {
-                    const opening = +(c.BAL_LAST_FY || 0);
+                    const opening = getOpeningBalance(c, 'CLIENT');
                     const running = clientBalMap[c.CODE] || 0;
                     receivablesSum += (opening + running);
                 }
@@ -200,7 +251,7 @@ const VaultSummary = (() => {
             });
             b2b.forEach(c => {
                 if ((c.B2B_TYPE === 'SUPPLIER' || c.B2B_TYPE === 'CARRIER') && c.CODE && (!branchLower || (c.BRANCH || '').toLowerCase() === branchLower)) {
-                    const opening = +(c.BAL_LAST_FY || 0);
+                    const opening = getOpeningBalance(c, 'SUPPLIER');
                     const running = supplierBalMap[c.CODE] || 0;
                     payablesSum += (opening + running);
                 }
@@ -249,7 +300,7 @@ const VaultSummary = (() => {
             });
             staff.forEach(s => {
                 if (s.STAFF_CODE && (!branchLower || (s.BRANCH || '').toLowerCase() === branchLower)) {
-                    const opening = +(s.BAL_LAST_FY || 0);
+                    const opening = getOpeningBalance(s, 'STAFF');
                     const running = staffBalMap[s.STAFF_CODE] || 0;
                     staffAdvancesSum += (opening + running);
                 }

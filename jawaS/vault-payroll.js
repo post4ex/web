@@ -78,8 +78,42 @@ const VaultPayroll = (() => {
         });
     }
 
+    function _getOpeningBalance(staffEntry) {
+        if (!staffEntry) return 0;
+        
+        let earliestTxn = null;
+        for (const entry of (_allLedger || [])) {
+            if (entry.STAFF_CODE === staffEntry.STAFF_CODE) {
+                const txnDateStr = _toDateStr(entry.IO_TIMESTAMP);
+                if (!earliestTxn || txnDateStr < earliestTxn) {
+                    earliestTxn = txnDateStr;
+                }
+            }
+        }
+        
+        if (!earliestTxn) {
+            return +(staffEntry.BAL_LAST_FY || 0);
+        }
+        
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        let fyStartYear = currentYear;
+        if (today.getMonth() < 3) fyStartYear = currentYear - 1;
+        
+        const dec1 = `${fyStartYear}-12-01`;
+        const aug1 = `${fyStartYear}-08-01`;
+        
+        if (earliestTxn >= dec1) {
+            return +(staffEntry.BAL_T2 || 0);
+        } else if (earliestTxn >= aug1) {
+            return +(staffEntry.BAL_T1 || 0);
+        }
+        
+        return +(staffEntry.BAL_LAST_FY || 0);
+    }
+
     function _getDisplayBalance(staffEntry) {
-        const opening = +(staffEntry?.BAL_LAST_FY || 0);
+        const opening = _getOpeningBalance(staffEntry);
         const running = _balanceCache[staffEntry?.STAFF_CODE] || 0;
         return opening + running;
     }

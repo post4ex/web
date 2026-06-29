@@ -296,11 +296,37 @@ async function verifyAndFetchAppData(clearAll = false) {
             // 'n/a'   = role has no access — skip permanently
             if (result.flags && window.appDB) {
                 for (const [flagKey, flagValue] of Object.entries(result.flags)) {
+                    let finalValue = flagValue;
+                    
+                    // If the server marks the layer as done (true), verify counts are actually complete locally
+                    if (flagValue === true) {
+                        const layer = flagKey.replace(/^bg_/, '').replace(/_done$/, '');
+                        let allMatch = true;
+                        
+                        for (const [col, layers] of Object.entries(result.counts || {})) {
+                            const layerCount = layers[layer];
+                            if (layerCount === undefined) continue;
+                            
+                            const idbRecs = await window.appDB.getSheet(col);
+                            const idbCount = idbRecs ? Object.keys(idbRecs).length : 0;
+                            if (idbCount < layerCount) {
+                                allMatch = false;
+                                console.warn(`[Data Engine] Initial layer ${layer} count mismatch for ${col}: local ${idbCount} < server ${layerCount}. Retrying in background.`);
+                                break;
+                            }
+                        }
+                        
+                        if (!allMatch) {
+                            finalValue = false; // Force background sync to retry this layer
+                        }
+                    }
+                    
                     const localVal = await window.appDB.getMetadata(flagKey).catch(() => null);
-                    if ((localVal === true || localVal === 'n/a') && flagValue === false) {
+                    if ((localVal === true || localVal === 'n/a') && finalValue === false && flagValue === false) {
+                        // Keep completed status if it was completed locally, unless server returned false
                         continue;
                     }
-                    await window.appDB.setMetadata(flagKey, flagValue).catch(() => {});
+                    await window.appDB.setMetadata(flagKey, finalValue).catch(() => {});
                 }
             }
 
@@ -345,9 +371,9 @@ async function verifyAndFetchAppData(clearAll = false) {
 
 function getLayerValue(layerKey) {
     const name = layerKey.replace(/^bg_/, '').replace(/_done$/, '');
-    if (name === '3m') return 3;
-    if (name === '6m') return 6;
-    if (name === '9m') return 9;
+    if (name === 't3') return 1;
+    if (name === 't2') return 2;
+    if (name === 't1') return 3;
     if (name === 'last_fy') return 10;
     if (name === '2nd_fy') return 20;
     if (name === '3rd_fy') return 30;
