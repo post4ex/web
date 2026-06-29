@@ -237,6 +237,7 @@ function _showRetryBanner(msg) {
 
 async function verifyAndFetchAppData(clearAll = false) {
     console.log('[verifyAndFetchAppData] called, clearAll:', clearAll);
+    console.log('[bgSync] Starting initial sync...');
     if (!isLoggedIn()) return;
 
     if (!window.appDB) {
@@ -349,8 +350,24 @@ async function verifyAndFetchAppData(clearAll = false) {
                 showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
             } else {
                 showNotification(`✅ Synced`, 'success', 3000);
+                
+                // Log initial layer complete — derive active tertial from the actual server flags
+                if (result.flags) {
+                    let initialLayer = null;
+                    for (const [key, val] of Object.entries(result.flags)) {
+                        if (key.startsWith('bg_t') && key.endsWith('_done') && val === true) {
+                            initialLayer = key.replace('bg_', '').replace('_done', '').toUpperCase();
+                            break;
+                        }
+                    }
+                    if (initialLayer) {
+                        console.log(`[bgSync] Initial layer ${initialLayer} complete ✅`);
+                    }
+                }
+                
                 runBackgroundSync().catch(err => console.error('[bgSync] Error:', err));
             }
+
             window.dispatchEvent(new CustomEvent('syncComplete'));
 
         } else {
