@@ -300,11 +300,76 @@ window._sseConnected   = false;
 window._sseGapStart    = null;
 window._idbLastStamp   = 0;
 window._idbHasData     = false;
+window._initialSyncComplete = false;
 
 let _sseWorker              = null;
 let _sseConnectedOnce       = false;
 let _refreshTimer           = null;
 let _refreshInteractionTimer = null;
+
+function _handleSWMessage(event) {
+    const payload = event.data || {};
+    const type = payload.type;
+    console.log('[Layout] Received SW message:', type, payload);
+
+    if (type === 'sync_progress') {
+        const textEl = document.getElementById('sync-progress-text');
+        if (textEl) {
+            textEl.innerText = `Synced: ${payload.loaded} records...`;
+        }
+    } else if (type === 'layer_done') {
+        if (payload.layer === 'current_fy') {
+            console.log('[Layout] Initial current_fy layer synced. Unlocking UI.');
+            document.documentElement.classList.remove('needs-sync');
+            window._initialSyncComplete = true;
+            window._syncInProgress = false;
+            
+            if (_syncLeader) {
+                localStorage.removeItem('genie-sync-active');
+                localStorage.removeItem('genie-sync-active-ts');
+                _syncChannel.postMessage('sync-complete');
+            }
+            
+            getAppData().then(fullData => {
+                window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
+                window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+                window.dispatchEvent(new CustomEvent('syncComplete'));
+            });
+        }
+    } else if (type === 'sync_complete') {
+        console.log('[Layout] Streaming sync completed. Total records:', payload.count);
+        window._initialSyncComplete = true;
+        window._syncInProgress = false;
+        
+        if (_syncLeader) {
+            localStorage.removeItem('genie-sync-active');
+            localStorage.removeItem('genie-sync-active-ts');
+            _syncChannel.postMessage('sync-complete');
+        }
+        
+        getAppData().then(fullData => {
+            window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+            window.dispatchEvent(new CustomEvent('syncComplete'));
+        });
+        showNotification(`✅ Sync Complete (${payload.count} records)`, 'success');
+        
+    } else if (type === 'bg_delta_complete') {
+        console.log('[Layout] Background delta refresh completed.');
+        getAppData().then(fullData => {
+            window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+            _scheduleRefresh();
+        });
+    } else if (type === 'sync_failed') {
+        window._syncInProgress = false;
+        window.dispatchEvent(new CustomEvent('syncComplete'));
+        if (_syncLeader) {
+            localStorage.removeItem('genie-sync-active');
+            localStorage.removeItem('genie-sync-active-ts');
+        }
+        showNotification(`⚠️ Background Sync Failed: ${payload.message}`, 'error');
+    }
+}
 
 function _scheduleRefresh() {
     // Interaction guard: if user is typing in a field, defer until blur or 5s timeout
@@ -598,6 +663,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, { once: true });
     });
 
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            console.log('[ServiceWorker] Registered, scope:', reg.scope);
+        });
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            _handleSWMessage(event);
+        });
+        
+        // Request native OS notification permissions
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                console.log('[Notification] Native OS permission status:', permission);
+            });
+        }
+    }
+
     if (isLoggedIn()) {
         const existing  = await getAppData();
         const timeFilteredSheets = ['ORDERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'ATTENDANCE', 'STAFF'];
@@ -615,20 +697,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.setItem('genie-sync-active', '1');
             localStorage.setItem('genie-sync-active-ts', Date.now().toString());
             _syncChannel.postMessage('sync-started');
-            await verifyAndFetchAppData();
-            localStorage.removeItem('genie-sync-active');
-            localStorage.removeItem('genie-sync-active-ts');
-            _syncChannel.postMessage('sync-complete');
+            verifyAndFetchAppData(); // Delegates to Service Worker (async)
         } else if (!_isSyncActive()) {
             console.log('[Layout] Has data — firing events, pullDeltaSince:', window._idbLastStamp);
+            window._initialSyncComplete = true; // User has data, bypass overlay blocker
             const fullData = await getAppData();
             window.dispatchEvent(new CustomEvent('appDataLoaded',    { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('syncComplete'));  // drop overlay immediately — user already has data
-            if (window._idbLastStamp !== null && window._idbLastStamp !== undefined)
+            if (window._idbLastStamp !== null && window._idbLastStamp !== undefined) {
                 pullDeltaSince(window._idbLastStamp).catch(() => {});
-            else if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
-            // full sync in background — merges on top, user already sees data
+            } else if (typeof loadNotificationsFromStorage === 'function') {
+                loadNotificationsFromStorage();
+            }
+            
+            // Trigger stream verification in background to sync any updates
+            _syncLeader = true;
+            localStorage.setItem('genie-sync-active', '1');
+            localStorage.setItem('genie-sync-active-ts', Date.now().toString());
             verifyAndFetchAppData();
         } else {
             console.log('[Layout] Sync already active — skipping');

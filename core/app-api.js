@@ -18,37 +18,50 @@ const MUTATING_ENDPOINTS = [
     '/api/uploadOrders', '/api/editUpload', '/api/deleteOrder', '/api/closeInvoice',
 ];
 
-async function callApi(endpoint, payload = {}, method = 'POST') {
+async function callApi(endpoint, payload = {}, method = 'POST', timeoutMs = 30000) {
     const token = getSessionId();
 
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const options = { method, headers };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const options = { method, headers, signal: controller.signal };
     if (method !== 'GET') options.body = JSON.stringify(payload);
 
     const base = CONSTANTS.OPERATIONS_URL;
     if (!endpoint.startsWith('/api/')) throw new Error('Invalid endpoint');
     const safeEndpoint = endpoint;
-    const res = await fetch(`${base}${safeEndpoint}`, options);
+    
+    try {
+        const res = await fetch(`${base}${safeEndpoint}`, options);
+        clearTimeout(timeoutId);
 
-    const contentType = res.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-        const text = await res.text();
-        console.error('[API] Expected JSON but got:', text.substring(0, 150));
-        throw new Error('Invalid Server Response (Not JSON)');
-    }
-
-    const json = await res.json();
-    if (json.status === 'error') {
-        if (json.message.includes('Session expired')) {
-            console.warn('[API] Session Expired. Logging out.');
-            handleLogout();
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await res.text();
+            console.error('[API] Expected JSON but got:', text.substring(0, 150));
+            throw new Error('Invalid Server Response (Not JSON)');
         }
-        throw new Error(json.message);
-    }
 
-    return json;
+        const json = await res.json();
+        if (json.status === 'error') {
+            if (json.message.includes('Session expired')) {
+                console.warn('[API] Session Expired. Logging out.');
+                handleLogout();
+            }
+            throw new Error(json.message);
+        }
+
+        return json;
+    } catch (e) {
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+            throw new Error('Request Timeout');
+        }
+        throw e;
+    }
 }
 
 // --- DATE UTILITIES ---
@@ -235,9 +248,25 @@ function _showRetryBanner(msg) {
     document.body.appendChild(banner);
 }
 
+async function getCompletedLayersFromIDB() {
+    if (!window.appDB) return [];
+    try {
+        const metadata = await window.appDB.getAllMetadata();
+        const completed = [];
+        for (const item of metadata) {
+            if (item.key.startsWith('bg_') && item.key.endsWith('_done') && item.value === true) {
+                const layer = item.key.replace(/^bg_/, '').replace(/_done$/, '');
+                completed.push(layer);
+            }
+        }
+        return completed;
+    } catch (e) {
+        return [];
+    }
+}
+
 async function verifyAndFetchAppData(clearAll = false) {
     console.log('[verifyAndFetchAppData] called, clearAll:', clearAll);
-    console.log('[bgSync] Starting initial sync...');
     if (!isLoggedIn()) return;
 
     if (!window.appDB) {
@@ -255,227 +284,48 @@ async function verifyAndFetchAppData(clearAll = false) {
         }
     }
 
-    try {
-        const result = await callApi('/api/verifyAndFetchAppData', {});
-
-        if (result.status === 'success') {
-            const incomingData = result.data || {};
-            let syncErrors  = [];
-            let successCount = 0;
-
-            window._syncInProgress = true;
-            let hasNewData = false;
-            try {
-                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                    try {
-                        if (clearAll) {
-                            await window.appDB.clearSheet(sheetName);
-                        }
-                        if (Object.keys(sheetData).length > 0) {
-                            await window.appDB.putSheet(sheetName, sheetData);
-                            hasNewData = true;
-                        }
-                        successCount++;
-                    } catch (error) {
-                        syncErrors.push(`${sheetName}: ${error.message}`);
-                    }
-                }
-            } finally {
-                window._syncInProgress = false;
-                for (const delta of window._sseBuffer) { await _applyDelta(delta); }
-                window._sseBuffer = [];
-            }
-
-
-            if (result.meta?.sync_from_ms && window.appDB)
-                await window.appDB.setMetadata('syncFromMs', result.meta.sync_from_ms).catch(() => {});
-            await window.appDB.setMetadata('lastSyncTime', Date.now()).catch(() => {});
-
-            // Store backend flags into IDB metadata (backend is the authority on what layers exist)
-            // 'true'  = layer already covered by initial sync (or window doesn't exist today)
-            // 'false' = layer has data — frontend should sync it
-            // 'n/a'   = role has no access — skip permanently
-            if (result.flags && window.appDB) {
-                for (const [flagKey, flagValue] of Object.entries(result.flags)) {
-                    let finalValue = flagValue;
-                    
-                    // If the server marks the layer as done (true), verify counts are actually complete locally
-                    if (flagValue === true) {
-                        const layer = flagKey.replace(/^bg_/, '').replace(/_done$/, '');
-                        let allMatch = true;
-                        
-                        for (const [col, layers] of Object.entries(result.counts || {})) {
-                            const layerCount = layers[layer];
-                            if (layerCount === undefined) continue;
-                            
-                            const idbRecs = await window.appDB.getSheet(col);
-                            const idbCount = idbRecs ? Object.keys(idbRecs).length : 0;
-                            if (idbCount < layerCount) {
-                                allMatch = false;
-                                console.warn(`[Data Engine] Initial layer ${layer} count mismatch for ${col}: local ${idbCount} < server ${layerCount}. Retrying in background.`);
-                                break;
-                            }
-                        }
-                        
-                        if (!allMatch) {
-                            finalValue = false; // Force background sync to retry this layer
-                        }
-                    }
-                    
-                    const localVal = await window.appDB.getMetadata(flagKey).catch(() => null);
-                    if ((localVal === true || localVal === 'n/a') && finalValue === false && flagValue === false) {
-                        // Keep completed status if it was completed locally, unless server returned false
-                        continue;
-                    }
-                    await window.appDB.setMetadata(flagKey, finalValue).catch(() => {});
-                }
-            }
-
-            const fullData = await getAppData();
-            window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
-            if (hasNewData) _scheduleRefresh();
-
-            // fetch notifications into IndexedDB
-            try {
-                const notifResult = await callApi('/api/fetchNotifications', {}, 'GET');
-                if (notifResult.status === 'success' && window.appDB) {
-                    if (Object.keys(notifResult.data).length > 0)
-                        await window.appDB.putSheet('NOTIFICATIONS', notifResult.data);
-                    if (typeof loadNotificationsFromStorage === 'function')
-                        await loadNotificationsFromStorage();
-                }
-            } catch (_) {}
-
-            if (syncErrors.length > 0) {
-                showNotification(`⚠️ Sync errors: ${syncErrors.join(', ')}`, 'error');
-            } else {
-                showNotification(`✅ Synced`, 'success', 3000);
-                
-                // Log initial layer complete — derive active tertial from the actual server flags
-                if (result.flags) {
-                    let initialLayer = null;
-                    for (const [key, val] of Object.entries(result.flags)) {
-                        if (key.startsWith('bg_t') && key.endsWith('_done') && val === true) {
-                            initialLayer = key.replace('bg_', '').replace('_done', '').toUpperCase();
-                            break;
-                        }
-                    }
-                    if (initialLayer) {
-                        console.log(`[bgSync] Initial layer ${initialLayer} complete ✅`);
-                    }
-                }
-                
-                runBackgroundSync().catch(err => console.error('[bgSync] Error:', err));
-            }
-
-            window.dispatchEvent(new CustomEvent('syncComplete'));
-
-        } else {
-            showNotification(`❌ Server Error: ${result.message || 'Unknown error'}`, 'error');
-            window.dispatchEvent(new CustomEvent('syncComplete'));
+    if (clearAll) {
+        try {
+            await window.appDB.clearAll();
+        } catch (e) {
+            console.warn('[Data Engine] Failed to clear DB:', e);
         }
-    } catch (error) {
-        console.error('[Data Engine] Sync Error:', error);
-        let errorMsg = 'Sync Failed: ';
-        if (error.message.includes('Invalid Server Response')) errorMsg += 'Server configuration issue';
-        else if (error.message.includes('Session expired'))    errorMsg += 'Session expired - Please login again';
-        else if (error.message.includes('Failed to fetch'))    errorMsg += 'Network connection failed';
-        else errorMsg += error.message || 'Unknown error';
-        _showRetryBanner(errorMsg);
-        window.dispatchEvent(new CustomEvent('syncComplete'));
+    }
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        const completed_layers = await getCompletedLayersFromIDB();
+        window._syncInProgress = true;
+        navigator.serviceWorker.controller.postMessage({
+            type: 'start_sync',
+            completed_layers,
+            token: getSessionId(),
+            base: CONSTANTS.OPERATIONS_URL
+        });
+    } else {
+        console.warn('[Data Engine] Service Worker controller not active yet. Retrying in 500ms...');
+        setTimeout(() => verifyAndFetchAppData(clearAll), 500);
     }
 }
 
-function getLayerValue(layerKey) {
-    const name = layerKey.replace(/^bg_/, '').replace(/_done$/, '');
-    if (name === 't3') return 1;
-    if (name === 't2') return 2;
-    if (name === 't1') return 3;
-    if (name === 'last_fy') return 10;
-    if (name === '2nd_fy') return 20;
-    if (name === '3rd_fy') return 30;
-    if (name.endsWith('th_fy')) {
-        const num = parseInt(name.replace('th_fy', '')) || 0;
-        return num * 10;
-    }
-    return 999;
-}
+let _lastStreamRefreshTime = 0;
+let _streamRefreshTimeout = null;
 
-async function getSyncFlags() {
-    if (!window.appDB) return {};
-    try {
-        const metadata = await window.appDB.getAllMetadata();
-        const flags = {};
-        for (const item of metadata) {
-            if (item.key.startsWith('bg_') && item.key.endsWith('_done')) {
-                flags[item.key] = item.value;
-            }
-        }
-        return flags;
-    } catch (e) {
-        console.warn('[getSyncFlags] error:', e);
-        return {};
-    }
-}
-
-async function syncLayer(layer) {
-    console.log(`[bgSync] Starting sync for layer: ${layer}`);
-    try {
-        const result = await callApi('/api/fetchBusinessYear', { layer });
-        if (result.status === 'success') {
-            const incomingData = result.data || {};
-            window._syncInProgress = true;
-            try {
-                for (const [sheetName, sheetData] of Object.entries(incomingData)) {
-                    if (Object.keys(sheetData).length > 0) {
-                        await window.appDB.putSheet(sheetName, sheetData);
-                    }
-                }
-            } finally {
-                window._syncInProgress = false;
-                for (const delta of window._sseBuffer) { await _applyDelta(delta); }
-                window._sseBuffer = [];
-            }
-            
-            // Verify counts match (Use >= check to prevent race condition blocks from real-time events / SSE updates)
-            let allMatch = true;
-            for (const [col, layers] of Object.entries(result.counts || {})) {
-                const layerCount = layers[layer];
-                if (layerCount === undefined) continue;
-                
-                const idbRecs = await window.appDB.getSheet(col);
-                const idbCount = Object.keys(idbRecs).length;
-                if (idbCount < layerCount) {
-                    allMatch = false;
-                    break;
-                }
-            }
-            
-            if (allMatch) {
-                await window.appDB.setMetadata(`bg_${layer}_done`, true);
-                console.log(`[bgSync] Layer ${layer} complete ✅`);
-            } else {
-                console.warn(`[bgSync] Layer ${layer} count mismatch (incomplete), will retry`);
-            }
-        }
-    } catch (error) {
-        console.warn(`[bgSync] Layer ${layer} not completed or not authorized:`, error);
-    }
-}
-
-async function runBackgroundSync() {
-    if (!isLoggedIn()) return;
-    if (!window.appDB || !window.appDB.db) return;
+function _scheduleStreamRefresh() {
+    const now = Date.now();
+    const throttleLimit = 1000; // Limit UI updates to once per 1 second
     
-    const flags = await getSyncFlags();
+    if (_streamRefreshTimeout) return;
     
-    // Sort flag keys by their order
-    const bgKeys = Object.keys(flags).filter(k => flags[k] === false);
-    bgKeys.sort((a, b) => getLayerValue(a) - getLayerValue(b));
-    
-    for (const key of bgKeys) {
-        const layer = key.replace(/^bg_/, '').replace(/_done$/, '');
-        await syncLayer(layer);
+    const timeSinceLast = now - _lastStreamRefreshTime;
+    if (timeSinceLast >= throttleLimit) {
+        _lastStreamRefreshTime = now;
+        if (typeof _scheduleRefresh === 'function') _scheduleRefresh();
+    } else {
+        _streamRefreshTimeout = setTimeout(() => {
+            _streamRefreshTimeout = null;
+            _lastStreamRefreshTime = Date.now();
+            if (typeof _scheduleRefresh === 'function') _scheduleRefresh();
+        }, throttleLimit - timeSinceLast);
     }
 }
 
