@@ -53,8 +53,8 @@ function openDB() {
 function getMetadata(key) {
   return openDB().then(db => {
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['METADATA'], 'readonly');
-      const store = transaction.objectStore('METADATA');
+      const transaction = db.transaction(['_metadata'], 'readonly');
+      const store = transaction.objectStore('_metadata');
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result ? req.result.value : null);
       req.onerror = () => reject(req.error);
@@ -65,8 +65,8 @@ function getMetadata(key) {
 function setMetadata(key, value) {
   return openDB().then(db => {
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['METADATA'], 'readwrite');
-      const store = transaction.objectStore('METADATA');
+      const transaction = db.transaction(['_metadata'], 'readwrite');
+      const store = transaction.objectStore('_metadata');
       const req = store.put({ key, value });
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
