@@ -121,6 +121,8 @@ async function runStreamSync(completedLayers, token, baseUrl) {
   try {
     const response = await fetch(`${baseUrl}/api/sync/stream`, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -226,6 +228,9 @@ async function checkAndPullDeltas() {
   try {
     // 1. Fetch missed events
     const res = await fetch(`${baseUrl}/api/fetchEvents?since_ms=${lastSyncTime}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -259,6 +264,8 @@ async function checkAndPullDeltas() {
       for (const [col, ids] of Object.entries(upserts)) {
         const recordsRes = await fetch(`${baseUrl}/api/getRecords`, {
           method: 'POST',
+          mode: 'cors',
+          credentials: 'omit',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -296,6 +303,9 @@ async function checkAndPullDeltas() {
     
     // 6. Fetch background notifications and trigger native OS push alerts
     const notifRes = await fetch(`${baseUrl}/api/fetchNotifications`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
       headers: {
         'Authorization': `Bearer ${token}`
       }
