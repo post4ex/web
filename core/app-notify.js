@@ -351,16 +351,32 @@ function _bindNotifActions() {
 }
 
 // Called once by layout.js — owns the full notification boot sequence
+async function fetchAndSaveNotifications() {
+    if (!window.appDB || !window.appDB.db) return;
+    try {
+        const res = await callApi('/api/fetchNotifications');
+        if (res && res.status === 'success' && res.data) {
+            await window.appDB.mergeSheet('NOTIFICATIONS', res.data);
+        }
+    } catch (e) {
+        console.warn('[Notif] Failed to fetch notifications from server:', e);
+    }
+}
+
 window.initNotifications = function () {
     _bindNotifActions();
     // re-bind after footerLoaded in case header re-renders
     window.addEventListener('footerLoaded', () => {
         _bindNotifActions();
         if (localStorage.getItem(CONSTANTS.KEYS.LOGIN)) {
+            const run = async () => {
+                await fetchAndSaveNotifications().catch(() => {});
+                await loadNotificationsFromStorage();
+            };
             if (window.appDB && window.appDB.db) {
-                loadNotificationsFromStorage();
+                run();
             } else {
-                window.addEventListener('indexedDBReady', () => loadNotificationsFromStorage(), { once: true });
+                window.addEventListener('indexedDBReady', () => run(), { once: true });
             }
         }
     });
