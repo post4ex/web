@@ -367,12 +367,16 @@ async function loadFromIndexedDB() {
     if (!_dataListenersRegistered) {
         _dataListenersRegistered = true;
         const onData = e => {
-            // Set flag so initializePageWithData knows this is a sync refresh
             _syncRefreshInProgress = true;
-            initializePageWithData(e.detail.data);
-            _syncRefreshInProgress = false;
+            try {
+                initializePageWithData(e.detail.data);
+            } catch (err) {
+                console.error('[Shipments] Error during data refresh:', err);
+            } finally {
+                _syncRefreshInProgress = false;
+            }
         };
-        window.addEventListener('appDataLoaded',    onData);
+        // Use only appDataRefreshed to avoid double render per sync cycle
         window.addEventListener('appDataRefreshed', onData);
     }
     try {
@@ -386,11 +390,17 @@ async function loadFromIndexedDB() {
             initializePageWithData(appData);
         } else {
             ui.statusMessage.textContent = 'Syncing...';
-            await new Promise(resolve => {
-                window.addEventListener('appDataLoaded',    resolve, { once: true });
-                window.addEventListener('appDataRefreshed', resolve, { once: true });
-                setTimeout(resolve, 15000);
+            const timedOut = await new Promise(resolve => {
+                const tid = setTimeout(() => resolve(true), 15000);
+                window.addEventListener('appDataRefreshed', () => {
+                    clearTimeout(tid);
+                    resolve(false);
+                }, { once: true });
             });
+            if (timedOut) {
+                ui.statusMessage.innerHTML = 'Data load timed out. <button class="text-blue-600 underline cursor-pointer hover:text-blue-800" onclick="loadFromIndexedDB()">Retry</button>';
+                return;
+            }
         }
     } catch (err) {
         ui.statusMessage.textContent = 'Error loading data.';
