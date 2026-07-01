@@ -429,6 +429,14 @@ async function _handleSSEMessage(payload) {
         if (badge && payload.unread > 0) {
             badge.innerText = payload.unread;
             badge.classList.remove('hidden');
+            // Also load fresh notifications from server and render — badge alone isn't enough
+            if (typeof fetchAndSaveNotifications === 'function') {
+                fetchAndSaveNotifications().catch(() => {}).then(() => {
+                    if (typeof loadNotificationsFromStorage === 'function') {
+                        loadNotificationsFromStorage();
+                    }
+                });
+            }
         }
         return;
     }

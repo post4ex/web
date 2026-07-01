@@ -354,7 +354,7 @@ function _bindNotifActions() {
 async function fetchAndSaveNotifications() {
     if (!window.appDB || !window.appDB.db) return;
     try {
-        const res = await callApi('/api/fetchNotifications');
+        const res = await callApi('/api/fetchNotifications', {}, 'GET');
         if (res && res.status === 'success' && res.data) {
             await window.appDB.mergeSheet('NOTIFICATIONS', res.data);
         }
@@ -365,20 +365,27 @@ async function fetchAndSaveNotifications() {
 
 window.initNotifications = function () {
     _bindNotifActions();
-    // re-bind after footerLoaded in case header re-renders
+
+    const _loadNotifs = () => {
+        if (!localStorage.getItem(CONSTANTS.KEYS.LOGIN)) return;
+        const run = async () => {
+            await fetchAndSaveNotifications().catch(() => {});
+            await loadNotificationsFromStorage();
+        };
+        if (window.appDB && window.appDB.db) {
+            run();
+        } else {
+            window.addEventListener('indexedDBReady', () => run(), { once: true });
+        }
+    };
+
+    // Immediate load — header.html is already in DOM at this point
+    _loadNotifs();
+
+    // Re-bind after footerLoaded in case header re-renders later
     window.addEventListener('footerLoaded', () => {
         _bindNotifActions();
-        if (localStorage.getItem(CONSTANTS.KEYS.LOGIN)) {
-            const run = async () => {
-                await fetchAndSaveNotifications().catch(() => {});
-                await loadNotificationsFromStorage();
-            };
-            if (window.appDB && window.appDB.db) {
-                run();
-            } else {
-                window.addEventListener('indexedDBReady', () => run(), { once: true });
-            }
-        }
+        _loadNotifs();
     });
 };
 
