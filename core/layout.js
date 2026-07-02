@@ -335,6 +335,10 @@ function _handleSWMessage(event) {
                 window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
                 window.dispatchEvent(new CustomEvent('syncComplete'));
             });
+            // Catch events that occurred during stream sync
+            window.appDB?.getLastEventStamp().then(stamp => {
+                if (stamp && stamp > 0) pullDeltaSince(stamp).catch(() => {});
+            }).catch(() => {});
         }
     } else if (type === 'sync_complete') {
         console.log('[Layout] Streaming sync completed. Total records:', payload.count);
@@ -352,6 +356,10 @@ function _handleSWMessage(event) {
             window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
             window.dispatchEvent(new CustomEvent('syncComplete'));
         });
+        // Catch events that occurred during stream sync
+        window.appDB?.getLastEventStamp().then(stamp => {
+            if (stamp && stamp > 0) pullDeltaSince(stamp).catch(() => {});
+        }).catch(() => {});
         showNotification(`✅ Sync Complete (${payload.count} records)`, 'success');
         
     } else if (type === 'bg_delta_complete') {
@@ -453,11 +461,12 @@ async function _handleSSEMessage(payload) {
 
     if (payload.type === 'delta') {
         if (!window.appDB || !window.appDB.db) return;
-        if (document.hidden) { console.log('[SSE] delta hidden tab — skip', payload.collection, payload.action, payload.key); return; }
         if (window._syncInProgress) { window._sseBuffer.push(payload); return; }
         console.log('[SSE] delta applying:', payload.collection, payload.action, payload.key);
         await _applyDelta(payload);
         if (payload.ts) await window.appDB.setMetadata('lastEventStamp', payload.ts).catch(() => {});
+        // Always write to IDB. Only skip UI refresh if tab is hidden.
+        if (document.hidden) return;
         _scheduleRefresh();
     }
 }

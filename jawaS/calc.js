@@ -443,21 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { calcMessage.textContent = ''; calcMessage.className = 'p-2 text-sm text-center rounded-md mt-2'; }, 4000);
     });
 
-    // --- INIT ---
+    // --- INIT (single source: appDataLoaded event) ---
     window.addEventListener('appDataLoaded', (e) => initializeAppLogic(e.detail));
     window.addEventListener('appDataRefreshed', (e) => handleDataRefresh(e.detail));
-
-    const waitForDB = async () => {
-        if (window.appDB && window.appDB.db) return;
-        await new Promise(resolve => {
-            const t = setTimeout(resolve, 3000);
-            window.addEventListener('indexedDBReady', () => { clearTimeout(t); resolve(); }, { once: true });
-        });
-    };
-    waitForDB().then(async () => {
-        const data = await getAppData();
-        if (data) initializeAppLogic({ data });
-    });
 
     // --- EVENT LISTENERS ---
     transportTypeSelect.addEventListener('change', () => {
