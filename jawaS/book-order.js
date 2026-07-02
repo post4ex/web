@@ -1141,8 +1141,10 @@ function renderLastBooked(ref) {
     });
 
     // AWB Enter handler: "E"/"EDIT" shortcut OR existing ref/AWB → EditOrder (only when form is blank)
+    // Only works for STAFF+ users
     document.getElementById('awb')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
+            if ((ROLE_LEVELS[userRole] || 0) < ROLE_LEVELS['MANAGER']) return; // only MANAGER+ can use edit shortcuts
             const val = e.target.value.trim();
             if (!val) return;
 
