@@ -1,5 +1,8 @@
 <script src="core/search-modal.js"></script>
 <script src="core/searchpinweb.js?v=2"></script>
+<style>
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
 <!-- Header -->
 <header class="w-full bg-white text-blue-900 shadow-md py-2 px-6 sticky top-0 z-30">
     <div class="container-fluid mx-auto flex items-center justify-between relative">
@@ -35,10 +38,12 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                 </button>
 
-                <!-- Pincode Search Button (shown when logged in) -->
-                <button id="nav-pincode-private" title="Pincode Search" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color:#9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'" onclick="typeof openPincodeModal === 'function' && openPincodeModal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                        <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-2.079 3.218-4.402 3.218-6.853C19.5 6.922 16.078 3.5 12 3.5S4.5 6.922 4.5 10.475c0 2.451 1.274 4.774 3.218 6.853a19.58 19.58 0 002.683 2.282 16.975 16.975 0 001.144.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                <!-- Refresh Button: first click = delta pull, rapid second = full sync -->
+                <button id="nav-refresh-private" title="Refresh data" class="p-2 rounded-full bg-red-100 transition-colors hidden" style="color: #9C2007;" onmouseover="this.style.backgroundColor='#FEF2F2'" onmouseout="this.style.backgroundColor='#FEF2F2'">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                     </svg>
                 </button>
 
@@ -266,8 +271,45 @@
                 const searchBtn = document.getElementById('nav-search-private');
                 if (searchBtn) searchBtn.classList.remove('hidden');
 
-                const pincodeBtn = document.getElementById('nav-pincode-private');
-                if (pincodeBtn) pincodeBtn.classList.remove('hidden');
+                const refreshBtn = document.getElementById('nav-refresh-private');
+                if (refreshBtn) {
+                    refreshBtn.classList.remove('hidden');
+                    let _refreshLastClick = 0;
+                    let _refreshBusy = false;
+                    refreshBtn.addEventListener('click', async function() {
+                        if (_refreshBusy) return;
+                        _refreshBusy = true;
+                        const now = Date.now();
+                        const elapsed = now - _refreshLastClick;
+                        _refreshLastClick = now;
+
+                        this.querySelector('svg').style.animation = 'spin 0.8s linear infinite';
+
+                        try {
+                            // If clicked again within 3 seconds → full sync
+                            if (elapsed < 3000) {
+                                if (typeof showToast === 'function') showToast('Full sync...', 'info');
+                                if (typeof verifyAndFetchAppData === 'function') {
+                                    await verifyAndFetchAppData();
+                                }
+                                if (typeof showToast === 'function') showToast('Sync complete', 'success');
+                            } else {
+                                // Single click → delta pull
+                                const stamp = window.appDB ? await window.appDB.getLastEventStamp().catch(() => 0) : 0;
+                                if (stamp > 0 && typeof pullDeltaSince === 'function') {
+                                    await pullDeltaSince(stamp);
+                                } else if (typeof verifyAndFetchAppData === 'function') {
+                                    await verifyAndFetchAppData();
+                                }
+                            }
+                        } catch {
+                            if (typeof showToast === 'function') showToast('Refresh failed', 'error');
+                        }
+
+                        this.querySelector('svg').style.animation = '';
+                        _refreshBusy = false;
+                    });
+                }
 
                 document.getElementById('container-desktop-private')?.classList.remove('hidden');
                 document.getElementById('container-desktop-private')?.classList.add('flex');
