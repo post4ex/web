@@ -633,11 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function formatCurrency(value) {
-        const num = parseFloat(value);
-        return isNaN(num) || num === 0 ? '---' : num.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    }
-
+    
     function lookupModeName(shortCode) {
         if (!appData.MODES || !shortCode) return shortCode;
         const modeEntry = appData.MODES[shortCode];
@@ -650,63 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return contact ? contact.NAME : uid;
     }
 
-    function renderShipmentList(shipments) {
-        const listEl = document.getElementById('shipmentList');
-        if (!listEl) return;
-        listEl.innerHTML = '';
-        if (!shipments.length) {
-            listEl.innerHTML = '<li class="text-center text-gray-500 p-4">No recent shipments found.</li>';
-            return;
-        }
-        shipments.forEach(order => {
-            const ref  = order.REFERENCE;
-            const cnor = lookupContactName(order.CONSIGNOR);
-            const cnee = lookupContactName(order.CONSIGNEE);
-            const li   = document.createElement('li');
-            li.style.cssText = 'padding:0.75rem;border-radius:0.5rem;border:1px solid #e5e7eb;line-height:1.6;';
-            li.innerHTML = `
-                <div class="bo-li-wrap">
-                    <div class="bo-li-main">
-                        <div style="flex:1;min-width:0;">
-                            <strong style="color:#4338ca;display:block;font-size:0.875rem;font-weight:600;">${order.AWB_NUMBER || 'No AWB'}</strong>
-                            <span style="font-size:0.75rem;color:#6b7280;">${cnor} &rarr; ${cnee}</span>
-                            <div class="bo-li-grid" style="margin-top:4px;">
-                                <span><span style="color:#9ca3af;">Ref</span> <b>${ref}</b></span>
-                                <span><span style="color:#9ca3af;">Date</span> <b>${fmtDate(order.ORDER_DATE)}</b></span>
-                                <span><span style="color:#9ca3af;">Dest</span> <b>${order.DEST_CITY || 'N/A'} ${order.DEST_PINCODE || ''}</b></span>
-                                <span><span style="color:#9ca3af;">Carrier</span> <b>${order.CARRIER || 'N/A'}</b></span>
-                                <span><span style="color:#9ca3af;">Mode</span> <b>${lookupModeName(order.MODE) || order.MODE || 'N/A'}</b></span>
-                                <span><span style="color:#9ca3af;">TAT</span> <b>${order.TAT || 'N/A'}</b></span>
-                                <span><span style="color:#9ca3af;">Zone</span> <b>${order.ZONE || 'N/A'}</b></span>
-                                <span><span style="color:#9ca3af;">Wt</span> <b>${order.WEIGHT || 0} kg</b></span>
-                                <span><span style="color:#9ca3af;">ChgWt</span> <b>${order.CHG_WT ? parseFloat(order.CHG_WT).toFixed(2) : '0.00'} kg</b></span>
-                                <span><span style="color:#9ca3af;">Pcs</span> <b>${order.PIECS || 0}</b></span>
-                                <span><span style="color:#9ca3af;">Value</span> <b>&#8377;${order.VALUE ? parseFloat(order.VALUE).toFixed(2) : '0.00'}</b></span>
-                                ${(order.COD && parseFloat(order.COD) > 0) ? `<span><span style="color:#9ca3af;">COD</span> <b>${order.COD}</b></span>` : ''}
-                                ${(order.TOPAY && order.TOPAY !== 'No') ? `<span><span style="color:#9ca3af;">ToPay</span> <b>${order.TOPAY}</b></span>` : ''}
-                                ${(order.FOV && parseFloat(order.FOV) > 0) ? `<span><span style="color:#9ca3af;">FOV</span> <b>${order.FOV}</b></span>` : ''}
-                            </div>
-                        </div>
-                        <div class="bo-li-btns">
-                            <div class="bo-action-row">
-                                ${!isClient ? `<button onclick="boEditOrder('${ref}')" title="Edit" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : ''}
-                                ${canDelete ? `<button onclick="boDeleteOrder('${ref}')" title="Delete" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#ef4444;border-radius:4px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ''}
-                                <button onclick="boPrintAll('${ref}')" title="Print All" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
-                                <button onclick="boShowInfo('${ref}')" title="Info" style="padding:4px;border:none;background:transparent;cursor:pointer;color:#4338ca;border-radius:4px;" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='transparent'"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
-                            </div>
-                            <div class="bo-print-row">
-                                <button onclick="boPrint('receipt','${ref}')"  title="Receipt"     style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">RCP</button>
-                                <button onclick="boPrint('label','${ref}')"    title="Label"       style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">LBL</button>
-                                <button onclick="boPrint('pod','${ref}')"      title="POD"         style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">POD</button>
-                                <button onclick="boPrint('office','${ref}')"   title="Office Copy" style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">OFC</button>
-                                <button onclick="boPrint('docs','${ref}')"     title="Docs+Box"    style="padding:3px 5px;border:none;background:#f9fafb;cursor:pointer;color:#6b7280;border-radius:4px;font-size:0.6rem;font-weight:600;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f9fafb'">DOC+BOX</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            listEl.appendChild(li);
-        });
-    }
+
 
     window.boShowInfo = (ref) => {
         const p = _boGetParts(ref); if (!p) return;
@@ -756,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.boDeleteOrder = async (ref) => {
         if (!confirm(`Delete order ${ref}? This cannot be undone.`)) return;
-        try { await deleteOrder(ref); fetchShipmentList(); } catch(e) { alert('Delete failed: ' + e.message); }
+        try { await deleteOrder(ref); } catch(e) { alert('Delete failed: ' + e.message); }
     };
 
     function _boSetupMaps() {
@@ -938,18 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplayTables();
     }
 
-    async function fetchShipmentList() {
-        try {
-            const allOrders = Object.values(appData.ORDERS || {});
-            if (!Array.isArray(allOrders) || !allOrders.length) { renderShipmentList([]); return; }
-            const sorted = [...allOrders].sort((a, b) => (parseDate(b.TIME_STAMP)?.getTime() || 0) - (parseDate(a.TIME_STAMP)?.getTime() || 0));
-            renderShipmentList(sorted.slice(0, 10));
-        } catch (error) {
-            console.error('Error reading ORDERS data:', error);
-        }
-    }
-
-    function renderLastBooked(ref) {
+function renderLastBooked(ref) {
         const section = document.getElementById('lastBookedSection');
         const card    = document.getElementById('lastBookedCard');
         if (!section || !card) return;
@@ -1220,6 +1149,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // AWB Enter handler: "E"/"EDIT" shortcut OR existing ref/AWB → EditOrder (only when form is blank)
+    document.getElementById('awb')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const val = e.target.value.trim();
+            if (!val) return;
+
+            // Both shortcuts only work when the form is completely blank
+            const formBlank = !customerNameSelect.value
+                && !senderNameInput.value
+                && !receiverNameInput.value
+                && !transportTypeSelect.value
+                && !carrierSelect.value
+                && consignmentBoxes.length === 0
+                && consignmentProducts.length === 0
+                && !document.getElementById('payment_global')?.checked
+                && !document.getElementById('payment_topay')?.checked
+                && !document.getElementById('payment_cod')?.checked
+                && !document.getElementById('payment_fov')?.checked;
+            if (!formBlank) return;
+
+            // "E" or "EDIT" (case-insensitive) → navigate to empty EditOrder
+            if (/^(e|edit)$/i.test(val)) {
+                e.preventDefault();
+                window.location.href = 'EditOrder.html';
+                return;
+            }
+
+            // Match by REFERENCE or AWB_NUMBER → prefill edit order
+            if (appData.ORDERS) {
+                const match = Object.values(appData.ORDERS).find(o =>
+                    String(o.REFERENCE) === val || String(o.AWB_NUMBER) === val
+                );
+                if (match) {
+                    e.preventDefault();
+                    const ref = match.REFERENCE;
+                    if (typeof prefillEditOrder === 'function') {
+                        prefillEditOrder(ref);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                        sessionStorage.setItem('editOrderRef', ref);
+                        window.location.href = 'EditOrder.html';
+                    }
+                    return;
+                }
+            }
+        }
+    });
+
     actualWeightInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lengthInput.focus(); } });
     lengthInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); breadthInput.focus(); } });
     breadthInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); heightInput.focus(); } });
@@ -1369,8 +1346,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSummaryDisplay();
     toggleWeightProductEntry(true);
     checkMainDetailsAndToggleInputs();
-    if (appData.ORDERS) fetchShipmentList();
-
     // expose for mobile popup bridge
     window._addMultiboxEntry      = addMultiboxEntry;
     window._addProductEntry       = addProductEntry;
