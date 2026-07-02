@@ -115,8 +115,9 @@ function renderNotificationItem(notif, showToast = false) {
     contentArea.addEventListener('click', async () => {
         openNotificationModal(message, level, timestamp);
         if (!isRead) {
-            await callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
+            // Optimistic: mark read in cache first, push to server in background
             if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, IS_READ: true } });
+            if (navigator.onLine) callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
         }
     });
 
@@ -134,13 +135,14 @@ function renderNotificationItem(notif, showToast = false) {
         readBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>`;
         readBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
+            // Optimistic: mark read in cache first, push to server in background
             if (window.appDB) await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...notif, IS_READ: true } });
             readBtn.remove();
             item.style.background = '';
             const dot = contentArea.querySelector('.bg-blue-500');
             if (dot) dot.remove();
             _updateBadge();
+            if (navigator.onLine) callApi('/api/notifread', { notif_ids: [id] }).catch(() => {});
         });
         btnWrap.appendChild(readBtn);
     }
@@ -152,10 +154,11 @@ function renderNotificationItem(notif, showToast = false) {
         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
         deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            await callApi('/api/notifclear', { notif_ids: [id] }).catch(() => {});
+            // Optimistic: delete from cache first, push to server in background
             if (window.appDB) await window.appDB.deleteRecord('NOTIFICATIONS', id);
             item.remove();
             _updateBadge();
+            if (navigator.onLine) callApi('/api/notifclear', { notif_ids: [id] }).catch(() => {});
         });
         btnWrap.appendChild(deleteBtn);
     }
@@ -321,9 +324,10 @@ function _bindNotifActions() {
             const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
             const ids = Object.values(all).filter(n => !n.IS_READ).map(n => n.NOTIF_ID);
             if (ids.length) {
-                await callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
+                // Optimistic: mark all read in cache first, push to server in background
                 for (const id of ids)
                     await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], IS_READ: true } });
+                if (navigator.onLine) callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
             }
             document.getElementById('notification-list-global')
                 ?.querySelectorAll('.bg-blue-500').forEach(dot => dot.remove());
@@ -342,8 +346,9 @@ function _bindNotifActions() {
             // non-CRITICAL only — CRITICAL requires ADMIN to dismiss individually
             const ids = Object.values(all).filter(n => n.LEVEL !== 'CRITICAL').map(n => n.NOTIF_ID);
             if (ids.length) {
-                await callApi('/api/notifclear', { notif_ids: ids }).catch(() => {});
+                // Optimistic: delete from cache first, push to server in background
                 for (const id of ids) await window.appDB.deleteRecord('NOTIFICATIONS', id);
+                if (navigator.onLine) callApi('/api/notifclear', { notif_ids: ids }).catch(() => {});
             }
             await loadNotificationsFromStorage();
         });
