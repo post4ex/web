@@ -6,7 +6,8 @@
 // ============================================================================
 
 // --- State Variables ---
-let hiddenTypes = [];
+let hiddenTypes = ['KYC']; // KYC hidden by default; enable on B2B/B2B2C pages
+let _savedHiddenTypes = null; // Restored on modal close after setReferenceWithDefaultType
 let rbacRestrictedTypes = []; // Computed on load from user role (non-overridable)
 function _getRestrictedTypes() { return [...new Set([...hiddenTypes, ...rbacRestrictedTypes])]; }
 let ordersData    = {};
@@ -53,20 +54,20 @@ let dynamicInputArea, existingUploadsContainer, existingTableBody;
 function _buildUploaderModalHTML() {
     return `<div id="uploaderModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-start justify-center p-2 sm:p-4 overflow-y-auto">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl my-2 sm:my-6">
-            <div class="flex justify-between items-center px-3 py-1.5 border-b bg-white rounded-t-lg">
-                <h3 class="font-bold text-gray-800 text-sm">Document Uploader</h3>
-                <button id="uploaderModalClose" class="text-gray-400 hover:text-red-500 p-0.5 rounded hover:bg-gray-100 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <div class="flex justify-between items-center px-4 py-2.5 border-b bg-white rounded-t-lg">
+                <h3 class="font-bold text-gray-800 text-base">Document Uploader</h3>
+                <button id="uploaderModalClose" class="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-gray-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
             <div class="p-3 sm:p-5">
                 <div id="main-controls-strip" style="width:100%;display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;padding:8px;background-color:#e9ecef;box-sizing:border-box;">
                     <div class="upload-type-strip" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;">
-                        <button class="type-btn v1-btn" data-type="POD">POD</button>
-                        <button class="type-btn v1-btn" data-type="Reciept">Reciept</button>
-                        <button class="type-btn v1-btn" data-type="KYC">KYC</button>
-                        <button class="type-btn v1-btn" data-type="Product">Product</button>
-                        <button class="type-btn v1-btn" data-type="MultiBox">MultiBox</button>
+                        <button class="btn-danger" data-type="POD">POD</button>
+                        <button class="btn-danger" data-type="Reciept">Reciept</button>
+                        <button class="btn-danger" data-type="KYC">KYC</button>
+                        <button class="btn-danger" data-type="Product">Product</button>
+                        <button class="btn-danger" data-type="MultiBox">MultiBox</button>
                     </div>
                     <div style="width:1px;height:28px;background-color:#ced4da;"></div>
                     <div class="button-group" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;">
@@ -321,7 +322,7 @@ function checkUploadStatus(ref, awb) {
 
 function createPickButton(pickData) {
     const button = document.createElement('button');
-    button.className = 'v1-btn pick-btn-dynamic';
+    button.className = 'btn-danger';
     button.textContent = 'Pick';
     for (const [key, val] of Object.entries(pickData)) {
         button.dataset[key] = val;
@@ -572,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Upload Type Strip ---
     uploadTypeStrip.addEventListener('click', (e) => {
-        if (e.target.classList.contains('type-btn')) {
+        if (e.target.classList.contains('btn-danger') && e.target.dataset.type) {
             const selectedType = e.target.dataset.type;
             if (e.target.classList.contains('active')) {
                 e.target.classList.remove('active');
@@ -760,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const clickedRow = e.target.closest('tr');
         if (!clickedRow) return;
 
-        if (e.target.classList.contains('pick-btn-dynamic')) {
+        if (e.target.classList.contains('btn-danger') && e.target.dataset.type) {
             if (isProcessingImage) return;
             const pickButton = e.target;
             const pickData = { ...pickButton.dataset };
@@ -1054,6 +1055,23 @@ set hiddenTypes(val) { hiddenTypes = val; },
 get hiddenTypes() { return hiddenTypes; },
 get effectiveHiddenTypes() { return [...new Set([...hiddenTypes, ...rbacRestrictedTypes])]; },
 
+    setReferenceWithDefaultType(ref, defaultType) {
+        if (!ref || !defaultType) return this.setReference(ref);
+        // Save current hiddenTypes to restore on close
+        _savedHiddenTypes = [...hiddenTypes];
+        // Temporarily hide all types except the default
+        const allTypes = ['POD', 'Reciept', 'KYC', 'Product', 'MultiBox'];
+        hiddenTypes = allTypes.filter(t => t !== defaultType);
+        const result = this.setReference(ref);
+        if (result) {
+            setTimeout(() => {
+                const btn = uploadTypeStrip?.querySelector(`button[data-type="${defaultType}"]`);
+                if (btn && btn.style.display !== 'none') btn.click();
+            }, 200);
+        }
+        return result;
+    },
+
     close() {
         const modal = document.getElementById('uploaderModal');
         if (modal) modal.classList.add('hidden');
@@ -1061,6 +1079,11 @@ get effectiveHiddenTypes() { return [...new Set([...hiddenTypes, ...rbacRestrict
     },
 
     clear() {
+        // Restore hiddenTypes from setReferenceWithDefaultType if needed
+        if (_savedHiddenTypes !== null) {
+            hiddenTypes = _savedHiddenTypes;
+            _savedHiddenTypes = null;
+        }
         selectedOrder = null;
         this.currentRef = null;
         if (tableBody) tableBody.innerHTML = '';
