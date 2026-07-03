@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(reg => {
+        navigator.serviceWorker.register('utils/sw.js').then(reg => {
             console.log('[ServiceWorker] Registered, scope:', reg.scope);
         });
         navigator.serviceWorker.addEventListener('message', (event) => {

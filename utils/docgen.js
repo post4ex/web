@@ -6,10 +6,10 @@ function getJsBarcodeSrc() {
     const scripts = document.querySelectorAll('script[src]');
     for (const s of scripts) {
         if (s.src.includes('docgen.js')) {
-            return new URL('/assets/js/JsBarcode.all.min.js', s.src).href;
+            return new URL('/utils/JsBarcode.all.min.js', s.src).href;
         }
     }
-    return window.location.origin + '/assets/js/JsBarcode.all.min.js';
+    return window.location.origin + '/utils/JsBarcode.all.min.js';
 }
 
 function getLogoSrc() {
