@@ -4406,7 +4406,7 @@ html.needs-sync body::before {
     transform: translate(-50%, -50%);
     width: 44px;
     height: 44px;
-    background-image: url('assets/images/favicon.svg');
+    background-image: url('../images/favicon.svg');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
