@@ -182,7 +182,13 @@ function _bindPincodeEvents() {
 // API call
 // ============================================================================
 async function _doPincodeSearch() {
-    const pincode = document.getElementById('pm-input').value.trim();
+    let input = document.getElementById('pm-input');
+    if (!input) {
+        _injectPincodeModal();
+        input = document.getElementById('pm-input');
+        if (!input) return;
+    }
+    const pincode = input.value.trim();
     const _pinValid = typeof InputValidator !== 'undefined'
         ? InputValidator.pin
         : v => !v || /^[0-9]{6}$/.test(v);
