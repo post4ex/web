@@ -59,3 +59,5 @@ build/
 *.tar.gz
 *.zip
 !assets/Network/network-data-archive.tar.gz
+_worker.js
+deploy.sh
