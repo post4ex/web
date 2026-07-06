@@ -57,7 +57,7 @@ function _injectModal() {
         <!-- Header -->
         <div style="padding:0.75rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:0.5rem;flex-shrink:0;background:linear-gradient(to right,#f8fafc,#fff);position:sticky;top:0;z-index:1;flex-wrap:wrap;">
             <i class="fa-solid fa-magnifying-glass" style="color:#9C2007;font-size:0.85rem;flex-shrink:0;"></i>
-            <span style="font-size:0.85rem;font-weight:800;color:#1e293b;white-space:nowrap;">Track Pin/Shipment</span>
+            <span style="font-size:0.85rem;font-weight:800;color:#1e293b;white-space:nowrap;">Search</span>
             <div style="flex:1;min-width:0.5rem;"></div>
             <input id="sm-pincode-input" type="text" inputmode="numeric" maxlength="6"
                    placeholder="Pincode"
@@ -664,7 +664,7 @@ function _smAutoDef(r) {
     const cols = [];
     for (const k of Object.keys(r)) {
         if (skip[k] || r[k] === null || r[k] === undefined) continue;
-        const l = k.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase());
+        const l = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const t = (typeof r[k] === 'boolean') ? 'yn' : undefined;
         cols.push({ k, l, t });
     }
