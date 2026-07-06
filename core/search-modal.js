@@ -69,8 +69,8 @@ function _injectModal() {
                        border-radius:0.375rem;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;box-sizing:border-box;">
                 <i class="fa-solid fa-magnifying-glass" style="margin-right:0.2rem;"></i>Track
             </button>
-            <button id="sm-close" aria-label="Close" tabindex="0" style="display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;border:none;background:#f1f5f9;cursor:pointer;color:#374151;font-size:1.1rem;flex-shrink:0;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='#e2e8f0';this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9';this.style.color='#374151'">
-                <i class="fa-solid fa-xmark" aria-hidden="true">&#x2715;</i>
+            <button id="sm-close" aria-label="Close" class="btn-close" tabindex="0">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
         </div>
 
