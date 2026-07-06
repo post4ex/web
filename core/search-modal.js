@@ -69,9 +69,7 @@ function _injectModal() {
                        border-radius:0.375rem;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;box-sizing:border-box;">
                 <i class="fa-solid fa-magnifying-glass" style="margin-right:0.2rem;"></i>Track
             </button>
-            <button id="sm-close" aria-label="Close" class="btn-close" tabindex="0">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </button>
+            <button id="sm-close" aria-label="Close" class="btn-close" tabindex="0">✕</button>
         </div>
 
         <!-- Controls -->
