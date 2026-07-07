@@ -12,39 +12,9 @@ function getJsBarcodeSrc() {
     return window.location.origin + '/utils/JsBarcode.all.min.js';
 }
 
-function getLogoSrc() {
-    const scripts = document.querySelectorAll('script[src]');
-    for (const s of scripts) {
-        if (s.src.includes('docgen.js')) {
-            return new URL('/assets/images/genie-logo.svg', s.src).href;
-        }
-    }
-    return window.location.origin + '/assets/images/genie-logo.svg';
-}
 
-function getCarrierLogoSrc(carrier) {
-    const base = (() => {
-        const scripts = document.querySelectorAll('script[src]');
-        for (const s of scripts) { if (s.src.includes('docgen.js')) return new URL('/assets/images/', s.src).href; }
-        return window.location.origin + '/assets/images/';
-    })();
-    const c = (carrier || '').toLowerCase();
-    if (c.includes('dtdc'))        return base + 'dtdc-logo.webp';
-    if (c.includes('bluedart'))    return base + 'bluedart-logo.png';
-    if (c.includes('delhivery'))   return base + 'delhivery-logo.webp';
-    if (c.includes('trackon'))     return base + 'trackon-logo.png';
-    if (c.includes('jetline') || c === 'jetline') return base + 'jetline-logo.png';
-    if (c.includes('dailyx'))      return base + 'dailyxpress-logo.png';
-    if (c.includes('xpressbees') || c.includes('expressbees')) return base + 'xpressbees-logo.webp';
-    if (c.includes('maruti'))      return base + 'shreemaruti-logo.png';
-    if (c.includes('postoffice') || c.includes('indiapost')) return base + 'indiapost-logo.png';
-    return base + 'genie-logo.svg';
-}
-
-function getCarrierLogoBg(carrier) {
-    const c = (carrier || '').toLowerCase();
-    if (c.includes('delhivery')) return 'background:#000;border-radius:4px;padding:3px;';
-    return '';
+function formatCarrierName(carrier) {
+    return (carrier || 'CARRIER').toUpperCase();
 }
 
 // --- SHARED STYLES ---
@@ -214,7 +184,7 @@ function buildLabel(order, cnor, cnee, products, multiboxItems, options = { type
 
     return `<div class="label-wrapper">
         <div class="label-row">
-            <div class="label-cell w-1-3" style="display:flex;align-items:center;justify-content:center;padding:4px;"><img src="${getCarrierLogoSrc(carrierName)}" alt="${carrierName}" style="max-height:40px;max-width:100%;width:auto;object-fit:contain;${getCarrierLogoBg(carrierName)}"></div>
+            <div class="label-cell w-1-3" style="display:flex;align-items:center;justify-content:center;padding:4px;font-size:18px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;">${formatCarrierName(carrierName)}</div>
             <div class="label-cell w-1-3">${paymentDisplay}</div>
             <div class="label-cell w-1-3"><div class="label-logo" style="font-size:20px;font-weight:bold;">${piecesDisplay}</div></div>
         </div>
@@ -404,13 +374,13 @@ function _buildReceiptHtml(order, cnor, cnee, products, copyType, branch) {
     return `${getReceiptStyles()}
     <div class="receipt-wrapper">
         <div class="receipt-header">
-            <div class="receipt-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:36px;width:auto;"></div>
-            <div class="receipt-copy-type">${copyType}<div style="font-size:10px;font-weight:normal;color:#555;margin-top:2px;">Informational Copy</div></div>
+            <div style="font-size:16px;font-weight:bold;">${copyType}</div>
+            <div style="font-size:10px;font-weight:normal;color:#555;">Informational Copy</div>
         </div>
         <div class="receipt-meta">
             <div class="receipt-meta-cell"><strong>Date:</strong> ${orderDate}</div>
-            <div class="receipt-meta-cell" style="grid-row:1/3;grid-column:2/3;display:flex;align-items:center;justify-content:center;padding:6px;border-top:none;">
-                <img src="${getCarrierLogoSrc(carrierName)}" alt="${carrierName}" style="max-height:48px;max-width:100%;width:auto;object-fit:contain;${getCarrierLogoBg(carrierName)}">
+            <div class="receipt-meta-cell" style="grid-row:1/3;grid-column:2/3;display:flex;align-items:center;justify-content:center;padding:6px;border-top:none;font-size:18px;font-weight:bold;text-transform:uppercase;text-align:center;letter-spacing:2px;">
+                ${formatCarrierName(carrierName)}
             </div>
             <div class="receipt-meta-cell" style="grid-row:1/3;grid-column:3/4;border-left:1px solid #333;border-top:none;border-right:none;padding:0.5rem;">
                 <div class="receipt-barcode-container"><svg id="receipt-barcode" class="barcode-svg" data-value="${awb}"></svg></div>
@@ -525,7 +495,6 @@ function buildDocs(order, cnor, cnee, products) {
     return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:32px;width:auto;"></div>
             <div class="ps-title">PRODUCT PACKING SLIP</div>
         </div>
         <div class="ps-meta">
@@ -619,7 +588,6 @@ function buildMultibox(order, cnor, cnee, products, multiboxItems) {
     return `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:32px;width:auto;"></div>
             <div class="ps-title">PACKING SLIP</div>
         </div>
         <div class="ps-meta">
@@ -735,10 +703,8 @@ function printSelectedShipmentLabel() {
     const multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     const awb          = order.AWB_NUMBER || order.REFERENCE;
     const pieces       = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
-    const layoutSelect = document.getElementById('label-print-layout');
-    const layout       = layoutSelect ? layoutSelect.value : '2up-landscape';
-
-    const isPortrait   = layout === '4up-portrait';
+    const layout   = window._labelLayout || '2up-landscape';
+    const isPortrait = layout === '4up-portrait';
     const pageStyle    = `<style>@page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
         body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;gap:0;}
         .label-wrapper{width:49%;max-width:49%!important;border:1px solid #000!important;box-shadow:none!important;margin:0;padding:0;box-sizing:border-box;page-break-inside:avoid;
@@ -827,9 +793,8 @@ function printSelectedShipmentAll() {
     const branch        = branchDataMap.get(order.BRANCH);
     const awb           = order.AWB_NUMBER || order.REFERENCE;
     const pieces        = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
-    const layoutSelect  = document.getElementById('label-print-layout');
-    const layout        = layoutSelect ? layoutSelect.value : '2up-landscape';
-    const isPortrait    = layout === '4up-portrait';
+    const layout     = window._labelLayout || '2up-landscape';
+    const isPortrait = layout === '4up-portrait';
 
     const pageStyle = `<style>
         @page label-page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
@@ -905,7 +870,6 @@ function buildDocsAndBox(order, cnor, cnee, products, multiboxItems) {
     const combined = `${getPackingSlipStyles()}
     <div class="ps-wrapper">
         <div class="ps-header">
-            <div class="ps-logo"><img src="${getLogoSrc()}" alt="Genie" style="height:32px;width:auto;"></div>
             <div class="ps-title">${isDec ? 'PACKAGING LIST CUM DECLARATION' : 'PACKING SLIP'}</div>
         </div>
         <div class="ps-meta">
@@ -1057,9 +1021,8 @@ function downloadSelectedShipmentAll() {
     const branch        = branchDataMap.get(order.BRANCH);
     const awb           = order.AWB_NUMBER || order.REFERENCE;
     const pieces        = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
-    const layoutSelect  = document.getElementById('label-print-layout');
-    const layout        = layoutSelect ? layoutSelect.value : '2up-landscape';
-    const isPortrait    = layout === '4up-portrait';
+    const layout     = window._labelLayout || '2up-landscape';
+    const isPortrait = layout === '4up-portrait';
 
     const pageStyle = `<style>
         @page label-page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}
@@ -1093,7 +1056,7 @@ function mailSelectedShipmentLabel() {
     const cnor = b2b2cDataMap.get(order.CONSIGNOR), cnee = b2b2cDataMap.get(order.CONSIGNEE);
     const products = productDataMap.get(order.REFERENCE) || [], multiboxItems = multiboxDataMap.get(order.REFERENCE) || [];
     const awb = order.AWB_NUMBER || order.REFERENCE, pieces = multiboxItems.length > 0 ? multiboxItems.length : (order.PIECS || 1);
-    const layout = (document.getElementById('label-print-layout') || {}).value || '2up-landscape';
+    const layout = window._labelLayout || '2up-landscape';
     const isPortrait = layout === '4up-portrait';
     const pageStyle = `<style>@page{size:A4 ${isPortrait?'portrait':'landscape'};margin:8mm;}body{display:flex;flex-wrap:wrap;justify-content:space-between;align-content:flex-start;}.label-wrapper{width:49%;max-width:49%!important;height:${isPortrait?'138mm':'192mm'}!important;}</style>`;
     let body = pageStyle + getLabelStyles();
