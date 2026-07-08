@@ -79,9 +79,15 @@ const _ALLOWED_COMPONENTS = ['header.html', 'footer.html'];
 
 function _injectComponentHTML(placeholder, htmlText) {
     const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+    const scripts = Array.from(doc.querySelectorAll('script'));
 
-    // Run script tags
-    Array.from(doc.querySelectorAll('script')).forEach(script => {
+    placeholder.innerHTML = '';
+    while (doc.body.firstChild) {
+        placeholder.appendChild(doc.body.firstChild);
+    }
+
+    // Run script tags after the HTML elements are fully injected into the DOM
+    scripts.forEach(script => {
         const newScript = document.createElement('script');
         if (script.src) {
             newScript.src = script.src;
@@ -89,13 +95,7 @@ function _injectComponentHTML(placeholder, htmlText) {
             newScript.textContent = script.textContent;
         }
         document.head.appendChild(newScript);
-        script.remove();
     });
-
-    placeholder.innerHTML = '';
-    while (doc.body.firstChild) {
-        placeholder.appendChild(doc.body.firstChild);
-    }
 }
 
 async function loadComponent(componentUrl, placeholderId) {
