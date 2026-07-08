@@ -376,26 +376,6 @@
     </div>
 
     
-    <!-- CAPTCHA MODAL -->
-    <div id="captchaModal" class="modal-overlay hidden">
-        <div class="modal-content relative" style="max-width:340px">
-            <button onclick="document.getElementById('captchaModal').classList.remove('active');setTimeout(()=>document.getElementById('captchaModal').classList.add('hidden'),300)" class="btn-close absolute top-3 right-3" aria-label="Close">✕</button>
-            <h3 class="font-bold text-gray-700 mb-3">Security Check</h3>
-            <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <img id="captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white" style="min-width:0;">
-                    <button type="button" id="captcha-refresh" title="Refresh" class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-blue-800 hover:border-blue-300 transition text-base shadow-sm">↻</button>
-                </div>
-                <input id="captcha-answer" type="text" placeholder="Type the answer above" autocomplete="off" maxlength="10"
-                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-blue-500 text-sm font-semibold tracking-widest text-center transition">
-                <p id="captcha-msg" class="hidden text-xs text-red-500 text-center font-medium"></p>
-            </div>
-            <button id="captcha-submit" class="btn w-full mt-3">
-                Submit
-            </button>
-        </div>
-    </div>
-
     <script src="core/indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
@@ -414,7 +394,6 @@
         // MAIN PAGE TRACKING WIDGET
         // ============================================================================
         (function() {
-            let _captchaId = '', _pendingQuery = '';
             const _loggedIn = () => typeof isLoggedIn === 'function' && isLoggedIn();
 
             function showMsg(id, text, type) {
@@ -427,26 +406,8 @@
                     el.style.background = type === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)';
                     el.style.color      = type === 'error' ? '#fca5a5' : 'rgba(255,255,255,0.8)';
                     el.style.border     = type === 'error' ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.15)';
-                } else if (id === 'captcha-msg') {
-                    el.classList.remove('hidden');
-                } else {
-                    el.className = 'p-2 rounded text-xs font-semibold text-center';
-                    if (type === 'error') el.classList.add('bg-red-100', 'text-red-700');
-                    else el.classList.add('bg-blue-50', 'text-blue-700');
                 }
                 el.classList.remove('hidden');
-            }
-
-            function openCaptchaModal() {
-                const m = document.getElementById('captchaModal');
-                m.classList.remove('hidden');
-                setTimeout(() => m.classList.add('active'), 10);
-            }
-
-            function closeCaptchaModal() {
-                const m = document.getElementById('captchaModal');
-                m.classList.remove('active');
-                setTimeout(() => m.classList.add('hidden'), 300);
             }
 
             function setLoadingText(text) {
@@ -497,22 +458,6 @@
                 tray.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
-            async function loadCaptcha() {
-                try {
-                    const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/track`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: _pendingQuery })
-                    });
-                    if (res.status === 429) { window.location.href = 'login.html'; return; }
-                    const data = await res.json();
-                    _captchaId = data.id;
-                    document.getElementById('captcha-img').src = data.image;
-                    document.getElementById('captcha-answer').value = '';
-                    document.getElementById('captcha-msg').classList.add('hidden');
-                } catch(e) { showMsg('captcha-msg', 'Failed to load. Try again.', 'error'); }
-            }
-
             function showFullResult(data) {
                 const svc  = document.getElementById('services-content-area');
                 const tray = document.getElementById('services-tray');
@@ -537,28 +482,15 @@
                 tray.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
-            async function doPublicTrack() {
-                const answer = document.getElementById('captcha-answer').value.trim();
-                if (!answer) { showMsg('captcha-msg', 'Enter the answer.', 'error'); return; }
-                closeCaptchaModal();
+            async function doPublicTrack(query) {
                 setLoadingText('Fetching result...');
                 try {
                     const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/track`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: _pendingQuery, captcha_id: _captchaId, answer })
+                        body: JSON.stringify({ query })
                     });
                     setLoadingText(null);
-                    if (res.status === 403) {
-                        const err = await res.json();
-                        if (err.id) {
-                            _captchaId = err.id;
-                            document.getElementById('captcha-img').src = err.image;
-                        }
-                        showMsg('captcha-msg', 'Wrong answer.', 'error');
-                        openCaptchaModal();
-                        return;
-                    }
                     if (res.status === 429) { window.location.href = 'login.html'; return; }
                     if (res.status === 404) { showResultMsg('Shipment not found.', 'error'); return; }
                     if (!res.ok) { showResultMsg('Something went wrong. Please try again.', 'error'); return; }
@@ -596,21 +528,13 @@
                 if (_loggedIn()) {
                     await doAuthTrack(query);
                 } else {
-                    _pendingQuery = query;
-                    setLoadingText('Loading captcha...');
-                    await loadCaptcha();
-                    setLoadingText(null);
-                    openCaptchaModal();
+                    await doPublicTrack(query);
                 }
             }
 
             document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('main-track-btn').addEventListener('click', startTrack);
                 document.getElementById('main-track-input').addEventListener('keypress', e => { if (e.key === 'Enter') startTrack(); });
-                document.getElementById('captcha-submit').addEventListener('click', doPublicTrack);
-                document.getElementById('captcha-answer').addEventListener('keypress', e => { if (e.key === 'Enter') doPublicTrack(); });
-                document.getElementById('captcha-refresh').addEventListener('click', loadCaptcha);
-
                 // ── Barcode scanner component ──
                 const scanner = document.getElementById('main-scanner');
                 // on mobile: move the inline scan-wrap outside the input wrapper so it isn't clipped

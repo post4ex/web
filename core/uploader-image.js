@@ -3,7 +3,7 @@
 // compressImage, getRotatedImage, dataURLtoFile, createPdfFromImages
 // ============================================================================
 
-async function compressImage(dataUrl, targetSizeKB = 100, maxDimension = 1024) {
+async function compressImage(dataUrl, targetSizeKB = 200, maxDimension = 2048) {
     const targetSizeBytes = targetSizeKB * 1024;
     const img = await new Promise(resolve => {
 const image = new Image();

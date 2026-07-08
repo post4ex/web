@@ -49,41 +49,6 @@
 })();
 let currentView = 'login', regState = 'init', forgotState = 'send', resetToken = '';
 
-// ── Captcha helpers ───────────────────────────────────────────────────────────
-
-const _captchaState = {}; // keyed by form prefix: 'login', 'reg', 'forgot'
-
-async function _loadCaptcha(prefix, endpoint) {
-    try {
-        const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
-        });
-        const data = await res.json();
-        if (!data.id) return;
-        _captchaState[prefix] = { id: data.id };
-        document.getElementById(`${prefix}-captcha-img`).src = data.image;
-        document.getElementById(`${prefix}-captcha-answer`).value = '';
-        document.getElementById(`${prefix}-captcha-msg`).classList.add('hidden');
-        document.getElementById(`${prefix}-captcha`).classList.add('captcha-visible');
-    } catch (_) {}
-}
-
-function _getCaptchaPayload(prefix) {
-    return {
-        captcha_id: _captchaState[prefix]?.id || '',
-        answer:     document.getElementById(`${prefix}-captcha-answer`).value.trim()
-    };
-}
-
-function _setCaptchaError(prefix, data) {
-    if (data?.id) {
-        _captchaState[prefix] = { id: data.id };
-        document.getElementById(`${prefix}-captcha-img`).src = data.image;
-        document.getElementById(`${prefix}-captcha-answer`).value = '';
-    }
-    document.getElementById(`${prefix}-captcha-msg`).classList.remove('hidden');
-}
-
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function callApi(endpoint, payload = {}) {
@@ -174,12 +139,8 @@ async function handleLogin(e) {
     if (!pass) return showMessage('Please enter password.', 'error');
     if (pass.length < 4) return showMessage('Password is too short.', 'error');
 
-    const captcha = _getCaptchaPayload('login');
-    if (!captcha.answer) return showMessage('Please enter the captcha answer.', 'error');
-
     try {
-        const { res, json } = await callApi('/api/public/login', { username: user, password: pass, ...captcha });
-        if (res.status === 403 && json.id) { _setCaptchaError('login', json); return; }
+        const { res, json } = await callApi('/api/public/login', { username: user, password: pass });
         if (json.status === 'success' && json.sessionId) {
             localStorage.setItem('loginData', JSON.stringify({
                 sessionId: json.sessionId,
@@ -218,14 +179,9 @@ async function handleRegister(e) {
         if (!/[A-Z]/.test(data.PASS))      return showMessage('Password must contain at least one uppercase letter.', 'error');
         if (data.PASS !== confirmPass)      return showMessage('Passwords do not match.', 'error');
 
-        const captcha = _getCaptchaPayload('reg');
-        if (!captcha.answer) return showMessage('Please enter the captcha answer.', 'error');
-
         try {
-            const { res, json } = await callApi('/api/public/initiateRegistration', { ...data, ...captcha });
-            if (res.status === 403 && json.id) { _setCaptchaError('reg', json); return; }
+            const { res, json } = await callApi('/api/public/initiateRegistration', { ...data });
             document.getElementById('reg-step-1').classList.add('hidden');
-            document.getElementById('reg-captcha').classList.remove('captcha-visible');
             document.getElementById('reg-step-2').classList.remove('hidden');
             document.getElementById('reg-btn').textContent = 'Confirm OTP';
             regState = 'confirm';
@@ -254,13 +210,9 @@ async function handleForgot(e) {
 
     if (forgotState === 'send') {
         if (!id) return showMessage('Enter Username or Email', 'error');
-        const captcha = _getCaptchaPayload('forgot');
-        if (!captcha.answer) return showMessage('Please enter the captcha answer.', 'error');
         try {
-            const { res, json } = await callApi('/api/public/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim(), ...captcha });
-            if (res.status === 403 && json.id) { _setCaptchaError('forgot', json); return; }
+            const { res, json } = await callApi('/api/public/sendResetOtp', { identifier: id, mobile: document.getElementById('forgot-mobile').value.trim() });
             document.getElementById('forgot-step-1').classList.add('hidden');
-            document.getElementById('forgot-captcha').classList.remove('captcha-visible');
             document.getElementById('forgot-step-2').classList.remove('hidden');
             document.getElementById('forgot-btn').textContent = 'Verify OTP';
             forgotState = 'verify';
@@ -379,23 +331,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('form-register').addEventListener('submit', handleRegister);
     document.getElementById('form-forgot').addEventListener('submit',   handleForgot);
     document.getElementById('form-kyc').addEventListener('submit',      handleKYCSubmit);
-
-    // Load captcha when view becomes active
-    const _origSwitchView = switchView;
-    window.switchView = async function(viewName) {
-        _origSwitchView(viewName);
-        if (viewName === 'login')    _loadCaptcha('login',  '/api/public/login');
-        if (viewName === 'register') _loadCaptcha('reg',    '/api/public/initiateRegistration');
-        if (viewName === 'forgot')   _loadCaptcha('forgot', '/api/public/sendResetOtp');
-    };
-
-    // Refresh buttons
-    document.getElementById('login-captcha-refresh').addEventListener('click',  () => _loadCaptcha('login',  '/api/public/login'));
-    document.getElementById('reg-captcha-refresh').addEventListener('click',    () => _loadCaptcha('reg',    '/api/public/initiateRegistration'));
-    document.getElementById('forgot-captcha-refresh').addEventListener('click', () => _loadCaptcha('forgot', '/api/public/sendResetOtp'));
-
-    // Load login captcha on page load
-    _loadCaptcha('login', '/api/public/login');
 
     document.querySelectorAll('.toggle-password').forEach(btn => {
         btn.addEventListener('click', function () {

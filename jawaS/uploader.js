@@ -1126,7 +1126,7 @@ submitRowData.childAwb = pickData.childAwb;
 // 3. PROCESS IMAGE
 updateStatus("Processing image... Please wait.");
 const rotatedImageSrc = await getRotatedImage(imagePreview.src, currentRotation);
-const finalImageSrc = await compressImage(rotatedImageSrc, 100, 1024);
+const finalImageSrc = await compressImage(rotatedImageSrc, 200, 2048);
 
 // 4. POPULATE TABLE
 

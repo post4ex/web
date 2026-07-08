@@ -28,18 +28,6 @@
         .auth-view { transition: opacity 0.3s ease-in-out; }
         .hidden-view { display: none; opacity: 0; }
 
-        /* Captcha always takes space — visibility toggle prevents layout shift */
-        #login-captcha, #reg-captcha, #forgot-captcha {
-            visibility: hidden;
-            pointer-events: none;
-        }
-        #login-captcha.captcha-visible,
-        #reg-captcha.captcha-visible,
-        #forgot-captcha.captcha-visible {
-            visibility: visible;
-            pointer-events: auto;
-        }
-
         /* Custom Scrollbar for Right Pane if content overflows */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -169,21 +157,6 @@
                             <button type="button" onclick="switchView('forgot')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Forgot Password?</button>
                         </div>
 
-                        <!-- INLINE CAPTCHA -->
-                        <div id="login-captcha">
-                            <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
-                                <div class="flex items-center gap-3">
-                                    <img id="login-captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white">
-                                    <div class="flex flex-col gap-1">
-                                        <button type="button" id="login-captcha-refresh" title="Refresh" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-blue-800 hover:border-blue-300 transition text-base shadow-sm">↻</button>
-                                    </div>
-                                </div>
-                                <input id="login-captcha-answer" type="text" placeholder="Type the answer above" autocomplete="off"
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-blue-500 text-sm font-semibold tracking-widest text-center transition">
-                                <p id="login-captcha-msg" class="hidden text-xs text-red-500 text-center font-medium">✗ Wrong answer — try again</p>
-                            </div>
-                        </div>
-
                         <button id="login-btn" type="submit" class="btn w-full py-2.5">
                             LOG IN
                         </button>
@@ -240,19 +213,6 @@
                             <div class="relative">
                                 <input type="text" id="reg-otp" placeholder=" " class="w-full peer px-3 pt-4 pb-2 border-b-2 border-gray-300 focus:border-blue-800 bg-transparent tracking-[0.5em] text-center text-lg font-bold">
                                 <label for="reg-otp" class="absolute text-gray-500 transition-all left-3 top-2 text-xs w-full text-center">ENTER OTP</label>
-                            </div>
-                        </div>
-
-                        <!-- INLINE CAPTCHA (step 1 only) -->
-                        <div id="reg-captcha">
-                            <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
-                                <div class="flex items-center gap-3">
-                                    <img id="reg-captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white">
-                                    <button type="button" id="reg-captcha-refresh" title="Refresh" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-blue-800 hover:border-blue-300 transition text-base shadow-sm">↻</button>
-                                </div>
-                                <input id="reg-captcha-answer" type="text" placeholder="Type the answer above" autocomplete="off"
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-blue-500 text-sm font-semibold tracking-widest text-center transition">
-                                <p id="reg-captcha-msg" class="hidden text-xs text-red-500 text-center font-medium">✗ Wrong answer — try again</p>
                             </div>
                         </div>
 
@@ -332,19 +292,6 @@
                                 <button type="button" class="absolute right-2 top-3 text-gray-400 hover:text-blue-800 toggle-password" data-target="forgot-newpass" aria-label="Toggle password visibility">
                                     <i class="fa-regular fa-eye"></i>
                                 </button>
-                            </div>
-                        </div>
-
-                        <!-- INLINE CAPTCHA (step 1 only) -->
-                        <div id="forgot-captcha">
-                            <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 shadow-sm">
-                                <div class="flex items-center gap-3">
-                                    <img id="forgot-captcha-img" src="" alt="captcha" class="rounded-lg border border-gray-200 h-14 flex-1 object-cover bg-white">
-                                    <button type="button" id="forgot-captcha-refresh" title="Refresh" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-blue-800 hover:border-blue-300 transition text-base shadow-sm">↻</button>
-                                </div>
-                                <input id="forgot-captcha-answer" type="text" placeholder="Type the answer above" autocomplete="off"
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-blue-500 text-sm font-semibold tracking-widest text-center transition">
-                                <p id="forgot-captcha-msg" class="hidden text-xs text-red-500 text-center font-medium">✗ Wrong answer — try again</p>
                             </div>
                         </div>
 
