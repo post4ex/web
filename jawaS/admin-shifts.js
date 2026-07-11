@@ -370,6 +370,7 @@ const AdminShifts = (() => {
                         _attendance[attId] = res.record || { ...existing, ...data };
                     }));
 
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`✅ Shift assigned for ${diffDays} days`, 'success');
                     _renderDetail(s);
                 } catch (err) {
@@ -438,6 +439,7 @@ const AdminShifts = (() => {
                         _attendance[attId] = res.record || { ...existing, ...data };
                     }));
 
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`✅ Leave recorded for ${diffDays} days`, 'success');
                     _renderDetail(s);
                 } catch (err) {

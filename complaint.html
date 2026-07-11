@@ -161,6 +161,7 @@
     <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
 
     
+    <script src="core/navigation-guard.js"></script>
     <script src="core/indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
@@ -170,6 +171,7 @@
     <script src="core/layout.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            if (window.NavigationGuard) NavigationGuard.enable('#complaintFormFields');
             // --- Complaint Form Logic ---
             const API_URL = 'https://script.google.com/macros/s/AKfycbwdEPTko2RsIDO4T3-11nwsCUcVR3jtzC8Xpya5FTqZo13aNWfn1uNhZQ9Zfw_r7hk4aQ/exec';
             const complaintSearchInput = document.getElementById('complaintSearchInput');
@@ -292,6 +294,7 @@
             }
 
             function clearComplaintForm() {
+                if (window.NavigationGuard) NavigationGuard.markClean();
                 complaintSearchInput.value = '';
                 complaintResultsContainer.innerHTML = '';
                 complaintResultsContainer.classList.add('hidden');

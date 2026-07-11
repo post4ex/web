@@ -472,6 +472,7 @@ let savedDocsVisible = false;
 // SAVED DOCUMENTS FUNCTIONS
 // ============================================================================
 function toggleSavedDocs() {
+    NavigationGuard.markClean();
     // Show saved documents in main content area instead of right pane
     renderSavedDocumentsView();
 }
@@ -708,6 +709,7 @@ async function loadSavedDocument(docId) {
             if (window.showNotification) {
                 window.showNotification('Document loaded successfully!', 'success');
             }
+            if (typeof NavigationGuard !== 'undefined') NavigationGuard.markClean();
         }
     } catch (error) {
         if (window.showNotification) {
@@ -741,6 +743,7 @@ async function deleteSavedDocument(docId) {
         if (window.showNotification) {
             window.showNotification('Document deleted!', 'success');
         }
+        NavigationGuard.markClean();
         // Refresh the saved documents view
         renderSavedDocumentsView();
     } catch (error) {
@@ -905,6 +908,7 @@ function validateRequiredFields(schema) {
  * @param {string} docDesc - Fallback description.
  */
 function selectDoc(element, docId, docTitle, docDesc) {
+    NavigationGuard.markClean();
     currentDocId = docId;
     
     // 1. Visual Selection Logic
@@ -939,6 +943,8 @@ function selectDoc(element, docId, docTitle, docDesc) {
  * Renders the initial decision guide table.
  */
 function renderDecisionGuide() {
+    NavigationGuard.markClean();
+    
     const contentArea = document.getElementById('app-content');
     if (!contentArea) return;
 
@@ -1249,7 +1255,7 @@ function renderDocumentWorkspace(schema) {
                 <button type="button" id="validation-toggle" onclick="toggleValidation()" class="px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-sm font-medium" title="Toggle field validation">
                     <i class="fa-solid fa-check-circle"></i>
                 </button>
-                <button onclick="document.getElementById('doc-form').reset()" class="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium" title="Reset Form">
+                <button onclick="document.getElementById('doc-form').reset(); NavigationGuard.markClean();" class="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium" title="Reset Form">
                     <i class="fa-solid fa-rotate-left"></i>
                 </button>
                 <button onclick="handleGenerate('${schema.id}')" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium" title="Generate Document">
@@ -1378,6 +1384,8 @@ function handleBlankPrint(docId) {
     if (window.showNotification) {
         window.showNotification(`Blank ${docId} template generated!`, 'success');
     }
+    
+    NavigationGuard.markClean();
 }
 
 /**
@@ -1557,6 +1565,8 @@ function handleGenerate(docId) {
     if (window.showNotification) {
         window.showNotification(`${docId} generated successfully!`, 'success');
     }
+    
+    NavigationGuard.markClean();
 }
 
 /**
@@ -1640,6 +1650,7 @@ async function handleDownloadPDF(docId) {
         pdf.save(`${docId}_${Date.now()}.pdf`);
 
         if (window.showNotification) window.showNotification('PDF downloaded!', 'success');
+        NavigationGuard.markClean();
     } catch (error) {
         console.error("PDF Generation Error:", error);
         if (window.showNotification) window.showNotification('Failed to generate PDF.', 'error');
@@ -1709,6 +1720,7 @@ function handleDownloadDOCX(docId) {
                 document.body.removeChild(a);
             }
             if (window.showNotification) window.showNotification('DOCX downloaded!', 'success');
+            NavigationGuard.markClean();
         });
 
     } catch (error) {
@@ -1915,6 +1927,7 @@ async function saveLocalDraft(docId) {
         console.log('Document saved with ID:', result);
         
         if (window.showNotification) window.showNotification('Document saved locally!', 'success');
+        NavigationGuard.markClean();
         
         // Refresh saved docs if visible
         if (savedDocsVisible) {
@@ -2164,6 +2177,10 @@ function initDocCenter() {
 
 // Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    if (typeof NavigationGuard !== 'undefined') {
+        NavigationGuard.enable('#app-content');
+    }
+    
     initDocCenter();
     
     // Setup document click handlers

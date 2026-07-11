@@ -421,7 +421,7 @@ const AdminStaff = (() => {
                 if (card) card.className = 'detail-card mode-edit';
             });
             view.querySelector('#staffCancelEditBtn')?.addEventListener('click', () => {
-                // Re-render view mode with current data
+                if (window.NavigationGuard) NavigationGuard.markClean();
                 _renderDetail(_staff[_selected]);
             });
         }
@@ -549,6 +549,7 @@ const AdminStaff = (() => {
                     _renderDetail(rec);
                     const cnt = document.getElementById('cnt-staff');
                     if (cnt) cnt.textContent = Object.keys(_staff).length;
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`\u2705 Staff ${isEdit ? 'updated' : 'created'}`, 'success');
                 } catch (err) {
                     if (err.message !== 'cancelled') showNotification('\u274c ' + err.message, 'error');
@@ -579,6 +580,7 @@ const AdminStaff = (() => {
                     AdminPage.showDetail(false);
                     const cnt = document.getElementById('cnt-staff');
                     if (cnt) cnt.textContent = Object.keys(_staff).length;
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification('\u2705 Staff deleted', 'success');
                 } catch (err) {
                     if (err.message !== 'cancelled') showNotification('\u274c ' + err.message, 'error');

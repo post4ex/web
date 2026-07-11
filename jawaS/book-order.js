@@ -3,6 +3,7 @@
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (window.NavigationGuard) NavigationGuard.enable();
     const timestampInput = document.getElementById('timestamp');
     const orderDateInput = document.getElementById('order_date');
     const senderNameInput = document.getElementById('sender_name');
@@ -185,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetForNextBooking() {
+        if (window.NavigationGuard) NavigationGuard.markClean();
         const savChecked = document.getElementById('payment_sav')?.checked;
         const doxChecked = document.getElementById('payment_global')?.checked;
         consignmentBoxes = [];
@@ -229,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetFullForm() {
+        if (window.NavigationGuard) NavigationGuard.markClean();
         consignmentBoxes = [];
         consignmentProducts = [];
         renderMultiboxTable();
@@ -482,6 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modeChangeMessage.textContent = '';
         }
         renderMultiboxTable();
+        if (window.NavigationGuard) NavigationGuard.markDirty();
         actualWeightInput.value = '';
         lengthInput.value = '';
         breadthInput.value = '';
@@ -533,6 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         consignmentProducts.push({ name: productName, docNo, ewayBill, type: productType, amount: amount || 0 });
         if (!isBookingLocked) setBookingFieldsLocked(true);
         renderProductTable();
+        if (window.NavigationGuard) NavigationGuard.markDirty();
         productNameInput.value = '';
         docNoInput.value = '';
         ewayBillInput.value = '';
@@ -1206,24 +1211,37 @@ function renderLastBooked(ref) {
     clearMultiboxButton.addEventListener('click', () => {
         consignmentBoxes.pop();
         renderMultiboxTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            if (window.NavigationGuard) NavigationGuard.markClean();
+        }
     });
     clearMultiboxButton.addEventListener('dblclick', () => {
         consignmentBoxes = [];
         renderMultiboxTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            if (window.NavigationGuard) NavigationGuard.markClean();
+        }
     });
     clearProductsButton.addEventListener('click', () => {
         consignmentProducts.pop();
         renderProductTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            if (window.NavigationGuard) NavigationGuard.markClean();
+        }
     });
     clearProductsButton.addEventListener('dblclick', () => {
         consignmentProducts = [];
         renderProductTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            if (window.NavigationGuard) NavigationGuard.markClean();
+        }
     });
     clearAllButton.addEventListener('click', () => {
+        if (window.NavigationGuard) NavigationGuard.markClean();
         consignmentBoxes = [];
         consignmentProducts = [];
         renderMultiboxTable();
@@ -1353,6 +1371,7 @@ function renderLastBooked(ref) {
         if (!isBookingLocked) setBookingFieldsLocked(true);
         renderMultiboxTable();
         renderProductTable();
+        if (window.NavigationGuard) NavigationGuard.markDirty();
     };
 });
 

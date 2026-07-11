@@ -235,6 +235,7 @@ const AdminHolidays = (() => {
                 if (card) card.className = 'detail-card mode-edit';
             });
             view.querySelector('#holidayCancelEditBtn')?.addEventListener('click', () => {
+                if (window.NavigationGuard) NavigationGuard.markClean();
                 _renderDetail(_holidays[_selected]);
             });
         }
@@ -265,6 +266,7 @@ const AdminHolidays = (() => {
                     _renderDetail(rec);
                     const cnt = document.getElementById('cnt-holidays');
                     if (cnt) cnt.textContent = Object.keys(_holidays).length;
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`✅ Holiday ${isEdit ? 'updated' : 'created'}`, 'success');
                 } catch (err) {
                     showNotification('❌ ' + err.message, 'error');
@@ -283,6 +285,7 @@ const AdminHolidays = (() => {
                     AdminPage.showDetail(false);
                     const cnt = document.getElementById('cnt-holidays');
                     if (cnt) cnt.textContent = Object.keys(_holidays).length;
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification('✅ Holiday deleted', 'success');
                 } catch (err) {
                     showNotification('❌ ' + err.message, 'error');

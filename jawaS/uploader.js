@@ -649,6 +649,9 @@ panel.style.maxHeight = panel.classList.contains('collapsed') ? '56px' : '50vh';
 
 // --- Main DOMContentLoaded ---
 document.addEventListener('DOMContentLoaded', () => {
+     // 0. Enable navigation guard (manual mode — markDirty/markClean already in code)
+     if (typeof NavigationGuard !== 'undefined') NavigationGuard.enable();
+
      // 1. Initialize Right Panel (Data Listeners)
      initializeData(); // This still sets up search/click listeners
      
@@ -824,10 +827,10 @@ if (stream) {
     imageQueue.push(await dataURLtoFile(dataUrl, `capture-${Date.now()}.png`)); // Add file to queue
     initCropper(dataUrl, `capture-${Date.now()}.png`);
     
-} else {
-    // This is the "Camera" click
-    resetUploader(); // Clear previous state
-    placeholder.textContent = 'Starting camera...';
+} else {        // This is the "Camera" click
+            resetUploader(); // Clear previous state
+            if (window.markDirty) window.markDirty(); // Guard: image capture started
+            placeholder.textContent = 'Starting camera...';
     placeholder.style.display = 'block';
 
     const constraints = { video: { facingMode: { ideal: "environment" } } };
@@ -882,14 +885,14 @@ processedFiles.push(file);
 if (processedFiles.length > MAX_FILES) {
     updateStatus(`Max ${MAX_FILES} files allowed. Loading first ${MAX_FILES}.`, true);
     processedFiles = processedFiles.slice(0, MAX_FILES);
-}
-if (processedFiles.length === 0) {
+}    if (processedFiles.length === 0) {
     updateStatus('No valid images found or processed.', true); 
     isProcessingImage = false;
     return;
 }
 
 imageQueue = processedFiles;
+if (window.markDirty) window.markDirty(); // Guard: images loaded
 scrollerContainer.style.display = imageQueue.length > 1 ? 'block' : 'none';
 if (imageQueue.length > 1) renderScroller();
 
@@ -1286,6 +1289,8 @@ selectedPickupRow.classList.remove('selected-pickup-row');
 if (tableBody.rows.length > 0) {
     tableBody.deleteRow(-1);
     updateStatus("Last entry deleted.");
+    // Mark clean if table is now empty
+    if (tableBody.rows.length === 0 && window.markClean) window.markClean();
     // Re-render pickup table to show the task again
     if (selectedOrder) {
 renderDynamicInputs();

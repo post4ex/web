@@ -254,17 +254,6 @@ const setActiveNavOnLoad = () => {
 };
 
 function initializeUI() {
-    // Global dirty state — pages call markDirty() on edit, markClean() on save
-    window._pageDirty = false;
-    window.markDirty  = () => { window._pageDirty = true; };
-    window.markClean  = () => { window._pageDirty = false; };
-    document.addEventListener('input',  () => window.markDirty(), true);
-    document.addEventListener('change', () => window.markDirty(), true);
-    document.addEventListener('submit', () => window.markClean(), true);
-    window.addEventListener('beforeunload', (e) => {
-        if (window._pageDirty) { e.preventDefault(); e.returnValue = ''; }
-    });
-
 
     const sb = document.getElementById('sidebar');
     const tg = document.getElementById('sidebar-toggle');

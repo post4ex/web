@@ -3,6 +3,10 @@
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (typeof NavigationGuard !== 'undefined') {
+        NavigationGuard.enable();
+    }
+    
     const timestampInput = document.getElementById('timestamp');
     const orderDateInput = document.getElementById('order_date');
     const senderNameInput = document.getElementById('sender_name');
@@ -185,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetForNextBooking() {
+        NavigationGuard.markClean();
         const savChecked = document.getElementById('payment_sav')?.checked;
         const doxChecked = document.getElementById('payment_global')?.checked;
         consignmentBoxes = [];
@@ -229,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetFullForm() {
+        NavigationGuard.markClean();
         consignmentBoxes = [];
         consignmentProducts = [];
         renderMultiboxTable();
@@ -482,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modeChangeMessage.textContent = '';
         }
         renderMultiboxTable();
+        NavigationGuard.markDirty();
         actualWeightInput.value = '';
         lengthInput.value = '';
         breadthInput.value = '';
@@ -533,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
         consignmentProducts.push({ name: productName, docNo, ewayBill, type: productType, amount: amount || 0 });
         if (!isBookingLocked) setBookingFieldsLocked(true);
         renderProductTable();
+        NavigationGuard.markDirty();
         productNameInput.value = '';
         docNoInput.value = '';
         ewayBillInput.value = '';
@@ -1213,22 +1221,34 @@ function renderLastBooked(ref) {
     clearMultiboxButton.addEventListener('click', () => {
         consignmentBoxes.pop();
         renderMultiboxTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            NavigationGuard.markClean();
+        }
     });
     clearMultiboxButton.addEventListener('dblclick', () => {
         consignmentBoxes = [];
         renderMultiboxTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            NavigationGuard.markClean();
+        }
     });
     clearProductsButton.addEventListener('click', () => {
         consignmentProducts.pop();
         renderProductTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            NavigationGuard.markClean();
+        }
     });
     clearProductsButton.addEventListener('dblclick', () => {
         consignmentProducts = [];
         renderProductTable();
-        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) setBookingFieldsLocked(false);
+        if (consignmentBoxes.length === 0 && consignmentProducts.length === 0) {
+            setBookingFieldsLocked(false);
+            NavigationGuard.markClean();
+        }
     });
     clearAllButton.addEventListener('click', () => {
         consignmentBoxes = [];
@@ -1236,6 +1256,7 @@ function renderLastBooked(ref) {
         renderMultiboxTable();
         renderProductTable();
         setBookingFieldsLocked(false);
+        NavigationGuard.markClean();
     });
 
     cancelButton.addEventListener('click', resetFullForm);
@@ -1360,6 +1381,7 @@ function renderLastBooked(ref) {
         if (!isBookingLocked) setBookingFieldsLocked(true);
         renderMultiboxTable();
         renderProductTable();
+        NavigationGuard.markDirty();
     };
 
     // Expose charge recalc helpers for EditOrder.html editable fields

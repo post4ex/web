@@ -369,6 +369,7 @@ const AdminBranches = (() => {
 
         // Wire Edit Mode Cancel click
         view.querySelector('#branchCancelEditBtn')?.addEventListener('click', () => {
+            if (window.NavigationGuard) NavigationGuard.markClean();
             const card = document.getElementById('branchDetailCard');
             if (card) card.className = 'detail-card mode-view';
         });
@@ -492,6 +493,7 @@ const AdminBranches = (() => {
                     _renderForm(rec);
                     const cnt = document.getElementById('cnt-branches');
                     if (cnt) cnt.textContent = _branches.length;
+                    if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`✅ Branch ${isEdit ? 'updated' : 'created'}`, 'success');
                 })();
             } catch (err) {
@@ -511,6 +513,7 @@ const AdminBranches = (() => {
                         AdminPage.showDetail(false);
                         const cnt = document.getElementById('cnt-branches');
                         if (cnt) cnt.textContent = _branches.length;
+                        if (window.NavigationGuard) NavigationGuard.markClean();
                         showNotification('✅ Branch deleted', 'success');
                     } catch (err) {
                         showNotification('❌ ' + err.message, 'error');

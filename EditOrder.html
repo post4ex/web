@@ -841,6 +841,7 @@
     <script src="utils/caman.full.min.js"></script>
     <script src="utils/jspdf.umd.min.js"></script>
 
+    <script src="core/navigation-guard.js"></script>
     <script src="core/indexeddb.js"></script>
     <script src="core/app-config.js"></script>
     <script src="core/formatIST.js"></script>
@@ -1022,6 +1023,13 @@
             document.getElementById('m-eway-scanner')?.addEventListener('scanned', e => {
                 document.getElementById('m_eway_bill').value = e.detail.value;
                 document.getElementById('m_eway_bill').dispatchEvent(new Event('input'));
+            });
+
+            // Navigation Guard: SAV checkbox activates guard
+            document.getElementById('payment_sav').addEventListener('change', function() {
+                if (this.checked) {
+                    NavigationGuard.markDirty();
+                }
             });
         });
     </script>

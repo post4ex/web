@@ -596,6 +596,7 @@ function resetEnhancements() {
 // --- *** END CAMANJS BUG FIX *** ---
 
 function resetUploader() {
+    if (window.markClean) window.markClean(); // Guard: reset/cancel
     stopCamera(); // <-- Call stopCamera
     placeholder.textContent = 'Select Camera or Upload to begin';
     placeholder.style.display = 'block';

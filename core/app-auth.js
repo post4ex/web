@@ -71,6 +71,7 @@ async function handleLogout() {
     if (window.appDB) {
         await window.appDB.clearAll().catch(e => console.warn('Failed to clear IndexedDB:', e));
     }
+    if (window.NavigationGuard) window.NavigationGuard.cleanBeforeNav();
     window.location.href = 'login.html';
 }
 

@@ -42,6 +42,7 @@ const AdminPage = (() => {
 
     // ── View switching ────────────────────────────────────────────────────────
     function _showTiles() {
+        if (window.NavigationGuard) NavigationGuard.markClean();
         document.getElementById('tilesView').style.display = 'flex';
         document.getElementById('splitView').classList.remove('active');
         document.getElementById('adminDetailPane').classList.add('hidden');
@@ -358,6 +359,7 @@ const AdminPage = (() => {
             </div>`;
 
         document.getElementById('cancelAddUserBtn').addEventListener('click', () => {
+            if (window.NavigationGuard) NavigationGuard.markClean();
             AdminPage.showDetail(false);
             _addUserPrefill = null;
         });
@@ -415,6 +417,7 @@ const AdminPage = (() => {
                 await AdminAPI.confirmAddUser(username, otp);
                 document.getElementById('addUserOtpModal').classList.add('hidden');
                 showNotification('✅ User added', 'success');
+                if (window.NavigationGuard) NavigationGuard.markClean();
                 const res = await AdminAPI.listUsers();
                 _allUsers = res.data || [];
                 _setCount('users', _allUsers.length);
@@ -439,6 +442,8 @@ const AdminPage = (() => {
     }
     // ── Entry point ───────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
+        if (window.NavigationGuard) NavigationGuard.enable('#detailView');
+
         _hideTilesByRole();
         _initTiles();
         _initSudoForm();
