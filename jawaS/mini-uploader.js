@@ -605,9 +605,19 @@ document.addEventListener('DOMContentLoaded', () => {
             resetUploader();
             placeholder.textContent = 'Starting camera...';
             placeholder.style.display = 'block';
-            const constraints = { video: { facingMode: { ideal: "environment" } } };
+            const constraints = {
+                video: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 4096 },
+                    height: { ideal: 2160 }
+                }
+            };
             try {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const track = stream.getVideoTracks()[0];
+                if (track && typeof track.applyConstraints === 'function') {
+                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                }
             } catch (err) {
                 updateStatus("Could not access camera. Check permissions.", true);
                 resetUploader();

@@ -44,16 +44,27 @@ const _IMG_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16
 </svg>`;
 
 const _INLINE_SCANNER = `
-<div class="scan-wrap" style="display:none;position:relative;border-radius:0.75rem;overflow:hidden;background:#000;margin-top:0.5rem;">
-    <video muted playsinline style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;"></video>
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;height:60%;border:2px solid rgba(255,255,255,0.6);border-radius:4px;pointer-events:none;">
-        <div style="position:absolute;top:0;left:0;width:14px;height:14px;border-top:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:2px 0 0 0;"></div>
-        <div style="position:absolute;top:0;right:0;width:14px;height:14px;border-top:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 2px 0 0;"></div>
-        <div style="position:absolute;bottom:0;left:0;width:14px;height:14px;border-bottom:3px solid #3b82f6;border-left:3px solid #3b82f6;border-radius:0 0 0 2px;"></div>
-        <div style="position:absolute;bottom:0;right:0;width:14px;height:14px;border-bottom:3px solid #3b82f6;border-right:3px solid #3b82f6;border-radius:0 0 2px 0;"></div>
+<style>
+    @keyframes laserScan {
+        0%, 100% { top: 0%; }
+        50% { top: 100%; }
+    }
+</style>
+<div class="scan-wrap" style="display:none;position:fixed;left:0;width:100vw;height:100vw;top:50%;transform:translateY(-50%);z-index:99999;background:#000;box-shadow:0 0 40px rgba(0,0,0,0.65);overflow:hidden;">
+    <video muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+    <div style="position:absolute;inset:15%;border:2px solid rgba(255,255,255,0.45);border-radius:8px;pointer-events:none;">
+        <!-- Corners -->
+        <div style="position:absolute;top:0;left:0;width:20px;height:20px;border-top:4px solid #ef4444;border-left:4px solid #ef4444;border-radius:4px 0 0 0;"></div>
+        <div style="position:absolute;top:0;right:0;width:20px;height:20px;border-top:4px solid #ef4444;border-right:4px solid #ef4444;border-radius:0 4px 0 0;"></div>
+        <div style="position:absolute;bottom:0;left:0;width:20px;height:20px;border-bottom:4px solid #ef4444;border-left:4px solid #ef4444;border-radius:0 0 0 4px;"></div>
+        <div style="position:absolute;bottom:0;right:0;width:20px;height:20px;border-bottom:4px solid #ef4444;border-right:4px solid #ef4444;border-radius:0 0 4px 0;"></div>
+        <!-- Laser -->
+        <div style="position:absolute;left:5%;right:5%;height:2px;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:laserScan 2s infinite ease-in-out;"></div>
     </div>
-    <button class="scan-cancel" type="button" style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.55);border:none;border-radius:0.5rem;color:#fff;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;">✕ Cancel</button>
-    <div style="position:absolute;bottom:0.5rem;left:0;right:0;text-align:center;color:rgba(255,255,255,0.65);font-size:0.7rem;">Align barcode within the box</div>
+    <!-- Cancel button at top-right -->
+    <button class="scan-cancel" type="button" style="position:absolute;top:1rem;right:1rem;background:rgba(239,68,68,0.9);color:#fff;border:none;border-radius:0.5rem;padding:0.5rem 1rem;font-size:0.75rem;font-weight:700;cursor:pointer;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">✕ Cancel</button>
+    <!-- Hint at bottom -->
+    <div style="position:absolute;bottom:1rem;left:0;right:0;text-align:center;color:#fff;font-size:0.75rem;font-weight:600;z-index:10;text-shadow:0 1px 3px rgba(0,0,0,0.8);pointer-events:none;">Align barcode within the square</div>
 </div>`;
 
 function _filePickerMode(host, icon, label) {
