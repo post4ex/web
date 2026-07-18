@@ -814,6 +814,40 @@ renderDynamicInputs();
      // --- Camera/Upload Button Handlers ---
      cameraBtn.addEventListener('click', async () => {
 if (isProcessingImage) return; // *** BUG FIX: Check lock ***
+
+// Firefox Native Camera Fallback
+const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+if (isFirefox && !stream) {
+    const nativeInput = document.createElement('input');
+    nativeInput.type = 'file';
+    nativeInput.accept = 'image/*';
+    nativeInput.capture = 'environment';
+    nativeInput.addEventListener('change', async (event) => {
+        if (!event.target.files || event.target.files.length === 0) return;
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const dataUrl = e.target.result;
+            const img = await new Promise((res, rej) => {
+                const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataUrl;
+            });
+            const canvas = document.createElement('canvas');
+            const size = Math.min(img.naturalWidth, img.naturalHeight);
+            const sx = (img.naturalWidth - size) / 2, sy = (img.naturalHeight - size) / 2;
+            canvas.width = size; canvas.height = size;
+            canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, size, size);
+            const croppedDataUrl = canvas.toDataURL('image/png');
+            imageQueue = [];
+            currentImageIndex = 0;
+            imageQueue.push(await dataURLtoFile(croppedDataUrl, `capture-${Date.now()}.png`));
+            initCropper(croppedDataUrl, `capture-${Date.now()}.png`);
+        };
+        reader.readAsDataURL(file);
+    });
+    nativeInput.click();
+    return;
+}
+
 if (stream) {
     // This is the "Capture" click
     const canvas = document.createElement('canvas');
@@ -836,12 +870,11 @@ if (stream) {
             placeholder.textContent = 'Starting camera...';
     placeholder.style.display = 'block';
 
-    // Firefox constraints workaround: Provide exact typical portrait and landscape 
-    // HD resolutions as ideals. Firefox often rejects extreme ideals like 4096.
+    // Chrome loves high ideal values to trigger 4K / max resolution.
+    // (Firefox bypasses this entirely using the Native Camera fallback above).
     const _camConstraints = [
-        { facingMode: { exact: 'environment' }, width: { ideal: 1080 }, height: { ideal: 1920 } },
-        { facingMode: { exact: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        { facingMode: { exact: 'environment' }, width: { ideal: 720 }, height: { ideal: 1280 } },
+        { facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 4096 } },
+        { facingMode: { exact: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1920 } },
         { facingMode: { exact: 'environment' } },
         { facingMode: { ideal: 'environment' } },
     ];
