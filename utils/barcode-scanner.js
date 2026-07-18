@@ -111,15 +111,22 @@ class ScanBarcode extends HTMLElement {
         const label    = iconOnly ? '' : (this.getAttribute('label') || 'Scan Barcode');
 
         if (_isMobile()) {
+            // Render only the trigger button inside the component
             this.innerHTML = `
                 <button class="scan-trigger" type="button" style="background:none;border:none;padding:0.25rem;cursor:pointer;color:rgba(0,0,0,0.45);display:inline-flex;align-items:center;">
                     ${_SCAN_ICON}${label ? `<span>${label}</span>` : ''}
-                </button>
-                ${_INLINE_SCANNER}`;
+                </button>`;
 
-            const wrap   = this.querySelector('.scan-wrap');
-            const video  = this.querySelector('video');
-            const cancel = this.querySelector('.scan-cancel');
+            // Inject overlay directly on <body> so position:fixed is never
+            // trapped by a CSS transform/filter on an ancestor element
+            const tmp = document.createElement('div');
+            tmp.innerHTML = _INLINE_SCANNER;
+            const wrap = tmp.firstElementChild;
+            document.body.appendChild(wrap);
+            this._wrap = wrap; // keep ref for cleanup
+
+            const video  = wrap.querySelector('video');
+            const cancel = wrap.querySelector('.scan-cancel');
             const close  = () => { stopBarcode(); wrap.style.display = 'none'; };
 
             this.querySelector('.scan-trigger').addEventListener('click', () => {
@@ -133,6 +140,15 @@ class ScanBarcode extends HTMLElement {
             cancel.addEventListener('click', close);
         } else {
             _filePickerMode(this, _SCAN_ICON, label);
+        }
+    }
+
+    disconnectedCallback() {
+        // Clean up body-level overlay when element is removed
+        if (this._wrap && this._wrap.parentNode) {
+            stopBarcode();
+            this._wrap.parentNode.removeChild(this._wrap);
+            this._wrap = null;
         }
     }
 }
