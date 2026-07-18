@@ -114,7 +114,7 @@ function _buildUploaderModalHTML() {
                             </div>
                         </div>
                     </div>
-                    <div id="image-view-area" style="border:2px dashed #ccc;width:100%;aspect-ratio:4/3;display:flex;justify-content:center;align-items:center;text-align:center;color:#888;position:relative;overflow:hidden;background-color:#f0f0f0;cursor:default;">
+                    <div id="image-view-area" style="border:2px dashed #ccc;width:100%;aspect-ratio:1/1;display:flex;justify-content:center;align-items:center;text-align:center;color:#888;position:relative;overflow:hidden;background-color:#f0f0f0;cursor:default;">
                         <span id="placeholder">Select Camera or Upload to begin</span>
                         <img id="image-preview" src="" alt="Image preview" style="display:none;"/>
                         <canvas id="preview-canvas" style="width:100%;height:100%;object-fit:contain;display:none;"></canvas>
