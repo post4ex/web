@@ -591,41 +591,14 @@ document.addEventListener('DOMContentLoaded', () => {
     cameraBtn.addEventListener('click', async () => {
         if (isProcessingImage) return;
         if (stream) {
-            let dataUrl = null;
-            const track = stream.getVideoTracks()[0];
-            if ('ImageCapture' in window && track) {
-                try {
-                    const ic = new ImageCapture(track);
-                    const blob = await ic.takePhoto();
-                    const img = await new Promise((res, rej) => {
-                        const i = new Image();
-                        i.onload = () => res(i);
-                        i.onerror = rej;
-                        i.src = URL.createObjectURL(blob);
-                    });
-                    const canvas = document.createElement('canvas');
-                    const vw = img.naturalWidth, vh = img.naturalHeight;
-                    const size = Math.min(vw, vh);
-                    const sx = (vw - size) / 2, sy = (vh - size) / 2;
-                    canvas.width = size;
-                    canvas.height = size;
-                    canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, size, size);
-                    dataUrl = canvas.toDataURL('image/png');
-                    URL.revokeObjectURL(img.src);
-                } catch (e) {
-                    console.warn("takePhoto failed, falling back to video stream", e);
-                }
-            }
-            if (!dataUrl) {
-                const canvas = document.createElement('canvas');
-                const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
-                const size = Math.min(vw, vh);
-                const sx = (vw - size) / 2, sy = (vh - size) / 2;
-                canvas.width = size;
-                canvas.height = size;
-                canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
-                dataUrl = canvas.toDataURL('image/png');
-            }
+            const canvas = document.createElement('canvas');
+            const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
+            const size = Math.min(vw, vh);
+            const sx = (vw - size) / 2, sy = (vh - size) / 2;
+            canvas.width = size;
+            canvas.height = size;
+            canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
+            const dataUrl = canvas.toDataURL('image/png');
             stopCamera();
             imageQueue = [];
             currentImageIndex = 0;
