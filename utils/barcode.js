@@ -101,7 +101,8 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
     // degrade. Using {ideal:'environment'} (not bare string) so it's non-required
     // and won't throw on desktop or Firefox when no rear camera is available.
     const _camConstraints = [
-        { facingMode: { ideal: 'environment' }, width: { ideal: 2560, max: 2560 }, height: { ideal: 1440, max: 1440 } },
+        { facingMode: { exact: 'environment' }, width: { ideal: 2560, max: 2560 }, height: { ideal: 1440, max: 1440 } },
+        { facingMode: { exact: 'environment' } },
         { facingMode: { ideal: 'environment' } },
     ];
 

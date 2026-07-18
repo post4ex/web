@@ -836,24 +836,30 @@ if (stream) {
             placeholder.textContent = 'Starting camera...';
     placeholder.style.display = 'block';
 
-    const constraints = {
-        video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 4096 },
-            height: { ideal: 2160 }
-        }
-    };
-    try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const track = stream.getVideoTracks()[0];
-        if (track && typeof track.applyConstraints === 'function') {
-            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-        }
-    } catch (err) {
-       updateStatus("Could not access camera. Check permissions.", true);
-       console.error(err);
-       resetUploader();
-       return;
+    // Three-stage camera open: exact rear → ideal rear → bare
+    // Firefox ignores `ideal` facingMode and opens front cam; `exact` forces rear.
+    // Fallbacks handle desktop / no rear camera gracefully.
+    const _camConstraints = [
+        { facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 2160 } },
+        { facingMode: { exact: 'environment' } },
+        { facingMode: { ideal: 'environment' } },
+    ];
+    let _opened = false;
+    for (const vc of _camConstraints) {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: vc });
+            _opened = true;
+            break;
+        } catch (_) {}
+    }
+    if (!_opened) {
+        updateStatus('Could not access camera. Check permissions.', true);
+        resetUploader();
+        return;
+    }
+    const track = stream.getVideoTracks()[0];
+    if (track && typeof track.applyConstraints === 'function') {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
     }
     
     cameraFeed.style.display = 'block';
