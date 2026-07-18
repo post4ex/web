@@ -97,13 +97,13 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
     stopBarcode();
 
     // Two-stage camera open: try best quality first, fall back to bare constraints.
-    // Firefox is stricter with constraint negotiation than Chrome, so we gracefully
-    // degrade. Using {ideal:'environment'} (not bare string) so it's non-required
-    // and won't throw on desktop or Firefox when no rear camera is available.
-    // Three-stage camera open: exact rear+HD → exact rear → ideal rear
-    // `min` prevents Firefox from choosing low resolution; `max` avoids 4K lag.
+    // Firefox falls back to blurry 640x480 if constraints fail.
+    // On mobile portrait, width is smaller (e.g. 720x1280). 
+    // Asking for width:{min:1280} fails on 720p screens, triggering the blurry fallback!
+    // Fix: Ask for min:720 on both axes, and ideal:4096 so it maximizes resolution.
     const _camConstraints = [
-        { facingMode: { exact: 'environment' }, width: { min: 1280, ideal: 2560, max: 2560 }, height: { min: 720, ideal: 1440, max: 1440 } },
+        { facingMode: { exact: 'environment' }, width: { min: 720, ideal: 4096 }, height: { min: 720, ideal: 4096 } },
+        { facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 4096 } },
         { facingMode: { exact: 'environment' } },
         { facingMode: { ideal: 'environment' } },
     ];

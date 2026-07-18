@@ -836,11 +836,13 @@ if (stream) {
             placeholder.textContent = 'Starting camera...';
     placeholder.style.display = 'block';
 
-    // Three-stage camera open: exact rear+HD → exact rear → ideal rear
-    // `min` prevents Firefox from choosing low resolution; `max` avoids 4K lag.
-    // Firefox ignores `ideal` facingMode and opens front cam; `exact` forces rear.
+    // Firefox falls back to blurry 640x480 if constraints fail.
+    // On mobile portrait, width is smaller (e.g. 720x1280). 
+    // Asking for width:{min:1280} fails on 720p screens, triggering the blurry fallback!
+    // Fix: Ask for min:720 on both axes, and ideal:4096 so it maximizes resolution.
     const _camConstraints = [
-        { facingMode: { exact: 'environment' }, width: { min: 1280, ideal: 4096 }, height: { min: 720, ideal: 2160 } },
+        { facingMode: { exact: 'environment' }, width: { min: 720, ideal: 4096 }, height: { min: 720, ideal: 4096 } },
+        { facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 4096 } },
         { facingMode: { exact: 'environment' } },
         { facingMode: { ideal: 'environment' } },
     ];
