@@ -50,7 +50,7 @@ const _INLINE_SCANNER = `
         50% { top: 100%; }
     }
 </style>
-<div class="scan-wrap" style="display:none;position:fixed;left:0;width:100vw;height:100vw;top:50%;transform:translateY(-50%);z-index:99999;background:#000;box-shadow:0 0 40px rgba(0,0,0,0.65);overflow:hidden;">
+<div class="scan-wrap" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:99999;background:#000;box-shadow:0 0 40px rgba(0,0,0,0.65);overflow:hidden;">
     <video muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;"></video>
     <div style="position:absolute;inset:15%;border:2px solid rgba(255,255,255,0.45);border-radius:8px;pointer-events:none;">
         <!-- Corners -->
