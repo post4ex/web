@@ -119,7 +119,7 @@ function _buildUploaderModalHTML() {
                         <img id="image-preview" src="" alt="Image preview" style="display:none;"/>
                         <canvas id="preview-canvas" style="width:100%;height:100%;object-fit:contain;display:none;"></canvas>
                         <canvas id="selection-canvas" style="position:absolute;top:0;left:0;display:none;z-index:10;"></canvas>
-                        <video id="camera-feed" autoplay playsinline style="width:100%;height:100%;object-fit:contain;display:none;"></video>
+                        <video id="camera-feed" autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
                     </div>
                     <div id="status-bar" style="width:100%;padding:8px;box-sizing:border-box;min-height:2.5em;text-align:center;background-color:#e9ecef;border-radius:4px;color:#495057;margin-top:15px;">Initializing...</div>
                     <div id="dynamic-input-area" style="width:100%;margin-top:15px;border:1px solid #e2e8f0;border-radius:4px;background-color:#fafafa;max-height:280px;overflow-y:auto;">
@@ -592,9 +592,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isProcessingImage) return;
         if (stream) {
             const canvas = document.createElement('canvas');
-            canvas.width = cameraFeed.videoWidth;
-            canvas.height = cameraFeed.videoHeight;
-            canvas.getContext('2d').drawImage(cameraFeed, 0, 0);
+            const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
+            const size = Math.min(vw, vh);
+            const sx = (vw - size) / 2, sy = (vh - size) / 2;
+            canvas.width = size;
+            canvas.height = size;
+            canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
             const dataUrl = canvas.toDataURL('image/png');
             stopCamera();
             imageQueue = [];

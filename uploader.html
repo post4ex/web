@@ -171,11 +171,8 @@
         
         /* Preview elements inside the view area */
         #image-preview { display: none; } /* <<< THIS IS THE FIX. It should always be hidden. */
-        #camera-feed, #preview-canvas { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: contain; 
-        }
+        #camera-feed { width: 100%; height: 100%; object-fit: cover; }
+        #preview-canvas { width: 100%; height: 100%; object-fit: contain; }
         #camera-feed.active-capture { 
             cursor: pointer; 
         }

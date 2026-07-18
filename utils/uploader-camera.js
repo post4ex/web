@@ -80,9 +80,12 @@ updateStatus(`Maximum of ${MAX_FILES} images reached.`, true);
 return;
     }
     const canvas = document.createElement('canvas');
-    canvas.width = cameraFeed.videoWidth;
-    canvas.height = cameraFeed.videoHeight;
-    canvas.getContext('2d').drawImage(cameraFeed, 0, 0);
+    const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
+    const size = Math.min(vw, vh);
+    const sx = (vw - size) / 2, sy = (vh - size) / 2;
+    canvas.width = size;
+    canvas.height = size;
+    canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
     const dataUrl = canvas.toDataURL('image/png');
     const newFile = await dataURLtoFile(dataUrl, `capture-${Date.now()}.png`);
     

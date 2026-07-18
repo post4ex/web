@@ -817,9 +817,12 @@ if (isProcessingImage) return; // *** BUG FIX: Check lock ***
 if (stream) {
     // This is the "Capture" click
     const canvas = document.createElement('canvas');
-    canvas.width = cameraFeed.videoWidth;
-    canvas.height = cameraFeed.videoHeight;
-    canvas.getContext('2d').drawImage(cameraFeed, 0, 0);
+    const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
+    const size = Math.min(vw, vh);
+    const sx = (vw - size) / 2, sy = (vh - size) / 2;
+    canvas.width = size;
+    canvas.height = size;
+    canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
     const dataUrl = canvas.toDataURL('image/png');
     stopCamera();
     imageQueue = []; // Reset queue for single capture mode

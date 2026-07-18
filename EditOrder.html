@@ -98,7 +98,9 @@
 
         #image-preview { display: none; }
         #image-view-area.selectable { cursor: crosshair; }
-        #camera-feed, #preview-canvas { width:100%; height:100%; object-fit:contain; }
+        #image-view-area { aspect-ratio: 1/1; width:100%; position:relative; overflow:hidden; background:#f0f0f0; border:2px dashed #ccc; }
+        #camera-feed { width:100%; height:100%; object-fit:cover; }
+        #preview-canvas { width:100%; height:100%; object-fit:contain; }
         #camera-feed.active-capture { cursor: pointer; }
         #preview-canvas { display:none; }
         #selection-canvas { position:absolute; top:0; left:0; display:none; z-index:10; }
