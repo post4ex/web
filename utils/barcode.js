@@ -100,8 +100,10 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
     // Firefox is stricter with constraint negotiation than Chrome, so we gracefully
     // degrade. Using {ideal:'environment'} (not bare string) so it's non-required
     // and won't throw on desktop or Firefox when no rear camera is available.
+    // Three-stage camera open: exact rear+HD → exact rear → ideal rear
+    // `min` prevents Firefox from choosing low resolution; `max` avoids 4K lag.
     const _camConstraints = [
-        { facingMode: { exact: 'environment' }, width: { ideal: 2560, max: 2560 }, height: { ideal: 1440, max: 1440 } },
+        { facingMode: { exact: 'environment' }, width: { min: 1280, ideal: 2560, max: 2560 }, height: { min: 720, ideal: 1440, max: 1440 } },
         { facingMode: { exact: 'environment' } },
         { facingMode: { ideal: 'environment' } },
     ];
@@ -119,10 +121,16 @@ export async function scanBarcode(videoEl, onResult, onError = console.error) {
     videoEl.srcObject = _stream;
     await videoEl.play();
 
-    // Enable continuous autofocus if supported (Chrome/Android only — ignored elsewhere)
     const track = _stream.getVideoTracks()[0];
+    // Chrome/Android: enable continuous autofocus
     if (track?.applyConstraints) {
         track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+    }
+    // Firefox focus trigger: grabFrame() kicks hardware autofocus where applyConstraints is ignored
+    if ('ImageCapture' in window && track) {
+        setTimeout(() => {
+            try { new ImageCapture(track).grabFrame().catch(() => {}); } catch (_) {}
+        }, 600);
     }
 
     const canvas = document.createElement('canvas');

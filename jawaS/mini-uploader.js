@@ -591,14 +591,41 @@ document.addEventListener('DOMContentLoaded', () => {
     cameraBtn.addEventListener('click', async () => {
         if (isProcessingImage) return;
         if (stream) {
-            const canvas = document.createElement('canvas');
-            const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
-            const size = Math.min(vw, vh);
-            const sx = (vw - size) / 2, sy = (vh - size) / 2;
-            canvas.width = size;
-            canvas.height = size;
-            canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
-            const dataUrl = canvas.toDataURL('image/png');
+            let dataUrl = null;
+            const track = stream.getVideoTracks()[0];
+            if ('ImageCapture' in window && track) {
+                try {
+                    const ic = new ImageCapture(track);
+                    const blob = await ic.takePhoto();
+                    const img = await new Promise((res, rej) => {
+                        const i = new Image();
+                        i.onload = () => res(i);
+                        i.onerror = rej;
+                        i.src = URL.createObjectURL(blob);
+                    });
+                    const canvas = document.createElement('canvas');
+                    const vw = img.naturalWidth, vh = img.naturalHeight;
+                    const size = Math.min(vw, vh);
+                    const sx = (vw - size) / 2, sy = (vh - size) / 2;
+                    canvas.width = size;
+                    canvas.height = size;
+                    canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, size, size);
+                    dataUrl = canvas.toDataURL('image/png');
+                    URL.revokeObjectURL(img.src);
+                } catch (e) {
+                    console.warn("takePhoto failed, falling back to video stream", e);
+                }
+            }
+            if (!dataUrl) {
+                const canvas = document.createElement('canvas');
+                const vw = cameraFeed.videoWidth, vh = cameraFeed.videoHeight;
+                const size = Math.min(vw, vh);
+                const sx = (vw - size) / 2, sy = (vh - size) / 2;
+                canvas.width = size;
+                canvas.height = size;
+                canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
+                dataUrl = canvas.toDataURL('image/png');
+            }
             stopCamera();
             imageQueue = [];
             currentImageIndex = 0;
@@ -608,10 +635,11 @@ document.addEventListener('DOMContentLoaded', () => {
             resetUploader();
             placeholder.textContent = 'Starting camera...';
             placeholder.style.display = 'block';
-            // Three-stage camera open: exact rear → ideal rear → bare
+            // Three-stage camera open: exact rear+HD → exact rear → ideal rear
+            // `min` prevents Firefox from choosing low resolution.
             // Firefox ignores `ideal` facingMode and opens front cam; `exact` forces rear.
             const _camConstraints = [
-                { facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 2160 } },
+                { facingMode: { exact: 'environment' }, width: { min: 1280, ideal: 4096 }, height: { min: 720, ideal: 2160 } },
                 { facingMode: { exact: 'environment' } },
                 { facingMode: { ideal: 'environment' } },
             ];
@@ -629,8 +657,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const track = stream.getVideoTracks()[0];
+            // Chrome: continuous autofocus
             if (track && typeof track.applyConstraints === 'function') {
                 track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+            }
+            // Firefox: grabFrame() triggers hardware autofocus
+            if ('ImageCapture' in window && track) {
+                setTimeout(() => {
+                    try { new ImageCapture(track).grabFrame().catch(() => {}); } catch (_) {}
+                }, 600);
             }
             cameraFeed.style.display = 'block';
             placeholder.style.display = 'none';
