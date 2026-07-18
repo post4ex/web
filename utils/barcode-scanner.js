@@ -50,7 +50,7 @@ const _INLINE_SCANNER = `
         50% { top: 100%; }
     }
 </style>
-<div class="scan-wrap" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:99999;background:#000;box-shadow:0 0 40px rgba(0,0,0,0.65);overflow:hidden;">
+<div class="scan-wrap" style="display:none;position:fixed;left:0;width:100vw;height:100vw;top:50%;transform:translateY(-50%);z-index:99999;background:#000;box-shadow:0 0 40px rgba(0,0,0,0.65);overflow:hidden;">
     <video muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;"></video>
     <div style="position:absolute;inset:15%;border:2px solid rgba(255,255,255,0.45);border-radius:8px;pointer-events:none;">
         <!-- Corners -->
@@ -118,15 +118,17 @@ class ScanBarcode extends HTMLElement {
                 </button>`;
 
             // Inject overlay directly on <body> so position:fixed is never
-            // trapped by a CSS transform/filter on an ancestor element
+            // trapped by a CSS transform/filter on an ancestor element.
+            // NOTE: _INLINE_SCANNER starts with <style>, so we cannot use
+            // firstElementChild — we wrap it in a div and querySelector instead.
             const tmp = document.createElement('div');
             tmp.innerHTML = _INLINE_SCANNER;
-            const wrap = tmp.firstElementChild;
-            document.body.appendChild(wrap);
-            this._wrap = wrap; // keep ref for cleanup
+            document.body.appendChild(tmp);
+            this._wrap = tmp; // keep ref to container for cleanup
 
-            const video  = wrap.querySelector('video');
-            const cancel = wrap.querySelector('.scan-cancel');
+            const wrap   = tmp.querySelector('.scan-wrap');
+            const video  = tmp.querySelector('video');
+            const cancel = tmp.querySelector('.scan-cancel');
             const close  = () => { stopBarcode(); wrap.style.display = 'none'; };
 
             this.querySelector('.scan-trigger').addEventListener('click', () => {
@@ -144,7 +146,7 @@ class ScanBarcode extends HTMLElement {
     }
 
     disconnectedCallback() {
-        // Clean up body-level overlay when element is removed
+        // Clean up body-level overlay container when element is removed
         if (this._wrap && this._wrap.parentNode) {
             stopBarcode();
             this._wrap.parentNode.removeChild(this._wrap);

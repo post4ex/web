@@ -95,24 +95,33 @@ async function _scanZXing(video, canvas, onResult, onError) {
 
 export async function scanBarcode(videoEl, onResult, onError = console.error) {
     stopBarcode();
-    try {
-        _stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: 'environment',
-                width:  { ideal: 1920 },
-                height: { ideal: 1080 },
-            }
-        });
-        videoEl.srcObject = _stream;
-        await videoEl.play();
-        // enable continuous autofocus if supported
-        const track = _stream.getVideoTracks()[0];
-        if (track?.applyConstraints) {
-            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-        }
-    } catch(e) {
-        onError('Camera access denied.');
-        return;
+
+    // Two-stage camera open: try best quality first, fall back to bare constraints.
+    // Firefox is stricter with constraint negotiation than Chrome, so we gracefully
+    // degrade. Using {ideal:'environment'} (not bare string) so it's non-required
+    // and won't throw on desktop or Firefox when no rear camera is available.
+    const _camConstraints = [
+        { facingMode: { ideal: 'environment' }, width: { ideal: 2560, max: 2560 }, height: { ideal: 1440, max: 1440 } },
+        { facingMode: { ideal: 'environment' } },
+    ];
+
+    let opened = false;
+    for (const vc of _camConstraints) {
+        try {
+            _stream = await navigator.mediaDevices.getUserMedia({ video: vc });
+            opened = true;
+            break;
+        } catch (_) {}
+    }
+    if (!opened) { onError('Camera access denied.'); return; }
+
+    videoEl.srcObject = _stream;
+    await videoEl.play();
+
+    // Enable continuous autofocus if supported (Chrome/Android only — ignored elsewhere)
+    const track = _stream.getVideoTracks()[0];
+    if (track?.applyConstraints) {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
     }
 
     const canvas = document.createElement('canvas');
