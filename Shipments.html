@@ -466,7 +466,10 @@
                                 </div>
                                 <div>
                                     <label for="ac-awb" class="text-sm font-medium text-gray-700">AWB Number <span class="text-red-500">*</span></label>
-                                    <input type="text" id="ac-awb" class="mt-1 form-input" placeholder="AWB number" required>
+                                    <div class="relative mt-1">
+                                        <input type="text" id="ac-awb" class="form-input w-full pr-10" placeholder="AWB number" required>
+                                        <scan-barcode id="ac-awb-scanner" icon-only style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);line-height:0;"></scan-barcode>
+                                    </div>
                                     <p id="ac-awb-error" class="text-xs text-red-500 mt-1 hidden">AWB number is required.</p>
                                 </div>
                                 <div>
@@ -568,5 +571,6 @@
     <script src="core/upload-api.js"></script>
     <script src="utils/docgen.js"></script>
     <script src="jawaS/mini-uploader.js"></script>
+    <script type="module" src="utils/barcode-scanner.js"></script>
 </body>
 </html>

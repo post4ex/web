@@ -209,6 +209,16 @@ zoomable: true,
 movable: true,
 scalable: true,
     });
+
+    // Auto-enhance immediately upon loading image into canvas
+    setTimeout(() => {
+        if (typeof autoEnhanceBtn !== 'undefined' && autoEnhanceBtn) {
+            autoEnhanceBtn.click();
+            if (typeof enhancementControls !== 'undefined' && enhancementControls) {
+                enhancementControls.style.display = 'block'; // Make controls visible
+            }
+        }
+    }, 200);
     
     // This handler is defined inside initCropper to capture the correct file name
     const confirmCropHandler = async () => {

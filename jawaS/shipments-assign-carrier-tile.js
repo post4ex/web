@@ -66,6 +66,25 @@ function initAssignCarrierTile(data) {
     awbInput.addEventListener('input', _validateAwb);
     awbInput.addEventListener('blur', _validateAwb);
 
+    // --- Barcode Scanner Setup ---
+    const awbScanner = document.getElementById('ac-awb-scanner');
+    if (awbScanner) {
+        // Handle mobile clipping by moving modal to body-level if needed
+        const scanWrap = awbScanner.querySelector('.scan-wrap');
+        if (scanWrap) awbScanner.parentElement.after(scanWrap);
+        
+        awbScanner.addEventListener('scanned', e => {
+            awbInput.value = e.detail.value;
+            _validateAwb();
+        });
+        
+        awbScanner.addEventListener('scan-error', e => {
+            responseMessage.textContent = e.detail.message;
+            responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
+            responseMessage.classList.remove('hidden');
+        });
+    }
+
     // --- STATE ---
     let allShipments = [];
     let activeEl     = null;

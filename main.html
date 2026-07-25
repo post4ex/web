@@ -169,8 +169,8 @@
             <div id="main-split-layout" class="flex flex-col lg:flex-row gap-6 items-start">
                 
                 <!-- LEFT/TOP: Buttons -->
-                <div class="w-full lg:w-[65%] space-y-4">
-                    <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 w-full">
+                <div class="w-full lg:w-[60%] space-y-4">
+                    <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 w-full">
                         
                         <!-- locator, calendar, DGR, Memos, about, awareness -> Replace Services -->
                         <button onclick="loadService('Pincode.html')" aria-label="Open Pincode Locator" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#EFF6FF'" onmouseout="this.style.backgroundColor='white'">
@@ -199,19 +199,14 @@
                             <span class="text-xs font-semibold" style="color: #EA580C;">Awareness</span>
                         </button>
 
-                        <!-- Career -> Direct redirect -->
-                        <a href="career.html" onclick="window.location.href='career.html'; return false;" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FAF5FF'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-briefcase text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #7C3AED;"></i>
-                            <span class="text-xs font-semibold" style="color: #7C3AED;">Career</span>
-                        </a>
 
                         <!-- FAQ -> Standard href -->
-                        <a href="faqs.html" aria-label="Frequently Asked Questions" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#ECFEFF'" onmouseout="this.style.backgroundColor='white'">
+                        <a href="faqs.html" aria-label="Frequently Asked Questions" class="hidden md:flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#ECFEFF'" onmouseout="this.style.backgroundColor='white'">
                             <i class="fa-solid fa-circle-question text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #0891B2;"></i>
                             <span class="text-xs font-semibold" style="color: #0891B2;">FAQs</span>
                         </a>
 
-                        <a href="about.html" onclick="window.location.href='about.html'; return false;" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='white'">
+                        <a href="about.html" onclick="window.location.href='about.html'; return false;" class="hidden md:flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='white'">
                             <i class="fa-solid fa-circle-info text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #475569;"></i>
                             <span class="text-xs font-semibold" style="color: #475569;">About</span>
                         </a>
@@ -236,7 +231,7 @@
                 </div>
 
                 <!-- RIGHT: Tracking Widget -->
-                <div class="w-full lg:w-[35%]">
+                <div class="w-full lg:w-[40%]">
                     <div style="background:#ffffff;border-radius:1.25rem;padding:1.75rem;box-shadow:0 20px 60px -10px rgba(0,0,0,0.12),0 4px 16px rgba(0,0,0,0.08);">
                         <!-- Input -->
                         <div style="position:relative;margin-bottom:0.875rem;">
