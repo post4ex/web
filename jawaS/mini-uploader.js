@@ -612,11 +612,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const sx = (img.naturalWidth - size) / 2, sy = (img.naturalHeight - size) / 2;
                     canvas.width = size; canvas.height = size;
                     canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, size, size);
-                    const croppedDataUrl = canvas.toDataURL('image/png');
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                    const newFile = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
                     imageQueue = [];
                     currentImageIndex = 0;
-                    imageQueue.push(await dataURLtoFile(croppedDataUrl, `capture-${Date.now()}.png`));
-                    initCropper(croppedDataUrl, `capture-${Date.now()}.png`);
+                    imageQueue.push(newFile);
+                    initCropper(URL.createObjectURL(newFile), newFile.name);
                 };
                 reader.readAsDataURL(file);
             });
@@ -632,12 +633,13 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.width = size;
             canvas.height = size;
             canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
-            const dataUrl = canvas.toDataURL('image/png');
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+            const newFile = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
             stopCamera();
             imageQueue = [];
             currentImageIndex = 0;
-            imageQueue.push(await dataURLtoFile(dataUrl, `capture-${Date.now()}.png`));
-            initCropper(dataUrl, `capture-${Date.now()}.png`);
+            imageQueue.push(newFile);
+            initCropper(URL.createObjectURL(newFile), newFile.name);
         } else {
             resetUploader();
             placeholder.textContent = 'Starting camera...';

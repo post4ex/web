@@ -86,8 +86,10 @@ return;
     canvas.width = size;
     canvas.height = size;
     canvas.getContext('2d').drawImage(cameraFeed, sx, sy, size, size, 0, 0, size, size);
-    const dataUrl = canvas.toDataURL('image/png');
-    const newFile = await dataURLtoFile(dataUrl, `capture-${Date.now()}.png`);
+    
+    // USE BLOB INSTEAD OF BASE64 FOR PERFORMANCE
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+    const newFile = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
     
     imageQueue.push(newFile);
     scrollerContainer.style.display = 'block';
@@ -128,8 +130,8 @@ break;
     const renderContext = { canvasContext: context, viewport: viewport };
     await page.render(renderContext).promise;
     
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // 90% quality JPEG
-    const pageFile = await dataURLtoFile(dataUrl, `${file.name}-page-${i}.jpg`);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const pageFile = new File([blob], `${file.name}-page-${i}.jpg`, { type: 'image/jpeg' });
     imageFiles.push(pageFile);
 }
 resolve(imageFiles);
@@ -176,9 +178,7 @@ return;
     }
     currentImageIndex = index;
     const file = imageQueue[currentImageIndex];
-    const reader = new FileReader();
-    reader.onload = (e) => initCropper(e.target.result, file.name); // Always go to cropper
-    reader.readAsDataURL(file);
+    initCropper(URL.createObjectURL(file), file.name); // Always go to cropper using Object URL directly
 }
 
 // --- NEW: Cropper Logic from V1 ---
@@ -216,6 +216,20 @@ scalable: true,
             autoEnhanceBtn.click();
             if (typeof enhancementControls !== 'undefined' && enhancementControls) {
                 enhancementControls.style.display = 'block'; // Make controls visible
+                
+                // --- NEW: Inject OCR Button ---
+                if (!document.getElementById('ocr-extract-btn')) {
+                    const btnGroup = enhancementControls.querySelector('.button-group');
+                    if (btnGroup) {
+                        const ocrBtn = document.createElement('button');
+                        ocrBtn.id = 'ocr-extract-btn';
+                        ocrBtn.className = 'btn';
+                        ocrBtn.style.cssText = 'background-color: #007bff; color: white; margin-left: 8px; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.875rem;';
+                        ocrBtn.textContent = 'Extract Data (OCR)';
+                        ocrBtn.addEventListener('click', runOcrExtraction);
+                        btnGroup.appendChild(ocrBtn);
+                    }
+                }
             }
         }
     }, 200);
@@ -240,7 +254,26 @@ if (!croppedCanvas) {
     return; 
 }
 
-let croppedDataUrl = croppedCanvas.toDataURL('image/png'); // Get high-quality PNG
+// --- NEW: Apply CSS Filters natively to the cropped canvas ---
+const filteredCanvas = document.createElement('canvas');
+filteredCanvas.width = croppedCanvas.width;
+filteredCanvas.height = croppedCanvas.height;
+const fCtx = filteredCanvas.getContext('2d');
+
+let filterStr = '';
+if (currentEnhancements.bw) filterStr = 'grayscale(100%) contrast(170%) brightness(105%)';
+else if (currentEnhancements.greyscale) filterStr = 'grayscale(100%)';
+else {
+    let b = currentEnhancements.brightness || 0;
+    let c = currentEnhancements.contrast || 0;
+    let cssB = 100 + (b * 2);
+    let cssC = 100 + (c * 2);
+    filterStr = `brightness(${cssB}%) contrast(${cssC}%)`;
+}
+if(fCtx.filter !== undefined) fCtx.filter = filterStr;
+fCtx.drawImage(croppedCanvas, 0, 0);
+
+let croppedDataUrl = filteredCanvas.toDataURL('image/jpeg', 0.95); // High quality JPEG
 
 inlineCropperWrapper.style.display = 'none'; // Hide cropper
 imageViewArea.style.display = 'flex';      // Show preview
@@ -549,52 +582,34 @@ setTimeout(() => { isProcessingOCR = false; }, 300);
     }
 }
 
-// --- *** CAMANJS BUG FIX: Re-implemented V1 logic *** ---
+// --- *** NEW: HARDWARE ACCELERATED CSS FILTERS (Replaces CamanJS) *** ---
 let applyEnhancements = () => {
-    if (isProcessingImage || !cropper || !originalCropperSrc) return;
-    isProcessingImage = true;
-    updateStatus("Applying enhancements...");
+    if (!cropper) return;
 
-    const tempCanvas = document.createElement('canvas');
-    const tempImg = new Image();
-    tempImg.crossOrigin = "Anonymous";
-    tempImg.onload = () => {
-tempCanvas.width = tempImg.width;
-tempCanvas.height = tempImg.height;
-tempCanvas.getContext('2d').drawImage(tempImg, 0, 0);
+    let filterStr = '';
+    if (currentEnhancements.bw) {
+        filterStr = 'grayscale(100%) contrast(170%) brightness(105%)';
+    } else if (currentEnhancements.greyscale) {
+        filterStr = 'grayscale(100%)';
+    } else {
+        let b = currentEnhancements.brightness || 0; 
+        let c = currentEnhancements.contrast || 0; 
+        let cssB = 100 + (b * 2);
+        let cssC = 100 + (c * 2);
+        filterStr = `brightness(${cssB}%) contrast(${cssC}%)`;
+    }
 
-// This is the CamanJS constructor, which re-initializes.
-Caman(tempCanvas, function () {
-    this.revert(false); // Do not revert to the *very* original, just the last state
+    // Apply hardware-accelerated CSS filters to the cropper preview elements
+    const canvasImg = document.querySelector('.cropper-canvas img');
+    const viewboxImg = document.querySelector('.cropper-view-box img');
+    if (canvasImg) canvasImg.style.filter = filterStr;
+    if (viewboxImg) viewboxImg.style.filter = filterStr;
     
-    // Apply filters based on current state
-    if (currentEnhancements.bw) { this.greyscale().contrast(70).brightness(5); }
-    else if (currentEnhancements.greyscale) { this.greyscale(); }
-    if (currentEnhancements.sharpen) { this.sharpen(10); }
-    this.brightness(parseInt(currentEnhancements.brightness, 10));
-    this.contrast(parseInt(currentEnhancements.contrast, 10));
-    
-    this.render(() => {
-const newDataUrl = this.toBase64();
-if (cropper) {
-    cropper.replace(newDataUrl);
-}
-updateStatus('Enhancements applied.');
-isProcessingImage = false; // Release lock
-    });
-});
-    };
-    tempImg.onerror = () => {
-updateStatus("Failed to load image for enhancement.", true);
-isProcessingImage = false; // Release lock
-    };
-    // CRITICAL: Always apply enhancements to the *original* source
-    tempImg.src = originalCropperSrc; 
+    updateStatus('Enhancements applied instantly.');
 }
 
 function resetEnhancements() {
-    if (isProcessingImage || !cropper) return;
-    isProcessingImage = true;
+    if (!cropper) return;
     updateStatus("Resetting enhancements...");
     currentEnhancements = { brightness: 0, contrast: 0, sharpen: false, greyscale: false, bw: false };
     brightnessSlider.value = 0;
@@ -602,9 +617,57 @@ function resetEnhancements() {
     sharpenBtn.style.backgroundColor = '';
     greyscaleBtn.style.backgroundColor = '';
     bwBtn.style.backgroundColor = '';
-    cropper.replace(originalCropperSrc); // Revert to original
+    applyEnhancements(); // Re-apply default (no) filters
     updateStatus("Enhancements reset.");
-    isProcessingImage = false;
+}
+// --- *** END CSS FILTERS *** ---
+
+// --- NEW: Data Extraction (OCR) Function ---
+async function runOcrExtraction() {
+    if (!cropper) return;
+    updateStatus("Running OCR extraction... Please wait.");
+    isProcessingImage = true;
+
+    try {
+        const extractCanvas = cropper.getCroppedCanvas({
+            minWidth: 256, minHeight: 256, maxWidth: 2048, maxHeight: 2048,
+            fillColor: '#fff', imageSmoothingEnabled: true
+        });
+        
+        // Bake current filters to make text legible for Tesseract
+        const fCtx = extractCanvas.getContext('2d');
+        const canvasImg = document.querySelector('.cropper-canvas img');
+        if (canvasImg && canvasImg.style.filter && fCtx.filter !== undefined) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = extractCanvas.width;
+            tempCanvas.height = extractCanvas.height;
+            tempCanvas.getContext('2d').drawImage(extractCanvas, 0, 0);
+            
+            fCtx.filter = canvasImg.style.filter;
+            fCtx.drawImage(tempCanvas, 0, 0);
+        }
+
+        const { data: { text } } = await Tesseract.recognize(extractCanvas, 'eng');
+        const cleanText = text.replace(/\s+/g, ' ');
+        
+        // Regex matching
+        const mobiles = cleanText.match(/(?:\+91|91)?\s*[6-9]\d{9}/g) || [];
+        const gsts = cleanText.match(/\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}/gi) || [];
+        const pins = cleanText.match(/\b\d{6}\b/g) || [];
+        
+        const dedupMobiles = [...new Set(mobiles)];
+        const dedupGsts = [...new Set(gsts)];
+        const dedupPins = [...new Set(pins)];
+        
+        // Show results
+        alert(`Extraction Complete:\n\nMobiles: ${dedupMobiles.length ? dedupMobiles.join(', ') : 'None found'}\nGSTs: ${dedupGsts.length ? dedupGsts.join(', ') : 'None found'}\nPINs: ${dedupPins.length ? dedupPins.join(', ') : 'None found'}`);
+        updateStatus("Extraction complete.");
+    } catch (err) {
+        console.error("OCR Extraction failed:", err);
+        updateStatus("OCR Extraction failed.", true);
+    } finally {
+        isProcessingImage = false;
+    }
 }
 // --- *** END CAMANJS BUG FIX *** ---
 
