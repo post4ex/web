@@ -1396,9 +1396,9 @@ for (let i = 0; i < rows.length; i++) {
     const rowData = JSON.parse(row.dataset.submitData);
     const images  = JSON.parse(row.dataset.images);
 
-    // Build file: POD/Reciept → single JPEG, others → PDF bundle
+    // Build file: single image → JPEG, multiple images → PDF bundle
     let fileData, contentType;
-    if (rowData.uploadType === 'POD' || rowData.uploadType === 'Reciept') {
+    if (images.length === 1) {
         fileData    = images[0].split(',')[1];
         contentType = 'image/jpeg';
     } else {
