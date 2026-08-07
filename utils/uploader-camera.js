@@ -106,6 +106,9 @@ cancelBtn.style.color = 'white';
 
 // --- NEW: PDF Processing Logic from V1 ---
 async function handlePdfFile(file) {
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    }
     const fileReader = new FileReader();
     return new Promise((resolve, reject) => {
 fileReader.onload = async (e) => {

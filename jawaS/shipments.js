@@ -832,10 +832,13 @@ function renderShipmentDetails(order) {
 // --- TRACKING STATE CONFIG ---
 const _stateConfig = {
     delivered:       { label: 'Delivered',        cls: 'bg-green-100 text-green-800' },
-    outfordelivery:  { label: 'Out for Delivery',  cls: 'bg-blue-100 text-blue-800'  },
-    intransit:       { label: 'In Transit',        cls: 'bg-yellow-100 text-yellow-800' },
-    pending:         { label: 'Pending',           cls: 'bg-gray-100 text-gray-600'  },
-    exception:       { label: 'Exception',         cls: 'bg-red-100 text-red-800'    },
+    rto:             { label: 'RTO',              cls: 'bg-red-100 text-red-800'       },
+    outfordelivery:  { label: 'Out for Delivery', cls: 'bg-blue-100 text-blue-800'     },
+    exception:       { label: 'Exception',        cls: 'bg-orange-100 text-orange-800' },
+    intransit:       { label: 'In Transit',       cls: 'bg-yellow-100 text-yellow-800' },
+    pending:         { label: 'Pending',          cls: 'bg-gray-100 text-gray-600'     },
+    booked:          { label: 'Booked',           cls: 'bg-indigo-100 text-indigo-800' },
+    pickup:          { label: 'Pickup',           cls: 'bg-purple-100 text-purple-800' },
 };
 
 // --- RENDER: TRACKING STATUS ---
