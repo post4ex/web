@@ -853,7 +853,7 @@ function renderTrackingStatus(order) {
 
     const headerBtns = [
         `<button onclick="console.warn('ticket not implemented')" title="Ticket" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg></button>`,
-        `<button onclick="console.warn('mark not implemented')" title="Mark" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>`,
+        `<button onclick="UpdateStatusModal.open('${order.REFERENCE}', '${order.STATUS || order.STATE || ''}')" title="Update Status / Mark" class="p-1.5 text-gray-500 rounded hover:bg-gray-100 hover:text-blue-600 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>`,
         `<button onclick="mailSelectedShipmentTracking()" title="Mail" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
         `<button onclick="waSelectedShipmentTracking()" title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`,
@@ -1549,3 +1549,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadFromIndexedDB();
 });
+
+window.onShipmentStatusUpdated = function(reference, newStatus) {
+    if (selectedShipmentRecord && selectedShipmentRecord.REFERENCE === reference) {
+        _fetchAndRenderTracking(selectedShipmentRecord, true);
+    } else if (typeof loadFromIndexedDB === 'function') {
+        loadFromIndexedDB();
+    }
+};
