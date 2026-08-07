@@ -1,10 +1,114 @@
 /**
  * updatestatus.js — Self-creating UI Modal for Updating Shipment Status.
  * Color schema and design architecture matched with GENIE_WEB UI standards.
+ * Features dependent Sub-Status dropdowns stored cleanly into remarks.
  */
 
 (function () {
     let currentReference = '';
+
+    const SUBSTATUS_OPTIONS = {
+        'In Transit': [
+            'Arrived at Hub',
+            'Departed Hub',
+            'Air Cargo Dispatched',
+            'Arrived at Destination Hub',
+            'Transit Delay'
+        ],
+        'Out for Delivery': [
+            'Loaded on Delivery Vehicle',
+            'Out for Delivery (Attempt 1)',
+            'Out for Delivery (Re-attempt)',
+            'OTP Verification Pending'
+        ],
+        'Delivered': [
+            'Delivered to Recipient',
+            'Delivered — Signed',
+            'Delivered — Signature & Stamp',
+            'Delivered — OTP Verified',
+            'Delivered — E-Signature Captured',
+            'Delivered to Security / Neighbor',
+            'Digital POD Uploaded'
+        ],
+        'Delivery Exception': [
+            'Customer Unavailable',
+            'Phone Unreachable',
+            'Call Not Picked Up',
+            'Invalid Phone Number',
+            'Consignee Shifted Address',
+            'Premises Closed',
+            'Address Incomplete',
+            'Address Untraceable',
+            'Incorrect Pincode',
+            'Gate / Security Entry Denied',
+            'Out of Delivery Area (ODA)',
+            'COD Payment Not Ready',
+            'COD Amount Dispute',
+            'Delivery OTP Not Shared',
+            'Freight Charges Unpaid (To-Pay)',
+            'Refused by Recipient',
+            'Order Cancelled by Customer',
+            'Refused — Outer Package Damaged',
+            'Refused — Seal Tampered / Opened',
+            'Refused — Wrong Product Expected',
+            'Climate Exception',
+            'Heavy Rain / Monsoon Waterlogging',
+            'Time Over / Window Expired',
+            'Lift / Elevator Unavailable',
+            'Road Damaged',
+            'Road Sinkhole / Cave-In',
+            'Severe Traffic Gridlock',
+            'E-Way Bill Expired in Transit',
+            'E-Way Bill / Invoice Mismatch',
+            'State Entry Tax / Octroi Hold',
+            'Customs Inspection Hold',
+            'Delivery Vehicle Breakdown',
+            'Cargo Damaged in Transit'
+        ],
+        'RTO Initiated': [
+            'RTO — Max Delivery Attempts Failed',
+            'RTO — Customer Refused Receipt',
+            'RTO — Unresolvable Address',
+            'RTO — Recall Requested by Shipper',
+            'RTO — Damaged Beyond Delivery',
+            'RTO Initiated',
+            'RTO In Transit',
+            'Arrived at Origin Hub',
+            'RTO Out for Return Delivery',
+            'RTO Delivered to Shipper'
+        ],
+        'Order Booked': [
+            'Manifest Generated',
+            'AWB Assigned',
+            'Space Confirmed',
+            'Awaiting Handover to Hub'
+        ],
+        'Order Pickup': [
+            'Pickup Scheduled',
+            'En Route to Pickup',
+            'Pickup Rescheduled',
+            'Pickup Attempted (Failed)',
+            'Picked Up / Received'
+        ],
+        'Order Deleted': [
+            'Order Cancelled by Shipper',
+            'Void — Duplicate Entry',
+            'Void / Deleted'
+        ]
+    };
+
+    function updateSubStatusOptions(selectedPrimary, selectedSub = '') {
+        const subSelect = document.getElementById('usm-substatus-select');
+        if (!subSelect) return;
+
+        const options = SUBSTATUS_OPTIONS[selectedPrimary] || [];
+        subSelect.innerHTML = '<option value="">-- Select Sub-Status / Reason --</option>' + 
+            options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+
+        if (selectedSub) {
+            subSelect.value = selectedSub;
+        }
+    }
 
     function injectModalHTML() {
         if (document.getElementById('updateStatusModal')) return;
@@ -25,10 +129,10 @@
 
                 <!-- Modal Body -->
                 <form id="updateStatusForm" onsubmit="UpdateStatusModal.submit(event)" class="p-4 sm:p-5 space-y-4">
-                    <!-- Status Select -->
+                    <!-- Primary Status Select -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Status Activity <span class="text-red-500">*</span></label>
-                        <select id="usm-status-select" required class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Primary Status <span class="text-red-500">*</span></label>
+                        <select id="usm-status-select" required onchange="UpdateStatusModal.onPrimaryChange(this.value)" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
                             <option value="In Transit">In Transit</option>
                             <option value="Out for Delivery">Out for Delivery</option>
                             <option value="Delivered">Delivered</option>
@@ -36,13 +140,22 @@
                             <option value="RTO Initiated">RTO Initiated</option>
                             <option value="Order Booked">Order Booked</option>
                             <option value="Order Pickup">Order Pickup</option>
+                            <option value="Order Deleted">Order Deleted / Void</option>
+                        </select>
+                    </div>
+
+                    <!-- Sub-Status Select (Dependent) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Sub-Status Reason <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
+                        <select id="usm-substatus-select" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
+                            <option value="">-- Select Sub-Status / Reason --</option>
                         </select>
                     </div>
 
                     <!-- Custom Remark -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Status Remark <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
-                        <input type="text" id="usm-remark-input" placeholder="e.g. Arrived at hub / Consignee unavailable" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Custom Remark <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
+                        <input type="text" id="usm-remark-input" placeholder="e.g. Arrived at hub / Consignee requested 2 PM" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
                     </div>
 
                     <!-- Event Time (Date-Time Picker) -->
@@ -77,6 +190,10 @@
     }
 
     window.UpdateStatusModal = {
+        onPrimaryChange: function (primaryVal) {
+            updateSubStatusOptions(primaryVal);
+        },
+
         open: function (reference, currentStatus = '', currentRemark = '') {
             injectModalHTML();
             currentReference = reference || '';
@@ -94,14 +211,18 @@
             errorMsg.classList.add('hidden');
             errorMsg.textContent = '';
 
+            let matchedPrimary = 'In Transit';
             if (currentStatus) {
                 const matchedOption = Array.from(statusSelect.options).find(opt => 
                     opt.value.toLowerCase() === currentStatus.toLowerCase()
                 );
                 if (matchedOption) {
-                    statusSelect.value = matchedOption.value;
+                    matchedPrimary = matchedOption.value;
+                    statusSelect.value = matchedPrimary;
                 }
             }
+
+            updateSubStatusOptions(matchedPrimary);
 
             remarkInput.value = currentRemark || '';
 
@@ -127,6 +248,7 @@
             if (event) event.preventDefault();
 
             const statusSelect = document.getElementById('usm-status-select');
+            const substatusSelect = document.getElementById('usm-substatus-select');
             const remarkInput = document.getElementById('usm-remark-input');
             const datetimeInput = document.getElementById('usm-datetime-input');
             const submitBtn = document.getElementById('usm-submit-btn');
@@ -135,7 +257,17 @@
             const errorMsg = document.getElementById('usm-error-msg');
 
             const statusRaw = statusSelect.value;
-            const statusRemark = remarkInput.value.trim();
+            const subStatus = substatusSelect ? substatusSelect.value.trim() : '';
+            const customRemark = remarkInput.value.trim();
+
+            let finalRemark = '';
+            if (subStatus && customRemark) {
+                finalRemark = `${subStatus} - ${customRemark}`;
+            } else if (subStatus) {
+                finalRemark = subStatus;
+            } else if (customRemark) {
+                finalRemark = customRemark;
+            }
 
             let statusTimeMs = null;
             if (datetimeInput.value) {
@@ -154,7 +286,7 @@
                 const payload = {
                     reference: currentReference,
                     status_raw: statusRaw,
-                    status_remark: statusRemark
+                    status_remark: finalRemark
                 };
 
                 if (statusTimeMs) {

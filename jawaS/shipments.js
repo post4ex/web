@@ -839,6 +839,7 @@ const _stateConfig = {
     pending:         { label: 'Pending',          cls: 'bg-gray-100 text-gray-600'     },
     booked:          { label: 'Booked',           cls: 'bg-indigo-100 text-indigo-800' },
     pickup:          { label: 'Pickup',           cls: 'bg-purple-100 text-purple-800' },
+    deleted:         { label: 'Deleted',          cls: 'bg-red-100 text-red-800'       },
 };
 
 // --- RENDER: TRACKING STATUS ---
