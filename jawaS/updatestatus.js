@@ -105,9 +105,15 @@
 
             remarkInput.value = currentRemark || '';
 
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            datetimeInput.value = now.toISOString().slice(0, 16);
+            // Set datetime picker using formatIST helpers if present
+            if (typeof fmtDate === 'function') {
+                const now = new Date();
+                datetimeInput.value = `${fmtDate(now, 'input')}T${fmtDate(now, 'time')}`;
+            } else {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                datetimeInput.value = now.toISOString().slice(0, 16);
+            }
 
             modal.classList.remove('hidden');
         },
@@ -133,8 +139,8 @@
 
             let statusTimeMs = null;
             if (datetimeInput.value) {
-                const dt = new Date(datetimeInput.value);
-                if (!isNaN(dt.getTime())) {
+                const dt = typeof parseDate === 'function' ? parseDate(datetimeInput.value) : new Date(datetimeInput.value);
+                if (dt && !isNaN(dt.getTime())) {
                     statusTimeMs = dt.getTime();
                 }
             }
