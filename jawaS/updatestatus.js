@@ -155,19 +155,25 @@
                     payload.status_time = statusTimeMs;
                 }
 
-                const res = await fetch('/api/updateShipmentStatus', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + (localStorage.getItem('token') || sessionStorage.getItem('token') || '')
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.detail || 'Failed to update shipment status');
+                let data;
+                if (typeof callApi === 'function') {
+                    data = await callApi('/api/updateShipmentStatus', payload, 'POST');
+                } else {
+                    const baseUrl = (window.CONSTANTS && window.CONSTANTS.OPERATIONS_URL) ? window.CONSTANTS.OPERATIONS_URL : '';
+                    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                    const res = await fetch(`${baseUrl}/api/updateShipmentStatus`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.detail || errData.message || 'Failed to update shipment status');
+                    }
+                    data = await res.json();
                 }
 
                 if (typeof showNotification === 'function') {
