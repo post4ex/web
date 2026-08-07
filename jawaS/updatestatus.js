@@ -140,7 +140,6 @@
                             <option value="RTO Initiated">RTO Initiated</option>
                             <option value="Order Booked">Order Booked</option>
                             <option value="Order Pickup">Order Pickup</option>
-                            <option value="Order Deleted">Order Deleted / Void</option>
                         </select>
                     </div>
 
@@ -211,7 +210,23 @@
             errorMsg.classList.add('hidden');
             errorMsg.textContent = '';
 
-            let matchedPrimary = 'In Transit';
+            // Role check: CLIENT role can ONLY update status to Delivered; staff/above can update all active statuses
+            const userRole = (localStorage.getItem('role') || sessionStorage.getItem('role') || (window.currentUser && window.currentUser.role) || '').toUpperCase();
+            if (userRole === 'CLIENT') {
+                statusSelect.innerHTML = '<option value="Delivered">Delivered</option>';
+            } else {
+                statusSelect.innerHTML = `
+                    <option value="In Transit">In Transit</option>
+                    <option value="Out for Delivery">Out for Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Delivery Exception">Delivery Exception</option>
+                    <option value="RTO Initiated">RTO Initiated</option>
+                    <option value="Order Booked">Order Booked</option>
+                    <option value="Order Pickup">Order Pickup</option>
+                `;
+            }
+
+            let matchedPrimary = statusSelect.options[0] ? statusSelect.options[0].value : 'Delivered';
             if (currentStatus) {
                 const matchedOption = Array.from(statusSelect.options).find(opt => 
                     opt.value.toLowerCase() === currentStatus.toLowerCase()
