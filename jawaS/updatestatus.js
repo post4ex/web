@@ -102,7 +102,7 @@
         if (!subSelect) return;
 
         const options = SUBSTATUS_OPTIONS[selectedPrimary] || [];
-        subSelect.innerHTML = '<option value="">-- Select Sub-Status / Reason --</option>' + 
+        subSelect.innerHTML = '<option value="" disabled selected>-- Select Sub-Status Reason (Required) --</option>' + 
             options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
 
         if (selectedSub) {
@@ -144,11 +144,11 @@
                         </select>
                     </div>
 
-                    <!-- Sub-Status Select (Dependent) -->
+                    <!-- Sub-Status Select (Dependent & Required) -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Sub-Status Reason <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
-                        <select id="usm-substatus-select" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
-                            <option value="">-- Select Sub-Status / Reason --</option>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Sub-Status Reason <span class="text-red-500">*</span></label>
+                        <select id="usm-substatus-select" required class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
+                            <option value="" disabled selected>-- Select Sub-Status Reason (Required) --</option>
                         </select>
                     </div>
 
@@ -259,6 +259,12 @@
             const statusRaw = statusSelect.value;
             const subStatus = substatusSelect ? substatusSelect.value.trim() : '';
             const customRemark = remarkInput.value.trim();
+
+            if (!subStatus) {
+                errorMsg.textContent = 'Please select a Sub-Status Reason.';
+                errorMsg.classList.remove('hidden');
+                return;
+            }
 
             let finalRemark = '';
             if (subStatus && customRemark) {
