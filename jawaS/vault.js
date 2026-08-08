@@ -831,9 +831,57 @@ const VaultPage = (() => {
         }
     }
 
-    document.addEventListener('DOMContentLoaded', _init);
+    async function _fetchManagerIOToggleState() {
+        const badge = document.getElementById('vault-mio-badge');
+        const toggle = document.getElementById('vault-mio-toggle');
+        if (!badge || !toggle) return;
 
-    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch, openReportModal: _openReportModal };
+        try {
+            const res = typeof callApi === 'function' ? await callApi('/api/getManagerIOStatus', null, 'GET') : null;
+            const isEnabled = Boolean(res && res.enabled);
+            toggle.checked = isEnabled;
+            badge.textContent = isEnabled ? 'ON' : 'OFF';
+            badge.className = isEnabled 
+                ? 'px-1.5 py-0.5 text-[10px] font-bold rounded bg-green-100 text-green-700 border border-green-200'
+                : 'px-1.5 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-700 border border-red-200';
+        } catch (err) {
+            console.error('[Vault Manager.io Status error]', err);
+            badge.textContent = 'ERR';
+        }
+    }
+
+    async function toggleManagerIO(enabled) {
+        const badge = document.getElementById('vault-mio-badge');
+        const toggle = document.getElementById('vault-mio-toggle');
+        if (toggle) toggle.disabled = true;
+        if (badge) badge.textContent = '...';
+
+        try {
+            if (typeof callApi === 'function') {
+                await callApi('/api/toggleManagerIO', { enabled }, 'POST');
+            }
+            if (typeof showNotification === 'function') {
+                showNotification(`Manager.io sync service is now ${enabled ? 'ENABLED' : 'DISABLED'}`, enabled ? 'success' : 'info');
+            }
+            await _fetchManagerIOToggleState();
+        } catch (err) {
+            console.error('[Vault Toggle Manager.io error]', err);
+            if (typeof showNotification === 'function') {
+                showNotification('Failed to toggle Manager.io service: ' + (err.message || err), 'error');
+            }
+            if (toggle) toggle.checked = !enabled;
+            await _fetchManagerIOToggleState();
+        } finally {
+            if (toggle) toggle.disabled = false;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        _init();
+        _fetchManagerIOToggleState();
+    });
+
+    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch, openReportModal: _openReportModal, toggleManagerIO };
 })();
 
 window.VaultPage = VaultPage;
