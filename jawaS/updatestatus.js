@@ -1,7 +1,9 @@
 /**
  * updatestatus.js — Self-creating UI Modal for Updating Shipment Status.
  * Color schema and design architecture matched with GENIE_WEB UI standards.
- * Features dependent Sub-Status dropdowns stored cleanly into remarks.
+ * Features dependent Sub-Status dropdowns, Concerned Person contact capture,
+ * To-Pay/COD Payment capture, Weekly Service Area Next Attempt Day,
+ * and structured remarks logging.
  */
 
 (function () {
@@ -31,6 +33,18 @@
             'Digital POD Uploaded'
         ],
         'Delivery Exception': [
+            'No Service Area',
+            'Out of Delivery Area (ODA)',
+            'Weekly Service Area',
+            'Weekly Coloading Area',
+            'Customer has to Collect from Office',
+            'Customer informed to Collect from office',
+            'Informed customer to collect from office',
+            'COD Payment Not Ready',
+            'COD Amount Dispute',
+            'COD / Cash Refused by Recipient',
+            'To-Pay Freight Charges Refused',
+            'To-Pay Payment Not Ready',
             'Customer Unavailable',
             'Phone Unreachable',
             'Call Not Picked Up',
@@ -41,11 +55,7 @@
             'Address Untraceable',
             'Incorrect Pincode',
             'Gate / Security Entry Denied',
-            'Out of Delivery Area (ODA)',
-            'COD Payment Not Ready',
-            'COD Amount Dispute',
             'Delivery OTP Not Shared',
-            'Freight Charges Unpaid (To-Pay)',
             'Refused by Recipient',
             'Order Cancelled by Customer',
             'Refused — Outer Package Damaged',
@@ -89,11 +99,6 @@
             'Pickup Rescheduled',
             'Pickup Attempted (Failed)',
             'Picked Up / Received'
-        ],
-        'Order Deleted': [
-            'Order Cancelled by Shipper',
-            'Void — Duplicate Entry',
-            'Void / Deleted'
         ]
     };
 
@@ -102,12 +107,15 @@
         if (!subSelect) return;
 
         const options = SUBSTATUS_OPTIONS[selectedPrimary] || [];
-        subSelect.innerHTML = '<option value="" disabled selected>-- Select Sub-Status Reason (Required) --</option>' + 
+        subSelect.innerHTML = '<option value="" disabled selected>-- Select Sub-Status Reason (Required) --</option>' +
             options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
 
         if (selectedSub) {
             subSelect.value = selectedSub;
         }
+
+        // Trigger dynamic field visibilities
+        UpdateStatusModal.onSubStatusChange(subSelect.value);
     }
 
     function injectModalHTML() {
@@ -128,7 +136,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <form id="updateStatusForm" onsubmit="UpdateStatusModal.submit(event)" class="p-4 sm:p-5 space-y-4">
+                <form id="updateStatusForm" onsubmit="UpdateStatusModal.submit(event)" class="p-4 sm:p-5 space-y-3.5 max-h-[85vh] overflow-y-auto">
                     <!-- Primary Status Select -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Primary Status <span class="text-red-500">*</span></label>
@@ -146,15 +154,87 @@
                     <!-- Sub-Status Select (Dependent & Required) -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Sub-Status Reason <span class="text-red-500">*</span></label>
-                        <select id="usm-substatus-select" required class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
+                        <select id="usm-substatus-select" required onchange="UpdateStatusModal.onSubStatusChange(this.value)" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
                             <option value="" disabled selected>-- Select Sub-Status Reason (Required) --</option>
                         </select>
+                    </div>
+
+                    <!-- Concerned Person Info (Delivered / Delivery Exception) -->
+                    <div id="usm-person-container" class="hidden p-3 bg-purple-50/70 border border-purple-200 rounded-md space-y-2.5">
+                        <div class="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            Concerned Person Contact Info <span class="text-gray-400 font-normal normal-case">(Optional)</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Person Name</label>
+                                <input type="text" id="usm-person-name" placeholder="e.g. Rahul Sharma" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Phone Number</label>
+                                <input type="tel" id="usm-person-phone" placeholder="e.g. 9876543210" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Relation / Role</label>
+                            <select id="usm-person-relation" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none">
+                                <option value="">-- Select Relation / Role --</option>
+                                <option value="Self">Self (Consignee)</option>
+                                <option value="Family / Relative">Family / Relative</option>
+                                <option value="Brother / Sister">Brother / Sister</option>
+                                <option value="Parent / Spouse">Parent / Spouse</option>
+                                <option value="Security Guard">Security Guard</option>
+                                <option value="Receptionist">Receptionist</option>
+                                <option value="Office Staff / Manager">Office Staff / Manager</option>
+                                <option value="Colleague">Colleague</option>
+                                <option value="Neighbor">Neighbor</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Next Attempt Delivery Day (Visible for Weekly Service Area / Coloading) -->
+                    <div id="usm-attempt-day-container" class="hidden">
+                        <label class="block text-xs font-semibold text-amber-700 mb-1 uppercase tracking-wide">Next Delivery Attempt Day <span class="text-red-500">*</span></label>
+                        <select id="usm-attempt-day-select" class="w-full text-sm bg-amber-50 border border-amber-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 transition-colors outline-none">
+                            <option value="" disabled selected>-- Select Day of Delivery --</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                            <option value="Sunday">Sunday</option>
+                        </select>
+                    </div>
+
+                    <!-- Payment Collection (Visible for Delivered / Payment Capture) -->
+                    <div id="usm-payment-container" class="hidden p-3 bg-blue-50/70 border border-blue-200 rounded-md space-y-3">
+                        <div class="text-xs font-bold text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Payment Mode (COD / To-Pay)
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Payment Method</label>
+                            <select id="usm-paymode-select" onchange="UpdateStatusModal.onPayModeChange(this.value)" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 transition-colors outline-none">
+                                <option value="">-- None / Pre-Paid --</option>
+                                <option value="Cash">Cash</option>
+                                <option value="UPI - Self">UPI - Self</option>
+                                <option value="UPI - Company">UPI - Company</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="UTR">UTR / Online Transfer</option>
+                            </select>
+                        </div>
+                        <div id="usm-utr-container" class="hidden">
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">UTR / Cheque / Txn Ref No. <span class="text-red-500">*</span></label>
+                            <input type="text" id="usm-utr-input" placeholder="e.g. UTR123456789 / Cheque #00412" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 transition-colors outline-none" />
+                        </div>
                     </div>
 
                     <!-- Custom Remark -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Custom Remark <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
-                        <input type="text" id="usm-remark-input" placeholder="e.g. Arrived at hub / Consignee requested 2 PM" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
+                        <input type="text" id="usm-remark-input" placeholder="e.g. Received by reception / Next attempt scheduled" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
                     </div>
 
                     <!-- Event Time (Date-Time Picker) -->
@@ -191,6 +271,53 @@
     window.UpdateStatusModal = {
         onPrimaryChange: function (primaryVal) {
             updateSubStatusOptions(primaryVal);
+            const payContainer = document.getElementById('usm-payment-container');
+            const personContainer = document.getElementById('usm-person-container');
+
+            if (payContainer) {
+                if (primaryVal === 'Delivered') {
+                    payContainer.classList.remove('hidden');
+                } else {
+                    payContainer.classList.add('hidden');
+                    document.getElementById('usm-paymode-select').value = '';
+                    document.getElementById('usm-utr-container').classList.add('hidden');
+                }
+            }
+
+            if (personContainer) {
+                if (primaryVal === 'Delivered' || primaryVal === 'Delivery Exception') {
+                    personContainer.classList.remove('hidden');
+                } else {
+                    personContainer.classList.add('hidden');
+                    document.getElementById('usm-person-name').value = '';
+                    document.getElementById('usm-person-phone').value = '';
+                    document.getElementById('usm-person-relation').value = '';
+                }
+            }
+        },
+
+        onSubStatusChange: function (subVal) {
+            const dayContainer = document.getElementById('usm-attempt-day-container');
+            if (dayContainer) {
+                if (subVal === 'Weekly Service Area' || subVal === 'Weekly Coloading Area') {
+                    dayContainer.classList.remove('hidden');
+                } else {
+                    dayContainer.classList.add('hidden');
+                    document.getElementById('usm-attempt-day-select').value = '';
+                }
+            }
+        },
+
+        onPayModeChange: function (payVal) {
+            const utrContainer = document.getElementById('usm-utr-container');
+            if (utrContainer) {
+                if (['UPI - Self', 'UPI - Company', 'Cheque', 'UTR'].includes(payVal)) {
+                    utrContainer.classList.remove('hidden');
+                } else {
+                    utrContainer.classList.add('hidden');
+                    document.getElementById('usm-utr-input').value = '';
+                }
+            }
         },
 
         open: function (reference, currentStatus = '', currentRemark = '') {
@@ -238,6 +365,7 @@
             }
 
             updateSubStatusOptions(matchedPrimary);
+            UpdateStatusModal.onPrimaryChange(matchedPrimary);
 
             remarkInput.value = currentRemark || '';
 
@@ -264,6 +392,12 @@
 
             const statusSelect = document.getElementById('usm-status-select');
             const substatusSelect = document.getElementById('usm-substatus-select');
+            const daySelect = document.getElementById('usm-attempt-day-select');
+            const paymodeSelect = document.getElementById('usm-paymode-select');
+            const utrInput = document.getElementById('usm-utr-input');
+            const personNameInput = document.getElementById('usm-person-name');
+            const personPhoneInput = document.getElementById('usm-person-phone');
+            const personRelationSelect = document.getElementById('usm-person-relation');
             const remarkInput = document.getElementById('usm-remark-input');
             const datetimeInput = document.getElementById('usm-datetime-input');
             const submitBtn = document.getElementById('usm-submit-btn');
@@ -273,6 +407,13 @@
 
             const statusRaw = statusSelect.value;
             const subStatus = substatusSelect ? substatusSelect.value.trim() : '';
+            const attemptDay = daySelect ? daySelect.value : '';
+            const payMode = paymodeSelect ? paymodeSelect.value : '';
+            const utrNo = utrInput ? utrInput.value.trim() : '';
+
+            const personName = personNameInput ? personNameInput.value.trim() : '';
+            const personPhone = personPhoneInput ? personPhoneInput.value.trim() : '';
+            const personRelation = personRelationSelect ? personRelationSelect.value : '';
             const customRemark = remarkInput.value.trim();
 
             if (!subStatus) {
@@ -281,14 +422,49 @@
                 return;
             }
 
-            let finalRemark = '';
-            if (subStatus && customRemark) {
-                finalRemark = `${subStatus} - ${customRemark}`;
-            } else if (subStatus) {
-                finalRemark = subStatus;
-            } else if (customRemark) {
-                finalRemark = customRemark;
+            if (subStatus === 'Weekly Service Area' && !attemptDay) {
+                errorMsg.textContent = 'Please select the Next Delivery Attempt Day for Weekly Service Area.';
+                errorMsg.classList.remove('hidden');
+                return;
             }
+
+            if (['UPI - Self', 'UPI - Company', 'Cheque', 'UTR'].includes(payMode) && !utrNo) {
+                errorMsg.textContent = `Please enter the UTR / Transaction Ref / Cheque number for ${payMode}.`;
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            let extraParts = [];
+            if (attemptDay) {
+                extraParts.push(`Next Attempt Day: ${attemptDay}`);
+            }
+
+            if (personName || personPhone || personRelation) {
+                let pTokens = [];
+                if (personName) pTokens.push(personName);
+                if (personRelation) pTokens.push(`Role: ${personRelation}`);
+                if (personPhone) pTokens.push(`Ph: ${personPhone}`);
+                
+                const label = (statusRaw === 'Delivered') ? 'Recipient' : 'Contact Person';
+                extraParts.push(`${label}: ${pTokens.join(' - ')}`);
+            }
+
+            if (payMode) {
+                let payStr = `Payment: ${payMode}`;
+                if (utrNo) {
+                    payStr += ` (Ref/UTR: ${utrNo})`;
+                }
+                extraParts.push(payStr);
+            }
+
+            let remarkTokens = [subStatus];
+            if (extraParts.length > 0) {
+                remarkTokens.push(extraParts.join(' | '));
+            }
+            if (customRemark) {
+                remarkTokens.push(customRemark);
+            }
+            const finalRemark = remarkTokens.join(' - ');
 
             let statusTimeMs = null;
             if (datetimeInput.value) {
