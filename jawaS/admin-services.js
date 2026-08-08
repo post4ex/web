@@ -9,6 +9,7 @@ const AdminServices = (() => {
         { id: 'app',        name: 'App',         icon: '🖥️',  desc: 'Genie backend (FastAPI)' },
         { id: 'pocketbase', name: 'PocketBase',  icon: '🗄️',  desc: 'Primary database' },
         { id: 'tracking',   name: 'Tracking',    icon: '📦',  desc: 'Carrier tracking service' },
+        { id: 'managerio',  name: 'Manager.io',  icon: '💼',  desc: 'Manager.io accounting sync service' },
         { id: 'whatsapp',   name: 'WhatsApp',    icon: '💬',  desc: 'WA messaging (Render)' },
         { id: 'captcha',    name: 'Captcha',     icon: '🔒',  desc: 'Captcha service (HF)' },
         { id: 'mailjet',    name: 'Mailjet',     icon: '📧',  desc: 'Transactional email' },
@@ -28,6 +29,7 @@ const AdminServices = (() => {
         app:        ['app_logs', 'notifications', 'hf_logs'],
         pocketbase: ['app_logs', 'hf_logs'],
         tracking:   ['tracking_logs', 'shipments', 'movements', 'hf_logs'],
+        managerio:  ['app_logs', 'notifications'],
         whatsapp:   ['wa_logs', 'render_logs'],
         captcha:    ['hf_logs'],
         mailjet:    ['mail_logs'],
@@ -165,6 +167,21 @@ const AdminServices = (() => {
                 <div class="detail-card-body space-y-3">
                     <p class="text-xs text-gray-500">${svc.desc}</p>
                     ${st.checked_at ? `<p class="text-xs text-gray-400">Last checked: ${new Date(st.checked_at * 1000).toLocaleTimeString()}</p>` : ''}
+                    ${serviceId === 'managerio' ? `
+                    <div class="p-3.5 bg-blue-50/80 border border-blue-200 rounded-lg flex items-center justify-between my-2">
+                        <div>
+                            <div class="font-bold text-xs sm:text-sm text-gray-800 flex items-center gap-2">
+                                <span>💼 Manager.io Sync Switch</span>
+                                <span id="svc-mio-badge" class="px-2 py-0.5 text-[11px] font-semibold rounded bg-gray-200 text-gray-700">Checking...</span>
+                            </div>
+                            <div class="text-[11px] text-gray-500 mt-0.5">Master toggle for all Manager.io accounting sync tasks & API calls.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer ml-2">
+                            <input type="checkbox" id="svc-mio-toggle" onchange="AdminServices.toggleManagerIO(this.checked)" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    ` : ''}
                     ${serviceId === 'whatsapp' ? `<p class="text-xs font-medium">WA connection: <span id="svc-wa-state" class="text-gray-400">—</span></p>
                     <p class="text-xs font-medium">Pending queue: <span id="svc-wa-queue" class="text-gray-400">—</span></p>` : ''}
                     ${tabs.length ? `
@@ -284,6 +301,53 @@ const AdminServices = (() => {
         }
         // re-populate WA meta after tab re-render only if detail is still showing
         if (_activeService === 'whatsapp' && document.getElementById('svc-wa-state')) _fetchWAMeta();
+        if (_activeService === 'managerio' && document.getElementById('svc-mio-badge')) _fetchManagerIOState();
+    }
+
+    async function _fetchManagerIOState() {
+        const badge = document.getElementById('svc-mio-badge');
+        const toggle = document.getElementById('svc-mio-toggle');
+        if (!badge || !toggle) return;
+
+        try {
+            const res = typeof callApi === 'function' ? await callApi('/api/getManagerIOStatus', null, 'GET') : null;
+            const isEnabled = Boolean(res && res.enabled);
+            toggle.checked = isEnabled;
+            badge.textContent = isEnabled ? 'ACTIVE / SYNCING' : 'DISABLED / PAUSED';
+            badge.className = isEnabled 
+                ? 'px-2 py-0.5 text-[11px] font-semibold rounded bg-green-100 text-green-700 border border-green-200'
+                : 'px-2 py-0.5 text-[11px] font-semibold rounded bg-red-100 text-red-700 border border-red-200';
+        } catch (err) {
+            console.error('[Manager.io Status error]', err);
+            badge.textContent = 'ERROR';
+            badge.className = 'px-2 py-0.5 text-[11px] font-semibold rounded bg-gray-100 text-gray-500';
+        }
+    }
+
+    async function toggleManagerIO(enabled) {
+        const badge = document.getElementById('svc-mio-badge');
+        const toggle = document.getElementById('svc-mio-toggle');
+        if (toggle) toggle.disabled = true;
+        if (badge) badge.textContent = 'Updating...';
+
+        try {
+            if (typeof callApi === 'function') {
+                await callApi('/api/toggleManagerIO', { enabled }, 'POST');
+            }
+            if (typeof showNotification === 'function') {
+                showNotification(`Manager.io sync service is now ${enabled ? 'ENABLED' : 'DISABLED'}`, enabled ? 'success' : 'info');
+            }
+            await _fetchManagerIOState();
+        } catch (err) {
+            console.error('[Toggle Manager.io error]', err);
+            if (typeof showNotification === 'function') {
+                showNotification('Failed to toggle Manager.io service: ' + (err.message || err), 'error');
+            }
+            if (toggle) toggle.checked = !enabled;
+            await _fetchManagerIOState();
+        } finally {
+            if (toggle) toggle.disabled = false;
+        }
     }
 
     // ── Generic table renderer ───────────────────────────────────────────────
@@ -798,7 +862,7 @@ const AdminServices = (() => {
     // hide add button — services are fixed, not user-added
     function openAddPane() {}
 
-    return { load, search, openAddPane };
+    return { load, search, openAddPane, toggleManagerIO };
 })();
 
 window.AdminServices = AdminServices;
