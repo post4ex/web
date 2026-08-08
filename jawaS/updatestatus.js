@@ -187,18 +187,21 @@
                         </select>
                     </div>
 
-                    <!-- Concerned Person Contact Info (No headers — in-box placeholders only) -->
-                    <div id="usm-person-container" class="hidden p-3 bg-purple-50/70 border border-purple-200 rounded-md space-y-2">
-                        <div class="grid grid-cols-2 gap-2">
+                    <!-- Concerned Person Contact Info (Delivered / Delivery Exception) -->
+                    <div id="usm-person-container" class="hidden space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <input type="text" id="usm-person-name" placeholder="Person Name (Optional)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
+                                <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Person Name <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
+                                <input type="text" id="usm-person-name" placeholder="e.g. Rahul Sharma" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
                             </div>
                             <div>
-                                <input type="tel" id="usm-person-phone" placeholder="Phone Number (Optional)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
+                                <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Phone Number <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
+                                <input type="tel" id="usm-person-phone" placeholder="e.g. 9876543210" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
                             </div>
                         </div>
                         <div>
-                            <select id="usm-person-relation" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Relation / Role <span class="text-gray-400 font-normal normal-case">(Optional)</span></label>
+                            <select id="usm-person-relation" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
                                 <option value="">-- Select Relation / Role (Optional) --</option>
                                 <option value="Self">Self (Consignee)</option>
                                 <option value="Family / Relative">Family / Relative</option>
@@ -213,10 +216,12 @@
                             </select>
                         </div>
                     </div>
+
                     <!-- Next Attempt Delivery Day (Visible for Weekly Service Area / Coloading) -->
                     <div id="usm-attempt-day-container" class="hidden">
-                        <select id="usm-attempt-day-select" class="w-full text-xs bg-amber-50 border border-amber-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none">
-                            <option value="" disabled selected>-- Select Next Delivery Attempt Day (Required) --</option>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Next Delivery Attempt Day <span class="text-red-500">*</span></label>
+                        <select id="usm-attempt-day-select" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
+                            <option value="" disabled selected>-- Select Day of Delivery (Required) --</option>
                             <option value="Monday">Monday</option>
                             <option value="Tuesday">Tuesday</option>
                             <option value="Wednesday">Wednesday</option>
@@ -228,10 +233,11 @@
                     </div>
 
                     <!-- Payment Collection (Only shown for COD / To-Pay shipments when Delivered) -->
-                    <div id="usm-payment-container" class="hidden p-3 bg-blue-50/70 border border-blue-200 rounded-md space-y-2">
+                    <div id="usm-payment-container" class="hidden space-y-3">
                         <div>
-                            <select id="usm-paymode-select" onchange="UpdateStatusModal.onPayModeChange(this.value)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="">-- Select Payment Method (COD / To-Pay) --</option>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Payment Method (COD / To-Pay)</label>
+                            <select id="usm-paymode-select" onchange="UpdateStatusModal.onPayModeChange(this.value)" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none">
+                                <option value="">-- None / Pre-Paid --</option>
                                 <option value="Cash">Cash</option>
                                 <option value="UPI - Self">UPI - Self</option>
                                 <option value="UPI - Company">UPI - Company</option>
@@ -240,7 +246,8 @@
                             </select>
                         </div>
                         <div id="usm-utr-container" class="hidden">
-                            <input type="text" id="usm-utr-input" placeholder="UTR / Transaction Ref / Cheque No. (Required)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none" />
+                            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">UTR / Transaction Ref / Cheque No. <span class="text-red-500">*</span></label>
+                            <input type="text" id="usm-utr-input" placeholder="e.g. UTR123456789 / Cheque #00412" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" />
                         </div>
                     </div>
 
