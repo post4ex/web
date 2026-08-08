@@ -1,13 +1,14 @@
 /**
  * updatestatus.js — Self-creating UI Modal for Updating Shipment Status.
  * Color schema and design architecture matched with GENIE_WEB UI standards.
- * Features dependent Sub-Status dropdowns, Concerned Person contact capture,
- * To-Pay/COD Payment capture, Weekly Service Area Next Attempt Day,
+ * Features dependent Sub-Status dropdowns, Concerned Person contact capture (in-box placeholders only),
+ * To-Pay/COD Payment mode capture (only shown for COD/To-Pay shipments), Weekly Service Area Next Attempt Day,
  * and structured remarks logging.
  */
 
 (function () {
     let currentReference = '';
+    let currentShipmentRecord = null;
 
     const SUBSTATUS_OPTIONS = {
         'In Transit': [
@@ -102,6 +103,34 @@
         ]
     };
 
+    function isCodOrTopayShipment(ref, shipData) {
+        if (shipData) {
+            const str = JSON.stringify(shipData).toUpperCase();
+            if (str.includes('"COD"') || str.includes('"C.O.D"') || str.includes('TOPAY') || str.includes('TO PAY') || str.includes('TO-PAY')) return true;
+            if (parseFloat(shipData.COD_AMOUNT || shipData.cod_amount || shipData.COD || 0) > 0) return true;
+        }
+        if (window._lastTrackingResult && window._lastTrackingResult.shipment) {
+            const str = JSON.stringify(window._lastTrackingResult.shipment).toUpperCase();
+            if (str.includes('"COD"') || str.includes('"C.O.D"') || str.includes('TOPAY') || str.includes('TO PAY') || str.includes('TO-PAY')) return true;
+        }
+        if (Array.isArray(window.ordersData)) {
+            const match = window.ordersData.find(o => o.REFERENCE === ref || o.AWB_NUMBER === ref || o.AWB === ref);
+            if (match) {
+                const str = JSON.stringify(match).toUpperCase();
+                if (str.includes('"COD"') || str.includes('"C.O.D"') || str.includes('TOPAY') || str.includes('TO PAY') || str.includes('TO-PAY')) return true;
+                if (parseFloat(match.COD_AMOUNT || match.cod_amount || match.COD || 0) > 0) return true;
+            }
+        }
+        if (Array.isArray(window.shipmentsData)) {
+            const match = window.shipmentsData.find(s => s.REFERENCE === ref || s.AWB === ref);
+            if (match) {
+                const str = JSON.stringify(match).toUpperCase();
+                if (str.includes('"COD"') || str.includes('"C.O.D"') || str.includes('TOPAY') || str.includes('TO PAY') || str.includes('TO-PAY')) return true;
+            }
+        }
+        return false;
+    }
+
     function updateSubStatusOptions(selectedPrimary, selectedSub = '') {
         const subSelect = document.getElementById('usm-substatus-select');
         if (!subSelect) return;
@@ -114,7 +143,6 @@
             subSelect.value = selectedSub;
         }
 
-        // Trigger dynamic field visibilities
         UpdateStatusModal.onSubStatusChange(subSelect.value);
     }
 
@@ -159,26 +187,19 @@
                         </select>
                     </div>
 
-                    <!-- Concerned Person Info (Delivered / Delivery Exception) -->
-                    <div id="usm-person-container" class="hidden p-3 bg-purple-50/70 border border-purple-200 rounded-md space-y-2.5">
-                        <div class="text-xs font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            Concerned Person Contact Info <span class="text-gray-400 font-normal normal-case">(Optional)</span>
-                        </div>
+                    <!-- Concerned Person Contact Info (No headers — in-box placeholders only) -->
+                    <div id="usm-person-container" class="hidden p-3 bg-purple-50/70 border border-purple-200 rounded-md space-y-2">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Person Name</label>
-                                <input type="text" id="usm-person-name" placeholder="e.g. Rahul Sharma" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
+                                <input type="text" id="usm-person-name" placeholder="Person Name (Optional)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
                             </div>
                             <div>
-                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Phone Number</label>
-                                <input type="tel" id="usm-person-phone" placeholder="e.g. 9876543210" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
+                                <input type="tel" id="usm-person-phone" placeholder="Phone Number (Optional)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none" />
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Relation / Role</label>
                             <select id="usm-person-relation" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none">
-                                <option value="">-- Select Relation / Role --</option>
+                                <option value="">-- Select Relation / Role (Optional) --</option>
                                 <option value="Self">Self (Consignee)</option>
                                 <option value="Family / Relative">Family / Relative</option>
                                 <option value="Brother / Sister">Brother / Sister</option>
@@ -192,12 +213,10 @@
                             </select>
                         </div>
                     </div>
-
                     <!-- Next Attempt Delivery Day (Visible for Weekly Service Area / Coloading) -->
                     <div id="usm-attempt-day-container" class="hidden">
-                        <label class="block text-xs font-semibold text-amber-700 mb-1 uppercase tracking-wide">Next Delivery Attempt Day <span class="text-red-500">*</span></label>
-                        <select id="usm-attempt-day-select" class="w-full text-sm bg-amber-50 border border-amber-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 transition-colors outline-none">
-                            <option value="" disabled selected>-- Select Day of Delivery --</option>
+                        <select id="usm-attempt-day-select" class="w-full text-xs bg-amber-50 border border-amber-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none">
+                            <option value="" disabled selected>-- Select Next Delivery Attempt Day (Required) --</option>
                             <option value="Monday">Monday</option>
                             <option value="Tuesday">Tuesday</option>
                             <option value="Wednesday">Wednesday</option>
@@ -208,16 +227,11 @@
                         </select>
                     </div>
 
-                    <!-- Payment Collection (Visible for Delivered / Payment Capture) -->
-                    <div id="usm-payment-container" class="hidden p-3 bg-blue-50/70 border border-blue-200 rounded-md space-y-3">
-                        <div class="text-xs font-bold text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                            Payment Mode (COD / To-Pay)
-                        </div>
+                    <!-- Payment Collection (Only shown for COD / To-Pay shipments when Delivered) -->
+                    <div id="usm-payment-container" class="hidden p-3 bg-blue-50/70 border border-blue-200 rounded-md space-y-2">
                         <div>
-                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Payment Method</label>
-                            <select id="usm-paymode-select" onchange="UpdateStatusModal.onPayModeChange(this.value)" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 transition-colors outline-none">
-                                <option value="">-- None / Pre-Paid --</option>
+                            <select id="usm-paymode-select" onchange="UpdateStatusModal.onPayModeChange(this.value)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">-- Select Payment Method (COD / To-Pay) --</option>
                                 <option value="Cash">Cash</option>
                                 <option value="UPI - Self">UPI - Self</option>
                                 <option value="UPI - Company">UPI - Company</option>
@@ -226,8 +240,7 @@
                             </select>
                         </div>
                         <div id="usm-utr-container" class="hidden">
-                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">UTR / Cheque / Txn Ref No. <span class="text-red-500">*</span></label>
-                            <input type="text" id="usm-utr-input" placeholder="e.g. UTR123456789 / Cheque #00412" class="w-full text-sm bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 transition-colors outline-none" />
+                            <input type="text" id="usm-utr-input" placeholder="UTR / Transaction Ref / Cheque No. (Required)" class="w-full text-xs bg-white border border-gray-300 rounded px-2.5 py-1.5 text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none" />
                         </div>
                     </div>
 
@@ -275,12 +288,15 @@
             const personContainer = document.getElementById('usm-person-container');
 
             if (payContainer) {
-                if (primaryVal === 'Delivered') {
+                const isCodTopay = isCodOrTopayShipment(currentReference, currentShipmentRecord);
+                if (primaryVal === 'Delivered' && isCodTopay) {
                     payContainer.classList.remove('hidden');
                 } else {
                     payContainer.classList.add('hidden');
-                    document.getElementById('usm-paymode-select').value = '';
-                    document.getElementById('usm-utr-container').classList.add('hidden');
+                    const paySelect = document.getElementById('usm-paymode-select');
+                    if (paySelect) paySelect.value = '';
+                    const utrCont = document.getElementById('usm-utr-container');
+                    if (utrCont) utrCont.classList.add('hidden');
                 }
             }
 
@@ -289,9 +305,12 @@
                     personContainer.classList.remove('hidden');
                 } else {
                     personContainer.classList.add('hidden');
-                    document.getElementById('usm-person-name').value = '';
-                    document.getElementById('usm-person-phone').value = '';
-                    document.getElementById('usm-person-relation').value = '';
+                    const pName = document.getElementById('usm-person-name');
+                    const pPhone = document.getElementById('usm-person-phone');
+                    const pRel = document.getElementById('usm-person-relation');
+                    if (pName) pName.value = '';
+                    if (pPhone) pPhone.value = '';
+                    if (pRel) pRel.value = '';
                 }
             }
         },
@@ -303,7 +322,8 @@
                     dayContainer.classList.remove('hidden');
                 } else {
                     dayContainer.classList.add('hidden');
-                    document.getElementById('usm-attempt-day-select').value = '';
+                    const daySel = document.getElementById('usm-attempt-day-select');
+                    if (daySel) daySel.value = '';
                 }
             }
         },
@@ -315,14 +335,16 @@
                     utrContainer.classList.remove('hidden');
                 } else {
                     utrContainer.classList.add('hidden');
-                    document.getElementById('usm-utr-input').value = '';
+                    const utrInp = document.getElementById('usm-utr-input');
+                    if (utrInp) utrInp.value = '';
                 }
             }
         },
 
-        open: function (reference, currentStatus = '', currentRemark = '') {
+        open: function (reference, currentStatus = '', currentRemark = '', shipmentData = null) {
             injectModalHTML();
             currentReference = reference || '';
+            currentShipmentRecord = shipmentData || null;
 
             const modal = document.getElementById('updateStatusModal');
             const refDisplay = document.getElementById('usm-ref-display');
