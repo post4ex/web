@@ -153,6 +153,9 @@ const AdminServices = (() => {
                     </div>
                     <div class="flex gap-1 flex-wrap" id="svc-actions">
                         <button id="svc-ping-btn" class="btn btn-sm text-xs">Ping</button>
+                        ${serviceId === 'tracking' ? `
+                            <button id="svc-worker-trigger-btn" class="btn btn-sm text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold">⚡ Run Worker Now</button>
+                        ` : ''}
                         ${serviceId === 'whatsapp' ? `
                             <button id="svc-wa-status-btn"  class="btn btn-sm text-xs">Status</button>
                             <button id="svc-wa-logout-btn"  class="btn btn-sm text-xs bg-red-50 text-red-600">Logout</button>
@@ -215,6 +218,26 @@ const AdminServices = (() => {
                 showNotification('Restart failed: ' + e.message, 'error');
             } finally { restartBtn.disabled = false; restartBtn.textContent = serviceId === 'render' ? 'Restart WA' : 'Restart'; }
         });
+
+        // Tracking worker trigger button
+        const workerBtn = document.getElementById('svc-worker-trigger-btn');
+        if (workerBtn) workerBtn.addEventListener('click', async () => {
+            if (!confirm('Trigger tracking worker cycle immediately for all active shipments?')) return;
+            workerBtn.disabled = true;
+            workerBtn.textContent = '⏳ Running…';
+            try {
+                const r = await ServicesAPI.triggerWorker(true);
+                const tracked = r.tracked_count ?? r.active_shipments ?? '?';
+                showNotification(`✅ Worker cycle complete — ${tracked} shipments tracked.`, 'success');
+                _loadTab(_activeTab);
+            } catch (e) {
+                showNotification('Worker trigger failed: ' + e.message, 'error');
+            } finally {
+                workerBtn.disabled = false;
+                workerBtn.textContent = '⚡ Run Worker Now';
+            }
+        });
+
 
         const logoutBtn = document.getElementById('svc-wa-logout-btn');
         if (logoutBtn) logoutBtn.addEventListener('click', async () => {
