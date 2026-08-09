@@ -85,6 +85,10 @@ const ServicesAPI = (() => {
     const hfBucketFiles  = (prefix = '') => _get('/api/services/hfbucket/files', prefix ? { prefix } : {});
     const hfBucketDelete = (key)         => _delete('/api/services/hfbucket/files', { key });
 
+    // Tracking Worker
+    const triggerWorker = (ignoreInterval = true) =>
+        _post(`/api/services/tracking/triggerWorker?ignore_interval=${ignoreInterval}`);
+
     return {
         pingAll, ping, getLogs,
         getLogsApp, getLogsNotif, getLogsTrack, getLogsWA, getLogsMail,
@@ -94,6 +98,7 @@ const ServicesAPI = (() => {
         datasetFiles, datasetDelete,
         bucketFiles, bucketDelete,
         hfBucketFiles, hfBucketDelete,
+        triggerWorker,
     };
 })();
 
