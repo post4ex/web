@@ -514,7 +514,6 @@ function _renderResult(data) {
                     ${movContent}
                 </div>
             </div>
-        </div>`;            </div>
         </div>`;
 
     rc.classList.remove('hidden');
