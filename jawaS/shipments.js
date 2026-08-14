@@ -1003,43 +1003,77 @@ function renderTrackingHistory(order) {
 function _renderTrackingHistoryData(movements) {
     const el = document.getElementById('liveTrackingHistory');
     if (!el) return;
-    if (!movements.length) {
+    if (!movements || !movements.length) {
         el.innerHTML = `<p class="text-sm text-gray-400">No movement history available.</p>`;
         return;
     }
-    // Desktop table / mobile cards
-    let cards = `<div class="space-y-2 sm:hidden">`;
-    movements.forEach(m => {
-        cards += `<div class="p-3 bg-gray-50 rounded-md border text-xs">
-            <div class="font-semibold text-gray-800">${m.activity || 'N/A'}</div>
-            <div class="text-gray-500 mt-1">${[m.date, m.time].filter(Boolean).join(' ')}</div>
-            ${m.location ? `<div class="text-gray-600 mt-0.5">${m.location}</div>` : ''}
-        </div>`;
-    });
-    cards += `</div>`;
 
-    let rows = '';
-    movements.forEach(m => {
-        rows += `<tr>
-            <td class="px-3 py-2 whitespace-nowrap">${m.date || ''}</td>
-            <td class="px-3 py-2 whitespace-nowrap">${m.time || ''}</td>
-            <td class="px-3 py-2">${m.location || ''}</td>
-            <td class="px-3 py-2">${m.activity || ''}</td>
-        </tr>`;
-    });
-    const table = `<div class="hidden sm:block overflow-x-auto border rounded-md">
-        <table id="trackingHistoryTable" class="min-w-full text-xs divide-y divide-gray-200">
-            <thead class="bg-gray-50"><tr>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Activity</th>
-            </tr></thead>
-            <tbody class="bg-white divide-y divide-gray-200">${rows}</tbody>
-        </table>
-    </div>`;
+    const trackMovs  = movements.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = movements.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
 
-    el.innerHTML = cards + table;
+    const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
+
+    // Latest scan at top for TRACK (Row 1 at top)
+    trackMovs.sort((a, b) => getRN(a) - getRN(b));
+    // Latest system event at top for SYSTEM (Max SYS # at top)
+    systemMovs.sort((a, b) => getRN(b) - getRN(a));
+
+    function _renderSection(title, items, isSystem = false) {
+        if (!items.length) return '';
+        let h = `<div class="mb-4">
+            <h4 class="text-xs font-bold ${isSystem ? 'text-green-700' : 'text-blue-800'} uppercase tracking-wider mb-2 flex items-center gap-1">
+                ${isSystem ? '⚙️ SYSTEM & BOOKING EVENTS' : '📍 COURIER TRACKING SCANS'} (${items.length})
+            </h4>`;
+        
+        // Mobile cards
+        h += `<div class="space-y-2 sm:hidden">`;
+        items.forEach(m => {
+            const rn = getRN(m);
+            const badgeBg = isSystem ? 'bg-green-700' : 'bg-blue-600';
+            const badgeText = isSystem ? `SYS #${rn}` : `#${rn}`;
+            h += `<div class="p-3 ${isSystem ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'} rounded-md border text-xs">
+                <div class="flex items-center gap-1.5 font-semibold text-gray-800">
+                    ${rn > 0 ? `<span class="${badgeBg} text-white px-1.5 py-0.5 rounded text-[10px] font-bold">${badgeText}</span>` : ''}
+                    <span>${m.activity || 'N/A'}</span>
+                </div>
+                <div class="text-gray-500 mt-1">${[m.date, m.time].filter(Boolean).join(' ')}</div>
+                ${m.location ? `<div class="text-gray-600 mt-0.5">📍 ${m.location}</div>` : ''}
+            </div>`;
+        });
+        h += `</div>`;
+
+        // Desktop table
+        let rows = '';
+        items.forEach(m => {
+            const rn = getRN(m);
+            const badgeBg = isSystem ? 'bg-green-700' : 'bg-blue-600';
+            const badgeText = isSystem ? `SYS #${rn}` : `#${rn}`;
+            rows += `<tr>
+                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-600">${rn > 0 ? `<span class="${badgeBg} text-white px-1.5 py-0.5 rounded text-[10px] font-bold">${badgeText}</span>` : '—'}</td>
+                <td class="px-3 py-2 whitespace-nowrap">${m.date || ''}</td>
+                <td class="px-3 py-2 whitespace-nowrap">${m.time || ''}</td>
+                <td class="px-3 py-2">${m.location || ''}</td>
+                <td class="px-3 py-2 font-medium">${m.activity || ''}</td>
+            </tr>`;
+        });
+
+        h += `<div class="hidden sm:block overflow-x-auto border rounded-md">
+            <table class="min-w-full text-xs divide-y divide-gray-200">
+                <thead class="${isSystem ? 'bg-green-50' : 'bg-gray-50'}"><tr>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Row</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Activity</th>
+                </tr></thead>
+                <tbody class="bg-white divide-y divide-gray-200">${rows}</tbody>
+            </table>
+        </div></div>`;
+        return h;
+    }
+
+    let html = _renderSection('TRACK', trackMovs, false) + _renderSection('SYSTEM', systemMovs, true);
+    el.innerHTML = html || `<p class="text-sm text-gray-400">No movement history available.</p>`;
 }
 
 // --- RENDER: PRODUCT, BOX & UPLOADS ---
@@ -1380,9 +1414,37 @@ async function waSelectedShipmentTracking() {
     const s         = result.shipment  || {};
     const movements = result.movements || [];
     const sc        = _stateConfig[s.state] || _stateConfig.intransit;
-    const movText   = movements.slice(0, 10).map(m =>
-        `  ${[m.date, m.time].filter(Boolean).join(' ')} | ${m.location || ''} | ${m.activity || ''}`
-    ).join('\n') || 'No history';
+
+    const trackMovs  = movements.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = movements.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
+
+    const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
+
+    // Latest scan at top for TRACK (Row 1 at top)
+    trackMovs.sort((a, b) => getRN(a) - getRN(b));
+    // Latest system event at top for SYSTEM (Max SYS # at top)
+    systemMovs.sort((a, b) => getRN(b) - getRN(a));
+
+    let movText = '';
+    if (trackMovs.length) {
+        movText += '📍 *COURIER TRACKING SCANS*\n';
+        movText += trackMovs.map(m => {
+            const rn = getRN(m);
+            const badge = rn > 0 ? `#${rn} ` : '';
+            return `  ${badge}${[m.date, m.time].filter(Boolean).join(' ')} | ${m.location || ''} | ${m.activity || ''}`;
+        }).join('\n');
+    }
+    if (systemMovs.length) {
+        if (movText) movText += '\n\n';
+        movText += '⚙️ *SYSTEM & BOOKING EVENTS*\n';
+        movText += systemMovs.map(m => {
+            const rn = getRN(m);
+            const badge = rn > 0 ? `SYS #${rn} ` : '';
+            return `  ${badge}${[m.date, m.time].filter(Boolean).join(' ')} | ${m.location || ''} | ${m.activity || ''}`;
+        }).join('\n');
+    }
+    if (!movText) movText = 'No history';
+
     await _waOrder({
         reference: order.REFERENCE,
         to: _getWaMobiles(order),
