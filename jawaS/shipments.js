@@ -1008,8 +1008,8 @@ function _renderTrackingHistoryData(movements) {
         return;
     }
 
-    const trackMovs  = movements.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
-    const systemMovs = movements.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
+    const trackMovs  = (window._lastTrackingResult && window._lastTrackingResult.track_movements) ? window._lastTrackingResult.track_movements : movements.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = (window._lastTrackingResult && window._lastTrackingResult.system_movements) ? window._lastTrackingResult.system_movements : movements.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
 
     const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
 
