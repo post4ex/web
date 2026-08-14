@@ -362,9 +362,12 @@ function _renderResult(data) {
         { label: 'Origin',      value: shipment.carrier_origin || shipment.origin,              icon: 'fa-circle-dot'      },
         { label: 'Destination', value: shipment.carrier_destination || shipment.destination,    icon: 'fa-location-dot'    },
         { label: 'Booked On',   value: shipment.booked_date || shipment.order_date,             icon: 'fa-calendar-days'   },
-        { label: 'Weight',      value: shipment.weight ? `${shipment.weight} kg · ${shipment.pieces||1} pcs` : null, icon: 'fa-weight-hanging'    const rawMovs = movements || [];
-    const trackMovs  = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
-    const systemMovs = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
+        { label: 'Weight',      value: shipment.weight ? `${shipment.weight} kg · ${shipment.pieces||1} pcs` : null, icon: 'fa-weight-hanging' },
+    ].filter(i => i.value);
+
+    const rawMovs = movements || [];
+    const trackMovs  = (data && data.track_movements) ? data.track_movements : rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = (data && data.system_movements) ? data.system_movements : rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
 
     const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
     trackMovs.sort((a, b) => getRN(b) - getRN(a));

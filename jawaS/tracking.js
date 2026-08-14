@@ -15,8 +15,8 @@ function renderTrackingResult(data, containerId) {
     const rawMovs = data.movements || [];
     const st  = TRACK_STATE_BADGE[s.state] || TRACK_STATE_BADGE.pending;
 
-    const trackMovs  = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
-    const systemMovs = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
+    const trackMovs  = data.track_movements || rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = data.system_movements || rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
 
     const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
     trackMovs.sort((a, b) => getRN(b) - getRN(a));
