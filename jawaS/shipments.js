@@ -1027,12 +1027,8 @@ function _renderTrackingHistoryData(movements) {
         // Mobile cards
         h += `<div class="space-y-2 sm:hidden">`;
         items.forEach(m => {
-            const rn = getRN(m);
-            const badgeBg = isSystem ? 'bg-green-700' : 'bg-blue-600';
-            const badgeText = isSystem ? `SYS #${rn}` : `#${rn}`;
             h += `<div class="p-3 ${isSystem ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'} rounded-md border text-xs">
-                <div class="flex items-center gap-1.5 font-semibold text-gray-800">
-                    ${rn > 0 ? `<span class="${badgeBg} text-white px-1.5 py-0.5 rounded text-[10px] font-bold">${badgeText}</span>` : ''}
+                <div class="font-semibold text-gray-800">
                     <span>${m.activity || 'N/A'}</span>
                 </div>
                 <div class="text-gray-500 mt-1">${[m.date, m.time].filter(Boolean).join(' ')}</div>
@@ -1044,22 +1040,17 @@ function _renderTrackingHistoryData(movements) {
         // Desktop table
         let rows = '';
         items.forEach(m => {
-            const rn = getRN(m);
-            const badgeBg = isSystem ? 'bg-green-700' : 'bg-blue-600';
-            const badgeText = isSystem ? `SYS #${rn}` : `#${rn}`;
             rows += `<tr>
-                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-600">${rn > 0 ? `<span class="${badgeBg} text-white px-1.5 py-0.5 rounded text-[10px] font-bold">${badgeText}</span>` : '—'}</td>
-                <td class="px-3 py-2 whitespace-nowrap">${m.date || ''}</td>
-                <td class="px-3 py-2 whitespace-nowrap">${m.time || ''}</td>
-                <td class="px-3 py-2">${m.location || ''}</td>
-                <td class="px-3 py-2 font-medium">${m.activity || ''}</td>
+                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-700">${m.date || ''}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-gray-500">${m.time || ''}</td>
+                <td class="px-3 py-2 text-gray-600">${m.location || ''}</td>
+                <td class="px-3 py-2 font-medium text-gray-800">${m.activity || ''}</td>
             </tr>`;
         });
 
         h += `<div class="hidden sm:block overflow-x-auto border rounded-md">
             <table class="min-w-full text-xs divide-y divide-gray-200">
                 <thead class="${isSystem ? 'bg-green-50' : 'bg-gray-50'}"><tr>
-                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Row</th>
                     <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
                     <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
                     <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th>

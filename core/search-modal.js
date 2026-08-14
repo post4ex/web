@@ -362,35 +362,80 @@ function _renderResult(data) {
         { label: 'Origin',      value: shipment.carrier_origin || shipment.origin,              icon: 'fa-circle-dot'      },
         { label: 'Destination', value: shipment.carrier_destination || shipment.destination,    icon: 'fa-location-dot'    },
         { label: 'Booked On',   value: shipment.booked_date || shipment.order_date,             icon: 'fa-calendar-days'   },
-        { label: 'Weight',      value: shipment.weight ? `${shipment.weight} kg · ${shipment.pieces||1} pcs` : null, icon: 'fa-weight-hanging' },
-    ].filter(i => i.value);
+        { label: 'Weight',      value: shipment.weight ? `${shipment.weight} kg · ${shipment.pieces||1} pcs` : null, icon: 'fa-weight-hanging'    const rawMovs = movements || [];
+    const trackMovs  = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
 
-    // Desktop movement table
-    const movRows = movements.map((m, i) => {
-        const sysTs = m.activity_stamp || m.time_stamp || 0;
-        const sysTime = sysTs ? (typeof fmtDate === 'function' ? fmtDate(sysTs, 'full') : sysTs) : '—';
+    const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
+    trackMovs.sort((a, b) => getRN(b) - getRN(a));
+    systemMovs.sort((a, b) => getRN(b) - getRN(a));
+
+    function _renderMovSection(title, items, isSystem = false) {
+        if (!items.length) return '';
+        
+        // Desktop rows
+        const rows = items.map((m, i) => {
+            const sysTs = m.activity_stamp || m.time_stamp || 0;
+            const sysTime = sysTs ? (typeof fmtDate === 'function' ? fmtDate(sysTs, 'full') : sysTs) : '—';
+            return `
+            <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};">
+                <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">
+                    ${m.date||m.DATE||''}
+                </td>
+                <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||m.TIME||''}</td>
+                <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||m.LOCATION||''}</td>
+                <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;font-weight:${i===0?700:500};">${m.activity||m.ACTIVITY||''}</td>
+                <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.68rem;color:#94a3b8;">${sysTime}</td>
+            </tr>`;
+        }).join('');
+
+        // Mobile cards
+        const cards = items.map((m, i) => {
+            return `
+            <div style="border-radius:0.625rem;padding:0.65rem 0.875rem;border:1px solid ${isSystem?'#bbf7d0':i===0?'#bfdbfe':'#e2e8f0'};background:${isSystem?'#f0fdf4':i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.4rem;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.2rem;">
+                    <span style="font-size:0.75rem;font-weight:700;color:${isSystem?'#166534':i===0?'#1d4ed8':'#374151'};">
+                        ${m.activity||m.ACTIVITY||''}
+                    </span>
+                    <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;">${m.date||m.DATE||''} ${m.time||m.TIME||''}</span>
+                </div>
+                ${(m.location||m.LOCATION)?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">📍 ${m.location||m.LOCATION}</p>`:''}
+            </div>`;
+        }).join('');
+
         return `
-        <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};">
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||m.DATE||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||m.TIME||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.72rem;color:#6b7280;">${m.location||m.LOCATION||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;font-size:0.75rem;color:#374151;font-weight:${i===0?700:500};">${m.activity||m.ACTIVITY||''}</td>
-            <td style="padding:0.6rem 0.875rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-size:0.68rem;color:#94a3b8;">${sysTime}</td>
-        </tr>`;
-    }).join('');
-
-    // Mobile movement cards
-    const movCards = movements.map((m, i) => `
-        <div style="border-radius:0.625rem;padding:0.65rem 0.875rem;border:1px solid ${i===0?'#bfdbfe':'#e2e8f0'};background:${i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.4rem;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.2rem;">
-                <span style="font-size:0.75rem;font-weight:700;color:${i===0?'#1d4ed8':'#374151'};">${m.activity||m.ACTIVITY||''}</span>
-                <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;">${m.date||m.DATE||''} ${m.time||m.TIME||''}</span>
+        <div style="margin-bottom:1.25rem;">
+            <div style="padding:0.5rem 0.875rem;background:${isSystem?'#f0fdf4':'#eff6ff'};border-bottom:1px solid ${isSystem?'#bbf7d0':'#bfdbfe'};display:flex;align-items:center;justify-space-between;">
+                <span style="font-size:0.68rem;font-weight:800;color:${isSystem?'#166534':'#1e40af'};text-transform:uppercase;letter-spacing:0.07em;">
+                    ${isSystem ? '⚙️ SYSTEM & BOOKING EVENTS' : '📍 COURIER TRACKING SCANS'} (${items.length})
+                </span>
             </div>
-            ${(m.location||m.LOCATION)?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">${m.location||m.LOCATION}</p>`:''}
-        </div>`).join('');
+            <!-- Desktop -->
+            <div id="sm-mov-desktop-${isSystem?'sys':'track'}" style="display:${isMobile?'none':'block'};">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="background:#f8fafc;position:sticky;top:0;">
+                        <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Date</th>
+                        <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Time</th>
+                        <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Location</th>
+                        <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Activity</th>
+                        <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Sys Time</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <!-- Mobile -->
+            <div id="sm-mov-mobile-${isSystem?'sys':'track'}" style="display:${isMobile?'block':'none'};padding:0.75rem;">
+                ${cards}
+            </div>
+        </div>`;
+    }
 
     const noMov = '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1.5rem;">No movements recorded yet.</p>';
     const isMobile = window.innerWidth <= 640;
+
+    const trackHTML = _renderMovSection('COURIER TRACKING SCANS', trackMovs, false);
+    const sysHTML   = _renderMovSection('SYSTEM & BOOKING EVENTS', systemMovs, true);
+    const movContent = (trackHTML || sysHTML) ? (trackHTML + sysHTML) : noMov;
 
     rc.innerHTML = `
         <div style="font-family:'Inter',sans-serif;">
@@ -460,26 +505,13 @@ function _renderResult(data) {
                     <span style="font-size:0.7rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:0.07em;">
                         <i class="fa-solid fa-timeline" style="color:#2563eb;margin-right:0.4rem;"></i>Movement History
                     </span>
-                    ${movements.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.62rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:2rem;">${movements.length} events</span>` : ''}
+                    ${rawMovs.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.62rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:2rem;">${rawMovs.length} total events</span>` : ''}
                 </div>
-                <!-- Desktop table -->
-                <div id="sm-mov-desktop" style="display:${isMobile?'none':'block'};">
-                    ${movRows ? `<table style="width:100%;border-collapse:collapse;">
-                        <thead><tr style="background:#f8fafc;position:sticky;top:0;">
-                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Date</th>
-                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Time</th>
-                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Location</th>
-                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Activity</th>
-                            <th style="text-align:left;padding:0.5rem 0.875rem;font-size:0.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Sys Time</th>
-                        </tr></thead>
-                        <tbody>${movRows}</tbody>
-                    </table>` : noMov}
-                </div>
-                <!-- Mobile cards -->
-                <div id="sm-mov-mobile" style="display:${isMobile?'block':'none'};padding:0.75rem;">
-                    ${movCards || noMov}
+                <div>
+                    ${movContent}
                 </div>
             </div>
+        </div>`;            </div>
         </div>`;
 
     rc.classList.remove('hidden');

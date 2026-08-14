@@ -157,23 +157,55 @@ function _renderTrackStatus(result, ts) {
 
 function _renderTrackHistory(movements) {
     const el = document.getElementById('t-trackingHistoryContainer');
-    if (!movements.length) {
+    if (!movements || !movements.length) {
         el.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div><div class="detail-card-body"><p class="text-sm text-gray-400">No movement history.</p></div>`;
         return;
     }
-    const rows = movements.map(m =>
-        `<tr><td class="px-3 py-2 whitespace-nowrap">${m.date||''}</td><td class="px-3 py-2 whitespace-nowrap">${m.time||''}</td><td class="px-3 py-2">${m.location||''}</td><td class="px-3 py-2">${m.activity||''}</td></tr>`
-    ).join('');
+
+    const trackMovs  = movements.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = movements.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
+
+    const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
+    trackMovs.sort((a, b) => getRN(b) - getRN(a));
+    systemMovs.sort((a, b) => getRN(b) - getRN(a));
+
+    function _buildTableHTML(title, items, isSystem = false) {
+        if (!items.length) return '';
+        const rows = items.map(m => {
+            return `<tr>
+                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-800">
+                    ${m.date||''}
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap text-gray-500">${m.time||''}</td>
+                <td class="px-3 py-2 text-gray-600">${m.location||''}</td>
+                <td class="px-3 py-2 text-gray-800 font-semibold">${m.activity||''}</td>
+            </tr>`;
+        }).join('');
+
+        return `<div class="mb-4">
+            <div class="px-3 py-1.5 ${isSystem ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'} border-b text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                <span>${isSystem ? '⚙️ SYSTEM & BOOKING EVENTS' : '📍 COURIER TRACKING SCANS'} (${items.length})</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs divide-y divide-gray-200 border rounded-md">
+                    <thead class="bg-gray-50"><tr>
+                        <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
+                        <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th>
+                        <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Activity</th>
+                    </tr></thead>
+                    <tbody class="bg-white divide-y divide-gray-200">${rows}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }
+
+    const trackHTML = _buildTableHTML('COURIER TRACKING SCANS', trackMovs, false);
+    const sysHTML   = _buildTableHTML('SYSTEM & BOOKING EVENTS', systemMovs, true);
+
     el.innerHTML = `<div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div>
-    <div class="detail-card-body overflow-x-auto">
-        <table class="min-w-full text-xs divide-y divide-gray-200 border rounded-md">
-            <thead class="bg-gray-50"><tr>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Date</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Location</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase">Activity</th>
-            </tr></thead>
-            <tbody class="bg-white divide-y divide-gray-200">${rows}</tbody>
-        </table>
+    <div class="detail-card-body">
+        ${trackHTML}
+        ${sysHTML}
     </div>`;
 }

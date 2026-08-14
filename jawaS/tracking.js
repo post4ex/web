@@ -12,8 +12,15 @@ const TRACK_STATE_BADGE = {
 
 function renderTrackingResult(data, containerId) {
     const s   = data.shipment || {};
-    const mvs = (data.movements || []).slice().sort((a, b) => (a.row_number ?? 0) - (b.row_number ?? 0));
+    const rawMovs = data.movements || [];
     const st  = TRACK_STATE_BADGE[s.state] || TRACK_STATE_BADGE.pending;
+
+    const trackMovs  = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || 'TRACK').toUpperCase() === 'TRACK');
+    const systemMovs = rawMovs.filter(m => String(m.move_type || m.MOVE_TYPE || '').toUpperCase() === 'SYSTEM');
+
+    const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
+    trackMovs.sort((a, b) => getRN(b) - getRN(a));
+    systemMovs.sort((a, b) => getRN(b) - getRN(a));
 
     const stateStyle = {
         delivered:      { bg: 'linear-gradient(135deg,#9C2007,#7a1805)', glow: 'rgba(156,32,7,0.3)'   },
@@ -33,42 +40,71 @@ function renderTrackingResult(data, containerId) {
         { label: 'Weight',      value: s.weight ? `${s.weight} kg · ${s.pieces||1} pcs` : null, icon: 'fa-weight-hanging' },
     ].filter(i => i.value);
 
-    const movRows = mvs.map((m, i) => `
-        <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.08)'" onmouseout="this.style.background='${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'}'">
-            <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">${m.date||''}</td>
-            <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||''}</td>
-            <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;font-size:0.72rem;color:#6b7280;">${m.location||''}</td>
-            <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;">
-                ${i===0
-                    ? `<span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.75rem;font-weight:700;color:#1d4ed8;"><span style="width:6px;height:6px;background:#2563eb;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px rgba(37,99,235,0.2);"></span>${m.activity||''}</span>`
-                    : `<span style="font-size:0.75rem;color:#374151;font-weight:500;">${m.activity||''}</span>`
-                }
-            </td>
-        </tr>`).join('');
+    function _renderSectionHTML(title, items, isSystem = false) {
+        if (!items.length) return '';
+        
+        const movRows = items.map((m, i) => {
+            return `
+            <tr style="background:${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'};transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.08)'" onmouseout="this.style.background='${i===0?'rgba(37,99,235,0.06)':i%2===0?'#fff':'#f9fafb'}'">
+                <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#374151;">
+                    ${m.date||''}
+                </td>
+                <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;white-space:nowrap;font-size:0.72rem;color:#9ca3af;">${m.time||''}</td>
+                <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;font-size:0.72rem;color:#6b7280;">${m.location||''}</td>
+                <td style="padding:0.65rem 0.875rem;border-bottom:1px solid #f1f5f9;vertical-align:top;">
+                    ${i===0
+                        ? `<span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.75rem;font-weight:700;color:${isSystem?'#15803d':'#1d4ed8'};"><span style="width:6px;height:6px;background:${isSystem?'#15803d':'#2563eb'};border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px rgba(37,99,235,0.2);"></span>${m.activity||''}</span>`
+                        : `<span style="font-size:0.75rem;color:#374151;font-weight:500;">${m.activity||''}</span>`
+                    }
+                </td>
+            </tr>`;
+        }).join('');
 
-    const movTable = mvs.length ? `
-        <div style="max-height:280px;overflow-y:auto;">
-            <table style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr style="background:linear-gradient(to right,#f8fafc,#f1f5f9);position:sticky;top:0;">
-                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Date</th>
-                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Time</th>
-                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Location</th>
-                        <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Activity</th>
-                    </tr>
-                </thead>
-                <tbody>${movRows}</tbody>
-            </table>
-        </div>` : `<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:2rem;">No movements recorded yet.</p>`;
+        const movCards = items.map((m, i) => {
+            return `
+            <div style="border-radius:0.75rem;padding:0.75rem 1rem;border:1px solid ${isSystem?'#bbf7d0':i===0?'#bfdbfe':'#e2e8f0'};background:${isSystem?'#f0fdf4':i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.5rem;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.25rem;">
+                    <span style="font-size:0.75rem;font-weight:700;color:${isSystem?'#166534':i===0?'#1d4ed8':'#374151'};">
+                        ${m.activity||''}
+                    </span>
+                    <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;">${m.date||''} ${m.time||''}</span>
+                </div>
+                ${m.location?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">📍 ${m.location}</p>`:''}
+            </div>`;
+        }).join('');
 
-    const movCards = mvs.length ? mvs.map((m, i) => `
-        <div style="border-radius:0.75rem;padding:0.75rem 1rem;border:1px solid ${i===0?'#bfdbfe':'#e2e8f0'};background:${i===0?'#eff6ff':'#f8fafc'};margin-bottom:0.5rem;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.25rem;">
-                <span style="font-size:0.75rem;font-weight:700;color:${i===0?'#1d4ed8':'#374151'};">${m.activity||''}</span>
-                <span style="font-size:0.65rem;color:#94a3b8;white-space:nowrap;">${m.date||''} ${m.time||''}</span>
+        return `
+        <div style="margin-bottom:1.25rem;">
+            <div style="padding:0.6rem 1rem;background:${isSystem?'#f0fdf4':'#eff6ff'};border-bottom:1px solid ${isSystem?'#bbf7d0':'#bfdbfe'};display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:0.7rem;font-weight:800;color:${isSystem?'#166534':'#1e40af'};text-transform:uppercase;letter-spacing:0.08em;">
+                    ${isSystem ? '⚙️ SYSTEM & BOOKING EVENTS' : '📍 COURIER TRACKING SCANS'} (${items.length})
+                </span>
             </div>
-            ${m.location?`<p style="font-size:0.65rem;color:#6b7280;margin:0;">${m.location}</p>`:''}
-        </div>`).join('') : `<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem;">No movements recorded yet.</p>`;
+            <!-- Desktop -->
+            <div class="desktop-only-mov">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:linear-gradient(to right,#f8fafc,#f1f5f9);position:sticky;top:0;">
+                            <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Date</th>
+                            <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;">Time</th>
+                            <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Location</th>
+                            <th style="text-align:left;padding:0.6rem 0.875rem;border-bottom:1px solid #e2e8f0;font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>${movRows}</tbody>
+                </table>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile-only-mov" style="padding:0.75rem;">
+                ${movCards}
+            </div>
+        </div>`;
+    }
+
+    const noMov = `<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:2rem;">No movements recorded yet.</p>`;
+    const trackHTML = _renderSectionHTML('COURIER TRACKING SCANS', trackMovs, false);
+    const sysHTML   = _renderSectionHTML('SYSTEM & BOOKING EVENTS', systemMovs, true);
+    const movContent = (trackHTML || sysHTML) ? (trackHTML + sysHTML) : noMov;
 
     const html = `
         <div style="font-family:'Inter',sans-serif;">
@@ -108,15 +144,14 @@ function renderTrackingResult(data, containerId) {
             <div style="background:white;border:1px solid #e2e8f0;border-radius:1rem;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);">
                 <div style="padding:0.875rem 1rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to right,#f8fafc,#fff);">
                     <div style="display:flex;align-items:center;gap:0.5rem;">
-                        <i class="fa-solid fa-timeline" style="color:#2563eb;font-size:0.8rem;"></i>
-                        <p style="font-size:0.72rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:0.08em;">Movement History</p>
+                        <div style="width:1.75rem;height:1.75rem;background:#eff6ff;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;">
+                            <i class="fa-solid fa-timeline" style="color:#2563eb;font-size:0.75rem;"></i>
+                        </div>
+                        <p style="font-size:0.8rem;font-weight:700;color:#1e293b;margin:0;">Movement History</p>
                     </div>
-                    ${mvs.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.65rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:2rem;">${mvs.length} events</span>` : ''}
+                    ${rawMovs.length ? `<span style="background:#eff6ff;color:#2563eb;font-size:0.68rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:2rem;">${rawMovs.length} total events</span>` : ''}
                 </div>
-                <!-- Desktop: table -->
-                <div class="hidden sm:block">${movTable}</div>
-                <!-- Mobile: cards -->
-                <div class="sm:hidden" style="padding:0.75rem;">${movCards}</div>
+                <div>${movContent}</div>
             </div>
         </div>`;
 
