@@ -1013,9 +1013,8 @@ function _renderTrackingHistoryData(movements) {
 
     const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
 
-    // Latest scan at top for TRACK (Row 1 at top)
-    trackMovs.sort((a, b) => getRN(a) - getRN(b));
-    // Latest system event at top for SYSTEM (Max SYS # at top)
+    // Both TRACK and SYSTEM sorted descending by ROW_NUMBER (max row on top down to 1)
+    trackMovs.sort((a, b) => getRN(b) - getRN(a));
     systemMovs.sort((a, b) => getRN(b) - getRN(a));
 
     function _renderSection(title, items, isSystem = false) {
@@ -1420,9 +1419,8 @@ async function waSelectedShipmentTracking() {
 
     const getRN = m => Number(m.row_number ?? m.ROW_NUMBER ?? 0);
 
-    // Latest scan at top for TRACK (Row 1 at top)
-    trackMovs.sort((a, b) => getRN(a) - getRN(b));
-    // Latest system event at top for SYSTEM (Max SYS # at top)
+    // Both TRACK and SYSTEM sorted descending by ROW_NUMBER (max row on top down to 1)
+    trackMovs.sort((a, b) => getRN(b) - getRN(a));
     systemMovs.sort((a, b) => getRN(b) - getRN(a));
 
     let movText = '';
