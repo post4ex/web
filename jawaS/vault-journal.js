@@ -270,7 +270,7 @@ const VaultJournal = (() => {
         // Ensure cache keys are loaded
         if (!window.__vaultCacheKeys) {
             try {
-                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+                window.__vaultCacheKeys = Promise.resolve({});
             } catch (err) {
                 console.error("Failed to load cache keys inside form:", err);
                 window.__vaultCacheKeys = {};

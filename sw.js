@@ -3,7 +3,7 @@
 // ============================================================================
 
 const DB_NAME = 'WEBIndexedDB';
-const DB_VERSION = 11;
+const DB_VERSION = 12;
 
 const sheetKeys = {
   'ORDERS':        'REFERENCE',
@@ -21,9 +21,7 @@ const sheetKeys = {
   'CALC_HISTORY':  'CALC_UID',
   'NOTIFICATIONS': 'NOTIF_ID',
   'HOLIDAYS':      'HOLIDAY_ID',
-  'LEDGER':        'TXN_ID',
   'SHIPMENTS':     'REFERENCE',
-  'HEADER':        'DOX_KEY',
 };
 
 // ----------------------------------------------------------------------------

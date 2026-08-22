@@ -30,6 +30,39 @@ window.getSessionExpiry = function () {
         return d.expires || 0;
     } catch { return 0; }
 };
+
+window.getActiveBranch = function () {
+    try {
+        const user = getUser();
+        if (!user || !user.ROLE) return '';
+
+        const roleLevels = (typeof ROLE_LEVELS !== 'undefined') ? ROLE_LEVELS : {
+            CLIENT: 10, STAFF: 20, MANAGER: 40, ADMIN: 80, MASTER: 100
+        };
+
+        const userLevel = roleLevels[user.ROLE] || 0;
+        const managerLevel = roleLevels['MANAGER'] || 40;
+
+        // MANAGER or below (Staff, Manager, Client) always auto-select their single assigned branch
+        if (userLevel <= managerLevel) {
+            return (user.BRANCH || '').trim().toUpperCase();
+        }
+
+        // Above Manager (ADMIN, MASTER) can switch or use saved branch
+        const selected = localStorage.getItem('active_selected_branch') || localStorage.getItem('vault_selected_branch') || user.BRANCH || '';
+        return (selected || '').trim().toUpperCase();
+    } catch {
+        return '';
+    }
+};
+
+window.setActiveBranch = function (branch) {
+    if (!branch) return;
+    const b = branch.trim().toUpperCase();
+    localStorage.setItem('active_selected_branch', b);
+    localStorage.setItem('vault_selected_branch', b);
+    window.dispatchEvent(new CustomEvent('branchChanged', { detail: { branch: b } }));
+};
 // ─────────────────────────────────────────────────────────────────────────────
 
 let lastActivity = Date.now();

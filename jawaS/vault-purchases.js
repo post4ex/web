@@ -574,7 +574,7 @@ const VaultPurchases = (() => {
 
             if (!window.__vaultCacheKeys) {
                 try {
-                    window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+                    window.__vaultCacheKeys = Promise.resolve({});
                 } catch (err) {
                     console.error("Failed to load cache keys:", err);
                     window.__vaultCacheKeys = {};
@@ -901,7 +901,7 @@ const VaultPurchases = (() => {
 
         if (!window.__vaultCacheKeys) {
             try {
-                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+                window.__vaultCacheKeys = Promise.resolve({});
             } catch (err) {
                 console.error("Failed to load cache keys:", err);
                 window.__vaultCacheKeys = {};
@@ -1297,13 +1297,7 @@ const VaultPurchases = (() => {
 
         _injectUI();
 
-        if (!window.__vaultCacheKeys) {
-            try {
-                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
-            } catch (err) {
-                console.error("Failed to pre-fetch cache keys:", err);
-            }
-        }
+        // cache keys pre-fetch removed
 
         window.setLoading?.(true, 'Loading purchase bills...', 'list');
         try {

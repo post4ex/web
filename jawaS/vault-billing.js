@@ -542,61 +542,59 @@ const VaultBilling = (() => {
         document.getElementById('vbCloseInvModal')?.remove();
         const modal = document.createElement('div');
         modal.id = 'vbCloseInvModal';
-        modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto';
+        modal.className = 'fixed inset-0 flex items-center justify-center p-4';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 999999 !important; display: flex; align-items: center; justify-content: center;';
         modal.innerHTML = `
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto relative" style="max-height:90vh;overflow-y:auto;">
-                <!-- Close btn -->
-                <button onclick="document.getElementById('vbCloseInvModal').remove()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 z-10">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto relative overflow-hidden flex flex-col border border-gray-200 animate-fade-in" style="max-height: 88vh; z-index: 1000000 !important;">
                 <!-- Header -->
-                <div class="px-6 pt-5 pb-3 border-b bg-gradient-to-r from-indigo-50 to-white">
-                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Generate Invoice
-                    </h3>
-                    <div class="flex justify-between items-start mt-1">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-800">${clientName}</p>
-                            <p class="text-xs text-gray-500">ID: ${inv.INVOICE_ID || 'N/A'} &middot; Branch: ${branch?.BRANCH_NAME || inv.BRANCH || 'N/A'}</p>
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <i class="fa-solid fa-file-invoice text-sm"></i>
                         </div>
-                        <div class="text-right text-xs text-gray-500">
-                            <div>${shipments.length} shipment${shipments.length !== 1 ? 's' : ''}</div>
-                            <div>${tChgWt.toFixed(2)} kg</div>
+                        <div>
+                            <h3 class="text-base font-bold text-gray-900 leading-tight">Generate Invoice</h3>
+                            <p class="text-xs text-gray-500 font-medium">${clientName} &middot; <span class="text-indigo-600 font-semibold">${inv.INVOICE_ID || 'N/A'}</span></p>
                         </div>
                     </div>
+                    <button onclick="document.getElementById('vbCloseInvModal').remove()" class="w-7 h-7 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
                 </div>
 
-                <!-- Body: Charges + Tax Table -->
-                <div class="px-6 py-4 space-y-1">
+                <!-- Info Chips -->
+                <div class="px-6 py-2.5 bg-indigo-50/40 border-b border-indigo-50 flex items-center justify-between text-xs text-gray-600 font-medium">
+                    <div>Branch: <span class="font-bold text-gray-800">${branch?.BRANCH_NAME || inv.BRANCH || 'N/A'}</span></div>
+                    <div>${shipments.length} AWBs &middot; <span class="font-bold text-gray-800">${tChgWt.toFixed(2)} kg</span></div>
+                </div>
+
+                <!-- Scrollable Body: Charges Table -->
+                <div class="px-6 py-4 overflow-y-auto flex-1 space-y-1 text-xs">
                     ${tableHtml}
                 </div>
 
-                <!-- Invoice Number + Date -->
-                <div class="px-6 py-4 border-t bg-gray-50 space-y-3">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Number</label>
-                            <input id="vbCloseInvNum" type="text" class="form-input w-full text-sm" placeholder="Auto-generate">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Invoice Date *</label>
-                            <input id="vbCloseInvDate" type="date" class="form-input w-full text-sm">
-                        </div>
+                <!-- Footer: Date + Actions -->
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Invoice Date *</label>
+                        <input id="vbCloseInvDate" type="date" class="form-input w-full text-sm font-medium bg-white">
+                        <p class="text-[11px] text-gray-500 mt-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>
+                            Invoice number is automatically sequenced by Invoice Ninja.
+                        </p>
                     </div>
-                    <p id="vbCloseInvErr" class="text-xs text-red-600 hidden"></p>
+                    <p id="vbCloseInvErr" class="text-xs text-red-600 font-medium hidden"></p>
 
-                    <div class="flex gap-3 pt-1">
-                        <button id="vbCloseInvConfirm" class="flex-1 px-4 py-2.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Confirm &amp; Generate
+                    <div class="flex gap-2.5 pt-1">
+                        <button id="vbCloseInvCancel" class="btn-danger btn-sm flex-1">Cancel</button>
+                        <button id="vbCloseInvConfirm" class="btn-ghost btn-sm flex-1 font-bold">
+                            <i class="fa-solid fa-bolt text-xs"></i>
+                            <span>Confirm &amp; Generate</span>
                         </button>
-                        <button id="vbCloseInvCancel" class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
                     </div>
                     ${qrUrl ? `<div class="flex items-center gap-3 pt-2 border-t border-gray-200">
-                        <img src="${qrUrl}" style="width:60px;height:60px;border:1px solid #ddd;border-radius:4px;">
-                        <div class="text-xs text-gray-500">UPI QR for payment<br><span class="font-semibold text-gray-700">&#8377;${grandTotal.toFixed(2)}</span></div>
+                        <img src="${qrUrl}" style="width:50px;height:50px;border:1px solid #ddd;border-radius:6px;">
+                        <div class="text-xs text-gray-500">UPI QR for payment<br><span class="font-bold text-gray-800">&#8377;${grandTotal.toFixed(2)}</span></div>
                     </div>` : ''}
                 </div>
             </div>`;
@@ -605,23 +603,21 @@ const VaultBilling = (() => {
 
         // ── Wire up ───────────────────────────────────────────────────────────
         document.getElementById('vbCloseInvDate').value = fmtDate(Date.now(), 'input');
-        document.getElementById('vbCloseInvNum').value = '';
         document.getElementById('vbCloseInvErr').classList.add('hidden');
         document.getElementById('vbCloseInvCancel').onclick = () => modal.remove();
 
         document.getElementById('vbCloseInvConfirm').onclick = async () => {
-            const invNum  = document.getElementById('vbCloseInvNum').value.trim() || null;
             const invDate = document.getElementById('vbCloseInvDate').value;
             const errEl   = document.getElementById('vbCloseInvErr');
             if (!invDate) { errEl.textContent = 'Invoice date is required.'; errEl.classList.remove('hidden'); return; }
 
             const btn = document.getElementById('vbCloseInvConfirm');
             btn.disabled = true;
-            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9a9 9 0 0115.12-4.38M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 15a9 9 0 01-15.12 4.38"/></svg> Generating...';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Issuing to Invoice Ninja...</span>';
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {
-                const res = await callApi('/api/issueInvoice', { invoice_id: inv.INVOICE_ID, inv_number: invNum, inv_date: toMs(invDate) });
+                const res = await callApi('/api/issueInvoice', { invoice_id: inv.INVOICE_ID, inv_date: toMs(invDate) });
                 if (res.status === 'success') {
                     modal.remove();
                     _showInvoiceBanner(res.inv_number, invDate, res.updated);
@@ -634,7 +630,7 @@ const VaultBilling = (() => {
                 errEl.textContent = e.message || 'Error issuing invoice.'; errEl.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Confirm &amp; Generate';
+                btn.innerHTML = '<i class="fa-solid fa-file-invoice text-sm"></i> <span>Confirm &amp; Generate</span>';
             }
         };
     }

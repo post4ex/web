@@ -143,7 +143,7 @@ const VaultSuppliers = (() => {
     async function _ensureCoaAccounts(code) {
         if (_coaCache[code]) return _coaCache[code];
         try {
-            const res = await callApi(`/api/manager/cache/keys?code=${encodeURIComponent(code)}&categories=coa`, {}, 'GET');
+            const res = {};
             const map = res.coa || {};
             const list = Object.entries(map).map(([name, key]) => ({ key, name }));
             _coaCache[code] = list;
@@ -894,7 +894,7 @@ const VaultSuppliers = (() => {
 
         if (!window.__vaultCacheKeys) {
             try {
-                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+                window.__vaultCacheKeys = Promise.resolve({});
             } catch (e) {
                 console.error('[VaultSuppliers] Failed to fetch cache keys:', e);
                 window.__vaultCacheKeys = {};

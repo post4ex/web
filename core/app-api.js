@@ -24,6 +24,14 @@ async function callApi(endpoint, payload = {}, method = 'POST', timeoutMs = 3000
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    const branch = typeof getActiveBranch === 'function' ? getActiveBranch() : '';
+    if (branch) headers['X-Branch'] = branch;
+
+    const user = typeof getUser === 'function' ? getUser() : null;
+    if (user && user.ROLE === 'CLIENT' && user.CODE) {
+        headers['X-Client-Code'] = user.CODE;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -435,7 +443,7 @@ async function getAppData(sheetName = null) {
     try {
         if (sheetName) return await window.appDB.getSheet(sheetName);
 
-        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'];
+        const sheets = ['ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'HOLIDAYS', 'SHIPMENTS'];
         const result  = {};
         const results = await Promise.all(sheets.map(s => window.appDB.getSheet(s).catch(() => ({}))));
         sheets.forEach((s, i) => result[s] = results[i]);

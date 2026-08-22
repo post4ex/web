@@ -5,6 +5,7 @@
 const VaultPage = (() => {
 
     let _activeTile = null;
+    let _lastActiveTile = null;
     let _tilesScrollTop = 0;
     const _isMobile = () => window.innerWidth < 768;
 
@@ -14,38 +15,70 @@ const VaultPage = (() => {
 
     // Minimum role to see each tile
     const TILE_MIN_ROLE = {
-        'sales-invoices':    'MANAGER',
-        'credit-notes':      'MANAGER',
+        // Customer Facing (Client+)
+        'sales-invoices':    'CLIENT',
+        'credit-notes':      'CLIENT',
         'customers':         'CLIENT',
-        'service-items':     'MANAGER',
-        'product-items':     'MANAGER',
         'billing':           'CLIENT',
-        'purchase-bills':    'MANAGER',
-        'debit-notes':       'MANAGER',
-        'suppliers':         'CLIENT',
-        'inventory':         'MANAGER',
-        'stock-transfers':   'MANAGER',
+        'wallet':            'CLIENT',
+
+        // Staff Level (Staff+)
+        'expense-claims':    'STAFF',
+        'petty-cash':        'STAFF',
+        'staff-advances':    'STAFF',
+
+        // Branch Operations & Purchasing (Manager+)
         'receipts':          'MANAGER',
         'payments':          'MANAGER',
-        'cheques':           'ACCOUNTANT',
-        'bank-accounts':     'ACCOUNTANT',
-        'wallet':            'CLIENT',
+        'purchase-bills':    'MANAGER',
+        'debit-notes':       'MANAGER',
+        'suppliers':         'MANAGER',
+        'service-items':     'MANAGER',
+        'product-items':     'MANAGER',
+        'inventory':         'MANAGER',
+        'stock-transfers':   'MANAGER',
         'employees':         'MANAGER',
         'payroll':           'MANAGER',
-        'expense-claims':    'MANAGER',
-        'petty-cash':        'MANAGER',
-        'staff-advances':    'MANAGER',
         'branch-advances':   'MANAGER',
-        'chart-of-accounts': 'CLIENT',
-        'journal-entries':   'MANAGER',
+        'summary':           'MANAGER',
+        'taxes':             'MANAGER',
+
+        // Accounting & Full Financial Admin (Accountant+)
+        'bank-accounts':     'ACCOUNTANT',
+        'bank-recon':        'ACCOUNTANT',
+        'cheques':           'ACCOUNTANT',
+        'chart-of-accounts': 'ACCOUNTANT',
+        'journal-entries':   'ACCOUNTANT',
         'recurring':         'ACCOUNTANT',
         'opening-balances':  'ACCOUNTANT',
         'pending-approvals': 'ACCOUNTANT',
-        'taxes':             'MANAGER',
-        'summary':           'MANAGER',
         'close-fy':          'ACCOUNTANT',
-        'bank-recon':        'ACCOUNTANT',
         'bulk-import':       'ACCOUNTANT',
+        'reports':           'ACCOUNTANT'
+    };
+
+    const TILE_REPORT_CONFIG = {
+        'sales-invoices':   'y',
+        'credit-notes':     'y',
+        'debit-notes':      'y',
+        'purchase-bills':   'y',
+        'receipts':         'y',
+        'payments':         'y',
+        'suppliers':        'y',
+        'employees':        'y',
+        'payroll':          'y',
+        'expense-claims':   'y',
+        'petty-cash':       'y',
+        'staff-advances':   'y',
+        'branch-advances':  'y',
+        'journal-entries':  'y',
+        'taxes':            'y',
+        'customers':        'n',
+        'billing':          'n',
+        'inventory':        'n',
+        'stock-transfers':  'n',
+        'bank-accounts':    'n',
+        'cheques':          'n',
     };
 
     const TILE_LABELS = {
@@ -88,9 +121,28 @@ const VaultPage = (() => {
         const tilesView = document.getElementById('tilesView');
         if (tilesView) {
             tilesView.style.display = 'flex';
+            // Restore scroll across both window and container instantly
+            const st = _tilesScrollTop || 0;
+            window.scrollTo({ top: st, behavior: 'instant' });
+            document.documentElement.scrollTop = st;
+            tilesView.scrollTop = st;
+            
             setTimeout(() => {
-                tilesView.scrollTop = _tilesScrollTop;
-            }, 0);
+                window.scrollTo({ top: st, behavior: 'instant' });
+                document.documentElement.scrollTop = st;
+                tilesView.scrollTop = st;
+
+                // Focus and highlight last active tile
+                if (_lastActiveTile) {
+                    const tileEl = document.querySelector(`.tile[data-tile="${_lastActiveTile}"]`);
+                    if (tileEl) {
+                        document.querySelectorAll('.tile').forEach(t => t.classList.remove('ring-2', 'ring-indigo-500', 'shadow-lg'));
+                        tileEl.classList.add('ring-2', 'ring-indigo-500', 'shadow-lg');
+                        tileEl.focus({ preventScroll: true });
+                        tileEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                }
+            }, 10);
         }
         document.getElementById('splitView').style.display = 'none';
         document.getElementById('vaultDetailPane').style.display = 'none';
@@ -109,8 +161,8 @@ const VaultPage = (() => {
 
     function _showSplit(title) {
         const tilesView = document.getElementById('tilesView');
+        _tilesScrollTop = window.scrollY || document.documentElement.scrollTop || (tilesView ? tilesView.scrollTop : 0);
         if (tilesView) {
-            _tilesScrollTop = tilesView.scrollTop;
             tilesView.style.display = 'none';
         }
         document.getElementById('splitView').style.display = 'flex';
@@ -119,6 +171,7 @@ const VaultPage = (() => {
         document.getElementById('vaultList').innerHTML = '';
         document.getElementById('vaultListMsg').textContent = 'Loading…';
         document.getElementById('vaultSearch').value = '';
+        document.getElementById('vaultFilterBtn')?.classList.add('hidden');
         document.getElementById('vaultListPane').style.display = 'flex';
         document.getElementById('vaultDetailPane').style.display = _isMobile() ? 'none' : 'block';
         
@@ -145,6 +198,12 @@ const VaultPage = (() => {
     function _showListPane() {
         document.getElementById('vaultListPane').style.display = 'flex';
         document.getElementById('vaultDetailPane').style.display = 'none';
+        // Restore focus and visibility of selected list item
+        const selectedLi = document.querySelector('#vaultList li.selected');
+        if (selectedLi) {
+            selectedLi.focus?.({ preventScroll: true });
+            selectedLi.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+        }
     }
 
     function _showDetailPane() {
@@ -178,12 +237,35 @@ const VaultPage = (() => {
     function _hideTilesByRole() {
         document.querySelectorAll('[data-tile]').forEach(tile => {
             const minRole = TILE_MIN_ROLE[tile.dataset.tile];
-            if (minRole && !_can(minRole)) tile.classList.add('hidden');
+            if (minRole && !_can(minRole)) {
+                tile.classList.add('hidden');
+            } else {
+                tile.classList.remove('hidden');
+            }
+        });
+
+        // Auto-hide empty section headings and grids
+        document.querySelectorAll('.tile-grid').forEach(grid => {
+            if (grid.id === 'vaultBranchTilesGrid') return;
+            const visibleTiles = grid.querySelectorAll('[data-tile]:not(.hidden)');
+            const sectionHdr = grid.previousElementSibling;
+            if (visibleTiles.length === 0) {
+                grid.classList.add('hidden');
+                if (sectionHdr && sectionHdr.classList.contains('tile-section')) {
+                    sectionHdr.classList.add('hidden');
+                }
+            } else {
+                grid.classList.remove('hidden');
+                if (sectionHdr && sectionHdr.classList.contains('tile-section')) {
+                    sectionHdr.classList.remove('hidden');
+                }
+            }
         });
     }
 
     // ── Tile activation ───────────────────────────────────────────────────────
     async function _activateTile(name) {
+        _lastActiveTile = name;
         const minRole = TILE_MIN_ROLE[name];
         if (minRole && !_can(minRole)) return;
 
@@ -215,20 +297,18 @@ const VaultPage = (() => {
         const canRecord = _can(VAULT_PERMISSIONS.C) && name !== 'billing' && !directViewTiles.includes(name);
         document.getElementById('vaultAddBtn').classList.toggle('hidden', !canRecord);
 
-        // Show + wire the Report button for eligible tiles
-        const reportEligibleTiles = [
-            'sales-invoices', 'credit-notes', 'debit-notes', 'purchase-bills',
-            'receipts', 'payments', 'cheques', 'bank-accounts',
-            'customers', 'suppliers', 'employees', 'payroll',
-            'expense-claims', 'petty-cash', 'staff-advances', 'branch-advances',
-            'journal-entries', 'taxes'
-        ];
-        const hasReport = reportEligibleTiles.includes(name);
-        const reportBtn = document.getElementById('vaultReportBtn');
-        if (reportBtn) {
-            reportBtn.classList.toggle('hidden', !hasReport);
-            reportBtn.onclick = () => _openReportModal(name);
+        // Control Reports Button in left pane via report=y parameter
+        const hasReport = TILE_REPORT_CONFIG[name] === 'y';
+        const reportContainer = document.getElementById('vaultReportBtnContainer');
+        if (reportContainer) {
+            reportContainer.classList.toggle('hidden', !hasReport);
+            const reportBtn = document.getElementById('vaultReportBtn');
+            if (reportBtn) {
+                reportBtn.onclick = () => _openReportModal(name);
+            }
         }
+
+
 
         // Wire the Add button for each module
         document.getElementById('vaultAddBtn').onclick = null;
@@ -242,7 +322,7 @@ const VaultPage = (() => {
         else if (receiptsTiles.includes(name)) {
             const isPayments = name === 'payments';
             VaultReceipts.setMode(isPayments ? 'payments' : 'receipts');
-            document.getElementById('vaultAddBtn').onclick = () => VaultReceipts.openAddPane();
+            document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultReceipts.load();
         }
         else if (journalTiles.includes(name)) {
@@ -278,19 +358,20 @@ const VaultPage = (() => {
             await VaultPendingApprovals.load();
         }
         else if (name === 'sales-invoices') {
-            document.getElementById('vaultAddBtn').onclick = () => VaultSalesInvoices.openAddPane();
+            document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultSalesInvoices.load();
         }
         else if (name === 'credit-notes') {
-            document.getElementById('vaultAddBtn').onclick = () => VaultCreditNotes.openAddPane();
+            document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultCreditNotes.load();
         }
         else if (name === 'debit-notes') {
-            document.getElementById('vaultAddBtn').onclick = () => VaultDebitNotes.openAddPane();
+            document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultDebitNotes.load();
         }
         else if (name === 'customers') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
+            
             await VaultCustomers.load();
         }
 
@@ -358,19 +439,32 @@ const VaultPage = (() => {
     function _updateBranchStatus(branch) {
         const statusEl = document.getElementById('vaultBranchStatus');
         if (!statusEl) return;
+        const user = getUser();
+        const role = user ? user.ROLE : 'GUEST';
+        const roleLevels = typeof ROLE_LEVELS !== 'undefined' ? ROLE_LEVELS : { CLIENT: 10, STAFF: 20, MANAGER: 40, ADMIN: 80, MASTER: 100 };
+        const isAboveManager = roleLevels[role] > roleLevels['MANAGER'];
+
         if (branch) {
-            statusEl.innerHTML = `
-                <div class="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shadow-sm cursor-pointer hover:bg-green-100 transition-colors" onclick="window.uncollapseBranches?.()">
-                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" style="animation-duration: 2s;"></span>
-                    <i class="fa-solid fa-circle-check text-[10px]"></i>
-                    <span>Branch ${branch} active <span class="text-[9px] text-gray-400 font-normal ml-1 hover:underline">(Change)</span></span>
-                </div>
-            `;
+            if (isAboveManager) {
+                statusEl.innerHTML = `
+                    <div class="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shadow-sm cursor-pointer hover:bg-green-100 transition-colors" onclick="window.uncollapseBranches?.()">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        <span>Branch ${branch} active <span class="text-[10px] text-gray-500 font-bold ml-1 hover:underline">(Change ▾)</span></span>
+                    </div>
+                `;
+            } else {
+                const codeSuffix = (role === 'CLIENT' && user.CODE) ? ` · ${user.CODE}` : '';
+                statusEl.innerHTML = `
+                    <div class="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shadow-sm">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        <span>Branch ${branch}${codeSuffix}</span>
+                    </div>
+                `;
+            }
         } else {
             statusEl.innerHTML = `
                 <div class="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold rounded-full shadow-sm">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
                     <span>Select branch</span>
                 </div>
             `;
@@ -381,19 +475,43 @@ const VaultPage = (() => {
     function _init() {
         _hideTilesByRole();
 
-        document.querySelectorAll('[data-tile]').forEach(tile =>
-            tile.addEventListener('click', () => _activateTile(tile.dataset.tile))
-        );
+        document.querySelectorAll('[data-tile]').forEach(tile => {
+            tile.setAttribute('tabindex', '0');
+            tile.addEventListener('click', () => _activateTile(tile.dataset.tile));
+            tile.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    _activateTile(tile.dataset.tile);
+                }
+            });
+        });
+
+        // Continuous scroll position tracking
+        window.addEventListener('scroll', () => {
+            const tilesView = document.getElementById('tilesView');
+            if (tilesView && tilesView.style.display !== 'none') {
+                _tilesScrollTop = window.scrollY || document.documentElement.scrollTop || tilesView.scrollTop;
+            }
+        }, { passive: true });
 
         document.getElementById('backToTilesBtn').addEventListener('click', _showTiles);
         document.getElementById('backToListBtn')?.addEventListener('click', () => {
             if (_isMobile()) _showListPane();
         });
 
-        // Initialize branch selector for roles above MANAGER
+        // Branch initialization according to role
         const user = getUser();
-        const isAboveManager = user && ROLE_LEVELS[user.ROLE] > ROLE_LEVELS['MANAGER'];
-        if (isAboveManager) {
+        const roleLevels = typeof ROLE_LEVELS !== 'undefined' ? ROLE_LEVELS : { CLIENT: 10, STAFF: 20, MANAGER: 40, ADMIN: 80, MASTER: 100 };
+        const isAboveManager = user && (roleLevels[user.ROLE] || 0) > (roleLevels['MANAGER'] || 40);
+
+        if (!isAboveManager) {
+            // Client, Staff, Manager -> Auto-select assigned branch immediately
+            const userBranch = (user && user.BRANCH ? user.BRANCH : 'DDN').trim().toUpperCase();
+            localStorage.setItem('vault_selected_branch', userBranch);
+            _updateBranchStatus(userBranch);
+            const tilesSection = document.getElementById('vaultBranchTilesSection');
+            if (tilesSection) tilesSection.classList.add('hidden');
+        } else {
             const select = document.getElementById('vaultBranchSelect');
             const tilesSection = document.getElementById('vaultBranchTilesSection');
             const tilesGrid = document.getElementById('vaultBranchTilesGrid');
@@ -403,34 +521,45 @@ const VaultPage = (() => {
             };
 
             if (select && tilesSection && tilesGrid) {
-                // Initialize active selection as empty on fresh load
-                select.value = '';
-                _updateBranchStatus('');
+                const savedBranch = localStorage.getItem('vault_selected_branch') || '';
+                select.value = savedBranch;
+                _updateBranchStatus(savedBranch);
 
                 const renderBranches = () => {
                     getAppData('BRANCHES').then(raw => {
-                        const branches = Object.values(raw || {});
+                        let branches = Object.values(raw || {}).filter(b => b && b.BRANCH_CODE && (!b.STATUS || b.STATUS.toLowerCase() === 'active'));
                         if (branches.length === 0) return; // Wait for sync
+                        
+                        branches.sort((a, b) => (a.BRANCH_CODE || '').localeCompare(b.BRANCH_CODE || ''));
 
-                        const currentVal = select.value;
+                        const currentVal = localStorage.getItem('vault_selected_branch') || select.value;
 
-                        // Native select sync
+                        // Native select options populated dynamically from collection
                         select.innerHTML = '<option value="">— Select Branch —</option>' +
                             branches.map(b => `<option value="${b.BRANCH_CODE}">${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}</option>`).join('');
 
                         if (currentVal && branches.some(b => b.BRANCH_CODE === currentVal)) {
                             select.value = currentVal;
+                            _updateBranchStatus(currentVal);
+                            tilesSection.classList.add('hidden');
+                        } else if (branches.length === 1) {
+                            select.value = branches[0].BRANCH_CODE;
+                            localStorage.setItem('vault_selected_branch', branches[0].BRANCH_CODE);
+                            _updateBranchStatus(branches[0].BRANCH_CODE);
+                            tilesSection.classList.add('hidden');
                         } else {
                             select.value = '';
+                            _updateBranchStatus('');
+                            tilesSection.classList.remove('hidden');
                         }
 
-                        // Render branch selection tiles
+                        // Render branch selection tiles dynamically
                         tilesGrid.innerHTML = branches.map(b => `
-                            <div class="tile select-branch-tile" data-branch="${b.BRANCH_CODE}" style="border-color:#dbeafe; padding: 1.25rem 1rem;">
-                                <div class="tile-icon">🏢</div>
-                                <div class="tile-label">${b.BRANCH_CODE}</div>
-                                <div class="text-[12px] font-bold text-gray-800 mt-1 truncate" style="max-width: 100%;">${b.BRANCH_NAME || ''}</div>
-                                <div class="text-[9px] text-gray-400 font-mono mt-0.5">GSTIN: ${b.BRANCH_GSTIN || 'N/A'}</div>
+                            <div class="tile select-branch-tile hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer" data-branch="${b.BRANCH_CODE}" style="border-color:${select.value === b.BRANCH_CODE ? '#4f46e5' : '#dbeafe'}; padding: 1.25rem 1rem;">
+                                <div class="tile-icon text-indigo-600">🏢</div>
+                                <div class="tile-label font-bold text-indigo-700">${b.BRANCH_CODE}</div>
+                                <div class="text-[12px] font-bold text-gray-800 mt-1 truncate" style="max-width: 100%;">${b.BRANCH_NAME || b.BRANCH_CODE}</div>
+                                <div class="text-[9px] text-gray-400 font-mono mt-0.5">${b.GST_CODE || b.GSTIN || b.BRANCH_GSTIN ? 'GST: ' + (b.GST_CODE || b.GSTIN || b.BRANCH_GSTIN) : (b.CITY || 'Active Branch')}</div>
                             </div>
                         `).join('');
 
@@ -442,11 +571,6 @@ const VaultPage = (() => {
                                 select.dispatchEvent(new Event('change'));
                             });
                         });
-
-                        // Show branch section if no active selection
-                        if (!select.value) {
-                            tilesSection.classList.remove('hidden');
-                        }
                     });
                 };
 
@@ -456,6 +580,7 @@ const VaultPage = (() => {
                 // Re-render when new data arrives/sync finishes
                 window.addEventListener('appDataLoaded', renderBranches);
                 window.addEventListener('appDataRefreshed', renderBranches);
+                window.addEventListener('syncComplete', renderBranches);
 
                 select.addEventListener('change', () => {
                     const branch = select.value;
@@ -469,17 +594,10 @@ const VaultPage = (() => {
                         tilesSection.classList.remove('hidden');
                     }
 
-                    // Start caching (pre-fetching keys) on branch selection
-                    if (branch) {
-                        callApi('/api/manager/cache/keys', {}, 'GET')
-                            .then(keys => {
-                                window.__vaultCacheKeys = keys;
-                                console.log('[Vault] Cache keys pre-fetched on branch selection:', branch);
-                            })
-                            .catch(err => {
-                                console.error('[Vault] Failed to pre-fetch cache keys on branch selection:', err);
-                            });
-                    }
+                    // Highlight selected tile
+                    tilesGrid.querySelectorAll('.select-branch-tile').forEach(t => {
+                        t.style.borderColor = t.dataset.branch === branch ? '#4f46e5' : '#dbeafe';
+                    });
 
                     const activeTile = _activeTile;
                     if (activeTile) {
@@ -831,57 +949,11 @@ const VaultPage = (() => {
         }
     }
 
-    async function _fetchManagerIOToggleState() {
-        const badge = document.getElementById('vault-mio-badge');
-        const toggle = document.getElementById('vault-mio-toggle');
-        if (!badge || !toggle) return;
-
-        try {
-            const res = typeof callApi === 'function' ? await callApi('/api/getManagerIOStatus', null, 'GET') : null;
-            const isEnabled = Boolean(res && res.enabled);
-            toggle.checked = isEnabled;
-            badge.textContent = isEnabled ? 'ON' : 'OFF';
-            badge.className = isEnabled 
-                ? 'px-1.5 py-0.5 text-[10px] font-bold rounded bg-green-100 text-green-700 border border-green-200'
-                : 'px-1.5 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-700 border border-red-200';
-        } catch (err) {
-            console.error('[Vault Manager.io Status error]', err);
-            badge.textContent = 'ERR';
-        }
-    }
-
-    async function toggleManagerIO(enabled) {
-        const badge = document.getElementById('vault-mio-badge');
-        const toggle = document.getElementById('vault-mio-toggle');
-        if (toggle) toggle.disabled = true;
-        if (badge) badge.textContent = '...';
-
-        try {
-            if (typeof callApi === 'function') {
-                await callApi('/api/toggleManagerIO', { enabled }, 'POST');
-            }
-            if (typeof showNotification === 'function') {
-                showNotification(`Manager.io sync service is now ${enabled ? 'ENABLED' : 'DISABLED'}`, enabled ? 'success' : 'info');
-            }
-            await _fetchManagerIOToggleState();
-        } catch (err) {
-            console.error('[Vault Toggle Manager.io error]', err);
-            if (typeof showNotification === 'function') {
-                showNotification('Failed to toggle Manager.io service: ' + (err.message || err), 'error');
-            }
-            if (toggle) toggle.checked = !enabled;
-            await _fetchManagerIOToggleState();
-        } finally {
-            if (toggle) toggle.disabled = false;
-        }
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
         _init();
-        _fetchManagerIOToggleState();
     });
 
-    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch, openReportModal: _openReportModal, toggleManagerIO };
+    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch, openReportModal: _openReportModal };
 })();
 
 window.VaultPage = VaultPage;

@@ -21,7 +21,7 @@ const VaultCoa = (() => {
         try {
             // Fetch/Ensure cache keys
             if (!window.__vaultCacheKeys) {
-                window.__vaultCacheKeys = await callApi('/api/manager/cache/keys', {}, 'GET');
+                window.__vaultCacheKeys = Promise.resolve({});
             }
 
             const activeBranch = (VaultPage.getActiveBranch() || '').toLowerCase();

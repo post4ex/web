@@ -17,7 +17,7 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 11; // Added HEADER store, fixed LEDGER key
+    this.version = 12; // Removed dropped HEADER & LEDGER stores
     this.db = null;
     
     // Define unique key for each sheet (must match PocketBase field names)
@@ -37,9 +37,7 @@ class AppDatabase {
       'CALC_HISTORY':  'CALC_UID',
       'NOTIFICATIONS': 'NOTIF_ID',
       'HOLIDAYS':      'HOLIDAY_ID',
-      'LEDGER':        'TXN_ID',
       'SHIPMENTS':     'REFERENCE',
-      'HEADER':        'DOX_KEY',
     };
   }
 
@@ -63,7 +61,7 @@ class AppDatabase {
           'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
           'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
           'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY',
-          'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'
+          'NOTIFICATIONS', 'HOLIDAYS', 'SHIPMENTS'
         ];
         
         // Create object stores with correct key paths
@@ -71,10 +69,7 @@ class AppDatabase {
           const keyPath = this.sheetKeys[sheetName] || 'id';
           const store = db.createObjectStore(sheetName, { keyPath });
           store.createIndex('TIME_STAMP', 'TIME_STAMP', { unique: false });
-          // IO_TIMESTAMP index for HEADER and LEDGER — document/transaction date
-          if (sheetName === 'HEADER' || sheetName === 'LEDGER') {
-            store.createIndex('IO_TIMESTAMP', 'IO_TIMESTAMP', { unique: false });
-          }
+
           // id index for O(1) getByPbId lookup
           if (keyPath !== 'id') store.createIndex('id', 'id', { unique: false });
         });
@@ -328,7 +323,7 @@ class AppDatabase {
       'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF',
       'ATTENDANCE', 'BRANCHES', 'MODES', 'CARRIERS',
       'MULTIBOX', 'PRODUCTS', 'UPLOADS', 'CALC_HISTORY',
-      'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER', '_metadata'
+      'NOTIFICATIONS', 'HOLIDAYS', 'SHIPMENTS', '_metadata'
     ];
     
     for (const sheetName of sheets) {
