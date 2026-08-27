@@ -14,6 +14,29 @@ document.documentElement.classList.add('needs-sync');
             const el = document.getElementById('header-placeholder');
             if (el && el.getAttribute('data-fully-loaded') !== 'true') {
                 const doc = new DOMParser().parseFromString(cachedHeader, 'text/html');
+                const rawPath = (window.location.pathname.split('/').pop() || 'main.html').toLowerCase();
+                const isPublic = ['main.html','index.html','about.html','services.html','service-agreement.html','complaint.html','pincode.html','zipfinder.html','faqs.html','awareness.html','docs.html','dgr.html','404.html','login.html'].includes(rawPath);
+                const logo = doc.querySelector('#header-logo-img') || doc.querySelector('#logoLink img');
+                const link = doc.querySelector('#logoLink');
+                if (logo) {
+                    logo.setAttribute('src', isPublic ? 'assets/images/postman-logo.svg' : 'assets/images/genie-logo.svg');
+                    logo.setAttribute('alt', isPublic ? 'PosTman' : 'Genie');
+                    logo.setAttribute('width', isPublic ? '210' : '140');
+                    logo.setAttribute('height', '48');
+                    logo.style.width = isPublic ? '210px' : '140px';
+                    logo.style.height = '48px';
+                    logo.style.display = 'block';
+                }
+                if (link) {
+                    link.className = `logo-room ${isPublic ? 'logo-room-public' : 'logo-room-private'}`;
+                    link.style.width = isPublic ? '210px' : '140px';
+                    link.style.minWidth = isPublic ? '210px' : '140px';
+                    link.style.height = '48px';
+                    link.style.display = 'inline-flex';
+                    link.style.alignItems = 'center';
+                    link.style.flexShrink = '0';
+                    link.setAttribute('href', isPublic ? 'main.html' : 'dashboard.html');
+                }
                 const scripts = Array.from(doc.querySelectorAll('script'));
                 el.innerHTML = '';
                 while (doc.body.firstChild) el.appendChild(doc.body.firstChild);
@@ -139,8 +162,10 @@ async function loadComponent(componentUrl, placeholderId) {
         const text = await response.text();
         if (text !== cached) {
             sessionStorage.setItem(`component-${componentUrl}`, text);
-            _injectComponentHTML(placeholder, text);
-            placeholder.setAttribute('data-fully-loaded', 'true');
+            if (placeholder.getAttribute('data-fully-loaded') !== 'true') {
+                _injectComponentHTML(placeholder, text);
+                placeholder.setAttribute('data-fully-loaded', 'true');
+            }
         }
     } catch (error) {
         console.warn(`[Component Engine] Failed loading ${componentUrl}:`, error);

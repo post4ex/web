@@ -92,15 +92,39 @@ html, body, button, input, select, textarea {
   text-shadow: none;
 }
 
+/* =============================================================================
+   FIXED LOGO ROOM (Zero Layout Shift on Page Load & Reload)
+============================================================================= */
+#logoLink, .logo-room {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  flex-shrink: 0 !important;
+}
+#logoLink.logo-room-public, .logo-room-public {
+  width: 210px !important;
+  min-width: 210px !important;
+}
+#logoLink.logo-room-private, .logo-room-private {
+  width: 140px !important;
+  min-width: 140px !important;
+}
+#header-logo-img {
+  height: 48px !important;
+  max-height: 48px !important;
+  display: block !important;
+}
+
 .btn:hover, .btn:focus-visible, .btn-sparkle:hover, .btn-sparkle:focus-visible {
-  background-color: #9C2007 !important;
-  border-color: #9C2007 !important;
+  background-color: #F59E0B !important;
+  border-color: #F59E0B !important;
   color: #ffffff !important;
 }
 
 .btn:active, .btn-sparkle:active {
-  background-color: #7a1805 !important;
-  border-color: #7a1805 !important;
+  background-color: #D97706 !important;
+  border-color: #D97706 !important;
   color: #ffffff !important;
 }
 

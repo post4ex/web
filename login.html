@@ -28,6 +28,17 @@
         .auth-view { transition: opacity 0.3s ease-in-out; }
         .hidden-view { display: none; opacity: 0; }
 
+        /* Remove browser light-blue autofill background and outline shading */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px white inset !important;
+            -webkit-text-fill-color: #1e293b !important;
+            box-shadow: 0 0 0 1000px white inset !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
         /* Custom Scrollbar for Right Pane if content overflows */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -127,41 +138,53 @@
 
     <!-- MAIN CONTENT (Centered Compact Card) -->
     <main class="flex-grow flex items-center justify-center p-4">
-        <div class="tray w-full max-w-4xl">
+        <div class="tray w-full max-w-4xl p-2 rounded-3xl bg-gradient-to-br from-slate-200/60 via-slate-100/40 to-slate-200/70 shadow-2xl border border-slate-200/80">
         <!-- COMPACT CONTAINER -->
-        <div class="w-full bg-white rounded-2xl shadow-2xl overflow-hidden grid md:grid-cols-2 md:min-h-[500px]">
+        <div class="w-full bg-white rounded-2xl shadow-xl overflow-hidden grid md:grid-cols-2 md:min-h-[500px]">
             
             <!-- LEFT SIDE: ACTIVE FORM CONTAINER -->
-            <div class="p-8 relative flex flex-col justify-center border-r border-gray-100" style="min-height:520px;overflow:hidden;">
+            <div class="p-8 relative flex flex-col justify-center bg-gradient-to-b from-white via-white to-slate-50/40 border-r border-slate-100" style="min-height:520px;overflow:hidden;">
                 
-                <div class="flex justify-center mb-6">
-                    <img src="assets/images/post4ex-logo.svg" alt="Post4Ex" class="h-10 w-auto">
+                <div class="flex flex-col items-center justify-center mb-6 text-center">
+                    <img src="assets/images/genie-logo.svg" alt="Genie" style="height: 64px; width: auto; display: block;">
+                    <div style="width: 180px; height: 2px; background-color: #F59E0B; margin: 10px auto 8px auto; border-radius: 2px;"></div>
+                    <p style="font-size: 12px; color: #64748b; font-weight: 600; letter-spacing: 0.05em; margin: 0;">Assistant to a Postman</p>
                 </div>
 
                 <!-- 1. VIEW: LOGIN -->
                 <div id="view-login" class="auth-view">
-                    <form id="form-login" class="space-y-5">
-                        <div class="relative">
-                            <input type="text" id="login-user" required autocomplete="username" placeholder=" " class="w-full peer px-3 pt-5 pb-2 font-semibold border-b-2 border-gray-300 focus:outline-none focus:border-blue-800 transition-colors bg-transparent text-sm">
-                            <label for="login-user" class="absolute text-gray-500 transition-all left-3 top-3 pointer-events-none text-sm">Username</label>
-                        </div>
-                        <div class="relative">
-                            <input type="password" id="login-pass" required autocomplete="current-password" placeholder=" " class="w-full peer px-3 pt-5 pb-2 font-semibold border-b-2 border-gray-300 focus:outline-none focus:border-blue-800 transition-colors bg-transparent pr-10 text-sm">
-                            <label for="login-pass" class="absolute text-gray-500 transition-all left-3 top-3 pointer-events-none text-sm">Password</label>
-                            <button type="button" class="absolute right-2 top-3 text-gray-400 hover:text-blue-800 focus:outline-none toggle-password" data-target="login-pass" aria-label="Toggle password visibility">
-                                <i class="fa-regular fa-eye"></i>
-                            </button>
-                        </div>
+                    <form id="form-login" class="space-y-4">
                         
-                        <div class="flex justify-end">
-                            <button type="button" onclick="switchView('forgot')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Forgot Password?</button>
+                        <!-- SLEEK CREDENTIAL TRAY -->
+                        <div class="rounded-xl border border-slate-300/80 bg-slate-50/50 hover:bg-slate-50/90 hover:border-slate-400 hover:shadow-md focus-within:border-slate-400 focus-within:bg-white focus-within:shadow-md transition-all duration-200 overflow-hidden">
+                            
+                            <!-- Username Field -->
+                            <div class="relative px-4 py-3">
+                                <input type="text" id="login-user" required autocomplete="username" placeholder="Username" class="w-full bg-transparent font-medium text-slate-800 text-sm focus:outline-none placeholder-slate-400">
+                            </div>
+                            
+                            <!-- Subtle Divider -->
+                            <div class="border-t border-slate-200"></div>
+                            
+                            <!-- Password Field -->
+                            <div class="relative px-4 py-3 flex items-center justify-between">
+                                <input type="password" id="login-pass" required autocomplete="current-password" placeholder="Password" class="w-full bg-transparent font-medium text-slate-800 text-sm focus:outline-none placeholder-slate-400 pr-3">
+                                <button type="button" class="text-slate-400 hover:text-slate-700 focus:outline-none toggle-password flex items-center justify-center transition-colors flex-shrink-0" data-target="login-pass" aria-label="Toggle password visibility">
+                                    <i class="fa-regular fa-eye text-sm"></i>
+                                </button>
+                            </div>
+
                         </div>
 
-                        <button id="login-btn" type="submit" class="btn w-full py-2.5">
+                        <div class="flex justify-end pt-1">
+                            <button type="button" onclick="switchView('forgot')" class="text-xs text-blue-600 hover:text-blue-800 font-semibold transition-colors">Forgot Password?</button>
+                        </div>
+
+                        <button id="login-btn" type="submit" class="btn w-full py-3 text-sm font-bold tracking-wider rounded-xl shadow-md transition-all duration-200">
                             LOG IN
                         </button>
                     </form>
-                    <div class="mt-6 text-center text-xs text-gray-600">
+                    <div class="mt-5 text-center text-xs text-gray-600">
                         Don't have an account? <button onclick="switchView('register')" class="text-blue-600 font-bold hover:underline">Register Now</button>
                     </div>
                 </div>

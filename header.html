@@ -1,6 +1,23 @@
 <script src="core/search-modal.js"></script>
 <style>
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    
+    /* Fixed logo room dimensions to prevent layout shift & button flick */
+    .logo-room {
+        display: inline-flex;
+        align-items: center;
+        height: 48px;
+        min-height: 48px;
+        flex-shrink: 0;
+    }
+    .logo-room-public {
+        width: 210px;
+        min-width: 210px;
+    }
+    .logo-room-private {
+        width: 140px;
+        min-width: 140px;
+    }
 </style>
 <!-- Header -->
 <header class="w-full bg-white text-blue-900 shadow-md py-2 px-3 sm:px-5 sticky top-0 z-30">
@@ -17,15 +34,24 @@
                         </svg>
                     </button>
                 </div>
-                <a href="main.html" id="logoLink" class="flex items-center space-x-2">
-                    <img id="header-logo-img" src="assets/images/postman-logo.svg" alt="PosTman" class="h-12 w-auto">
+                <a href="main.html" id="logoLink" class="logo-room logo-room-public" style="width: 210px; min-width: 210px; height: 48px; display: inline-flex; align-items: center; flex-shrink: 0;">
+                    <img id="header-logo-img" src="assets/images/postman-logo.svg" alt="PosTman" width="210" height="48" style="width: 210px; height: 48px; max-height: 48px; display: block;">
                 </a>
             </div>
 
-            <!-- Desktop Navigation (Generated via Script) -->
+            <!-- Desktop Navigation (Pre-rendered for Instant Paint) -->
             <nav class="hidden xl:flex items-center space-x-2 text-sm font-semibold">
-                <div id="container-desktop-public" class="flex items-center space-x-2"></div>
-                <div id="container-desktop-private" class="hidden items-center space-x-2"></div>
+                <div id="container-desktop-public" class="flex items-center space-x-2">
+                    <a id="nav-home-public" href="main.html" class="btn">Home</a>
+                    <a id="nav-pincode-public" href="Pincode.html" class="btn">Pincode</a>
+                    <a id="nav-complaint-public" href="complaint.html" class="btn">Complaint</a>
+                </div>
+                <div id="container-desktop-private" class="hidden items-center space-x-2">
+                    <a id="nav-bookorder-private" href="BookOrder.html" class="btn">Book Order</a>
+                    <a id="nav-calculator-private" href="calc.html" class="btn">Estimate</a>
+                    <a id="nav-ticket-private" href="ticket.html" class="btn">Ticket</a>
+                    <a id="nav-task-private" href="task.html" class="btn">Task</a>
+                </div>
             </nav>
         </div>
 
@@ -192,7 +218,9 @@
             if (!hasPermission(item.reqRole)) return; 
             desktopHTML += `<a id="nav-${item.id}-${type}" href="${item.link}" class="btn">${item.label}</a>`;
         });
-        desktopContainer.innerHTML = desktopHTML;
+        if (desktopContainer.innerHTML.trim() !== desktopHTML.trim()) {
+            desktopContainer.innerHTML = desktopHTML;
+        }
     }
 
     function renderSidebar() {
@@ -265,24 +293,20 @@
         const logoImg = document.getElementById('header-logo-img') || document.querySelector('#logoLink img');
         const logoLink = document.getElementById('logoLink');
 
-        if (isPublic) {
-            // Public pages ALWAYS use PosTman logo, even if user is logged in
-            if (logoImg) {
-                logoImg.src = 'assets/images/postman-logo.svg';
-                logoImg.alt = 'PosTman';
+        const targetSrc = isPublic ? 'assets/images/postman-logo.svg' : 'assets/images/genie-logo.svg';
+        const targetAlt = isPublic ? 'PosTman' : 'Genie';
+        const targetHref = isPublic ? 'main.html' : 'dashboard.html';
+
+        if (logoLink) {
+            logoLink.classList.toggle('logo-room-public', isPublic);
+            logoLink.classList.toggle('logo-room-private', !isPublic);
+            if (logoLink.getAttribute('href') !== targetHref) {
+                logoLink.setAttribute('href', targetHref);
             }
-            if (logoLink) {
-                logoLink.href = 'main.html';
-            }
-        } else {
-            // After-login pages use Genie logo
-            if (logoImg) {
-                logoImg.src = 'assets/images/genie-logo.svg';
-                logoImg.alt = 'Genie';
-            }
-            if (logoLink) {
-                logoLink.href = 'dashboard.html';
-            }
+        }
+        if (logoImg && !logoImg.src.endsWith(targetSrc)) {
+            logoImg.src = targetSrc;
+            logoImg.alt = targetAlt;
         }
     }
     window.updateHeaderBranding = updateHeaderBranding;

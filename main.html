@@ -25,7 +25,7 @@
             background-color: #f8fafc;
         }
         
-        /* --- CLASSY REACT-STYLE TILES --- */
+        /* --- CLASSY REACT-STYLE TILES (Aggressive Vibrant Hover) --- */
         .classy-tile {
             background: var(--tile-bg, #ffffff);
             border: 1.5px solid var(--tile-border, #e2e8f0);
@@ -36,7 +36,7 @@
             align-items: center;
             justify-content: space-between;
             min-height: 5.5rem;
-            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease, border-color 0.24s ease, background 0.24s ease;
             text-decoration: none;
             cursor: pointer;
             width: 100%;
@@ -48,9 +48,10 @@
             .classy-tile { padding: 0.95rem 0.65rem; min-height: 6.2rem; }
         }
         .classy-tile:hover {
-            transform: translateY(-3px);
-            border-color: var(--tile-accent);
-            box-shadow: 0 0 0 1px var(--tile-accent-fade), 0 10px 22px -4px rgba(15, 23, 42, 0.08);
+            transform: translateY(-5px) scale(1.03);
+            background: var(--tile-hover-bg, var(--tile-bg)) !important;
+            border-color: var(--tile-accent) !important;
+            box-shadow: 0 14px 26px -3px var(--icon-shadow), 0 0 0 2px var(--tile-accent-fade) !important;
         }
         .classy-tile-header {
             display: flex;
@@ -67,6 +68,12 @@
             background: var(--tile-accent);
             flex-shrink: 0;
             opacity: 0.85;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        .classy-tile:hover .classy-tile-dot {
+            transform: scale(1.6);
+            box-shadow: 0 0 8px var(--tile-accent);
+            opacity: 1;
         }
         .classy-tile-label {
             font-size: 0.72rem;
@@ -74,10 +81,11 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: #334155;
-            transition: color 0.2s ease;
+            transition: color 0.2s ease, font-weight 0.2s ease;
         }
         .classy-tile:hover .classy-tile-label {
-            color: #0f172a;
+            color: var(--tile-accent);
+            font-weight: 800;
         }
         .classy-icon-box {
             width: 2.6rem;
@@ -88,11 +96,11 @@
             justify-content: center;
             background: var(--icon-grad);
             box-shadow: 0 3px 10px -1px var(--icon-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease;
         }
         .classy-tile:hover .classy-icon-box {
-            transform: scale(1.08);
-            box-shadow: 0 6px 16px -2px var(--icon-shadow);
+            transform: scale(1.15) translateY(-2px);
+            box-shadow: 0 8px 22px -1px var(--icon-shadow);
         }
         .classy-icon-box i {
             font-size: 1.15rem;
@@ -100,25 +108,32 @@
             filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
         }
 
-        /* Color Themes matching React App GRADIENTS + Soft Tinted Tile Fill */
-        .ct-blue    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); --tile-border: #bfdbfe; --tile-accent: #2563EB; --tile-accent-fade: rgba(37, 99, 235, 0.25); --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.35); }
-        .ct-indigo  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); --tile-border: #c7d2fe; --tile-accent: #4F46E5; --tile-accent-fade: rgba(79, 70, 229, 0.25); --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.35); }
-        .ct-amber   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); --tile-border: #fde68a; --tile-accent: #D97706; --tile-accent-fade: rgba(217, 119, 6, 0.25); --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.35); }
-        .ct-teal    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); --tile-border: #99f6e4; --tile-accent: #0D9488; --tile-accent-fade: rgba(13, 148, 136, 0.25); --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.35); }
-        .ct-orange  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff7ed 100%); --tile-border: #fed7aa; --tile-accent: #EA580C; --tile-accent-fade: rgba(234, 88, 12, 0.25); --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.35); }
-        .ct-cyan    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); --tile-border: #a5f3fc; --tile-accent: #0891B2; --tile-accent-fade: rgba(8, 145, 178, 0.25); --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.35); }
-        .ct-slate   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f5f3ff 100%); --tile-border: #ddd6fe; --tile-accent: #6366F1; --tile-accent-fade: rgba(99, 102, 241, 0.25); --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.35); }
-        .ct-yellow  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fefce8 100%); --tile-border: #fef08a; --tile-accent: #CA8A04; --tile-accent-fade: rgba(202, 138, 4, 0.25); --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.35); }
-        .ct-green   { --tile-accent: #16A34A; --tile-accent-fade: rgba(22, 163, 74, 0.25); --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.35); }
-        .ct-emerald { --tile-accent: #059669; --tile-accent-fade: rgba(5, 150, 105, 0.25); --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.35); }
+        /* Color Themes matching React App GRADIENTS + Soft Tinted Tile Fill & Bold Hover Fills */
+        .ct-blue    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); --tile-hover-bg: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); --tile-border: #bfdbfe; --tile-accent: #2563EB; --tile-accent-fade: rgba(37, 99, 235, 0.35); --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.45); }
+        .ct-indigo  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); --tile-hover-bg: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%); --tile-border: #c7d2fe; --tile-accent: #4F46E5; --tile-accent-fade: rgba(79, 70, 229, 0.35); --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.45); }
+        .ct-amber   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); --tile-hover-bg: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); --tile-border: #fde68a; --tile-accent: #D97706; --tile-accent-fade: rgba(217, 119, 6, 0.35); --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.45); }
+        .ct-teal    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); --tile-hover-bg: linear-gradient(180deg, #f0fdfa 0%, #ccfbf1 100%); --tile-border: #99f6e4; --tile-accent: #0D9488; --tile-accent-fade: rgba(13, 148, 136, 0.35); --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.45); }
+        .ct-orange  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff7ed 100%); --tile-hover-bg: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%); --tile-border: #fed7aa; --tile-accent: #EA580C; --tile-accent-fade: rgba(234, 88, 12, 0.35); --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.45); }
+        .ct-cyan    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); --tile-hover-bg: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%); --tile-border: #a5f3fc; --tile-accent: #0891B2; --tile-accent-fade: rgba(8, 145, 178, 0.35); --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.45); }
+        .ct-slate   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f5f3ff 100%); --tile-hover-bg: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%); --tile-border: #ddd6fe; --tile-accent: #7C3AED; --tile-accent-fade: rgba(124, 58, 237, 0.35); --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.45); }
+        .ct-yellow  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fefce8 100%); --tile-hover-bg: linear-gradient(180deg, #fefce8 0%, #fef08a 100%); --tile-border: #fde047; --tile-accent: #CA8A04; --tile-accent-fade: rgba(202, 138, 4, 0.35); --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.45); }
+        .ct-green   { --tile-accent: #16A34A; --tile-accent-fade: rgba(22, 163, 74, 0.35); --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.45); }
+        .ct-emerald { --tile-accent: #059669; --tile-accent-fade: rgba(5, 150, 105, 0.35); --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.45); }
 
-        /* --- CLASSY TRACKING BOX --- */
+        /* --- CLASSY TRACKING BOX (Aggressive Vibrant Hover) --- */
         .classy-track-box {
-            background: linear-gradient(180deg, #ffffff 15%, #f8fafc 100%);
-            border: 1.5px solid #cbd5e1;
+            background: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%);
+            border: 1.5px solid #fde68a;
             border-radius: 1.25rem;
             padding: 1.5rem;
-            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+            box-shadow: 0 4px 20px -2px rgba(245, 158, 11, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease, border-color 0.24s ease, background 0.24s ease;
+        }
+        .classy-track-box:hover {
+            transform: translateY(-5px) scale(1.02);
+            background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) !important;
+            border-color: #f59e0b !important;
+            box-shadow: 0 18px 36px -4px rgba(245, 158, 11, 0.32), 0 0 0 2.5px rgba(245, 158, 11, 0.3) !important;
         }
         
         /* --- MODAL STYLES --- */
@@ -182,6 +197,27 @@
                     
                     if (headerEl && headerEl.getAttribute('data-fully-loaded') !== 'true') {
                         const doc = new DOMParser().parseFromString(cachedHeader, 'text/html');
+                        const logo = doc.querySelector('#header-logo-img') || doc.querySelector('#logoLink img');
+                        const link = doc.querySelector('#logoLink');
+                        if (logo) {
+                            logo.setAttribute('src', 'assets/images/postman-logo.svg');
+                            logo.setAttribute('alt', 'PosTman');
+                            logo.setAttribute('width', '210');
+                            logo.setAttribute('height', '48');
+                            logo.style.width = '210px';
+                            logo.style.height = '48px';
+                            logo.style.display = 'block';
+                        }
+                        if (link) {
+                            link.className = 'logo-room logo-room-public';
+                            link.style.width = '210px';
+                            link.style.minWidth = '210px';
+                            link.style.height = '48px';
+                            link.style.display = 'inline-flex';
+                            link.style.alignItems = 'center';
+                            link.style.flexShrink = '0';
+                            link.setAttribute('href', 'main.html');
+                        }
                         const scripts = Array.from(doc.querySelectorAll('script'));
                         headerEl.innerHTML = '';
                         while (doc.body.firstChild) headerEl.appendChild(doc.body.firstChild);
@@ -270,8 +306,8 @@
     <main class="flex-grow w-full p-4 sm:p-8">
         <div class="container mx-auto max-w-7xl space-y-4 sm:space-y-8">
             
-            <!-- SPLIT LAYOUT CONTAINER -->
-            <div class="tray">
+            <!-- SPLIT LAYOUT CONTAINER (Option 3: Soft Lavender Glow) -->
+            <div class="tray" style="background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%); border-color: #f3e8ff; box-shadow: 0 10px 30px -5px rgba(147, 51, 234, 0.07), 0 2px 8px rgba(0, 0, 0, 0.02);">
             <div id="main-split-layout" class="flex flex-col lg:flex-row gap-6 items-start">
                 
                 <!-- LEFT/TOP: Classy Tiles (React App Style - Strict 2-Row Grid) -->
