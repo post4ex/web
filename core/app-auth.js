@@ -154,6 +154,10 @@ function checkLoginStatus() {
         hide(['main-nav-private', 'container-desktop-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section', 'desktop-logout-button', 'nav-search-private', 'nav-refresh-private']);
     }
 
+    if (typeof updateHeaderBranding === 'function') {
+        updateHeaderBranding();
+    }
+
     setTimeout(() => {
         const copyright = document.getElementById('copyright-text');
         if (copyright) copyright.textContent = CONSTANTS.COPYRIGHT_TEXT;

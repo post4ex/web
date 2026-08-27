@@ -18,7 +18,7 @@
                     </button>
                 </div>
                 <a href="main.html" id="logoLink" class="flex items-center space-x-2">
-                    <img src="assets/images/genie-logo.svg" alt="Genie" class="h-10 w-auto">
+                    <img id="header-logo-img" src="assets/images/postman-logo.svg" alt="PosTman" class="h-10 w-auto">
                 </a>
             </div>
 
@@ -238,9 +238,60 @@
     }
 
     // ============================================================================
+    // BRANDING (Public pages = PosTman logo | After-login pages = Genie logo)
+    // ============================================================================
+    function updateHeaderBranding() {
+        const rawPath = (window.location.pathname.split('/').pop() || 'main.html').toLowerCase();
+        const PUBLIC_PAGES = [
+            'main.html',
+            'index.html',
+            'about.html',
+            'services.html',
+            'service-agreement.html',
+            'complaint.html',
+            'pincode.html',
+            'zipfinder.html',
+            'faqs.html',
+            'awareness.html',
+            'docs.html',
+            'dgr.html',
+            '404.html',
+            'login.html'
+        ];
+
+        const pageConfigKeys = Object.keys(window.PAGE_CONFIG || {}).map(k => k.toLowerCase());
+        const isPublic = PUBLIC_PAGES.includes(rawPath) || (pageConfigKeys.length > 0 && !pageConfigKeys.includes(rawPath));
+
+        const logoImg = document.getElementById('header-logo-img') || document.querySelector('#logoLink img');
+        const logoLink = document.getElementById('logoLink');
+
+        if (isPublic) {
+            // Public pages ALWAYS use PosTman logo, even if user is logged in
+            if (logoImg) {
+                logoImg.src = 'assets/images/postman-logo.svg';
+                logoImg.alt = 'PosTman';
+            }
+            if (logoLink) {
+                logoLink.href = 'main.html';
+            }
+        } else {
+            // After-login pages use Genie logo
+            if (logoImg) {
+                logoImg.src = 'assets/images/genie-logo.svg';
+                logoImg.alt = 'Genie';
+            }
+            if (logoLink) {
+                logoLink.href = 'dashboard.html';
+            }
+        }
+    }
+    window.updateHeaderBranding = updateHeaderBranding;
+
+    // ============================================================================
     // INITIALIZATION
     // ============================================================================
     (() => {
+        updateHeaderBranding();
         renderNavItems(NAV_CONFIG.public, 'public');
         renderNavItems(NAV_CONFIG.private, 'private');
         renderSidebar();
@@ -263,6 +314,7 @@
         // 3. Setup Mobile Refresh removed — SSE handles live updates
         
         const checkMobileTools = () => {
+            updateHeaderBranding();
             if (localStorage.getItem('loginData')) {
                 const globalNotif = document.getElementById('notification-container-global');
                 if (globalNotif) globalNotif.classList.remove('hidden');
