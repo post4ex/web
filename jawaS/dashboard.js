@@ -200,7 +200,7 @@ function _populateBranchContact(appData) {
             const addr = [branch.BRANCH_ADDRESS, branch.BRANCH_CITY, branch.BRANCH_STATE]
                 .filter(Boolean).join(', ');
             addressEl.textContent = addr ? `${addr} - ${branch.BRANCH_PINCODE || ''}` : 'Shivlok Colony, Haripur, Dehradun - 248001';
-            emailEl.textContent = branch.BRANCH_EMAIL || 'genieassists@gmail.com';
+            emailEl.textContent = branch.BRANCH_EMAIL || 'support@post4ex.in';
             // Optionally add mobile
             const mobileEl = contactModal.querySelector('[data-branch-mobile]');
             if (mobileEl) mobileEl.textContent = branch.BRANCH_MOBILE || '';

@@ -523,9 +523,8 @@
                 if (typeof callApi === 'function') {
                     data = await callApi('/api/updateShipmentStatus', payload, 'POST');
                 } else {
-                    const baseUrl = (window.CONSTANTS && window.CONSTANTS.OPERATIONS_URL) ? window.CONSTANTS.OPERATIONS_URL : '';
                     const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-                    const res = await fetch(`${baseUrl}/api/updateShipmentStatus`, {
+                    const res = await fetch('/api/updateShipmentStatus', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

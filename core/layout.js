@@ -485,7 +485,7 @@ async function _openSSEDirect() {
     if (_sseAbort) _sseAbort.abort();
     _sseAbort = new AbortController();
     try {
-        const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/events`, {
+        const res = await fetch('/api/events', {
             headers: { 'Authorization': `Bearer ${token}` },
             signal:  _sseAbort.signal,
             cache:   'no-store',
@@ -538,8 +538,8 @@ function openSSE() {
                 return;
             }
         }
-        _sseWorker.port.postMessage({ type: 'init', token: getSessionId(), url: CONSTANTS.OPERATIONS_URL });
-        console.log('[SSE] init sent to worker, url:', CONSTANTS.OPERATIONS_URL);
+        _sseWorker.port.postMessage({ type: 'init', token: getSessionId(), url: '' });
+        console.log('[SSE] init sent to worker');
         if (_sseConnectedOnce && !window._sseConnected)
             window._sseGapStart = window._sseGapStart || Date.now();
     } else {
@@ -615,20 +615,6 @@ function _isSyncActive() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-
-    // Resolve API URL
-    try {
-        const res = await fetch('dev_url.json', { cache: 'no-store' });
-        if (res.ok) {
-            const { url } = await res.json();
-            if (url) CONSTANTS.OPERATIONS_URL = url;
-        }
-    } catch (_) {}
-
-    // Final safety — never leave placeholder
-    if (!CONSTANTS.OPERATIONS_URL || CONSTANTS.OPERATIONS_URL === '__API_URL__')
-        CONSTANTS.OPERATIONS_URL = window.location.origin;
-
     createNotificationModal();
     fetchClientIP();
 

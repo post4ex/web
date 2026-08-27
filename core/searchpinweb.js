@@ -195,10 +195,9 @@ async function _doPincodeSearch() {
     if (!pincode || !_pinValid(pincode)) { _pmShowMsg('Enter a valid 6-digit pincode.', 'error'); return; }
     const token = typeof getSessionId === 'function' ? getSessionId() : '';
     if (!token) { _pmShowMsg('Session expired. Please log in again.', 'error'); return; }
-    const base = (window.CONSTANTS || {}).OPERATIONS_URL || '';
     _pmShowLoader();
     try {
-        const res = await fetch(`${base}/api/pincode?pincode=${pincode}`, {
+        const res = await fetch(`/api/pincode?pincode=${pincode}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         _pmHideLoader();

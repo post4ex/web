@@ -172,7 +172,10 @@ const VaultDebitNotes = (() => {
         const amount = parseFloat(d.amount || 0);
         const branch = (typeof getActiveBranch === "function" ? getActiveBranch() : "") || "DDN";
 
-        const lineItems = d.line_items || [];
+        const rawItems = d.line_items;
+        const lineItems = Array.isArray(rawItems)
+            ? rawItems
+            : (rawItems && typeof rawItems === "object" ? Object.values(rawItems) : []);
         const rowsHtml = lineItems.map((it, idx) => {
             const cost = parseFloat(it.cost || 0);
             const qty = parseFloat(it.quantity || 1);

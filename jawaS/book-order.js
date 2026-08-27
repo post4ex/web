@@ -580,10 +580,160 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupAutocomplete(inputElement, resultsElement, displayElement, type) {
+        let currentResults = [];
+        let highlightedIndex = 0;
+
+        function applySelection(index) {
+            if (index < 0 || index >= currentResults.length) return false;
+            const item = currentResults[index];
+            if (item.isAddNew) {
+                if (window.openAddContactModal) {
+                    window.openAddContactModal(type, inputElement, displayElement);
+                }
+                resultsElement.classList.add('hidden');
+                return true;
+            }
+            const contact = item.contact;
+            if (!contact) return false;
+
+            inputElement.value = contact.NAME;
+            displayContactDetails(contact, displayElement);
+            if (type === 'sender') {
+                selectedContacts.sender = contact;
+                originPincodeInput.value = contact.PINCODE || '';
+            } else {
+                selectedContacts.receiver = contact;
+                destPincodeInput.value = contact.PINCODE || '';
+                if (carrierSelect && contact.CARRIER) carrierSelect.value = contact.CARRIER;
+                populateModeDropdown(contact.ZONE);
+            }
+            resultsElement.classList.add('hidden');
+            revalidateMode();
+            updateDisplayTables();
+            checkMainDetailsAndToggleInputs();
+            return true;
+        }
+
+        function updateHighlight(newIndex) {
+            if (currentResults.length === 0) return;
+            highlightedIndex = (newIndex + currentResults.length) % currentResults.length;
+            currentResults.forEach((item, idx) => {
+                if (idx === highlightedIndex) {
+                    item.el.classList.add('active');
+                    item.el.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.el.classList.remove('active');
+                }
+            });
+        }
+
+        function renderResults(filteredList) {
+            resultsElement.innerHTML = '';
+            currentResults = [];
+            highlightedIndex = 0;
+
+            filteredList.forEach((contact, idx) => {
+                const li = document.createElement('li');
+                li.className = 'ac-contact-item group';
+                
+                const textSpan = document.createElement('div');
+                textSpan.className = 'ac-contact-text';
+
+                // Line 1: Name
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'ac-contact-name';
+                nameDiv.textContent = contact.NAME || '';
+                textSpan.appendChild(nameDiv);
+
+                // Line 2: Address
+                const addrDiv = document.createElement('div');
+                addrDiv.className = 'ac-contact-address';
+                addrDiv.textContent = contact.ADDRESS || 'No street address';
+                textSpan.appendChild(addrDiv);
+
+                // Line 3: Destination & Mobile
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'ac-contact-meta';
+                
+                const locSpan = document.createElement('span');
+                const locParts = [];
+                if (contact.CITY) locParts.push(contact.CITY);
+                if (contact.PINCODE) locParts.push(contact.PINCODE);
+                locSpan.textContent = locParts.join(' - ') || 'N/A';
+                metaDiv.appendChild(locSpan);
+
+                if (contact.MOBILE) {
+                    const dotSpan = document.createElement('span');
+                    dotSpan.className = 'ac-contact-divider';
+                    dotSpan.textContent = '•';
+                    metaDiv.appendChild(dotSpan);
+
+                    const mobSpan = document.createElement('span');
+                    mobSpan.className = 'ac-contact-mobile';
+                    mobSpan.textContent = `Ph: ${contact.MOBILE}`;
+                    metaDiv.appendChild(mobSpan);
+                }
+                textSpan.appendChild(metaDiv);
+
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'ac-edit-btn';
+                editBtn.title = 'Edit contact';
+                editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z"/></svg>';
+                editBtn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (window.openEditContactModal) {
+                        window.openEditContactModal(contact, type, inputElement, displayElement);
+                    } else if (window.openAddContactModal) {
+                        window.openAddContactModal(type, inputElement, displayElement, contact);
+                    }
+                    resultsElement.classList.add('hidden');
+                });
+
+                li.appendChild(textSpan);
+                li.appendChild(editBtn);
+
+                // Pre-select and highlight the top result by default
+                if (idx === 0) {
+                    li.classList.add('active');
+                }
+
+                li.addEventListener('mousedown', (e) => {
+                    // Only select if not clicking on the edit button
+                    if (!e.target.closest('button')) {
+                        e.preventDefault();
+                        applySelection(idx);
+                    }
+                });
+                resultsElement.appendChild(li);
+                currentResults.push({ isAddNew: false, contact, el: li });
+            });
+
+            // Add '+ Add New Contact' row
+            const addNewLi = document.createElement('li');
+            addNewLi.className = 'p-2 bg-gray-50 text-gray-700 font-semibold cursor-pointer hover:bg-gray-100 transition-colors border-t border-gray-200';
+            addNewLi.textContent = '+ Add New Contact';
+            const addIndex = currentResults.length;
+            if (filteredList.length === 0) {
+                addNewLi.classList.add('active');
+            }
+            addNewLi.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                applySelection(addIndex);
+            });
+            resultsElement.appendChild(addNewLi);
+            currentResults.push({ isAddNew: true, contact: null, el: addNewLi });
+
+            resultsElement.classList.remove('hidden');
+        }
+
         inputElement.addEventListener('input', () => {
-            const query = inputElement.value.toLowerCase();
+            const query = inputElement.value.trim().toLowerCase();
             resultsElement.innerHTML = '';
             resultsElement.classList.add('hidden');
+            currentResults = [];
+
             if (type === 'sender') selectedContacts.sender = null;
             if (type === 'receiver') {
                 selectedContacts.receiver = null;
@@ -591,49 +741,67 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateDisplayTables();
             checkMainDetailsAndToggleInputs();
-            if (query.length < 2 || !appData.B2B2C) return;
+
+            if (query.length < 1 || !appData.B2B2C) return;
             const customerCode = selectedCustomerDetails.CODE;
             if (!customerCode) return;
+
             const customerSpecificContacts = Object.values(appData.B2B2C).filter(contact => contact.CODE === customerCode);
             const filteredResults = customerSpecificContacts.filter(contact =>
                 (contact.NAME && contact.NAME.toLowerCase().includes(query)) ||
                 (contact.PINCODE && contact.PINCODE.toString().includes(query)) ||
-                (contact.CITY && contact.CITY.toLowerCase().includes(query))
+                (contact.CITY && contact.CITY.toLowerCase().includes(query)) ||
+                (contact.MOBILE && contact.MOBILE.toString().includes(query)) ||
+                (contact.ADDRESS && contact.ADDRESS.toLowerCase().includes(query))
             );
-            if (filteredResults.length > 0 || query) {
-                filteredResults.forEach(contact => {
-                    const li = document.createElement('li');
-                    li.textContent = `${contact.NAME} - ${contact.CITY}, ${contact.PINCODE}`;
-                    li.addEventListener('click', () => {
-                        inputElement.value = contact.NAME;
-                        displayContactDetails(contact, displayElement);
-                        if (type === 'sender') {
-                            selectedContacts.sender = contact;
-                            originPincodeInput.value = contact.PINCODE || '';
-                        } else {
-                            selectedContacts.receiver = contact;
-                            destPincodeInput.value = contact.PINCODE || '';
-                            carrierSelect.value = contact.CARRIER || '';
-                            populateModeDropdown(contact.ZONE);
+
+            // Sort so items starting with query are listed at the very top
+            filteredResults.sort((a, b) => {
+                const aName = (a.NAME || '').toLowerCase().startsWith(query);
+                const bName = (b.NAME || '').toLowerCase().startsWith(query);
+                if (aName && !bName) return -1;
+                if (!aName && bName) return 1;
+                return 0;
+            });
+
+            renderResults(filteredResults);
+        });
+
+        inputElement.addEventListener('keydown', (e) => {
+            if (resultsElement.classList.contains('hidden') || currentResults.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                updateHighlight(highlightedIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                updateHighlight(highlightedIndex - 1);
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                if (currentResults.length > 0) {
+                    e.preventDefault();
+                    const success = applySelection(highlightedIndex);
+                    if (success) {
+                        // Advance focus to next field
+                        if (type === 'sender' && receiverNameInput) {
+                            receiverNameInput.focus();
+                        } else if (type === 'receiver') {
+                            if (actualWeightInput && actualWeightInput.offsetParent !== null) {
+                                actualWeightInput.focus();
+                            } else if (transportTypeSelect) {
+                                transportTypeSelect.focus();
+                            }
                         }
-                        resultsElement.classList.add('hidden');
-                        revalidateMode();
-                        updateDisplayTables();
-                        checkMainDetailsAndToggleInputs();
-                    });
-                    resultsElement.appendChild(li);
-                });
-                const addNewLi = document.createElement('li');
-                addNewLi.className = 'bg-gray-100 font-semibold';
-                addNewLi.textContent = '+ Add New Contact';
-                addNewLi.addEventListener('click', () => {
-                    if (window.openAddContactModal) {
-                        window.openAddContactModal(type, inputElement, displayElement);
                     }
-                    resultsElement.classList.add('hidden');
-                });
-                resultsElement.appendChild(addNewLi);
-                resultsElement.classList.remove('hidden');
+                }
+            } else if (e.key === 'Escape') {
+                resultsElement.classList.add('hidden');
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!inputElement.contains(e.target) && !resultsElement.contains(e.target)) {
+                resultsElement.classList.add('hidden');
             }
         });
     }

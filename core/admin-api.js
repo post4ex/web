@@ -12,7 +12,7 @@ const AdminAPI = (() => {
         if (token) headers['Authorization'] = `Bearer ${token}`;
         const options = { method, headers, cache: 'no-store' };
         if (method !== 'GET') options.body = JSON.stringify(payload);
-        const res = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, options);
+        const res = await fetch(endpoint, options);
         const json = await res.json();
         if (json.status === 'error') throw new Error(json.message);
         return json;

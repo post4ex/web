@@ -117,10 +117,9 @@ async function runStreamSync(completedLayers, token, baseUrl) {
   await setMetadata('base_url', baseUrl);
 
   try {
-    const response = await fetch(`${baseUrl}/api/sync/stream`, {
+    const streamUrl = baseUrl ? `${baseUrl}/api/sync/stream` : '/api/sync/stream';
+    const response = await fetch(streamUrl, {
       method: 'POST',
-      mode: 'cors',
-      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -216,19 +215,18 @@ async function checkAndPullDeltas() {
   if (_syncInProgress) return;
   
   const token = await getMetadata('session_token');
-  const baseUrl = await getMetadata('base_url');
+  const baseUrl = await getMetadata('base_url') || '';
   const lastSyncTime = await getMetadata('lastSyncTime');
   
-  if (!token || !baseUrl || !lastSyncTime) return;
+  if (!token || !lastSyncTime) return;
   
   console.log('[SW] Running periodic background delta check...');
   
   try {
     // 1. Fetch missed events
-    const res = await fetch(`${baseUrl}/api/fetchEvents?since_ms=${lastSyncTime}`, {
+    const eventsUrl = baseUrl ? `${baseUrl}/api/fetchEvents?since_ms=${lastSyncTime}` : `/api/fetchEvents?since_ms=${lastSyncTime}`;
+    const res = await fetch(eventsUrl, {
       method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -259,11 +257,10 @@ async function checkAndPullDeltas() {
     
     // 3. Fetch upserted records in bulk
     if (Object.keys(upserts).length > 0) {
+      const recordsUrl = baseUrl ? `${baseUrl}/api/getRecords` : '/api/getRecords';
       for (const [col, ids] of Object.entries(upserts)) {
-        const recordsRes = await fetch(`${baseUrl}/api/getRecords`, {
+        const recordsRes = await fetch(recordsUrl, {
           method: 'POST',
-          mode: 'cors',
-          credentials: 'omit',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`

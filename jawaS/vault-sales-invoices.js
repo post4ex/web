@@ -256,7 +256,10 @@ const VaultSalesInvoices = (() => {
         const note = inv.custom_value1 || "";
         const branch = (typeof getActiveBranch === "function" ? getActiveBranch() : "") || "DDN";
 
-        const lineItems = inv.line_items || [];
+        const rawItems = inv.line_items;
+        const lineItems = Array.isArray(rawItems)
+            ? rawItems
+            : (rawItems && typeof rawItems === "object" ? Object.values(rawItems) : []);
         let taxableSubtotal = 0;
         let totalTax = 0;
 

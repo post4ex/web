@@ -25,14 +25,15 @@ function _broadcast(payload) {
 }
 
 async function _open() {
-    if (!_token || !_url || _running) return;
+    if (!_token || _running) return;
     _running = true;
 
     if (_abort) _abort.abort();
     _abort = new AbortController();
 
     try {
-        const res = await fetch(`${_url}/api/events`, {
+        const sseUrl = _url ? `${_url}/api/events` : '/api/events';
+        const res = await fetch(sseUrl, {
             headers: { 'Authorization': `Bearer ${_token}` },
             signal: _abort.signal
         });

@@ -38,12 +38,11 @@ async function callApi(endpoint, payload = {}, method = 'POST', timeoutMs = 3000
     const options = { method, headers, signal: controller.signal };
     if (method !== 'GET') options.body = JSON.stringify(payload);
 
-    const base = CONSTANTS.OPERATIONS_URL;
     if (!endpoint.startsWith('/api/')) throw new Error('Invalid endpoint');
     const safeEndpoint = endpoint;
     
     try {
-        const res = await fetch(`${base}${safeEndpoint}`, options);
+        const res = await fetch(safeEndpoint, options);
         clearTimeout(timeoutId);
 
         const contentType = res.headers.get('content-type');
@@ -307,7 +306,7 @@ async function verifyAndFetchAppData(clearAll = false) {
             type: 'start_sync',
             completed_layers,
             token: getSessionId(),
-            base: CONSTANTS.OPERATIONS_URL
+            base: ''
         });
     } else {
         console.warn('[Data Engine] Service Worker controller not active yet. Retrying in 500ms...');
@@ -340,9 +339,8 @@ function _scheduleStreamRefresh() {
 // fetchFile — fetch a private /api/file/... URL with auth and return a blob URL
 // Use for <img src> and open-in-tab for private uploaded files
 window.fetchFileUrl = async function (filePath) {
-    const base  = CONSTANTS.OPERATIONS_URL;
     const token = getSessionId();
-    const url   = filePath.startsWith('http') ? filePath : `${base}${filePath}`;
+    const url   = filePath;
     const res   = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
     if (!res.ok) throw new Error(`File fetch failed: ${res.status}`);
     const blob  = await res.blob();
@@ -389,9 +387,8 @@ window.trackShipment = async function (ref) {
 
 // trackShipmentLive — force live scrape via track service
 window.trackShipmentLive = async function (ref) {
-    const base  = CONSTANTS.OPERATIONS_URL;
     const token = getSessionId();
-    const res   = await fetch(`${base}/api/track?ref=${encodeURIComponent(ref)}&live=true`, {
+    const res   = await fetch(`/api/track?ref=${encodeURIComponent(ref)}&live=true`, {
         headers: { 'Authorization': `Bearer ${token}` },
         cache: 'no-store',
     });

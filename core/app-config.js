@@ -33,9 +33,9 @@
 })();
 
 const CONSTANTS = {
-    APP_NAME:       'Genie',
-    SUPPORT_EMAIL:  'genieassists@gmail.com',
-    COMPANY_NAME:   'Genie',
+    APP_NAME:       'Genie - A Post4Ex Project - Adventures of a Postman',
+    SUPPORT_EMAIL:  'support@post4ex.in',
+    COMPANY_NAME:   'Post4Ex',
     COPYRIGHT_YEAR: '2025',
     APP_THEME:      'maroon',
 
@@ -48,8 +48,6 @@ const CONSTANTS = {
         blue:   { primary: '#1e3a8a', primaryHover: '#1e40af', primaryLight: '#eff6ff',  name: 'Blue'   }
     },
     DEFAULT_THEME: 'maroon',
-
-    OPERATIONS_URL: '__API_URL__',
 
     SYNC_INTERVAL:     5 * 60 * 1000,
     PING_INTERVAL:      2 * 60 * 1000,

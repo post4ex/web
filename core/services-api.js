@@ -7,7 +7,7 @@ const ServicesAPI = (() => {
     async function _get(path, params = {}) {
         const token = getSessionId();
         const qs = new URLSearchParams(params).toString();
-        const url = `${CONSTANTS.OPERATIONS_URL}${path}${qs ? '?' + qs : ''}`;
+        const url = `${path}${qs ? '?' + qs : ''}`;
         const res = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` },
             cache: 'no-store',
@@ -19,7 +19,7 @@ const ServicesAPI = (() => {
 
     async function _post(path, body = {}) {
         const token = getSessionId();
-        const res = await fetch(`${CONSTANTS.OPERATIONS_URL}${path}`, {
+        const res = await fetch(path, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             cache: 'no-store',
@@ -33,7 +33,7 @@ const ServicesAPI = (() => {
     async function _delete(path, params = {}) {
         const token = getSessionId();
         const qs = new URLSearchParams(params).toString();
-        const url = `${CONSTANTS.OPERATIONS_URL}${path}${qs ? '?' + qs : ''}`;
+        const url = `${path}${qs ? '?' + qs : ''}`;
         const res = await fetch(url, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` },

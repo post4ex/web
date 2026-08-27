@@ -15,28 +15,49 @@ const VaultBilling = (() => {
     // ── Print ─────────────────────────────────────────────────────────────────
     function _print(inv, shipments, b2b, branch) {
         const clientName = b2b?.B2B_NAME || inv.CODE;
+        const clientAddress = b2b?.B2B_ADDRESS || '';
+        const clientCity = b2b?.B2B_CITY || '';
+        const clientState = b2b?.B2B_STATE || '';
+        const clientGstin = b2b?.ID_GST_PAN_ADHAR || 'Unregistered';
+        const clientMobile = b2b?.MOBILE_NUMBER || '';
+        const clientGstCode = b2b?.GST_CODE || '';
+
         const invNum     = inv.INV_NUMBER || 'N/A';
         const invDate    = inv.INVOICE_DATE ? _fmt(inv.INVOICE_DATE) : 'N/A';
-        const branchName = branch?.BRANCH_NAME || inv.BRANCH || 'N/A';
-        const branchCity = branch?.BRANCH_CITY || 'local';
+        const branchName = branch?.BRANCH_NAME || inv.BRANCH || 'POST4EX LOGISTICS';
+        const branchAddress = branch?.BRANCH_ADDRESS || '';
+        const branchCity = branch?.BRANCH_CITY || 'Dehradun';
+        const branchState = branch?.BRANCH_STATE || 'Uttarakhand';
+        const branchStateCode = branch?.GST_CODE || branch?.CODE_STATE || '05';
+        const branchGstin = branch?.BRANCH_GSTIN || '';
+        const branchPan   = branch?.BRANCH_PAN || '';
+        const branchEmail = branch?.BRANCH_EMAIL || '';
+        const branchMobile = branch?.BRANCH_MOBILE || '';
         const branchUpi  = branch?.BRANCH_UPI  || '';
         const branchUpiName = branch?.BRANCH_UPI_NAME || branchName;
+        const branchBank = branch?.BRANCH_BANK || branch?.BANK_NAME || 'Bank of Baroda';
+        const branchAccNo = branch?.BRANCH_ACCOUNT_NO || branch?.ACCOUNT_NO || '';
+        const branchIfsc = branch?.BRANCH_IFSC || branch?.IFSC_CODE || '';
 
-        let tFright=0,tFuel=0,tCod=0,tTopay=0,tFov=0,tEway=0,tAwb=0,tPack=0,tDev=0,
-            tSgst=0,tCgst=0,tIgst=0,tTaxable=0,tTotal=0,tPiecs=0,tChgWt=0;
+        let tFright=0, tFuel=0, tCod=0, tTopay=0, tFov=0, tEway=0, tAwb=0, tPack=0, tDev=0,
+            tSgst=0, tCgst=0, tIgst=0, tTaxable=0, tTotal=0, tPiecs=0, tChgWt=0;
+        
         shipments.forEach(s => {
             tFright+=+s.FRIGHT||0; tFuel+=+s.FUEL_CHG||0; tCod+=+s.COD_CHG||0;
             tTopay+=+s.TOPAY_CHG||0; tFov+=+s.FOV_CHG||0; tEway+=+s.EWAY_CHG||0;
             tAwb+=+s.AWB_CHG||0; tPack+=+s.PACK_CHG||0; tDev+=+s.DEV_CHG||0;
             tSgst+=+s.SGST||0; tCgst+=+s.CGST||0; tIgst+=+s.IGST||0;
             tTaxable+=+s.TAXABLE||0; tTotal+=+s.TOTAL||0;
-            tPiecs+=parseInt(s.PIECS||0); tChgWt+=+s.CHG_WT||0;
+            tPiecs+=parseInt(s.PIECS||0, 10); tChgWt+=+s.CHG_WT||0;
         });
+
+        const grandTotal = inv.TOTAL || tTotal;
+        const totalTaxAmt = tSgst + tCgst + tIgst;
 
         function numToWords(n) {
             const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
             const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-            n=Math.round(n); if(!n) return '';
+            n=Math.round(n); if(!n) return 'Zero';
             if(n<20) return a[n]; if(n<100) return b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');
             if(n<1000) return a[Math.floor(n/100)]+' Hundred'+(n%100?' '+numToWords(n%100):'');
             if(n<100000) return numToWords(Math.floor(n/1000))+' Thousand'+(n%1000?' '+numToWords(n%1000):'');
@@ -44,63 +65,224 @@ const VaultBilling = (() => {
             return numToWords(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+numToWords(n%10000000):'');
         }
 
-        const rows = shipments.map((s,i) => `<tr>
-            <td class="tc">${i+1}</td><td>${_fmt(s.ORDER_DATE)}</td>
-            <td>${s.AWB_NUMBER||'N/A'}: ${s.CARRIER||'N/A'}</td>
-            <td class="tc">${s.MODE||'N/A'}</td><td class="tc">${String(s.PIECS||1).padStart(2,'0')}</td>
-            <td>${s.DEST_PINCODE||''}: ${s.DEST_CITY||'N/A'}</td>
-            <td class="tr">${(+s.CHG_WT||0).toFixed(2)}</td>                            <td class="tr">&#8377;${(+s.FRIGHT||0).toFixed(2)}</td></tr>`).join('');
+        const rows = shipments.map((s, i) => `
+            <tr class="item-row">
+                <td class="tc border-r">${i + 1}</td>
+                <td class="border-r">${_fmt(s.ORDER_DATE)}</td>
+                <td class="border-r font-bold">${s.AWB_NUMBER || 'N/A'}${s.CARRIER ? ': ' + s.CARRIER : ''}</td>
+                <td class="tc border-r">${s.MODE || 'N/A'}</td>
+                <td class="tc border-r">${String(s.PIECS || 1).padStart(2, '0')}</td>
+                <td class="border-r">${s.DEST_PINCODE || ''}: ${s.DEST_CITY || 'N/A'}</td>
+                <td class="tr border-r">${(+s.CHG_WT || 0).toFixed(2)}</td>
+                <td class="tr">&#8377;${(+s.FRIGHT || 0).toFixed(2)}</td>
+            </tr>
+        `).join('');
 
-        // Use pre-calculated totals from consolidated invoice object (authoritative)
-        const chargeRows = [
-            ['Fright',tFright,true],['Fuel Charge',tFuel,false],['COD Charge',tCod,false],
-            ['Topay Charge',tTopay,false],['Insurance',tFov,false],['Eway Handle',tEway,false],
-            ['AWB Charges',tAwb,false],['Packaging',tPack,false],['Development',tDev,false],
-            ['Taxable Amount',tTaxable,true],['SGST',tSgst,false],['CGST',tCgst,false],['IGST',tIgst,false],
-        ].filter(([,v,a])=>a||v>0).map(([l,v])=>`<tr><td>${l}</td><td class="tr">${v.toFixed(2)}</td></tr>`).join('');
+        const qrUrl = branchUpi ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${grandTotal.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent('INV-'+invNum)}` : '';
 
-        // Use consolidated grand total from the invoice totals (not re-summed)
-        const grandTotal = inv.TOTAL || tTotal;
+        const css = `
+            * { box-sizing: border-box; }
+            body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 11px; line-height: 1.35; color: #000; margin: 0; padding: 15px; background: #f5f5f5; }
+            .tally-wrap { max-width: 820px; margin: auto; background: #fff; border: 1.5px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+            .tally-header { text-align: center; border-bottom: 1.5px solid #000; padding: 4px 10px; position: relative; }
+            .tally-title { font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+            .tally-subtitle { font-size: 9px; font-weight: bold; position: absolute; right: 10px; top: 6px; }
+            .tally-grid { display: grid; grid-template-columns: 52% 48%; border-bottom: 1px solid #000; }
+            .border-r { border-right: 1px solid #000; }
+            .border-b { border-bottom: 1px solid #000; }
+            .p-6 { padding: 6px 8px; }
+            .p-4 { padding: 4px 6px; }
+            .meta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+            .meta-table td { padding: 2.5px 4px; vertical-align: top; border-bottom: 1px solid #000; }
+            .meta-table tr:last-child td { border-bottom: none; }
+            .meta-table .meta-cell { border-right: 1px solid #000; width: 50%; }
+            .items-table { width: 100%; border-collapse: collapse; font-size: 10.5px; border-bottom: 1.5px solid #000; }
+            .items-table th { background: #f2f2f2; border-bottom: 1.5px solid #000; padding: 5px 4px; font-weight: bold; }
+            .items-table td { padding: 4px 5px; vertical-align: middle; }
+            .items-table .item-row td { border-bottom: 1px solid #e5e7eb; }
+            .tc { text-align: center; }
+            .tr { text-align: right; }
+            .tl { text-align: left; }
+            .font-bold { font-weight: bold; }
+            .sub-txt { font-size: 9px; color: #444; }
+            .tot-row td { border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; padding: 6px 4px; background: #fafafa; }
+            .bottom-section { display: grid; grid-template-columns: 55% 45%; border-bottom: 1.5px solid #000; }
+            .tax-words-box { padding: 6px 8px; font-size: 10.5px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: space-between; }
+            .bank-box { margin-top: 6px; padding-top: 4px; border-top: 1px dashed #000; font-size: 10px; }
+            .sig-section { display: grid; grid-template-columns: 55% 45%; }
+            .decl-box { padding: 6px 8px; font-size: 9.5px; border-right: 1px solid #000; }
+            .signatory-box { padding: 6px 8px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; min-height: 85px; }
+            .computer-note { text-align: center; font-size: 9px; padding: 3px; font-weight: bold; background: #fafafa; }
+            @media print {
+                @page { size: A4 portrait; margin: 8mm; }
+                body { background: #fff; padding: 0; }
+                .tally-wrap { box-shadow: none; width: 100% !important; max-width: 100% !important; border: 1.5px solid #000 !important; }
+            }
+        `;
 
-        const qrUrl = branchUpi ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=${encodeURIComponent(branchUpi)}%26pn=${encodeURIComponent(branchUpiName)}%26am=${grandTotal.toFixed(2)}%26cu=INR%26tn=${encodeURIComponent('INV-'+invNum)}` : '';
+        const html = `<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Tax Invoice - ${invNum}</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="tally-wrap">
+                <!-- Top Title Bar -->
+                <div class="tally-header">
+                    <div class="tally-title">Tax Invoice</div>
+                    <div class="tally-subtitle">(ORIGINAL FOR RECIPIENT)</div>
+                </div>
 
-        const css = `body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0;padding:20px;background:#f5f5f5}
-        .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15)}
-        .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:15px;margin-bottom:20px}
-        .logo{width:240px;height:120px;object-fit:contain}.tr{text-align:right}.tc{text-align:center}
-        .info{display:flex;justify-content:space-between;margin-bottom:20px;gap:20px}
-        .col{width:48%}.col h3{margin:0 0 5px;font-size:14px;border-bottom:1px solid #ccc;padding-bottom:3px}.col p{margin:2px 0}
-        .div{width:1px;background:#ccc}.divb{height:2px;background:#000;margin-bottom:20px}
-        .meta{margin-bottom:20px;font-weight:bold;text-align:center}
-        table{width:100%;border-collapse:collapse;margin-bottom:20px}table,th,td{border:1px solid #000}th,td{padding:6px;text-align:left}th{background:#f2f2f2}
-        .tot{display:flex;justify-content:space-between;margin-bottom:20px;page-break-inside:avoid}
-        .pay{width:55%}.chg{width:40%}.chg table{margin-bottom:0}.chg th,.chg td{padding:4px 6px}
-        .terms{font-size:11px;margin-bottom:40px}.terms ol{margin:5px 0 0;padding-left:20px}
-        .sig{text-align:right;font-weight:bold}.sigbox{display:inline-block;text-align:center;min-width:200px}
-        @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}}`;
+                <!-- Seller & Buyer Details + Dispatch Meta Grid -->
+                <div class="tally-grid">
+                    <div class="border-r" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        <div class="p-6">
+                            <div style="font-size: 12.5px; font-weight: bold; line-height: 1.2; margin-bottom: 2px;">Billed By: ${branchName}</div>
+                            <div><b>Address:</b> ${branchAddress}</div>
+                            <div><b>City:</b> ${branchCity}, ${branchState}</div>
+                            <div><b>State Name:</b> ${branchState}, <b>Code:</b> ${branchStateCode}</div>
+                            <div><b>PAN/GST:</b> ${branchPan ? branchPan + ' / ' : ''}<span class="font-bold">${branchGstin || 'N/A'}</span></div>
+                            <div><b>Phone:</b> ${branchMobile || ''} ${branchEmail ? ' | <b>Email:</b> ' + branchEmail : ''}</div>
+                        </div>
+                        <div class="p-6" style="border-top: 1px solid #000;">
+                            <div class="font-bold" style="text-decoration: underline; margin-bottom: 2px;">Bill To: ${clientName}</div>
+                            <div><b>Address:</b> ${clientAddress}</div>
+                            <div><b>City:</b> ${clientCity ? clientCity + ', ' : ''}${clientState}</div>
+                            <div><b>State Name:</b> ${clientState || 'N/A'}, <b>Code:</b> ${clientGstCode || '—'}</div>
+                            <div><b>GST:</b> <span class="font-bold">${clientGstin}</span></div>
+                            ${clientMobile ? `<div><b>Mobile:</b> ${clientMobile}</div>` : ''}
+                        </div>
+                    </div>
+                    <div>
+                        <table class="meta-table" style="height: 100%;">
+                            <tr>
+                                <td class="meta-cell"><b>Invoice No.</b><br><span class="font-bold" style="font-size: 11px;">${invNum}</span></td>
+                                <td><b>Invoice Date:</b><br><span class="font-bold">${invDate}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Delivery Note</b><br>—</td>
+                                <td><b>Mode/Terms of Payment</b><br>Credit / On Receipt</td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Supplier's Ref.</b><br>—</td>
+                                <td><b>Other Reference(s)</b><br>—</td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Buyer's Order No.</b><br>—</td>
+                                <td><b>Dated</b><br>—</td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Despatch Doc No.</b><br>SAC Code 996812</td>
+                                <td><b>Delivery Note Date</b><br>—</td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Despatched through</b><br>Courier Services</td>
+                                <td><b>Destination</b><br>${clientCity || 'Various'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
 
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tax Invoice ${invNum}</title><style>${css}</style></head><body>
-        <div class="box">
-            <div class="hdr"><img src="assets/images/genie-logo.svg" class="logo"><div style="text-align:right"><h1 style="margin:0;font-size:28px;text-transform:uppercase">Tax Invoice</h1><p><b>Invoice Date:</b> ${invDate}</p><p><b>Invoice No:</b> ${invNum}</p></div></div>
-            <div class="info">
-                <div class="col"><h3>Billed By: ${branchName}</h3><p><b>Address:</b> ${branch?.BRANCH_ADDRESS||''}</p><p><b>City:</b> ${branchCity}, ${branch?.BRANCH_STATE||''}</p><p><b>Phone:</b> ${branch?.BRANCH_MOBILE||''}</p><p><b>Email:</b> ${branch?.BRANCH_EMAIL||''}</p><p><b>PAN/GST:</b> ${branch?.BRANCH_PAN||''} / ${branch?.BRANCH_GSTIN||''}</p></div>
-                <div class="div"></div>
-                <div class="col"><h3>Bill To: ${clientName}</h3><p><b>Address:</b> ${b2b?.B2B_ADDRESS||''}</p><p><b>City:</b> ${b2b?.B2B_CITY||''}, ${b2b?.B2B_STATE||''}</p><p><b>Mobile:</b> ${b2b?.MOBILE_NUMBER||''}</p><p><b>GST:</b> ${b2b?.ID_GST_PAN_ADHAR||'N/A'}</p></div>
+                <!-- Items & Shipments Table -->
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="tc border-r" style="width: 28px;">Sr</th>
+                            <th class="tl border-r" style="width: 80px;">Date</th>
+                            <th class="tl border-r">AWB: Carrier</th>
+                            <th class="tc border-r" style="width: 45px;">Mode</th>
+                            <th class="tc border-r" style="width: 45px;">Pcs</th>
+                            <th class="tl border-r" style="width: 170px;">Destination</th>
+                            <th class="tr border-r" style="width: 65px;">Chg.Wt</th>
+                            <th class="tr" style="width: 80px;">Fright</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                    <tfoot>
+                        <tr class="tot-row">
+                            <td colspan="4" class="tr border-r font-bold">Totals</td>
+                            <td class="tc border-r font-bold">${tPiecs}</td>
+                            <td class="border-r"></td>
+                            <td class="tr border-r font-bold">${tChgWt.toFixed(2)}</td>
+                            <td class="tr font-bold">&#8377;${tFright.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <!-- Amount in Words & Charges / Tax Summary -->
+                <div class="bottom-section">
+                    <div class="tax-words-box">
+                        <div>
+                            <div><b>Amount Chargeable (in words):</b></div>
+                            <div class="font-bold" style="font-size: 11px; margin-top: 2px;">INR Indian Rupees ${numToWords(Math.round(grandTotal))} Only</div>
+                        </div>
+                        <div class="bank-box">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div class="font-bold">Company's Bank Details:</div>
+                                    <div>Bank Name: <b>${branchBank}</b></div>
+                                    ${branchAccNo ? `<div>A/c No.: <b>${branchAccNo}</b></div>` : ''}
+                                    ${branchIfsc ? `<div>Branch &amp; IFS Code: <b>${branchIfsc}</b></div>` : ''}
+                                    ${branchUpi ? `<div>UPI ID: <b>${branchUpi}</b></div>` : ''}
+                                </div>
+                                ${qrUrl ? `<div><img src="${qrUrl}" style="width: 68px; height: 68px; border: 1px solid #999;"></div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding: 6px 8px; font-size: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                            <tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Freight Amount:</td><td class="tr font-bold">&#8377;${tFright.toFixed(2)}</td></tr>
+                            ${tFuel > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Fuel Charge:</td><td class="tr">&#8377;${tFuel.toFixed(2)}</td></tr>` : ''}
+                            ${tCod > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">COD Charge:</td><td class="tr">&#8377;${tCod.toFixed(2)}</td></tr>` : ''}
+                            ${tTopay > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Topay Charge:</td><td class="tr">&#8377;${tTopay.toFixed(2)}</td></tr>` : ''}
+                            ${tFov > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Insurance:</td><td class="tr">&#8377;${tFov.toFixed(2)}</td></tr>` : ''}
+                            ${tEway > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Eway Handle:</td><td class="tr">&#8377;${tEway.toFixed(2)}</td></tr>` : ''}
+                            ${tAwb > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">AWB Charges:</td><td class="tr">&#8377;${tAwb.toFixed(2)}</td></tr>` : ''}
+                            ${tPack > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Packaging:</td><td class="tr">&#8377;${tPack.toFixed(2)}</td></tr>` : ''}
+                            ${tDev > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Development:</td><td class="tr">&#8377;${tDev.toFixed(2)}</td></tr>` : ''}
+                            <tr style="border-bottom: 1.5px solid #000; font-weight: bold;"><td style="padding: 2.5px 0;">Taxable Amount:</td><td class="tr">&#8377;${tTaxable.toFixed(2)}</td></tr>
+                            ${tCgst > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Add: Central Tax (CGST):</td><td class="tr">&#8377;${tCgst.toFixed(2)}</td></tr>` : ''}
+                            ${tSgst > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Add: State Tax (SGST):</td><td class="tr">&#8377;${tSgst.toFixed(2)}</td></tr>` : ''}
+                            ${tIgst > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2px 0;">Add: Integrated Tax (IGST):</td><td class="tr">&#8377;${tIgst.toFixed(2)}</td></tr>` : ''}
+                            <tr style="font-weight: bold; font-size: 11px; background: #fafafa;"><td style="padding: 4px 0; border-top: 1.5px solid #000;">Total Amount:</td><td class="tr" style="border-top: 1.5px solid #000;">&#8377;${grandTotal.toFixed(2)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Declarations & Signatory -->
+                <div class="sig-section">
+                    <div class="decl-box">
+                        <div class="font-bold" style="text-decoration: underline;">Terms &amp; Conditions:</div>
+                        <ol style="margin: 3px 0 0 0; padding-left: 16px; font-size: 9px;">
+                            <li>All disputes subject to ${branchCity} Jurisdiction.</li>
+                            <li>Payment due on receipt.</li>
+                            <li>Computer-generated bill; no signature required.</li>
+                            <li>Dev. charges of 5% waived if paid within 10 days.</li>
+                            <li>Bill For SAC Code 996812 (Courier Services).</li>
+                        </ol>
+                    </div>
+                    <div class="signatory-box">
+                        <div style="font-size: 10px;">for <b>${branchName}</b></div>
+                        <div class="font-bold" style="font-size: 10.5px;">Authorised Signatory</div>
+                    </div>
+                </div>
+
+                <!-- Footer Note -->
+                <div class="computer-note border-b" style="border-top: 1px solid #000;">
+                    SUBJECT TO ${branchCity.toUpperCase()} JURISDICTION · This is a Computer Generated Invoice
+                </div>
             </div>
-            <div class="divb"></div><div class="meta"><p>Bill For SAC Code 996812 Courier Services</p></div>
-            <table><thead><tr><th class="tc">Sr</th><th>Date</th><th>AWB: Carrier</th><th class="tc">Mode</th><th class="tc">Pcs</th><th>Destination</th><th class="tr">Chg.Wt</th><th class="tr">Fright</th></tr></thead>
-            <tbody>${rows}</tbody>
-            <tfoot><tr style="font-weight:bold"><td colspan="4" class="tr">Totals</td><td class="tc">${tPiecs}</td><td></td><td class="tr">${tChgWt.toFixed(2)}</td><td class="tr">${tFright.toFixed(2)}</td></tr></tfoot></table>
-            <div class="tot">
-                <div class="pay">${branchUpi?`<p><b>Pay via UPI:</b></p><img src="${qrUrl}" style="width:120px;height:120px;margin:10px 0;border:1px solid #ddd"><p>Name: ${branchUpiName}<br>UPI ID: ${branchUpi}<br><b>Note:</b> INV-${invNum}</p>`:''}<p><b>Amount in words:</b><br>Rupees ${numToWords(Math.round(grandTotal))} Only</p></div>
-                <div class="chg"><table><thead><tr><th>Charge</th><th class="tr">Amount</th></tr></thead><tbody>${chargeRows}<tr style="font-weight:bold"><td>Total Amount</td><td class="tr">${grandTotal.toFixed(2)}</td></tr></tbody></table></div>
-            </div>
-            <div class="terms"><b>Terms &amp; Conditions:</b><ol><li>All disputes subject to ${branchCity} Jurisdiction.</li><li>Payment due on receipt.</li><li>Computer-generated bill; no signature required.</li><li>Dev. charges of 5% waived if paid within 10 days.</li><li>SAC Code 996812 (Courier Services).</li></ol></div>
-            <div class="sig"><div class="sigbox"><p style="margin-bottom:40px">Authorized Signatory</p><p>for ${branchName}</p></div></div>
-        </div><script>window.onload=()=>window.print();<\/script></body></html>`;
+            <script>window.onload = () => window.print();<\/script>
+        </body>
+        </html>`;
 
         const w = window.open('', `Invoice-${invNum}`);
-        w.document.write(html); w.document.close();
+        w.document.write(html);
+        w.document.close();
     }
 
     // ── Data helpers ──────────────────────────────────────────────────────────

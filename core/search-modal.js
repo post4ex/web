@@ -245,8 +245,6 @@ async function _doSearch() {
     const token = typeof getSessionId === 'function' ? getSessionId() : '';
     if (!token) { _showMsg('Session expired. Please log in again.', 'error'); return; }
 
-    const base  = (window.CONSTANTS || {}).OPERATIONS_URL || '';
-
     let url;
 
     if (_currentMode === 'custom') {
@@ -263,17 +261,17 @@ async function _doSearch() {
         }
 
         if (type === 'tc') {
-            url = `${base}/api/track/custom/tc?carrier=${encodeURIComponent(sub)}&awb=${encodeURIComponent(query)}`;
+            url = `/api/track/custom/tc?carrier=${encodeURIComponent(sub)}&awb=${encodeURIComponent(query)}`;
         } else if (type === '17t') {
-            url = `${base}/api/track/custom/17track?carrier=${encodeURIComponent(sub)}&awb=${encodeURIComponent(query)}`;
+            url = `/api/track/custom/17track?carrier=${encodeURIComponent(sub)}&awb=${encodeURIComponent(query)}`;
         } else {
-            url = `${base}/api/track/custom/${carrier}?awb=${encodeURIComponent(query)}`;
+            url = `/api/track/custom/${carrier}?awb=${encodeURIComponent(query)}`;
         }
     } else if (_currentMode === 'live') {
-        url = `${base}/api/track/live?${_refOrAwb(query)}`;
+        url = `/api/track/live?${_refOrAwb(query)}`;
     } else {
         // Default: local cache, no outbound HF call
-        url = `${base}/api/movements?${_refOrAwb(query)}`;
+        url = `/api/movements?${_refOrAwb(query)}`;
     }
 
     _showLoader();
@@ -724,10 +722,9 @@ async function _doPincodeSearch() {
     if (!pincode || !/^[0-9]{6}$/.test(pincode)) { _showMsg('Enter a valid 6-digit pincode.', 'error'); return; }
     const token = typeof getSessionId === 'function' ? getSessionId() : '';
     if (!token) { _showMsg('Session expired.', 'error'); return; }
-    const base = (window.CONSTANTS || {}).OPERATIONS_URL || '';
     _showLoader();
     try {
-        const res = await fetch(`${base}/api/pincode?pincode=${pincode}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`/api/pincode?pincode=${pincode}`, { headers: { 'Authorization': `Bearer ${token}` } });
         _hideLoader();
         if (res.status === 401) { typeof handleLogout === 'function' && handleLogout(); return; }
         if (!res.ok) { _showMsg(`Request failed (${res.status}).`, 'error'); return; }

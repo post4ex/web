@@ -181,7 +181,7 @@ async function doAuthTrack(query, msgId, loadingId, resultId) {
     try {
         const token = getSessionId();
         const param = query.match(/^\d{14}$/) ? 'ref' : 'awb';
-        const res   = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/movements?${param}=${encodeURIComponent(query)}`, {
+        const res   = await fetch(`/api/movements?${param}=${encodeURIComponent(query)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (loading) loading.classList.add('hidden');

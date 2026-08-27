@@ -455,15 +455,8 @@ const AdminPage = (() => {
         window.addEventListener('appDataLoaded',    e => _loadCountsFromData(e.detail.data));
         window.addEventListener('appDataRefreshed', e => _loadCountsFromData(e.detail.data));
 
-        // API counts (users/registrations) — wait for OPERATIONS_URL
-        const _tryLoad = () => {
-            if (CONSTANTS.OPERATIONS_URL && CONSTANTS.OPERATIONS_URL !== '__API_URL__') {
-                _loadCounts();
-            } else {
-                setTimeout(_tryLoad, 200);
-            }
-        };
-        _tryLoad();
+        // API counts (users/registrations)
+        _loadCounts();
     });
 
     return { openAddUserModal, getSudo, requireSudo, showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, getActiveTile: () => _activeTile };

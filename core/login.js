@@ -54,7 +54,7 @@ let currentView = 'login', regState = 'init', forgotState = 'send', resetToken =
 async function callApi(endpoint, payload = {}) {
     setLoading(true, 'Connecting...');
     try {
-        const res  = await fetch(`${CONSTANTS.OPERATIONS_URL}${endpoint}`, {
+        const res  = await fetch(endpoint, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
@@ -318,11 +318,6 @@ async function loadComponent(componentUrl, placeholderId) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const res = await fetch('dev_url.json', { cache: 'no-store' });
-        if (res.ok) { const { url } = await res.json(); if (url) CONSTANTS.OPERATIONS_URL = url; }
-    } catch (_) {}
-
     await loadComponent('header.html', 'header-placeholder');
     await loadComponent('footer.html', 'footer-placeholder');
     window.dispatchEvent(new CustomEvent('footerLoaded'));
