@@ -642,91 +642,188 @@
             if (tray) tray.style.display = 'block';
             const services = [
                 {
-                    icon: 'fa-box-open', iconBg: 'bg-blue-50', iconColor: 'text-blue-700',
-                    name: 'Order & Shipment Management', desc: 'End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single dashboard.',
+                    icon: 'fa-box-open',
+                    category: 'Core Ops',
+                    name: 'Order & Shipment Management',
+                    desc: 'End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single dashboard.',
+                    iconGrad: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+                    iconShadow: 'rgba(59, 130, 246, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #eff6ff 100%)',
+                    border: '#bfdbfe',
+                    pillBg: '#ffffff',
+                    pillBorder: '#bfdbfe',
+                    pillText: '#1e40af',
+                    catColor: '#1d4ed8',
+                    catBg: '#dbeafe',
                     features: ['Multi-carrier assignment', 'AWB stock management', 'Bulk operations', 'Edit & amend orders'],
-                    idealColor: 'text-blue-800 bg-blue-50', ideal: 'Streamline your entire shipment workflow.',
-                    ctaBg: 'bg-blue-600 hover:bg-blue-700', cta: 'Manage Orders'
+                    cta: 'Manage Orders',
+                    link: 'orders.html'
                 },
                 {
-                    icon: 'fa-truck-fast', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-700',
-                    name: 'Multi-Carrier Integration', desc: 'Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage providers from one place.',
-                    features: ['Rate comparison', 'Auto-allocation logic', 'Carrier-specific configs', 'API-based integration'],
-                    idealColor: 'text-emerald-800 bg-emerald-50', ideal: 'No vendor lock-in. Choose what works.',
-                    ctaBg: 'bg-emerald-600 hover:bg-emerald-700', cta: 'View Carriers'
+                    icon: 'fa-truck-fast',
+                    category: 'Integrations',
+                    name: 'Multi-Carrier Integration',
+                    desc: 'Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage providers from one place.',
+                    iconGrad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    iconShadow: 'rgba(16, 185, 129, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #f0fdf4 100%)',
+                    border: '#bbf7d0',
+                    pillBg: '#ffffff',
+                    pillBorder: '#bbf7d0',
+                    pillText: '#166534',
+                    catColor: '#047857',
+                    catBg: '#dcfce7',
+                    features: ['Rate comparison', 'Auto-allocation logic', 'Carrier configs', 'Live API sync'],
+                    cta: 'View Carriers',
+                    link: 'carriers.html'
                 },
                 {
-                    icon: 'fa-calculator', iconBg: 'bg-amber-50', iconColor: 'text-amber-700',
-                    name: 'Rate Calculator & Estimation', desc: 'Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.',
-                    features: ['GST-aware pricing', 'Fuel surcharge', 'Live rate tables', 'Volume & weight calc'],
-                    idealColor: 'text-amber-800 bg-amber-50', ideal: 'Know your costs before you ship.',
-                    ctaBg: 'bg-amber-600 hover:bg-amber-700', cta: 'Calculate'
+                    icon: 'fa-calculator',
+                    category: 'Pricing',
+                    name: 'Rate Calculator & Estimation',
+                    desc: 'Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.',
+                    iconGrad: 'linear-gradient(135deg, #d97706 0%, #ef4444 100%)',
+                    iconShadow: 'rgba(217, 119, 6, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #fffbeb 100%)',
+                    border: '#fde68a',
+                    pillBg: '#ffffff',
+                    pillBorder: '#fde68a',
+                    pillText: '#92400e',
+                    catColor: '#b45309',
+                    catBg: '#fef3c7',
+                    features: ['GST-aware pricing', 'Fuel surcharge', 'Live rate tables', 'Volumetric weight'],
+                    cta: 'Calculate Rates',
+                    link: 'rate-calculator.html'
                 },
                 {
-                    icon: 'fa-satellite-dish', iconBg: 'bg-purple-50', iconColor: 'text-purple-700',
-                    name: 'Real-time Tracking', desc: 'SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.',
-                    features: ['SSE live updates', 'Milestone mapping', 'Public tracking page', 'Carrier scan sync'],
-                    idealColor: 'text-purple-800 bg-purple-50', ideal: 'Keep customers informed in real time.',
-                    ctaBg: 'bg-purple-600 hover:bg-purple-700', cta: 'Track Now'
+                    icon: 'fa-satellite-dish',
+                    category: 'Visibility',
+                    name: 'Real-time Live Tracking',
+                    desc: 'SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.',
+                    iconGrad: 'linear-gradient(135deg, #9333ea 0%, #6366f1 100%)',
+                    iconShadow: 'rgba(147, 51, 234, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #faf5ff 100%)',
+                    border: '#e9d5ff',
+                    pillBg: '#ffffff',
+                    pillBorder: '#e9d5ff',
+                    pillText: '#6b21a8',
+                    catColor: '#7e22ce',
+                    catBg: '#f3e8ff',
+                    features: ['SSE live updates', 'Milestone mapping', 'Public tracking', 'Scan sync'],
+                    cta: 'Track Now',
+                    link: 'main.html'
                 },
                 {
-                    icon: 'fa-file-invoice', iconBg: 'bg-rose-50', iconColor: 'text-rose-700',
-                    name: 'Document Suite', desc: 'Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, ARE-1, and 20+ more templates.',
-                    features: ['20+ document templates', 'Auto-fill from order data', 'Barcode & QR support', 'Print-ready exports'],
-                    idealColor: 'text-rose-800 bg-rose-50', ideal: 'No more manual paperwork.',
-                    ctaBg: 'bg-rose-600 hover:bg-rose-700', cta: 'Create Document'
+                    icon: 'fa-file-invoice',
+                    category: 'Documents',
+                    name: 'Comprehensive Document Suite',
+                    desc: 'Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, and 20+ templates.',
+                    iconGrad: 'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
+                    iconShadow: 'rgba(225, 29, 72, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #fff1f2 100%)',
+                    border: '#fecdd3',
+                    pillBg: '#ffffff',
+                    pillBorder: '#fecdd3',
+                    pillText: '#9f1239',
+                    catColor: '#be123c',
+                    catBg: '#ffe4e6',
+                    features: ['20+ Templates', 'Auto-fill data', 'Barcode & QR', 'PDF Print ready'],
+                    cta: 'Create Document',
+                    link: 'docs.html'
                 },
                 {
-                    icon: 'fa-vault', iconBg: 'bg-teal-50', iconColor: 'text-teal-700',
-                    name: 'Financial Management (Vault)', desc: 'Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.',
-                    features: ['Chart of accounts', 'GST reconciliation', 'Payroll processing', 'Journal entries'],
-                    idealColor: 'text-teal-800 bg-teal-50', ideal: 'Complete financial control.',
-                    ctaBg: 'bg-teal-600 hover:bg-teal-700', cta: 'Open Vault'
+                    icon: 'fa-vault',
+                    category: 'Accounting',
+                    name: 'Financial Management (Vault)',
+                    desc: 'Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.',
+                    iconGrad: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)',
+                    iconShadow: 'rgba(13, 148, 136, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%)',
+                    border: '#99f6e4',
+                    pillBg: '#ffffff',
+                    pillBorder: '#99f6e4',
+                    pillText: '#115e59',
+                    catColor: '#0f766e',
+                    catBg: '#ccfbf1',
+                    features: ['Chart of Accounts', 'GST filing', 'Payroll suite', 'Journal entries'],
+                    cta: 'Open Vault',
+                    link: 'vault.html'
                 },
                 {
-                    icon: 'fa-users', iconBg: 'bg-indigo-50', iconColor: 'text-indigo-700',
-                    name: 'B2B & B2C Management', desc: 'Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements in one directory.',
-                    features: ['Client onboarding', 'Contract & rate mgmt', 'Credit tracking', 'Service agreements'],
-                    idealColor: 'text-indigo-800 bg-indigo-50', ideal: 'Organize your customer base.',
-                    ctaBg: 'bg-indigo-600 hover:bg-indigo-700', cta: 'View Clients'
+                    icon: 'fa-users',
+                    category: 'CRM & Portal',
+                    name: 'B2B & B2C Client Management',
+                    desc: 'Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements in one directory.',
+                    iconGrad: 'linear-gradient(135deg, #4338ca 0%, #6366f1 100%)',
+                    iconShadow: 'rgba(67, 56, 202, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #eef2ff 100%)',
+                    border: '#c7d2fe',
+                    pillBg: '#ffffff',
+                    pillBorder: '#c7d2fe',
+                    pillText: '#3730a3',
+                    catColor: '#4338ca',
+                    catBg: '#e0e7ff',
+                    features: ['Onboarding', 'Contract & rates', 'Credit limits', 'SLAs tracking'],
+                    cta: 'View Clients',
+                    link: 'clients.html'
                 },
                 {
-                    icon: 'fa-building', iconBg: 'bg-cyan-50', iconColor: 'text-cyan-700',
-                    name: 'Branch & Staff Management', desc: 'Multi-branch operations with role-based access control, shift management, attendance tracking, and staff views.',
-                    features: ['Multi-branch setup', 'Role-based access', 'Shift scheduling', 'Attendance system'],
-                    idealColor: 'text-cyan-800 bg-cyan-50', ideal: 'Run multiple locations seamlessly.',
-                    ctaBg: 'bg-cyan-600 hover:bg-cyan-700', cta: 'Manage Branches'
+                    icon: 'fa-building',
+                    category: 'Human Resources',
+                    name: 'Branch & Staff Management',
+                    desc: 'Multi-branch operations with role-based access control, shift management, attendance tracking, and staff views.',
+                    iconGrad: 'linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%)',
+                    iconShadow: 'rgba(8, 145, 178, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #ecfeff 100%)',
+                    border: '#a5f3fc',
+                    pillBg: '#ffffff',
+                    pillBorder: '#a5f3fc',
+                    pillText: '#155e75',
+                    catColor: '#0e7490',
+                    catBg: '#cffafe',
+                    features: ['Multi-branch setup', 'Role RBAC', 'Shift schedule', 'Attendance'],
+                    cta: 'Manage Branches',
+                    link: 'staff.html'
                 },
                 {
-                    icon: 'fa-shield-halved', iconBg: 'bg-slate-50', iconColor: 'text-slate-700',
-                    name: 'Admin & Compliance', desc: 'Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.',
-                    features: ['Pincode DB (19k+)', 'Holiday calendar', 'Service modes config', 'Audit & activity logs'],
-                    idealColor: 'text-slate-800 bg-slate-50', ideal: 'Stay compliant and in control.',
-                    ctaBg: 'bg-slate-700 hover:bg-slate-800', cta: 'Admin Panel'
+                    icon: 'fa-shield-halved',
+                    category: 'Governance',
+                    name: 'Admin, Compliance & Config',
+                    desc: 'Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.',
+                    iconGrad: 'linear-gradient(135deg, #475569 0%, #334155 100%)',
+                    iconShadow: 'rgba(71, 85, 105, 0.35)',
+                    cardBg: 'linear-gradient(180deg, #ffffff 15%, #f1f5f9 100%)',
+                    border: '#cbd5e1',
+                    pillBg: '#ffffff',
+                    pillBorder: '#cbd5e1',
+                    pillText: '#334155',
+                    catColor: '#334155',
+                    catBg: '#e2e8f0',
+                    features: ['19k+ Pincode DB', 'Holiday calendar', 'Service modes', 'Audit logs'],
+                    cta: 'Admin Panel',
+                    link: 'admin.html'
                 }
             ];
             const slides = services.map(s => `
-                <div>
-                    <div class="service-card bg-gray-50 p-6 rounded-lg border border-gray-200 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300">
-                        <div class="w-16 h-16 mb-4 ${s.iconBg} ${s.iconColor} rounded-full flex items-center justify-center">
-                            <i class="fa-solid ${s.icon} text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-800 mb-2">${s.name}</h3>
-                        <p class="text-gray-600 mb-4 text-sm">${s.desc}</p>
-                        <div class="text-left w-full border-t border-gray-200 pt-4">
-                            <div class="space-y-3 text-sm text-gray-600">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Key Features:</h4>
-                                    <ul class="list-disc list-inside space-y-0.5">${s.features.map(f => `<li>${f}</li>`).join('')}</ul>
+                <div style="padding: 0.25rem;">
+                    <div style="background: ${s.cardBg}; border: 1.5px solid ${s.border}; border-radius: 1.25rem; padding: 1.25rem; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; min-height: 380px;">
+                        <div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                                <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: ${s.iconGrad}; box-shadow: 0 4px 12px ${s.iconShadow}, inset 0 1px 1px rgba(255,255,255,0.4);">
+                                    <i class="fa-solid ${s.icon}" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                                 </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800 mb-1">Ideal For:</h4>
-                                    <p class="${s.idealColor} p-2 rounded text-xs">${s.ideal}</p>
-                                </div>
-                                <div class="pt-1">
-                                    <a href="${typeof isLoggedIn === 'function' && isLoggedIn() ? 'dashboard.html' : 'login.html'}" class="inline-block w-full px-4 py-2 ${s.ctaBg} text-white rounded transition-colors text-sm font-bold uppercase tracking-wider">${s.cta}</a>
-                                </div>
+                                <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: ${s.catColor}; background: ${s.catBg}; border: 1px solid ${s.border}; padding: 0.2rem 0.6rem; border-radius: 9999px;">${s.category}</span>
                             </div>
+                            <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">${s.name}</h3>
+                            <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">${s.desc}</p>
+                        </div>
+                        <div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid ${s.border}; margin-bottom: 0.85rem;">
+                                ${s.features.map(f => `<span style="font-size: 0.68rem; font-weight: 700; background: ${s.pillBg}; border: 1px solid ${s.pillBorder}; color: ${s.pillText}; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>${f}</span>`).join('')}
+                            </div>
+                            <a href="${typeof isLoggedIn === 'function' && isLoggedIn() ? 'dashboard.html' : 'login.html'}" class="btn w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                                ${s.cta}
+                            </a>
                         </div>
                     </div>
                 </div>`).join('');

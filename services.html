@@ -15,17 +15,53 @@
         }
         body { font-family: 'Comfortaa', sans-serif; font-weight: 500; }
 
-        .capability-card {
-            transition: all 0.3s ease;
+        .service-card {
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+            box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+            position: relative;
+            overflow: hidden;
         }
-        .capability-card:hover {
+        .service-card:hover {
             transform: translateY(-4px);
+            box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.08);
         }
-        .feature-badge {
-            transition: all 0.2s ease;
+        .service-icon-box {
+            width: 3.25rem;
+            height: 3.25rem;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px var(--icon-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+            transition: transform 0.22s ease;
         }
-        .feature-badge:hover {
-            transform: scale(1.05);
+        .service-card:hover .service-icon-box {
+            transform: scale(1.08);
+        }
+        .service-icon-box i {
+            font-size: 1.35rem;
+            color: #ffffff;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+        }
+        .service-pill {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            padding: 0.35rem 0.65rem;
+            border-radius: 0.625rem;
+            transition: transform 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .service-pill:hover {
+            transform: translateY(-1px);
         }
     </style>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
@@ -115,159 +151,232 @@
         })();
     </script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col">
+<body class="bg-slate-50 min-h-screen flex flex-col">
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
     <!-- Hero -->
-    <section class="bg-gradient-to-br from-[#022c5a] to-[#011735] text-white py-16 sm:py-24">
+    <section class="bg-gradient-to-br from-[#022c5a] to-[#011735] text-white py-14 sm:py-20">
         <div class="container mx-auto max-w-6xl px-4 text-center">
-            <h1 class="text-4xl sm:text-5xl font-black mb-4 tracking-tight">The Operations OS for<br/>Courier &amp; Logistics</h1>
-            <p class="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto leading-relaxed">
-                Genie is a unified platform that handles your entire logistics operations —
-                from order booking and carrier allocation to billing, documents, and compliance.
-                Built for Indian courier &amp; freight businesses.
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-amber-300 border border-white/15 mb-4 tracking-wide uppercase">
+                <i class="fa-solid fa-layer-group text-[10px]"></i> Enterprise Operations Platform
+            </span>
+            <h1 class="text-3xl sm:text-5xl font-extrabold mb-4 tracking-tight leading-tight">The Operations OS for<br/>Courier &amp; Logistics</h1>
+            <p class="text-sm sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
+                A unified logistics platform engineered to handle end-to-end booking, carrier allocation, real-time live tracking, smart billing, and complete compliance.
             </p>
         </div>
     </section>
 
-    <main class="w-full flex-grow p-4 sm:p-8 -mt-8">
+    <main class="w-full flex-grow p-4 sm:p-8 -mt-6">
         <div class="container mx-auto max-w-7xl">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
 
                 <!-- 1. Order & Shipment Management -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-box-open text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); border: 1.5px solid #bfdbfe; --icon-shadow: rgba(59, 130, 246, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-blue-100/70 border border-blue-200 px-2.5 py-0.5 rounded-full">Core Ops</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Order &amp; Shipment Management</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single unified dashboard.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Order &amp; Shipment Management</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single dashboard.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">Multi-carrier assignment</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">AWB stock management</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">Bulk operations</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">Edit &amp; amend orders</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-blue-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> Multi-carrier</span>
+                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> AWB inventory</span>
+                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> Bulk actions</span>
+                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> Order edit/amend</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Manage Orders</a>
                     </div>
                 </div>
 
                 <!-- 2. Multi-Carrier Integration -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-truck-fast text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #f0fdf4 100%); border: 1.5px solid #bbf7d0; --icon-shadow: rgba(16, 185, 129, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                <i class="fa-solid fa-truck-fast"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100/70 border border-emerald-200 px-2.5 py-0.5 rounded-full">Integrations</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Multi-Carrier Integration</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage all providers from one place.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Multi-Carrier Integration</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage all providers from one place.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Rate comparison</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Auto-allocation logic</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Carrier-specific configs</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">API-based integration</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-emerald-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Rate comparison</span>
+                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Auto-allocation</span>
+                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Carrier configs</span>
+                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Live API sync</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">View Carriers</a>
                     </div>
                 </div>
 
                 <!-- 3. Rate Calculator & Estimation -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-calculator text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); border: 1.5px solid #fde68a; --icon-shadow: rgba(217, 119, 6, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #d97706 0%, #ef4444 100%);">
+                                <i class="fa-solid fa-calculator"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100/70 border border-amber-200 px-2.5 py-0.5 rounded-full">Pricing</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Rate Calculator &amp; Estimation</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Rate Calculator &amp; Estimation</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">GST-aware pricing</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">Fuel surcharge</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">Live rate tables</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full font-medium">Volume &amp; weight calc</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-amber-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> GST-aware pricing</span>
+                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> Fuel surcharge</span>
+                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> Live rate tables</span>
+                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> Volumetric weight</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Calculate Rates</a>
                     </div>
                 </div>
 
                 <!-- 4. Real-time Tracking -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-purple-50 text-purple-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-satellite-dish text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #faf5ff 100%); border: 1.5px solid #e9d5ff; --icon-shadow: rgba(147, 51, 234, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #9333ea 0%, #6366f1 100%);">
+                                <i class="fa-solid fa-satellite-dish"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-purple-700 uppercase tracking-wider bg-purple-100/70 border border-purple-200 px-2.5 py-0.5 rounded-full">Visibility</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Real-time Live Tracking</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Real-time Tracking</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">SSE live updates</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">Milestone mapping</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">Public tracking page</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">Carrier scan sync</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-purple-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> SSE live stream</span>
+                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> Milestone map</span>
+                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> Scan sync</span>
+                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> Instant updates</span>
+                        </div>
+                        <a href="main.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Track Now</a>
                     </div>
                 </div>
 
                 <!-- 5. Document Suite -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-rose-50 text-rose-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-file-invoice text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #fff1f2 100%); border: 1.5px solid #fecdd3; --icon-shadow: rgba(225, 29, 72, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);">
+                                <i class="fa-solid fa-file-invoice"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-rose-700 uppercase tracking-wider bg-rose-100/70 border border-rose-200 px-2.5 py-0.5 rounded-full">Documents</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Comprehensive Document Suite</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, and 20+ templates.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Document Suite</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, ARE-1, and 20+ more templates.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">20+ document templates</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">Auto-fill from order data</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">Barcode &amp; QR support</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full font-medium">Print-ready exports</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-rose-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> 20+ Templates</span>
+                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> Auto-fill data</span>
+                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> Barcode &amp; QR</span>
+                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> PDF Print ready</span>
+                        </div>
+                        <a href="docs.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Create Document</a>
                     </div>
                 </div>
 
                 <!-- 6. Financial Management (Vault) -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-teal-50 text-teal-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-vault text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); border: 1.5px solid #99f6e4; --icon-shadow: rgba(13, 148, 136, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);">
+                                <i class="fa-solid fa-vault"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-teal-700 uppercase tracking-wider bg-teal-100/70 border border-teal-200 px-2.5 py-0.5 rounded-full">Accounting</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Financial Management (Vault)</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Financial Management (Vault)</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">Chart of accounts</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">GST reconciliation</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">Payroll processing</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full font-medium">Journal entries</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-teal-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> Chart of Accounts</span>
+                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> GST filing</span>
+                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> Payroll suite</span>
+                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> Journal entries</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Open Vault</a>
                     </div>
                 </div>
 
-                <!-- 7. B2B / B2C Client Portal -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-users text-2xl"></i>
+                <!-- 7. B2B / B2C Client Management -->
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); border: 1.5px solid #c7d2fe; --icon-shadow: rgba(67, 56, 202, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-100/70 border border-indigo-200 px-2.5 py-0.5 rounded-full">CRM &amp; Portal</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">B2B &amp; B2C Client Management</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements all in one directory.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">B2B &amp; B2C Client Management</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements — all in one directory.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Client onboarding</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Contract &amp; rate mgmt</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Credit tracking</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Service agreements</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-indigo-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> Onboarding</span>
+                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> Contract &amp; rates</span>
+                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> Credit limits</span>
+                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> SLAs tracking</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">View Clients</a>
                     </div>
                 </div>
 
                 <!-- 8. Branch & Staff Management -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-cyan-50 text-cyan-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-building text-2xl"></i>
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); border: 1.5px solid #a5f3fc; --icon-shadow: rgba(8, 145, 178, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%);">
+                                <i class="fa-solid fa-building"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-cyan-800 uppercase tracking-wider bg-cyan-100/70 border border-cyan-200 px-2.5 py-0.5 rounded-full">Human Resources</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Branch &amp; Staff Management</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Multi-branch operations with role-based access control, shift management, attendance tracking, and staff performance views.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Branch &amp; Staff Management</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Multi-branch operations with role-based access control, shift management, attendance tracking, and staff performance views.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Multi-branch setup</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Role-based access</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Shift scheduling</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-full font-medium">Attendance system</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-cyan-100 mb-4">
+                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Multi-branch</span>
+                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Role RBAC</span>
+                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Shift schedule</span>
+                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Attendance</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Manage Branches</a>
                     </div>
                 </div>
 
-                <!-- 9. Admin, Compliance & Config -->
-                <div class="capability-card bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col hover:shadow-xl">
-                    <div class="w-14 h-14 mb-4 bg-slate-50 text-slate-700 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                <!-- 9. Admin, Compliance & Configuration -->
+                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #f1f5f9 100%); border: 1.5px solid #cbd5e1; --icon-shadow: rgba(71, 85, 105, 0.35);">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="service-icon-box" style="background: linear-gradient(135deg, #475569 0%, #334155 100%);">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider bg-slate-200/70 border border-slate-300 px-2.5 py-0.5 rounded-full">Governance</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Admin, Compliance &amp; Config</h3>
+                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.</p>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Admin, Compliance &amp; Configuration</h3>
-                    <p class="text-gray-500 text-sm mb-4 flex-grow">Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.</p>
-                    <div class="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Pincode DB (19k+)</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Holiday calendar</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Service modes config</span>
-                        <span class="feature-badge text-xs px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full font-medium">Audit &amp; activity logs</span>
+                    <div>
+                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-slate-200 mb-4">
+                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> 19k+ Pincode DB</span>
+                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> Holiday calendar</span>
+                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> Service modes</span>
+                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> Audit logs</span>
+                        </div>
+                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Admin Panel</a>
                     </div>
                 </div>
 
@@ -275,8 +384,8 @@
 
             <!-- CTA -->
             <div class="text-center mt-12 mb-8">
-                <a href="login.html" class="btn text-lg px-10 py-4">
-                    <i class="fa-solid fa-rocket mr-2"></i> Get Started with Genie
+                <a href="login.html" class="btn text-base sm:text-lg px-8 sm:px-12 py-3.5 sm:py-4 inline-flex items-center gap-2">
+                    <i class="fa-solid fa-rocket"></i> Get Started with Genie
                 </a>
             </div>
 
