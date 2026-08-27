@@ -155,6 +155,9 @@ html,
      tab-size: 4;
   /* 3 */
   font-family: 'Comfortaa', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   /* 4 */
   font-feature-settings: normal;
   /* 5 */
@@ -174,7 +177,10 @@ body {
   /* 1 */
   line-height: inherit;
   /* 2 */
-  background: linear-gradient(to bottom, #fef3c7, #fef3c7);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background: #f8fafc;
   min-height: 100vh;
 }
 
@@ -3882,15 +3888,15 @@ video {
 
 
 /* =============================================================================
-   TRAY — warm amber card used on main page and globally
+   TRAY — clean crisp card with subtle elevation and slate border
 ============================================================================= */
 
 .tray {
-  background: #f5e6c8;
+  background: #ffffff;
   border-radius: 1.5rem;
   padding: 1.5rem;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
-  border: 1.5px solid #e8c98a;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 /* =============================================================================

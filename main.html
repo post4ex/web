@@ -13,7 +13,113 @@
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
     <style>
-        body { font-family: 'Comfortaa', sans-serif; }
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        body {
+            font-family: 'Comfortaa', sans-serif;
+            font-weight: 500;
+            color: #0f172a;
+            background-color: #f8fafc;
+        }
+        
+        /* --- CLASSY REACT-STYLE TILES --- */
+        .classy-tile {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 0.75rem 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 5.5rem;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+        @media (min-width: 1024px) {
+            .classy-tile { padding: 0.95rem 0.65rem; min-height: 6.2rem; }
+        }
+        .classy-tile:hover {
+            transform: translateY(-3px);
+            border-color: var(--tile-accent);
+            box-shadow: 0 0 0 1px var(--tile-accent-fade), 0 10px 22px -4px rgba(15, 23, 42, 0.08);
+        }
+        .classy-tile-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            width: 100%;
+            margin-top: 0.3rem;
+        }
+        .classy-tile-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--tile-accent);
+            flex-shrink: 0;
+            opacity: 0.85;
+        }
+        .classy-tile-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #475569;
+            transition: color 0.2s ease;
+        }
+        .classy-tile:hover .classy-tile-label {
+            color: #0f172a;
+        }
+        .classy-icon-box {
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--icon-grad);
+            box-shadow: 0 3px 10px -1px var(--icon-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        .classy-tile:hover .classy-icon-box {
+            transform: scale(1.08);
+            box-shadow: 0 6px 16px -2px var(--icon-shadow);
+        }
+        .classy-icon-box i {
+            font-size: 1.15rem;
+            color: #ffffff;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+        }
+
+        /* Color Themes matching React App GRADIENTS exactly */
+        .ct-blue    { --tile-accent: #2563EB; --tile-accent-fade: rgba(37, 99, 235, 0.25); --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.35); }
+        .ct-indigo  { --tile-accent: #4F46E5; --tile-accent-fade: rgba(79, 70, 229, 0.25); --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.35); }
+        .ct-amber   { --tile-accent: #D97706; --tile-accent-fade: rgba(217, 119, 6, 0.25); --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.35); }
+        .ct-teal    { --tile-accent: #0D9488; --tile-accent-fade: rgba(13, 148, 136, 0.25); --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.35); }
+        .ct-orange  { --tile-accent: #EA580C; --tile-accent-fade: rgba(234, 88, 12, 0.25); --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.35); }
+        .ct-cyan    { --tile-accent: #0891B2; --tile-accent-fade: rgba(8, 145, 178, 0.25); --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.35); }
+        .ct-slate   { --tile-accent: #6366F1; --tile-accent-fade: rgba(99, 102, 241, 0.25); --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.35); }
+        .ct-yellow  { --tile-accent: #CA8A04; --tile-accent-fade: rgba(202, 138, 4, 0.25); --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.35); }
+        .ct-green   { --tile-accent: #16A34A; --tile-accent-fade: rgba(22, 163, 74, 0.25); --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.35); }
+        .ct-emerald { --tile-accent: #059669; --tile-accent-fade: rgba(5, 150, 105, 0.25); --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.35); }
+
+        /* --- CLASSY TRACKING BOX --- */
+        .classy-track-box {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
         
         /* --- MODAL STYLES --- */
         .modal-overlay {
@@ -149,7 +255,7 @@
         })();
     </script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col">
+<body class="bg-slate-50 min-h-screen flex flex-col">
 
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
@@ -168,85 +274,125 @@
             <div class="tray">
             <div id="main-split-layout" class="flex flex-col lg:flex-row gap-6 items-start">
                 
-                <!-- LEFT/TOP: Buttons -->
+                <!-- LEFT/TOP: Classy Tiles (React App Style - Strict 2-Row Grid) -->
                 <div class="w-full lg:w-[60%] space-y-4">
-                    <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 w-full">
+                    <div class="grid grid-cols-4 gap-2 sm:gap-3 w-full">
                         
-                        <!-- locator, calendar, DGR, Memos, about, awareness -> Replace Services -->
-                        <button onclick="loadService('Pincode.html')" aria-label="Open Pincode Locator" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#EFF6FF'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-location-crosshairs text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #2563EB;"></i>
-                            <span class="text-xs font-semibold" style="color: #2563EB;">Locator</span>
+                        <!-- Row 1: Locator -->
+                        <button onclick="loadService('Pincode.html')" aria-label="Open Pincode Locator" class="classy-tile ct-blue group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-location-crosshairs"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Locator</span>
+                            </div>
                         </button>
 
-                        <!-- Docs -> Standard href -->
-                        <a href="docs.html" aria-label="View Documents" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#EEF2FF'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-file-contract text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #4338CA;"></i>
-                            <span class="text-xs font-semibold" style="color: #4338CA;">Docs</span>
+                        <!-- Row 1: Docs -->
+                        <a href="docs.html" aria-label="View Documents" class="classy-tile ct-indigo group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-file-contract"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Docs</span>
+                            </div>
                         </a>
 
-                        <button onclick="loadService('dgr.html')" aria-label="Dangerous Goods Regulations" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FFFBEB'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-triangle-exclamation text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #D97706;"></i>
-                            <span class="text-xs font-semibold" style="color: #D97706;">DGR</span>
+                        <!-- Row 1: DGR -->
+                        <button onclick="loadService('dgr.html')" aria-label="Dangerous Goods Regulations" class="classy-tile ct-amber group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">DGR</span>
+                            </div>
                         </button>
 
-                        <a href="calendar.html" aria-label="View Holiday Calendar" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#F0FDFA'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-regular fa-calendar-days text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #0D9488;"></i>
-                            <span class="text-xs font-semibold" style="color: #0D9488;">Calendar</span>
+                        <!-- Row 1: Calendar -->
+                        <a href="calendar.html" aria-label="View Holiday Calendar" class="classy-tile ct-teal group">
+                            <div class="classy-icon-box">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Calendar</span>
+                            </div>
                         </a>
 
-                        <button onclick="loadService('awareness.html')" aria-label="Security Awareness" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#FFF7ED'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-bullhorn text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #EA580C;"></i>
-                            <span class="text-xs font-semibold" style="color: #EA580C;">Awareness</span>
+                        <!-- Row 2: Awareness -->
+                        <button onclick="loadService('awareness.html')" aria-label="Security Awareness" class="classy-tile ct-orange group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-bullhorn"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Awareness</span>
+                            </div>
                         </button>
 
-
-                        <!-- FAQ -> Standard href -->
-                        <a href="faqs.html" aria-label="Frequently Asked Questions" class="hidden md:flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#ECFEFF'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-circle-question text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #0891B2;"></i>
-                            <span class="text-xs font-semibold" style="color: #0891B2;">FAQs</span>
+                        <!-- Row 2: FAQs -->
+                        <a href="faqs.html" aria-label="Frequently Asked Questions" class="classy-tile ct-cyan group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-circle-question"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">FAQs</span>
+                            </div>
                         </a>
 
-                        <a href="about.html" onclick="window.location.href='about.html'; return false;" class="hidden md:flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group w-full" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-circle-info text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #475569;"></i>
-                            <span class="text-xs font-semibold" style="color: #475569;">About</span>
+                        <!-- Row 2: About -->
+                        <a href="about.html" onclick="window.location.href='about.html'; return false;" class="classy-tile ct-slate group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">About</span>
+                            </div>
                         </a>
 
-                        <a href="memos.html" aria-label="Internal Memos" class="flex flex-col items-center justify-center p-3 lg:py-5 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group" onmouseover="this.style.backgroundColor='#FEFCE8'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-note-sticky text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #CA8A04;"></i>
-                            <span class="text-xs font-semibold" style="color: #CA8A04;">Memos</span>
+                        <!-- Row 2: Memos -->
+                        <a href="memos.html" aria-label="Internal Memos" class="classy-tile ct-yellow group">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-note-sticky"></i>
+                            </div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Memos</span>
+                            </div>
                         </a>
-
-
-
-                        <a href="login.html" class="hidden md:flex flex-col items-center justify-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group lg:hidden" onmouseover="this.style.backgroundColor='#F0FDF4'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-user-plus text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #16A34A;"></i>
-                            <span class="text-xs font-semibold" style="color: #16A34A;">Register</span>
-                        </a>
-
-                        <button onclick="window.openContactModal()" class="hidden md:flex flex-col items-center justify-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all text-center group lg:hidden w-full" onmouseover="this.style.backgroundColor='#ECFDF5'" onmouseout="this.style.backgroundColor='white'">
-                            <i class="fa-solid fa-headset text-xl mb-1 group-hover:scale-110 transition-transform" style="color: #059669;"></i>
-                            <span class="text-xs font-semibold" style="color: #059669;">Contact</span>
-                        </button>
                     </div>
                 </div>
 
                 <!-- RIGHT: Tracking Widget -->
                 <div class="w-full lg:w-[40%]">
-                    <div style="background:#ffffff;border-radius:1.25rem;padding:1.75rem;box-shadow:0 20px 60px -10px rgba(0,0,0,0.12),0 4px 16px rgba(0,0,0,0.08);">
+                    <div class="classy-track-box">
+                        <!-- Top subtle indicator -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                            <div style="display:flex;align-items:center;gap:0.4rem;">
+                                <span style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span>
+                                <span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;">Live Tracking</span>
+                            </div>
+                        </div>
+
                         <!-- Input -->
                         <div style="position:relative;margin-bottom:0.875rem;">
-                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;pointer-events:none;"></i>
+                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.05rem;pointer-events:none;"></i>
                             <input type="text" id="main-track-input" placeholder="AWB or Reference Number"
-                                style="width:100%;padding:1.1rem 3rem 1.1rem 2.75rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:0.875rem;color:#1e293b;font-size:0.95rem;font-weight:600;outline:none;transition:border-color 0.2s,background 0.2s;box-sizing:border-box;"
-                                onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
-                                onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
-                            <style>#main-track-input::placeholder{color:#94a3b8;}</style>
+                                style="width:100%;padding:1rem 3rem 1rem 2.65rem;background:#ffffff;border:1.5px solid #cbd5e1;border-radius:0.875rem;color:#0f172a;font-size:0.92rem;font-weight:600;outline:none;transition:border-color 0.2s,box-shadow 0.2s;box-sizing:border-box;"
+                                onfocus="this.style.borderColor='#9C2007';this.style.boxShadow='0 0 0 3px rgba(156,32,7,0.1)'"
+                                onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">
+                            <style>#main-track-input::placeholder{color:#94a3b8;font-weight:500;}</style>
                             <scan-barcode id="main-scanner" icon-only style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);line-height:0;"></scan-barcode>
                         </div>
                         <!-- inline scanner video renders here (moved by JS on mobile) -->
 
                         <!-- Button -->
-                        <button id="main-track-btn" class="btn w-full" style="border-radius:0.875rem;padding:0.95rem;font-size:0.9rem;font-weight:800;letter-spacing:0.04em;">
+                        <button id="main-track-btn" class="btn w-full" style="border-radius:0.875rem;padding:0.95rem;font-size:0.88rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">
                             <i class="fa-solid fa-magnifying-glass"></i><span>Track Shipment</span>
                         </button>
 

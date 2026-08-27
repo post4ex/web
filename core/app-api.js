@@ -246,7 +246,7 @@ function _showRetryBanner(msg) {
     document.getElementById('sync-retry-banner')?.remove();
     const banner = document.createElement('div');
     banner.id = 'sync-retry-banner';
-    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;font-size:13px;font-family:sans-serif;';
+    banner.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;font-size:13px;font-family:'Comfortaa',sans-serif;-webkit-font-smoothing:antialiased;";
     banner.innerHTML = `<span>❌ ${msg}</span><button style="padding:4px 12px;background:#fff;color:#7f1d1d;border:none;border-radius:4px;font-weight:600;cursor:pointer;">Retry</button>`;
     banner.querySelector('button').addEventListener('click', () => {
         banner.remove();

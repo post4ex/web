@@ -401,7 +401,7 @@ function _renderPincodeResult(data) {
         html += '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1.5rem;">No data returned.</p>';
     }
 
-    rc.innerHTML = `<div style="font-family:'Inter',sans-serif;">${html}</div>`;
+    rc.innerHTML = `<div style="font-family:'Comfortaa',sans-serif;">${html}</div>`;
     rc.style.display = 'block';
     document.getElementById('pm-result-wrap').style.display = 'block';
 

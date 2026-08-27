@@ -20,7 +20,7 @@ function formatCarrierName(carrier) {
 // --- SHARED STYLES ---
 function getLabelStyles() {
     return `<style>
-        .label-wrapper { border:1px solid #000; width:100%; max-width:42rem; margin:0 auto; font-family:Arial,sans-serif; background:#fff; color:#000; font-size:12px; line-height:1.4; display:flex; flex-direction:column; }
+        .label-wrapper { border:1px solid #000; width:100%; max-width:42rem; margin:0 auto; font-family:'Comfortaa',Arial,sans-serif; background:#fff; color:#000; font-size:12px; line-height:1.4; display:flex; flex-direction:column; }
         .label-row { display:flex; border-bottom:1px solid #000; }
         .label-row:last-child { border-bottom:none; }
         .label-cell { padding:6px 8px; border-right:1px solid #000; width:100%; box-sizing:border-box; }
@@ -46,7 +46,7 @@ function getLabelStyles() {
 
 function getReceiptStyles() {
     return `<style>
-        .receipt-wrapper{border:1px solid #333;width:100%;max-width:48rem;margin:0 auto;font-family:Arial,sans-serif;background:#fff;color:#000;font-size:11px;line-height:1.4;box-sizing:border-box;}
+        .receipt-wrapper{border:1px solid #333;width:100%;max-width:48rem;margin:0 auto;font-family:'Comfortaa',Arial,sans-serif;background:#fff;color:#000;font-size:11px;line-height:1.4;box-sizing:border-box;}
         .receipt-header{display:flex;justify-content:space-between;align-items:center;padding:0.5rem 1rem;border-bottom:2px solid #000;}
         .receipt-logo{font-size:24px;font-weight:bold;text-transform:uppercase;}
         .receipt-copy-type{font-size:16px;font-weight:bold;text-align:right;}
@@ -430,7 +430,7 @@ function buildOfficeCopy(order, cnor, cnee, products, branch) { return _buildRec
 
 function getPackingSlipStyles() {
     return `<style>
-        body{font-family:Arial,sans-serif;font-size:11px;color:#000;}
+        body{font-family:'Comfortaa',Arial,sans-serif;font-size:11px;color:#000;}
         .ps-wrapper{border:2px solid #000;max-width:52rem;margin:0 auto;}
         .ps-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #000;background:#f4f4f4;}
         .ps-logo{font-size:22px;font-weight:bold;text-transform:uppercase;}

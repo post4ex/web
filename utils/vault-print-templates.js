@@ -33,7 +33,8 @@ const VaultPrint = (() => {
 
     function _openPrintWindow(title, bodyHtml) {
         const css = `
-        body{font-family:Arial,sans-serif;font-size:12px;color:#000;margin:0;padding:20px;background:#f5f5f5}
+        @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap');
+        body{font-family:'Comfortaa',sans-serif;font-size:12px;color:#0f172a;margin:0;padding:20px;background:#f8fafc;-webkit-font-smoothing:antialiased}
         .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15);position:relative}
         h1,h2,h3{color:#1a1a2e}
         table{width:100%;border-collapse:collapse;margin-bottom:15px}th,td{padding:7px 10px;border:1px solid #ccc;text-align:left}

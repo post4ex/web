@@ -439,7 +439,7 @@ function _renderResult(data) {
     const movContent = (trackHTML || sysHTML) ? (trackHTML + sysHTML) : noMov;
 
     rc.innerHTML = `
-        <div style="font-family:'Inter',sans-serif;">
+        <div style="font-family:'Comfortaa',sans-serif;">
             <!-- Shipment summary: 2-row table (desktop) / 2 cards (mobile) -->
             <div style="margin-bottom:0.875rem;border:1px solid #e2e8f0;border-radius:0.875rem;overflow:hidden;">
 
@@ -767,7 +767,7 @@ function _renderPincodeResult(data) {
         ? '<span style="background:#dcfce7;color:#15803d;font-size:0.68rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:2rem;">' + serviceable.length + ' serviceable</span>'
         : '<span style="background:#fef2f2;color:#b91c1c;font-size:0.68rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:2rem;">None serviceable</span>';
 
-    let html = '<div style="font-family:Inter,sans-serif;"><div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.875rem;"><i class="fa-solid fa-location-dot" style="color:#9C2007;font-size:0.9rem;"></i><span style="font-size:0.9rem;font-weight:800;color:#1e293b;">' + data.pincode + '</span>' + svcBadge + '</div>';
+    let html = '<div style="font-family:\'Comfortaa\',sans-serif;"><div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.875rem;"><i class="fa-solid fa-location-dot" style="color:#9C2007;font-size:0.9rem;"></i><span style="font-size:0.9rem;font-weight:800;color:#1e293b;">' + data.pincode + '</span>' + svcBadge + '</div>';
 
     if (serviceable.length) {
         html += '<p style="font-size:0.62rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.07em;margin:0 0 0.5rem;"><i class="fa-solid fa-circle-check" style="margin-right:0.25rem;"></i>' + serviceable.length + ' Carrier' + (serviceable.length > 1 ? 's' : '') + ' Service This Pincode</p>';

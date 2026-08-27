@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Offline indicator
     const _offlineBanner = document.createElement('div');
     _offlineBanner.id = 'offline-banner';
-    _offlineBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;text-align:center;padding:6px;font-size:13px;font-family:sans-serif;display:none;';
+    _offlineBanner.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;text-align:center;padding:6px;font-size:13px;font-family:'Comfortaa',sans-serif;-webkit-font-smoothing:antialiased;display:none;";
     _offlineBanner.textContent = '⚠️ No internet connection';
     document.body.appendChild(_offlineBanner);
     window.addEventListener('offline', () => { _offlineBanner.style.display = 'block'; });
