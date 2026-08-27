@@ -27,8 +27,8 @@
         
         /* --- CLASSY REACT-STYLE TILES --- */
         .classy-tile {
-            background: #ffffff;
-            border: 1.5px solid #e2e8f0;
+            background: var(--tile-bg, #ffffff);
+            border: 1.5px solid var(--tile-border, #e2e8f0);
             border-radius: 1rem;
             padding: 0.75rem 0.5rem;
             display: flex;
@@ -42,7 +42,7 @@
             width: 100%;
             box-sizing: border-box;
             position: relative;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.04);
         }
         @media (min-width: 1024px) {
             .classy-tile { padding: 0.95rem 0.65rem; min-height: 6.2rem; }
@@ -73,7 +73,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            color: #475569;
+            color: #334155;
             transition: color 0.2s ease;
         }
         .classy-tile:hover .classy-tile-label {
@@ -100,15 +100,15 @@
             filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
         }
 
-        /* Color Themes matching React App GRADIENTS exactly */
-        .ct-blue    { --tile-accent: #2563EB; --tile-accent-fade: rgba(37, 99, 235, 0.25); --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.35); }
-        .ct-indigo  { --tile-accent: #4F46E5; --tile-accent-fade: rgba(79, 70, 229, 0.25); --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.35); }
-        .ct-amber   { --tile-accent: #D97706; --tile-accent-fade: rgba(217, 119, 6, 0.25); --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.35); }
-        .ct-teal    { --tile-accent: #0D9488; --tile-accent-fade: rgba(13, 148, 136, 0.25); --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.35); }
-        .ct-orange  { --tile-accent: #EA580C; --tile-accent-fade: rgba(234, 88, 12, 0.25); --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.35); }
-        .ct-cyan    { --tile-accent: #0891B2; --tile-accent-fade: rgba(8, 145, 178, 0.25); --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.35); }
-        .ct-slate   { --tile-accent: #6366F1; --tile-accent-fade: rgba(99, 102, 241, 0.25); --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.35); }
-        .ct-yellow  { --tile-accent: #CA8A04; --tile-accent-fade: rgba(202, 138, 4, 0.25); --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.35); }
+        /* Color Themes matching React App GRADIENTS + Soft Tinted Tile Fill */
+        .ct-blue    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); --tile-border: #bfdbfe; --tile-accent: #2563EB; --tile-accent-fade: rgba(37, 99, 235, 0.25); --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.35); }
+        .ct-indigo  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); --tile-border: #c7d2fe; --tile-accent: #4F46E5; --tile-accent-fade: rgba(79, 70, 229, 0.25); --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.35); }
+        .ct-amber   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); --tile-border: #fde68a; --tile-accent: #D97706; --tile-accent-fade: rgba(217, 119, 6, 0.25); --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.35); }
+        .ct-teal    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); --tile-border: #99f6e4; --tile-accent: #0D9488; --tile-accent-fade: rgba(13, 148, 136, 0.25); --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.35); }
+        .ct-orange  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff7ed 100%); --tile-border: #fed7aa; --tile-accent: #EA580C; --tile-accent-fade: rgba(234, 88, 12, 0.25); --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.35); }
+        .ct-cyan    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); --tile-border: #a5f3fc; --tile-accent: #0891B2; --tile-accent-fade: rgba(8, 145, 178, 0.25); --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.35); }
+        .ct-slate   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f5f3ff 100%); --tile-border: #ddd6fe; --tile-accent: #6366F1; --tile-accent-fade: rgba(99, 102, 241, 0.25); --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.35); }
+        .ct-yellow  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fefce8 100%); --tile-border: #fef08a; --tile-accent: #CA8A04; --tile-accent-fade: rgba(202, 138, 4, 0.25); --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.35); }
         .ct-green   { --tile-accent: #16A34A; --tile-accent-fade: rgba(22, 163, 74, 0.25); --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.35); }
         .ct-emerald { --tile-accent: #059669; --tile-accent-fade: rgba(5, 150, 105, 0.25); --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.35); }
 
