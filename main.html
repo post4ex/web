@@ -114,11 +114,11 @@
 
         /* --- CLASSY TRACKING BOX --- */
         .classy-track-box {
-            background: #ffffff;
-            border: 1.5px solid #e2e8f0;
+            background: linear-gradient(180deg, #ffffff 15%, #fff5f5 100%);
+            border: 1.5px solid #fecaca;
             border-radius: 1.25rem;
             padding: 1.5rem;
-            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+            box-shadow: 0 4px 20px -2px rgba(156, 32, 7, 0.06), 0 1px 3px rgba(0, 0, 0, 0.02);
         }
         
         /* --- MODAL STYLES --- */
@@ -373,19 +373,20 @@
                     <div class="classy-track-box">
                         <!-- Top subtle indicator -->
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-                            <div style="display:flex;align-items:center;gap:0.4rem;">
-                                <span style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block;"></span>
-                                <span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;">Live Tracking</span>
+                            <div style="display:flex;align-items:center;gap:0.45rem;">
+                                <span style="width:7px;height:7px;background:#10B981;border-radius:50%;display:inline-block;box-shadow:0 0 6px rgba(16,185,129,0.5);"></span>
+                                <span style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#022c5a;">Live Tracking</span>
                             </div>
+                            <span style="font-size:0.68rem;font-weight:700;color:#9C2007;background:#fee2e2;padding:0.18rem 0.55rem;border-radius:9999px;border:1px solid #fca5a5;">Instant Status</span>
                         </div>
 
                         <!-- Input -->
                         <div style="position:relative;margin-bottom:0.875rem;">
-                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1.05rem;pointer-events:none;"></i>
+                            <i class="fa-solid fa-barcode" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#9C2007;font-size:1.1rem;pointer-events:none;"></i>
                             <input type="text" id="main-track-input" placeholder="AWB or Reference Number"
-                                style="width:100%;padding:1rem 3rem 1rem 2.65rem;background:#ffffff;border:1.5px solid #cbd5e1;border-radius:0.875rem;color:#0f172a;font-size:0.92rem;font-weight:600;outline:none;transition:border-color 0.2s,box-shadow 0.2s;box-sizing:border-box;"
-                                onfocus="this.style.borderColor='#9C2007';this.style.boxShadow='0 0 0 3px rgba(156,32,7,0.1)'"
-                                onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">
+                                style="width:100%;padding:1rem 3rem 1rem 2.65rem;background:#ffffff;border:1.5px solid #fecaca;border-radius:0.875rem;color:#0f172a;font-size:0.92rem;font-weight:600;outline:none;transition:border-color 0.2s,box-shadow 0.2s;box-sizing:border-box;"
+                                onfocus="this.style.borderColor='#9C2007';this.style.boxShadow='0 0 0 3px rgba(156,32,7,0.15)'"
+                                onblur="this.style.borderColor='#fecaca';this.style.boxShadow='none'">
                             <style>#main-track-input::placeholder{color:#94a3b8;font-weight:500;}</style>
                             <scan-barcode id="main-scanner" icon-only style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);line-height:0;"></scan-barcode>
                         </div>
