@@ -117,8 +117,8 @@ function checkLoginStatus() {
     const hide = (ids) => ids.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
     if (loggedIn) {
-        hide(['login-button', 'main-nav-public']);
-        show(['main-nav-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section']);
+        hide(['login-button', 'main-nav-public', 'container-desktop-public']);
+        show(['main-nav-private', 'container-desktop-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section', 'desktop-logout-button', 'nav-search-private', 'nav-refresh-private']);
 
         const excludedFields = [
             'token', 'expires', 'userdata', 'pass', 'password', 'reset_token',
@@ -150,8 +150,8 @@ function checkLoginStatus() {
 
         populateDetails(document.getElementById('profile-details-container'));
     } else {
-        show(['login-button', 'main-nav-public']);
-        hide(['main-nav-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section']);
+        show(['login-button', 'main-nav-public', 'container-desktop-public']);
+        hide(['main-nav-private', 'container-desktop-private', 'sidebar-toggle-container', 'notification-container-global', 'mobile-tools-section', 'desktop-logout-button', 'nav-search-private', 'nav-refresh-private']);
     }
 
     setTimeout(() => {

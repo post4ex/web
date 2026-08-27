@@ -99,22 +99,71 @@
 <body class="bg-gray-100 min-h-screen flex flex-col">
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
-    <main class="flex-grow p-4 sm:p-8">
-        <div class="container mx-auto">
-            <!-- Thin Navigation Layer -->
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="tray">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Bookings — Last 7 Days</h2>
-                    <canvas id="bookingsChart"></canvas>
+    <main class="flex-grow p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        <!-- Branded Title -->
+        <div class="flex flex-col items-center mb-6">
+            <h1 class="rn-dash-title">Dashboard</h1>
+            <div class="rn-dash-titlebar"></div>
+        </div>
+
+        <!-- 2-Column Layout: Stacked Graphs on Left, Recent Orders on Right -->
+        <div class="dashboard-layout-grid">
+            <!-- Left Side: Stacked Graph Cards -->
+            <div class="dashboard-left-graphs">
+                <!-- Graph 1: Bookings — Last X Days -->
+                <div class="rn-tray">
+                    <div class="rn-tray-header">
+                        <div class="rn-tray-accent"></div>
+                        <span class="rn-tray-title" id="bookings-tray-title">Bookings — Last 15 Days</span>
+                    </div>
+                    <div id="bookings-bar-container" class="flex justify-around items-end h-[105px] pt-1">
+                        <div class="text-slate-400 text-xs text-center py-6 w-full">Loading bookings...</div>
+                    </div>
                 </div>
-                <div class="tray">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Top Destinations</h2>
-                    <canvas id="shipmentsChart"></canvas>
+
+                <!-- Graph 2: Service Level -->
+                <div class="rn-tray">
+                    <div class="rn-tray-header">
+                        <div class="rn-tray-accent"></div>
+                        <span class="rn-tray-title">Service Level</span>
+                        <div class="rn-tray-right">
+                            <div class="rn-tray-stat">
+                                <span class="rn-tray-stat-val" id="sla-avg-badge">Avg 0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 sm:gap-4 mb-2.5" id="sla-legend-container">
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 font-semibold"><span class="w-2 h-2 rounded-full bg-[#2563eb]"></span>Ordered</div>
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 font-semibold"><span class="w-2 h-2 rounded-full bg-[#059669]"></span>Delivered</div>
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 font-semibold"><span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>In Transit</div>
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 font-semibold"><span class="w-2 h-2 rounded-full bg-[#8b5cf6]"></span>Out for Delivery</div>
+                    </div>
+                    <div id="sla-chart-container" class="w-full relative h-[140px]"></div>
                 </div>
-                <div class="tray">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Orders by Carrier</h2>
-                    <canvas id="revenueChart"></canvas>
+
+                <!-- Graph 3: Top Destinations -->
+                <div class="rn-tray">
+                    <div class="rn-tray-header">
+                        <div class="rn-tray-accent"></div>
+                        <span class="rn-tray-title">Top Destinations</span>
+                    </div>
+                    <div id="destinations-chart-container" class="w-full relative h-[155px]"></div>
+                </div>
+            </div>
+
+            <!-- Right Side: Recent Orders Card -->
+            <div class="dashboard-right-orders">
+                <div class="rn-tray">
+                    <div class="rn-tray-header">
+                        <div class="rn-tray-accent"></div>
+                        <span class="rn-tray-title">Recent Orders</span>
+                        <div class="rn-tray-right">
+                            <a href="orders.html" class="text-xs font-bold text-[#9C2007] hover:underline">View All →</a>
+                        </div>
+                    </div>
+                    <div id="recent-orders-container" class="space-y-1">
+                        <div class="text-slate-400 text-xs text-center py-6">Loading recent orders...</div>
+                    </div>
                 </div>
             </div>
         </div>

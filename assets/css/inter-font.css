@@ -10,3 +10,540 @@ html, body, button, input, select, textarea {
   font-family: 'Comfortaa', sans-serif;
 }
 
+/* Global Service Card Styles */
+.service-card {
+  border-radius: 1.25rem !important;
+  padding: 1.35rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease !important;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04) !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  min-height: 380px;
+}
+.service-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.08) !important;
+}
+.service-icon-box {
+  width: 3.25rem !important;
+  height: 3.25rem !important;
+  border-radius: 1rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 4px 12px var(--icon-shadow, rgba(0,0,0,0.15)), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  transition: transform 0.22s ease !important;
+}
+.service-card:hover .service-icon-box {
+  transform: scale(1.08) !important;
+}
+.service-icon-box i {
+  font-size: 1.35rem !important;
+  color: #ffffff !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15)) !important;
+}
+.service-pill {
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.3rem 0.6rem !important;
+  border-radius: 0.5rem !important;
+  transition: transform 0.15s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  line-height: 1.2 !important;
+}
+.service-pill:hover {
+  transform: translateY(-1px) !important;
+}
+
+.btn.hidden, .btn-sparkle.hidden, .hidden.btn, .hidden.btn-sparkle {
+  display: none !important;
+}
+
+/* =============================================================================
+   CLEAN MODULAR BUTTON SYSTEM (Red Default + Blue, Green, Violet, Amber, etc.)
+============================================================================= */
+
+/* 1. Base / Brand Maroon Button (.btn) */
+.btn, .btn-sparkle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  border-radius: 0.375rem;
+  border: 2px solid #9C2007;
+  background-color: #ffffff;
+  color: #9C2007;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  box-sizing: border-box;
+  text-shadow: none;
+}
+
+.btn:hover, .btn:focus-visible, .btn-sparkle:hover, .btn-sparkle:focus-visible {
+  background-color: #9C2007 !important;
+  border-color: #9C2007 !important;
+  color: #ffffff !important;
+}
+
+.btn:active, .btn-sparkle:active {
+  background-color: #7a1805 !important;
+  border-color: #7a1805 !important;
+  color: #ffffff !important;
+}
+
+/* Active / Selected Page Button (stays filled when page is open) */
+.btn.btn-active, .btn-sparkle.btn-active,
+.btn[aria-current="page"], .btn-sparkle[aria-current="page"] {
+  background-color: #9C2007 !important;
+  border-color: #9C2007 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 0.375rem;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
+}
+
+/* =============================================================================
+   COLOR PALETTE BUTTONS (Reset to 0.375rem radius)
+============================================================================= */
+
+/* 2. Blue */
+.btn-blue, .btn-sparkle-blue {
+  border: 2px solid #2563eb !important;
+  color: #2563eb !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-blue:hover, .btn-blue:focus-visible, .btn-blue.btn-active,
+.btn-sparkle-blue:hover, .btn-sparkle-blue:focus-visible, .btn-sparkle-blue.btn-active {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* 3. Green / Emerald */
+.btn-green, .btn-emerald, .btn-sparkle-emerald {
+  border: 2px solid #059669 !important;
+  color: #059669 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-green:hover, .btn-green:focus-visible, .btn-green.btn-active,
+.btn-emerald:hover, .btn-emerald:focus-visible, .btn-emerald.btn-active,
+.btn-sparkle-emerald:hover, .btn-sparkle-emerald:focus-visible, .btn-sparkle-emerald.btn-active {
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+/* 4. Violet / Purple */
+.btn-violet, .btn-purple, .btn-sparkle-purple {
+  border: 2px solid #7c3aed !important;
+  color: #7c3aed !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-violet:hover, .btn-violet:focus-visible, .btn-violet.btn-active,
+.btn-purple:hover, .btn-purple:focus-visible, .btn-purple.btn-active,
+.btn-sparkle-purple:hover, .btn-sparkle-purple:focus-visible, .btn-sparkle-purple.btn-active {
+  background-color: #7c3aed !important;
+  border-color: #7c3aed !important;
+  color: #ffffff !important;
+}
+
+/* 5. Amber */
+.btn-amber, .btn-sparkle-amber {
+  border: 2px solid #d97706 !important;
+  color: #d97706 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-amber:hover, .btn-amber:focus-visible, .btn-amber.btn-active,
+.btn-sparkle-amber:hover, .btn-sparkle-amber:focus-visible, .btn-sparkle-amber.btn-active {
+  background-color: #d97706 !important;
+  border-color: #d97706 !important;
+  color: #ffffff !important;
+}
+
+/* 6. Rose */
+.btn-rose, .btn-sparkle-rose {
+  border: 2px solid #e11d48 !important;
+  color: #e11d48 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-rose:hover, .btn-rose:focus-visible, .btn-rose.btn-active,
+.btn-sparkle-rose:hover, .btn-sparkle-rose:focus-visible, .btn-sparkle-rose.btn-active {
+  background-color: #e11d48 !important;
+  border-color: #e11d48 !important;
+  color: #ffffff !important;
+}
+
+/* 7. Teal */
+.btn-teal, .btn-sparkle-teal {
+  border: 2px solid #0d9488 !important;
+  color: #0d9488 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-teal:hover, .btn-teal:focus-visible, .btn-teal.btn-active,
+.btn-sparkle-teal:hover, .btn-sparkle-teal:focus-visible, .btn-sparkle-teal.btn-active {
+  background-color: #0d9488 !important;
+  border-color: #0d9488 !important;
+  color: #ffffff !important;
+}
+
+/* 8. Indigo */
+.btn-indigo, .btn-sparkle-indigo {
+  border: 2px solid #4f46e5 !important;
+  color: #4f46e5 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-indigo:hover, .btn-indigo:focus-visible, .btn-indigo.btn-active,
+.btn-sparkle-indigo:hover, .btn-sparkle-indigo:focus-visible, .btn-sparkle-indigo.btn-active {
+  background-color: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+/* 9. Cyan */
+.btn-cyan, .btn-sparkle-cyan {
+  border: 2px solid #0891b2 !important;
+  color: #0891b2 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-cyan:hover, .btn-cyan:focus-visible, .btn-cyan.btn-active,
+.btn-sparkle-cyan:hover, .btn-sparkle-cyan:focus-visible, .btn-sparkle-cyan.btn-active {
+  background-color: #0891b2 !important;
+  border-color: #0891b2 !important;
+  color: #ffffff !important;
+}
+
+/* 10. Slate */
+.btn-slate, .btn-sparkle-slate {
+  border: 2px solid #475569 !important;
+  color: #475569 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.375rem !important;
+}
+.btn-slate:hover, .btn-slate:focus-visible, .btn-slate.btn-active,
+.btn-sparkle-slate:hover, .btn-sparkle-slate:focus-visible, .btn-sparkle-slate.btn-active {
+  background-color: #475569 !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+/* =============================================================================
+   REACT NATIVE MATCHED DASHBOARD COMPONENTS (Tile, Tray, ListItem)
+============================================================================= */
+
+/* 1. Dashboard Title */
+.rn-dash-title {
+  font-size: 26px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.5px !important;
+  background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
+}
+.rn-dash-titlebar {
+  width: 46px !important;
+  height: 3px !important;
+  border-radius: 2px !important;
+  margin-top: 8px !important;
+  background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+}
+
+/* 2-Column Dashboard Split: Graphs on LEFT, Recent Orders on RIGHT */
+.dashboard-layout-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+  width: 100% !important;
+}
+
+.dashboard-left-graphs {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+  width: 100% !important;
+}
+
+.dashboard-left-graphs .rn-tray {
+  margin-bottom: 0 !important;
+}
+
+.dashboard-right-orders {
+  width: 100% !important;
+}
+
+@media (min-width: 900px) {
+  .dashboard-layout-grid {
+    flex-direction: row !important;
+    gap: 24px !important;
+    align-items: flex-start !important;
+  }
+  .dashboard-left-graphs {
+    flex: 1.15 !important;
+    min-width: 0 !important;
+  }
+  .dashboard-right-orders {
+    flex: 0.85 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .dashboard-right-orders .rn-tray {
+    display: flex !important;
+    flex-direction: column !important;
+    margin-bottom: 0 !important;
+    box-sizing: border-box !important;
+  }
+  #recent-orders-container {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding-right: 6px !important;
+  }
+}
+
+#recent-orders-container::-webkit-scrollbar {
+  width: 5px;
+}
+#recent-orders-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+#recent-orders-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+#recent-orders-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 2. Tiles (Vercel/Linear-inspired React Native Tile.js) */
+.rn-tile {
+  background-color: #ffffff !important;
+  border-radius: 16px !important;
+  padding: 14px !important;
+  height: 86px !important;
+  border-width: 1.5px !important;
+  border-style: solid !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  text-decoration: none !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+.rn-tile:hover {
+  transform: translateY(-2px) scale(1.01) !important;
+}
+.rn-tile:active {
+  transform: scale(0.98) !important;
+}
+
+.rn-tile-blue {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.18), 0 0 10px rgba(37, 99, 235, 0.25), 0 0 22px rgba(37, 99, 235, 0.15) !important;
+}
+.rn-tile-blue .rn-tile-dot {
+  background-color: #2563eb !important;
+}
+.rn-tile-blue .rn-tile-val {
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.rn-tile-amber {
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18), 0 0 10px rgba(245, 158, 11, 0.25), 0 0 22px rgba(245, 158, 11, 0.15) !important;
+}
+.rn-tile-amber .rn-tile-dot {
+  background-color: #f59e0b !important;
+}
+.rn-tile-amber .rn-tile-val {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.rn-tile-emerald {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.18), 0 0 10px rgba(16, 185, 129, 0.25), 0 0 22px rgba(16, 185, 129, 0.15) !important;
+}
+.rn-tile-emerald .rn-tile-dot {
+  background-color: #10b981 !important;
+}
+.rn-tile-emerald .rn-tile-val {
+  background: linear-gradient(135deg, #10b981 0%, #22c55e 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.rn-tile-label-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.rn-tile-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 3px !important;
+  opacity: 0.9 !important;
+  flex-shrink: 0 !important;
+}
+.rn-tile-lbl {
+  color: #94a3b8 !important;
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.2px !important;
+  line-height: 1 !important;
+}
+.rn-tile-val {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+  line-height: 1 !important;
+}
+
+/* 3. Trays (React Native Tray.js - Violet Sparkling Glow) */
+.rn-tray {
+  background-color: #ffffff !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+  margin-bottom: 14px !important;
+  border: 1.5px solid #8b5cf6 !important;
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.28), 0 0 10px rgba(139, 92, 246, 0.30), 0 0 24px rgba(168, 85, 247, 0.18) !important;
+  box-sizing: border-box !important;
+}
+.rn-tray-header {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 12px !important;
+}
+.rn-tray-accent {
+  width: 4px !important;
+  height: 16px !important;
+  border-radius: 2px !important;
+  margin-right: 8px !important;
+  background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+  flex-shrink: 0 !important;
+}
+.rn-tray-title {
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.3px !important;
+  background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  line-height: 1.2 !important;
+}
+.rn-tray-right {
+  margin-left: auto !important;
+}
+.rn-tray-stat {
+  background-color: #fdf0ec !important;
+  border-radius: 8px !important;
+  padding: 3px 9px !important;
+}
+.rn-tray-stat-val {
+  color: #9C2007 !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.4px !important;
+  line-height: 1 !important;
+}
+
+/* 4. List Items (React Native ListItem.js - LightSeaGreen Glow & Floating Chips) */
+.rn-list-item {
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid #20B2AA !important;
+  border-radius: 16px !important;
+  padding: 12px 14px !important;
+  margin-bottom: 10px !important;
+  margin-top: 10px !important;
+  box-shadow: 0 0 0 1px rgba(32, 178, 170, 0.18), 0 0 10px rgba(32, 178, 170, 0.25), 0 0 22px rgba(32, 178, 170, 0.15) !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+  box-sizing: border-box !important;
+}
+.rn-list-item:hover {
+  background-color: #f8fafc !important;
+  transform: translateY(-1px) !important;
+}
+.rn-list-item:active {
+  transform: scale(0.985) !important;
+  background-color: #f1f5f9 !important;
+}
+.rn-list-body {
+  flex: 1 !important;
+  min-width: 0 !important;
+  padding-right: 12px !important;
+}
+.rn-list-title {
+  color: #0f172a !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.rn-list-sub {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  margin-top: 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.rn-list-chip {
+  position: absolute !important;
+  top: -10px !important;
+  right: 12px !important;
+  border-radius: 7px !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18) !important;
+  color: #ffffff !important;
+  font-size: 9.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.4px !important;
+  text-transform: uppercase !important;
+  line-height: 1 !important;
+}
+

@@ -170,213 +170,267 @@
 
     <main class="w-full flex-grow p-4 sm:p-8 -mt-6">
         <div class="container mx-auto max-w-7xl">
+            <style>
+                .services-desktop-grid {
+                    display: grid;
+                    grid-template-columns: repeat(1, minmax(0, 1fr));
+                    gap: 1.25rem;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                @media (min-width: 640px) {
+                    .services-desktop-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 1.5rem;
+                    }
+                }
+                @media (min-width: 1024px) {
+                    .services-desktop-grid {
+                        grid-template-columns: repeat(3, minmax(0, 1fr));
+                        gap: 1.75rem;
+                    }
+                }
+                .service-card-item {
+                    border-radius: 1.25rem;
+                    padding: 1.25rem;
+                    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    min-height: 380px;
+                    box-sizing: border-box;
+                    transition: transform 0.22s ease, box-shadow 0.22s ease;
+                }
+                .service-card-item:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 14px 30px -4px rgba(15, 23, 42, 0.09);
+                }
+            </style>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
+            <div class="services-desktop-grid">
 
                 <!-- 1. Order & Shipment Management -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); border: 1.5px solid #bfdbfe; --icon-shadow: rgba(59, 130, 246, 0.35);">
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); border: 1.5px solid #bfdbfe;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);">
-                                <i class="fa-solid fa-box-open"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-box-open" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-blue-100/70 border border-blue-200 px-2.5 py-0.5 rounded-full">Core Ops</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #1d4ed8; background: #dbeafe; border: 1px solid #bfdbfe; padding: 0.2rem 0.6rem; border-radius: 9999px;">Core Ops</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Order &amp; Shipment Management</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single unified dashboard.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Order &amp; Shipment Management</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">End-to-end order lifecycle — book, edit, assign, track, and close shipments from a single dashboard.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-blue-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> Multi-carrier</span>
-                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> AWB inventory</span>
-                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> Bulk actions</span>
-                            <span class="service-pill bg-white/80 border border-blue-200 text-blue-800"><i class="fa-solid fa-check text-[10px] text-blue-600"></i> Order edit/amend</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #bfdbfe; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Multi-carrier</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>AWB inventory</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Bulk actions</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Edit/amend</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Manage Orders</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-blue w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Manage Orders
+                        </a>
                     </div>
                 </div>
 
                 <!-- 2. Multi-Carrier Integration -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #f0fdf4 100%); border: 1.5px solid #bbf7d0; --icon-shadow: rgba(16, 185, 129, 0.35);">
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #f0fdf4 100%); border: 1.5px solid #bbf7d0;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                                <i class="fa-solid fa-truck-fast"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-truck-fast" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100/70 border border-emerald-200 px-2.5 py-0.5 rounded-full">Integrations</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #047857; background: #dcfce7; border: 1px solid #bbf7d0; padding: 0.2rem 0.6rem; border-radius: 9999px;">Integrations</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Multi-Carrier Integration</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage all providers from one place.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Multi-Carrier Integration</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Connect with all major logistics partners. Compare rates, auto-assign carriers, and manage providers from one place.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-emerald-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Rate comparison</span>
-                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Auto-allocation</span>
-                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Carrier configs</span>
-                            <span class="service-pill bg-white/80 border border-emerald-200 text-emerald-800"><i class="fa-solid fa-check text-[10px] text-emerald-600"></i> Live API sync</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #bbf7d0; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bbf7d0; color: #166534; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Rate comparison</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bbf7d0; color: #166534; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Auto-allocation</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bbf7d0; color: #166534; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Carrier configs</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #bbf7d0; color: #166534; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Live API sync</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">View Carriers</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-emerald w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            View Carriers
+                        </a>
                     </div>
                 </div>
 
                 <!-- 3. Rate Calculator & Estimation -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); border: 1.5px solid #fde68a; --icon-shadow: rgba(217, 119, 6, 0.35);">
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); border: 1.5px solid #fde68a;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #d97706 0%, #ef4444 100%);">
-                                <i class="fa-solid fa-calculator"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #d97706 0%, #ef4444 100%); box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-calculator" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100/70 border border-amber-200 px-2.5 py-0.5 rounded-full">Pricing</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: 0.2rem 0.6rem; border-radius: 9999px;">Pricing</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Rate Calculator &amp; Estimation</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Rate Calculator &amp; Estimation</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Real-time freight estimation across carriers with fuel surcharge, GST (IGST/SGST+CGST), and accessorial charges built in.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-amber-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> GST-aware pricing</span>
-                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> Fuel surcharge</span>
-                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> Live rate tables</span>
-                            <span class="service-pill bg-white/80 border border-amber-200 text-amber-800"><i class="fa-solid fa-check text-[10px] text-amber-600"></i> Volumetric weight</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #fde68a; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fde68a; color: #92400e; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>GST-aware</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fde68a; color: #92400e; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Fuel surcharge</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fde68a; color: #92400e; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Live rate tables</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fde68a; color: #92400e; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Volumetric weight</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Calculate Rates</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-amber w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Calculate Rates
+                        </a>
                     </div>
                 </div>
 
-                <!-- 4. Real-time Tracking -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #faf5ff 100%); border: 1.5px solid #e9d5ff; --icon-shadow: rgba(147, 51, 234, 0.35);">
+                <!-- 4. Real-time Live Tracking -->
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #faf5ff 100%); border: 1.5px solid #e9d5ff;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #9333ea 0%, #6366f1 100%);">
-                                <i class="fa-solid fa-satellite-dish"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #9333ea 0%, #6366f1 100%); box-shadow: 0 4px 12px rgba(147, 51, 234, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-satellite-dish" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-purple-700 uppercase tracking-wider bg-purple-100/70 border border-purple-200 px-2.5 py-0.5 rounded-full">Visibility</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #7e22ce; background: #f3e8ff; border: 1px solid #e9d5ff; padding: 0.2rem 0.6rem; border-radius: 9999px;">Visibility</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Real-time Live Tracking</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Real-time Live Tracking</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">SSE-powered live tracking with milestone updates, carrier scan sync, and customer-facing tracking pages.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-purple-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> SSE live stream</span>
-                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> Milestone map</span>
-                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> Scan sync</span>
-                            <span class="service-pill bg-white/80 border border-purple-200 text-purple-800"><i class="fa-solid fa-check text-[10px] text-purple-600"></i> Instant updates</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #e9d5ff; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>SSE live updates</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Milestone mapping</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Public tracking</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Scan sync</span>
                         </div>
-                        <a href="main.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Track Now</a>
+                        <a href="main.html" class="btn-sparkle btn-sparkle-purple w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Track Now
+                        </a>
                     </div>
                 </div>
 
-                <!-- 5. Document Suite -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #fff1f2 100%); border: 1.5px solid #fecdd3; --icon-shadow: rgba(225, 29, 72, 0.35);">
+                <!-- 5. Comprehensive Document Suite -->
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #fff1f2 100%); border: 1.5px solid #fecdd3;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);">
-                                <i class="fa-solid fa-file-invoice"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-file-invoice" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-rose-700 uppercase tracking-wider bg-rose-100/70 border border-rose-200 px-2.5 py-0.5 rounded-full">Documents</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #be123c; background: #ffe4e6; border: 1px solid #fecdd3; padding: 0.2rem 0.6rem; border-radius: 9999px;">Documents</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Comprehensive Document Suite</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, and 20+ templates.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Comprehensive Document Suite</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Generate all shipping and customs documents — commercial invoices, packing lists, tax challans, COO, and 20+ templates.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-rose-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> 20+ Templates</span>
-                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> Auto-fill data</span>
-                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> Barcode &amp; QR</span>
-                            <span class="service-pill bg-white/80 border border-rose-200 text-rose-800"><i class="fa-solid fa-check text-[10px] text-rose-600"></i> PDF Print ready</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #fecdd3; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fecdd3; color: #9f1239; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>20+ Templates</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fecdd3; color: #9f1239; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Auto-fill data</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fecdd3; color: #9f1239; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Barcode &amp; QR</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #fecdd3; color: #9f1239; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>PDF ready</span>
                         </div>
-                        <a href="docs.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Create Document</a>
+                        <a href="docs.html" class="btn-sparkle btn-sparkle-rose w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Create Document
+                        </a>
                     </div>
                 </div>
 
                 <!-- 6. Financial Management (Vault) -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); border: 1.5px solid #99f6e4; --icon-shadow: rgba(13, 148, 136, 0.35);">
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); border: 1.5px solid #99f6e4;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);">
-                                <i class="fa-solid fa-vault"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-vault" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-teal-700 uppercase tracking-wider bg-teal-100/70 border border-teal-200 px-2.5 py-0.5 rounded-full">Accounting</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0f766e; background: #ccfbf1; border: 1px solid #99f6e4; padding: 0.2rem 0.6rem; border-radius: 9999px;">Accounting</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Financial Management (Vault)</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Financial Management (Vault)</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Full accounting suite — ledger, expenses, payroll, GST returns, purchases, sales invoices, credit notes, and period-end close.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-teal-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> Chart of Accounts</span>
-                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> GST filing</span>
-                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> Payroll suite</span>
-                            <span class="service-pill bg-white/80 border border-teal-200 text-teal-800"><i class="fa-solid fa-check text-[10px] text-teal-600"></i> Journal entries</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #99f6e4; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #99f6e4; color: #115e59; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Chart of Accounts</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #99f6e4; color: #115e59; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>GST filing</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #99f6e4; color: #115e59; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Payroll suite</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #99f6e4; color: #115e59; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Journal entries</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Open Vault</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-teal w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Open Vault
+                        </a>
                     </div>
                 </div>
 
-                <!-- 7. B2B / B2C Client Management -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); border: 1.5px solid #c7d2fe; --icon-shadow: rgba(67, 56, 202, 0.35);">
+                <!-- 7. B2B & B2C Client Management -->
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); border: 1.5px solid #c7d2fe;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);">
-                                <i class="fa-solid fa-users"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); box-shadow: 0 4px 12px rgba(67, 56, 202, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-users" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-100/70 border border-indigo-200 px-2.5 py-0.5 rounded-full">CRM &amp; Portal</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #4338ca; background: #e0e7ff; border: 1px solid #c7d2fe; padding: 0.2rem 0.6rem; border-radius: 9999px;">CRM &amp; Portal</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">B2B &amp; B2C Client Management</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements all in one directory.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">B2B &amp; B2C Client Management</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Manage corporate clients, retail customers, contracts, credit limits, and service-level agreements in one directory.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-indigo-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> Onboarding</span>
-                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> Contract &amp; rates</span>
-                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> Credit limits</span>
-                            <span class="service-pill bg-white/80 border border-indigo-200 text-indigo-800"><i class="fa-solid fa-check text-[10px] text-indigo-600"></i> SLAs tracking</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #c7d2fe; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #c7d2fe; color: #3730a3; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Onboarding</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #c7d2fe; color: #3730a3; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Contract &amp; rates</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #c7d2fe; color: #3730a3; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Credit limits</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #c7d2fe; color: #3730a3; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>SLAs tracking</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">View Clients</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-indigo w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            View Clients
+                        </a>
                     </div>
                 </div>
 
                 <!-- 8. Branch & Staff Management -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); border: 1.5px solid #a5f3fc; --icon-shadow: rgba(8, 145, 178, 0.35);">
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); border: 1.5px solid #a5f3fc;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%);">
-                                <i class="fa-solid fa-building"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); box-shadow: 0 4px 12px rgba(8, 145, 178, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-building" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-cyan-800 uppercase tracking-wider bg-cyan-100/70 border border-cyan-200 px-2.5 py-0.5 rounded-full">Human Resources</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0e7490; background: #cffafe; border: 1px solid #a5f3fc; padding: 0.2rem 0.6rem; border-radius: 9999px;">Human Resources</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Branch &amp; Staff Management</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Multi-branch operations with role-based access control, shift management, attendance tracking, and staff performance views.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Branch &amp; Staff Management</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Multi-branch operations with role-based access control, shift management, attendance tracking, and staff views.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-cyan-100 mb-4">
-                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Multi-branch</span>
-                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Role RBAC</span>
-                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Shift schedule</span>
-                            <span class="service-pill bg-white/80 border border-cyan-200 text-cyan-800"><i class="fa-solid fa-check text-[10px] text-cyan-600"></i> Attendance</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #a5f3fc; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #a5f3fc; color: #155e75; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Multi-branch</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #a5f3fc; color: #155e75; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Role RBAC</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #a5f3fc; color: #155e75; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Shift schedule</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #a5f3fc; color: #155e75; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Attendance</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Manage Branches</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-cyan w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Manage Branches
+                        </a>
                     </div>
                 </div>
 
-                <!-- 9. Admin, Compliance & Configuration -->
-                <div class="service-card" style="background: linear-gradient(180deg, #ffffff 15%, #f1f5f9 100%); border: 1.5px solid #cbd5e1; --icon-shadow: rgba(71, 85, 105, 0.35);">
+                <!-- 9. Admin, Compliance & Config -->
+                <div class="service-card-item" style="background: linear-gradient(180deg, #ffffff 15%, #f1f5f9 100%); border: 1.5px solid #cbd5e1;">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="service-icon-box" style="background: linear-gradient(135deg, #475569 0%, #334155 100%);">
-                                <i class="fa-solid fa-shield-halved"></i>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                            <div style="width: 3.25rem; height: 3.25rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #475569 0%, #334155 100%); box-shadow: 0 4px 12px rgba(71, 85, 105, 0.35), inset 0 1px 1px rgba(255,255,255,0.4);">
+                                <i class="fa-solid fa-shield-halved" style="font-size: 1.35rem; color: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));"></i>
                             </div>
-                            <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider bg-slate-200/70 border border-slate-300 px-2.5 py-0.5 rounded-full">Governance</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #334155; background: #e2e8f0; border: 1px solid #cbd5e1; padding: 0.2rem 0.6rem; border-radius: 9999px;">Governance</span>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Admin, Compliance &amp; Config</h3>
-                        <p class="text-slate-600 text-xs sm:text-sm mb-4 leading-relaxed">Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3;">Admin, Compliance &amp; Config</h3>
+                        <p style="font-size: 0.78rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.45;">Central admin panel for user management, pincode database, holiday calendar, service modes, carrier configs, and audit logs.</p>
                     </div>
                     <div>
-                        <div class="flex flex-wrap gap-1.5 pt-3 border-t border-slate-200 mb-4">
-                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> 19k+ Pincode DB</span>
-                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> Holiday calendar</span>
-                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> Service modes</span>
-                            <span class="service-pill bg-white/80 border border-slate-200 text-slate-800"><i class="fa-solid fa-check text-[10px] text-slate-600"></i> Audit logs</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid #cbd5e1; margin-bottom: 0.85rem;">
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>19k+ Pincode DB</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Holiday calendar</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Service modes</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>Audit logs</span>
                         </div>
-                        <a href="login.html" class="btn w-full text-center py-2 text-xs font-bold uppercase tracking-wider block" style="border-radius:0.75rem;">Admin Panel</a>
+                        <a href="login.html" class="btn-sparkle btn-sparkle-slate w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            Admin Panel
+                        </a>
                     </div>
                 </div>
 

@@ -163,9 +163,9 @@
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
         /* --- SERVICES SLIDESHOW --- */
-        #svc-viewport { overflow: hidden; }
-        #svc-track { display: flex; transition: transform 0.4s ease; will-change: transform; }
-        #svc-track > div { flex: 0 0 100%; }
+        #svc-viewport { overflow: hidden; width: 100%; position: relative; border-radius: 1.25rem; }
+        #svc-track { display: flex; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); will-change: transform; width: 100%; }
+        #svc-track > div { flex: 0 0 100%; width: 100%; max-width: 100%; box-sizing: border-box; }
     </style>
     <script type="module" src="utils/barcode-scanner.js"></script>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
@@ -655,6 +655,7 @@
                     pillText: '#1e40af',
                     catColor: '#1d4ed8',
                     catBg: '#dbeafe',
+                    btnClass: 'btn-sparkle-blue',
                     features: ['Multi-carrier assignment', 'AWB stock management', 'Bulk operations', 'Edit & amend orders'],
                     cta: 'Manage Orders',
                     link: 'orders.html'
@@ -673,6 +674,7 @@
                     pillText: '#166534',
                     catColor: '#047857',
                     catBg: '#dcfce7',
+                    btnClass: 'btn-sparkle-emerald',
                     features: ['Rate comparison', 'Auto-allocation logic', 'Carrier configs', 'Live API sync'],
                     cta: 'View Carriers',
                     link: 'carriers.html'
@@ -691,6 +693,7 @@
                     pillText: '#92400e',
                     catColor: '#b45309',
                     catBg: '#fef3c7',
+                    btnClass: 'btn-sparkle-amber',
                     features: ['GST-aware pricing', 'Fuel surcharge', 'Live rate tables', 'Volumetric weight'],
                     cta: 'Calculate Rates',
                     link: 'rate-calculator.html'
@@ -709,6 +712,7 @@
                     pillText: '#6b21a8',
                     catColor: '#7e22ce',
                     catBg: '#f3e8ff',
+                    btnClass: 'btn-sparkle-purple',
                     features: ['SSE live updates', 'Milestone mapping', 'Public tracking', 'Scan sync'],
                     cta: 'Track Now',
                     link: 'main.html'
@@ -727,6 +731,7 @@
                     pillText: '#9f1239',
                     catColor: '#be123c',
                     catBg: '#ffe4e6',
+                    btnClass: 'btn-sparkle-rose',
                     features: ['20+ Templates', 'Auto-fill data', 'Barcode & QR', 'PDF Print ready'],
                     cta: 'Create Document',
                     link: 'docs.html'
@@ -745,6 +750,7 @@
                     pillText: '#115e59',
                     catColor: '#0f766e',
                     catBg: '#ccfbf1',
+                    btnClass: 'btn-sparkle-teal',
                     features: ['Chart of Accounts', 'GST filing', 'Payroll suite', 'Journal entries'],
                     cta: 'Open Vault',
                     link: 'vault.html'
@@ -763,6 +769,7 @@
                     pillText: '#3730a3',
                     catColor: '#4338ca',
                     catBg: '#e0e7ff',
+                    btnClass: 'btn-sparkle-indigo',
                     features: ['Onboarding', 'Contract & rates', 'Credit limits', 'SLAs tracking'],
                     cta: 'View Clients',
                     link: 'clients.html'
@@ -781,6 +788,7 @@
                     pillText: '#155e75',
                     catColor: '#0e7490',
                     catBg: '#cffafe',
+                    btnClass: 'btn-sparkle-cyan',
                     features: ['Multi-branch setup', 'Role RBAC', 'Shift schedule', 'Attendance'],
                     cta: 'Manage Branches',
                     link: 'staff.html'
@@ -799,6 +807,7 @@
                     pillText: '#334155',
                     catColor: '#334155',
                     catBg: '#e2e8f0',
+                    btnClass: 'btn-sparkle-slate',
                     features: ['19k+ Pincode DB', 'Holiday calendar', 'Service modes', 'Audit logs'],
                     cta: 'Admin Panel',
                     link: 'admin.html'
@@ -821,7 +830,7 @@
                             <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; padding-top: 0.75rem; border-top: 1px solid ${s.border}; margin-bottom: 0.85rem;">
                                 ${s.features.map(f => `<span style="font-size: 0.68rem; font-weight: 700; background: ${s.pillBg}; border: 1px solid ${s.pillBorder}; color: ${s.pillText}; padding: 0.25rem 0.55rem; border-radius: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-check" style="font-size: 0.55rem;"></i>${f}</span>`).join('')}
                             </div>
-                            <a href="${typeof isLoggedIn === 'function' && isLoggedIn() ? 'dashboard.html' : 'login.html'}" class="btn w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
+                            <a href="${typeof isLoggedIn === 'function' && isLoggedIn() ? 'dashboard.html' : 'login.html'}" class="btn-sparkle ${s.btnClass} w-full text-center block" style="border-radius: 0.75rem; padding: 0.65rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;">
                                 ${s.cta}
                             </a>
                         </div>

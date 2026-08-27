@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us – Genie</title>
+    <title>About Us – PosTman</title>
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
@@ -12,11 +12,152 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+            box-sizing: border-box;
         }
-        body { font-family: 'Comfortaa', sans-serif; font-weight: 500; }
-        .stat-card:hover { transform: translateY(-5px); }
-        .value-card { transition: all 0.3s ease; }
-        .value-card:hover { transform: translateY(-3px); }
+        body { font-family: 'Comfortaa', sans-serif; }
+
+        /* Stats Grid & Cards */
+        .about-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+            margin-top: 2.75rem;
+            width: 100%;
+        }
+        @media (min-width: 540px) {
+            .about-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 22px;
+            }
+        }
+        @media (min-width: 960px) {
+            .about-stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 26px;
+            }
+        }
+        .about-stat-card {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .about-stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08);
+            border-color: #cbd5e1;
+        }
+
+        /* Story Panes & Stacking */
+        .about-story-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 36px;
+            width: 100%;
+        }
+        @media (min-width: 900px) {
+            .about-story-grid {
+                flex-direction: row;
+                gap: 56px;
+                align-items: center;
+            }
+            .about-story-left {
+                flex: 1.25;
+                min-width: 0;
+            }
+            .about-story-right {
+                flex: 0.75;
+                min-width: 0;
+            }
+        }
+        .about-paragraph-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+        .about-paragraph-stack p {
+            line-height: 1.85 !important;
+            color: #475569;
+            font-size: 0.98rem;
+            margin: 0;
+        }
+
+        /* Features & Principles Grid */
+        .about-features-grid, .about-principles-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 22px;
+            width: 100%;
+        }
+        @media (min-width: 600px) {
+            .about-features-grid, .about-principles-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 26px;
+            }
+        }
+        @media (min-width: 1024px) {
+            .about-features-grid, .about-principles-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 28px;
+            }
+        }
+        .about-feature-card {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 1.25rem;
+            padding: 1.75rem 1.5rem;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        .about-feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08);
+        }
+
+        /* Crisp, self-contained icon boxes (no color spreading) */
+        .about-icon-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            margin-bottom: 1.25rem;
+            flex-shrink: 0;
+            border-width: 1.5px;
+            border-style: solid;
+        }
+        .about-icon-blue { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+        .about-icon-emerald { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
+        .about-icon-purple { background: #faf5ff; border-color: #e9d5ff; color: #9333ea; }
+        .about-icon-cyan { background: #ecfeff; border-color: #a5f3fc; color: #0891b2; }
+        .about-icon-amber { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+        .about-icon-rose { background: #fff1f2; border-color: #fecdd3; color: #e11d48; }
+
+        /* Mission & Vision Panes */
+        .about-mission-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            width: 100%;
+        }
+        @media (min-width: 768px) {
+            .about-mission-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 36px;
+            }
+        }
+        .about-pane {
+            border-radius: 1.25rem;
+            padding: 2.25rem 2rem;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        }
     </style>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
     <script>
@@ -110,171 +251,226 @@
 
     <main class="flex-grow">
         <!-- Hero Section -->
-        <section class="bg-gradient-to-br from-amber-50 to-amber-100/60 text-[#022c5a] py-16 sm:py-24">
-            <div class="container mx-auto px-4 text-center max-w-4xl">
-                <h1 class="text-4xl sm:text-5xl font-black mb-6 tracking-tight" id="about-title"></h1>
-                <p class="text-lg sm:text-xl mb-8 text-[#022c5a]/70 max-w-3xl mx-auto leading-relaxed">The operations platform built for Indian courier &amp; logistics businesses — unifying orders, carriers, billing, documents, and compliance in one powerful system.</p>
-                <div class="flex flex-wrap justify-center gap-6 text-center">
-                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
-                        <div class="text-3xl font-black text-[#022c5a]">2+</div>
-                        <div class="text-sm text-[#022c5a]/60 mt-1">Years in Production</div>
+        <section class="bg-gradient-to-b from-amber-50/80 via-white to-gray-100 py-16 sm:py-24 border-b border-slate-200/80">
+            <div class="container mx-auto px-4 text-center max-w-5xl">
+                <!-- Brand Logo & Title -->
+                <div class="flex flex-col items-center mb-8">
+                    <img src="assets/images/postman-logo.svg" alt="PosTman Logo" class="h-16 sm:h-20 w-auto mb-4 drop-shadow-sm">
+                    <h1 class="rn-dash-title" style="font-size: 2.25rem !important;">About Postman</h1>
+                    <div class="rn-dash-titlebar" style="width: 54px !important;"></div>
+                </div>
+
+                <p class="text-base sm:text-lg mb-10 text-slate-600 max-w-2xl mx-auto leading-relaxed font-medium">
+                    The operations platform built for Indian courier &amp; logistics businesses — unifying orders, carriers, billing, documents, and compliance in one high-performance system.
+                </p>
+
+                <!-- 4 Top Stat Cards with generous spacing -->
+                <div class="about-stats-grid text-left max-w-4xl mx-auto">
+                    <div class="about-stat-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Experience</span>
+                            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-bold shadow-sm">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">2+</div>
+                        <div class="text-xs text-slate-500 font-semibold mt-1">Years in Production</div>
                     </div>
-                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
-                        <div class="text-3xl font-black text-[#022c5a]">19K+</div>
-                        <div class="text-sm text-[#022c5a]/60 mt-1">Pincodes Covered</div>
+
+                    <div class="about-stat-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Reach</span>
+                            <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-bold shadow-sm">
+                                <i class="fa-solid fa-location-dot"></i>
+                            </div>
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">19K+</div>
+                        <div class="text-xs text-slate-500 font-semibold mt-1">Pincodes Covered</div>
                     </div>
-                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
-                        <div class="text-3xl font-black text-[#022c5a]">10+</div>
-                        <div class="text-sm text-[#022c5a]/60 mt-1">Carriers Integrated</div>
+
+                    <div class="about-stat-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-600">Network</span>
+                            <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm font-bold shadow-sm">
+                                <i class="fa-solid fa-truck-fast"></i>
+                            </div>
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">10+</div>
+                        <div class="text-xs text-slate-500 font-semibold mt-1">Carriers Integrated</div>
                     </div>
-                    <div class="stat-card bg-[#022c5a]/5 backdrop-blur-sm rounded-xl p-6 transition-transform hover:bg-[#022c5a]/10 min-w-[140px]">
-                        <div class="text-3xl font-black text-[#022c5a]">20+</div>
-                        <div class="text-sm text-[#022c5a]/60 mt-1">Document Templates</div>
+
+                    <div class="about-stat-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-purple-600">Templates</span>
+                            <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-sm font-bold shadow-sm">
+                                <i class="fa-solid fa-file-invoice"></i>
+                            </div>
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">20+</div>
+                        <div class="text-xs text-slate-500 font-semibold mt-1">Document Templates</div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- Our Story -->
-        <section class="py-16 bg-white">
+        <section class="py-16 sm:py-24 bg-white">
             <div class="container mx-auto px-4 max-w-6xl">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div>
-                        <h2 class="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-                        <p class="text-gray-600 mb-4 leading-relaxed"><span id="company-name-1"></span> was built from the ground up to solve a simple problem: Indian logistics businesses deserved better software. Off-the-shelf tools were either too generic or too expensive, and most couldn't handle the complexity of multi-carrier operations, GST compliance, and the sheer variety of shipping documents required.</p>
-                        <p class="text-gray-600 mb-4 leading-relaxed">What started as an internal tool to streamline carrier assignment and rate calculation grew into a full-fledged operations platform. We added real-time tracking via SSE, a comprehensive document suite with 20+ templates, a complete financial module (Vault), and deep carrier integrations — all while keeping the interface fast and familiar.</p>
-                        <p class="text-gray-600 leading-relaxed">Today, <span id="company-name-3"></span> powers logistics operations across India — from order booking to final delivery — helping businesses focus on what they do best: shipping.</p>
+                <div class="about-story-grid">
+                    <div class="about-story-left">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-50 border border-red-200/60 text-[#9C2007] text-xs font-extrabold uppercase tracking-wider mb-5">
+                            <i class="fa-solid fa-feather-pointed"></i> Built from Experience
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-6 leading-tight">Our Story &amp; Vision</h2>
+                        <div class="about-paragraph-stack">
+                            <p>
+                                <strong class="text-slate-900 font-bold">PosTman</strong> by Post4Ex was created from the ground up to solve an essential operational challenge: Indian logistics and freight businesses deserved faster, smarter, and deeply integrated software.
+                            </p>
+                            <p>
+                                Generic off-the-shelf tools were often clunky or expensive, struggling with the real-world complexity of multi-carrier assignments, GST reconciliation, rate calculation, and customs documentation.
+                            </p>
+                            <p>
+                                Today, PosTman powers end-to-end logistics operations — from single and bulk order bookings, rate calculation, and live SSE tracking, to comprehensive financial management in The Vault — enabling logistics teams across India to operate at peak speed.
+                            </p>
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
-                            <i class="fa-solid fa-cubes text-6xl text-blue-600 mb-4"></i>
-                            <h3 class="text-xl font-bold text-gray-900 mb-2">Built for Logistics,<br/>by Logistics People</h3>
-                            <p class="text-gray-600">Every feature was shaped by real operational needs</p>
+
+                    <div class="about-story-right">
+                        <div class="bg-gradient-to-br from-slate-50 to-blue-50/60 rounded-2xl p-8 sm:p-10 border border-slate-200 text-center relative overflow-hidden shadow-sm">
+                            <div class="w-16 h-16 mx-auto mb-5 bg-gradient-to-br from-[#9C2007] to-[#f59e0b] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/20 text-3xl">
+                                <i class="fa-solid fa-cube"></i>
+                            </div>
+                            <h3 class="text-lg sm:text-xl font-bold text-slate-900 mb-3">Built for Logistics by Logistics Experts</h3>
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-sm mx-auto font-medium">Every capability was forged through actual ground operations, carrier requirements, and Indian freight standards.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- What Makes Genie Different -->
-        <section class="py-16 bg-gray-50">
+        <!-- What Makes PosTman Different -->
+        <section class="py-16 sm:py-24 bg-gray-50 border-y border-slate-200">
             <div class="container mx-auto px-4 max-w-6xl">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-4">What Makes <span id="company-name-4"></span> Different</h2>
-                    <p class="text-gray-600 max-w-2xl mx-auto">Not just another dashboard — a purpose-built operating system for courier and freight operations.</p>
+                <div class="text-center mb-14 sm:mb-16">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">What Makes PosTman Different</h2>
+                    <p class="text-slate-600 text-sm sm:text-base max-w-xl mx-auto font-medium">A purpose-built operating system tailored for freight, parcel, and courier operations.</p>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-puzzle-piece text-2xl"></i>
+                <div class="about-features-grid">
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-amber">
+                            <i class="fa-solid fa-cube"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Modular by Design</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">Use what you need — orders, tracking, billing, or documents. Each module works standalone or together.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-2">Modular Architecture</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Operate bookings, tracking, rate calculation, or document generation independently or in full harmony.</p>
                     </div>
-                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-link text-2xl"></i>
+
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-emerald">
+                            <i class="fa-solid fa-network-wired"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Carrier Agnostic</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">Compare and assign across multiple carriers from one interface. No vendor lock-in.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-2">Carrier Agnostic</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Compare tariffs and auto-allocate shipments across multiple carrier partners with zero vendor lock-in.</p>
                     </div>
-                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-file-shield text-2xl"></i>
+
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-purple">
+                            <i class="fa-solid fa-calculator"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">GST-Ready</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">Auto-detects intra-state vs inter-state for correct IGST/SGST+CGST. Built-in GST reconciliation.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-2">GST &amp; Compliance Built-in</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Automatic intra-state vs inter-state tax engine with IGST/SGST+CGST breakdown and complete reconciliation.</p>
                     </div>
-                    <div class="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-bolt text-2xl"></i>
+
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-rose">
+                            <i class="fa-solid fa-bolt"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Real-Time by Default</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">SSE-powered live tracking, instant rate calculations, and auto-refreshing dashboards.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-2">Real-Time Sync</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Live SSE tracking updates, instantaneous freight estimations, and live IndexedDB sync across all devices.</p>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- Mission & Vision -->
-        <section class="py-16 bg-white">
+        <section class="py-16 sm:py-24 bg-white">
             <div class="container mx-auto px-4 max-w-6xl">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-8 border border-amber-100">
-                        <div class="flex items-center mb-4">
-                            <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center mr-4">
-                                <i class="fa-solid fa-bullseye text-xl"></i>
+                <div class="about-mission-grid">
+                    <div class="about-pane bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/80">
+                        <div class="flex items-center gap-3.5 mb-4">
+                            <div class="about-icon-box about-icon-amber" style="margin-bottom: 0;">
+                                <i class="fa-solid fa-bullseye"></i>
                             </div>
-                            <h3 class="text-2xl font-bold text-gray-900">Our Mission</h3>
+                            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Our Mission</h3>
                         </div>
-                        <p class="text-gray-700 leading-relaxed">To empower every courier and logistics business in India with a unified operations platform that simplifies complexity, reduces manual effort, and enables them to scale with confidence.</p>
+                        <p class="text-slate-700 text-sm sm:text-base leading-relaxed font-medium">To empower every logistics provider and business across India with an agile, unified platform that minimizes manual friction, boosts efficiency, and accelerates scale.</p>
                     </div>
-                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
-                        <div class="flex items-center mb-4">
-                            <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center mr-4">
-                                <i class="fa-solid fa-eye text-xl"></i>
+
+                    <div class="about-pane bg-gradient-to-br from-blue-50/70 to-indigo-50/50 border border-blue-200/80">
+                        <div class="flex items-center gap-3.5 mb-4">
+                            <div class="about-icon-box about-icon-blue" style="margin-bottom: 0;">
+                                <i class="fa-solid fa-compass"></i>
                             </div>
-                            <h3 class="text-2xl font-bold text-gray-900">Our Vision</h3>
+                            <h3 class="text-xl sm:text-2xl font-bold text-slate-900">Our Vision</h3>
                         </div>
-                        <p class="text-gray-700 leading-relaxed">To become the backbone of India's logistics operations — the platform that logistics companies trust to run their business, from the first mile to the last.</p>
+                        <p class="text-slate-700 text-sm sm:text-base leading-relaxed font-medium">To serve as the trusted digital operational backbone for modern Indian logistics — providing seamless visibility and precision from first-mile pickup to final proof of delivery.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Values -->
-        <section class="py-16 bg-gray-50">
+        <!-- Core Values / Principles -->
+        <section class="py-16 sm:py-24 bg-gray-50 border-t border-slate-200">
             <div class="container mx-auto px-4 max-w-6xl">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl font-bold text-gray-900 mb-4">Our Values</h2>
-                    <p class="text-gray-600">The principles that guide how we build</p>
+                <div class="text-center mb-14 sm:mb-16">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Core Principles</h2>
+                    <p class="text-slate-600 text-sm sm:text-base font-medium">The operational pillars guiding how PosTman is built</p>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-sm">
-                            <i class="fa-solid fa-gear text-xl"></i>
+                <div class="about-principles-grid">
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-blue">
+                            <i class="fa-solid fa-gears"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Practical First</h4>
-                        <p class="text-gray-600 text-sm">Every feature solves a real operational problem — no fluff.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-1.5">Operational Depth</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Built around real logistics edge cases — volumetric calculations, fuel surcharges, and state taxes.</p>
                     </div>
-                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shadow-sm">
-                            <i class="fa-solid fa-arrow-trend-up text-xl"></i>
+
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-emerald">
+                            <i class="fa-solid fa-chart-line"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Continuous Improvement</h4>
-                        <p class="text-gray-600 text-sm">We ship often, listen to users, and iterate relentlessly.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-1.5">Continuous Evolution</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Frequent enhancements, rapid feature rollouts, and constant listening to freight operators.</p>
                     </div>
-                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center shadow-sm">
-                            <i class="fa-solid fa-handshake text-xl"></i>
+
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-purple">
+                            <i class="fa-solid fa-handshake"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Partner Mentality</h4>
-                        <p class="text-gray-600 text-sm">Your logistics business is our business. We succeed when you do.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-1.5">Partner Mindset</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">We treat your operational reliability as our highest priority with instant support and audit trails.</p>
                     </div>
-                    <div class="value-card bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
-                        <div class="w-14 h-14 mx-auto mb-4 bg-cyan-50 text-cyan-600 rounded-full flex items-center justify-center shadow-sm">
-                            <i class="fa-solid fa-mobile-screen text-xl"></i>
+
+                    <div class="about-feature-card">
+                        <div class="about-icon-box about-icon-cyan">
+                            <i class="fa-solid fa-gauge-high"></i>
                         </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">Fast &amp; Familiar</h4>
-                        <p class="text-gray-600 text-sm">UI that doesn't get in the way. Speed is a feature.</p>
+                        <h4 class="text-base font-bold text-slate-900 mb-1.5">High Speed &amp; Simplicity</h4>
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">Sub-second UI response, streamlined workflows, and zero unnecessary hurdles.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- CTA -->
-        <section class="py-16 bg-gradient-to-br from-amber-50 to-amber-100/60 text-[#022c5a]">
-            <div class="container mx-auto px-4 text-center max-w-4xl">
-                <h2 class="text-3xl font-bold mb-4">Ready to Streamline Your Operations?</h2>
-                <p class="text-lg mb-8 text-[#022c5a]/70">Join logistics teams that trust <span id="company-name-2"></span> to handle their operations every day.</p>
-                <div class="flex flex-wrap justify-center gap-4">
+        <!-- CTA Section -->
+        <section class="py-16 sm:py-24 bg-gradient-to-b from-white to-amber-50/50 border-t border-slate-200 text-center">
+            <div class="container mx-auto px-4 max-w-4xl">
+                <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">Ready to Streamline Your Logistics Operations?</h2>
+                <p class="text-slate-600 text-sm sm:text-base mb-10 max-w-xl mx-auto font-medium">Join logistics teams using PosTman every day to manage shipments, tariffs, and accounts.</p>
+                <div class="flex justify-center">
                     <a href="login.html" class="btn btn-lg">
                         <i class="fa-solid fa-rocket mr-2"></i>Get Started
-                    </a>
-                    <a href="services.html" class="btn-danger px-8 py-3 text-lg">
-                        <i class="fa-solid fa-grid-2 mr-2"></i>View Capabilities
                     </a>
                 </div>
             </div>
@@ -290,13 +486,6 @@
     <script src="core/app-api.js"></script>
     <script src="core/app-auth.js"></script>
     <script src="core/layout.js"></script>
-    <script>
-        window.addEventListener('footerLoaded', function() {
-            const n = window.CONSTANTS.APP_NAME;
-            document.title = `About Us - ${n}`;
-            const els = document.querySelectorAll('#about-title, #company-name-1, #company-name-2, #company-name-3, #company-name-4');
-            els.forEach(el => { if (el) el.textContent = n; });
-        });
-    </script>
 </body>
 </html>
+
