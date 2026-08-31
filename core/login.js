@@ -58,13 +58,21 @@ async function callApi(endpoint, payload = {}) {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const json = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let json = {};
+        if (contentType.includes('application/json')) {
+            json = await res.json();
+        } else {
+            await res.text();
+            throw new Error(`Server returned unexpected response (${res.status})`);
+        }
         setLoading(false);
-        if (json.status === 'error') throw new Error(json.message);
+        if (json.status === 'error') throw new Error(json.message || json.detail || 'Request failed');
+        if (json.detail && res.status >= 400) throw new Error(typeof json.detail === 'string' ? json.detail : 'Invalid credentials');
         return { res, json };
     } catch (err) {
         setLoading(false);
-        let msg = err.message;
+        let msg = err.message || 'Connection error';
         if (msg.includes('Blocked')) msg = '⚠️ Account Blocked (Suspicious Activity)';
         showMessage(msg, 'error');
         throw err;
