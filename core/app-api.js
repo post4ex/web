@@ -365,29 +365,104 @@ async function verifyAndFetchAppData(clearAll = false) {
         }
     }
 
-    if ('serviceWorker' in navigator) {
-        if (!navigator.serviceWorker.controller) {
-            console.log('[Data Engine] Waiting for Service Worker activation...');
-            await new Promise((resolve) => {
-                if (navigator.serviceWorker.controller) return resolve();
-                navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
-                navigator.serviceWorker.ready.then(() => resolve());
-            });
-        }
-
-        const worker = navigator.serviceWorker.controller || (await navigator.serviceWorker.ready).active;
-        if (worker) {
-            const completed_layers = await getCompletedLayersFromIDB();
-            window._syncInProgress = true;
-            worker.postMessage({
-                type: 'start_sync',
-                completed_layers,
-                token: getSessionId(),
-                base: ''
-            });
-        }
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        const worker = navigator.serviceWorker.controller;
+        const completed_layers = await getCompletedLayersFromIDB();
+        window._syncInProgress = true;
+        worker.postMessage({
+            type: 'start_sync',
+            completed_layers,
+            token: getSessionId(),
+            base: ''
+        });
+    } else {
+        await fetchDirectStreamSync();
     }
 }
+
+async function fetchDirectStreamSync() {
+    console.log('[Data Engine] Running Direct Stream Sync (Main Thread)...');
+    const token = getSessionId();
+    if (!token) return;
+    
+    try {
+        const completed_layers = await getCompletedLayersFromIDB();
+        let res = await fetch('/api/sync/stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ completed_layers })
+        });
+        
+        if (res.status === 405) {
+            res = await fetch('/api/sync/stream', {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        }
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.body) throw new Error('ReadableStream not supported');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let batchMap = {};
+        let count = 0;
+
+        const flush = async () => {
+            if (Object.keys(batchMap).length > 0 && window.appDB?.bulkMerge) {
+                await window.appDB.bulkMerge(batchMap);
+                batchMap = {};
+            }
+        };
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const row = JSON.parse(line);
+                    if (row.type === 'record') {
+                        const { collection, key, data } = row;
+                        if (!batchMap[collection]) batchMap[collection] = {};
+                        batchMap[collection][key] = data;
+                        count++;
+                        if (count % 200 === 0) await flush();
+                    } else if (row.type === 'layer_done' && row.layer === 'current_fy') {
+                        await flush();
+                        window._initialSyncComplete = true;
+                        window._syncInProgress = false;
+                        const fullData = await getAppData();
+                        window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
+                        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+                    }
+                } catch (e) {}
+            }
+        }
+        await flush();
+        window._initialSyncComplete = true;
+        window._syncInProgress = false;
+        const fullData = await getAppData();
+        window.dispatchEvent(new CustomEvent('appDataLoaded', { detail: { data: fullData } }));
+        window.dispatchEvent(new CustomEvent('appDataRefreshed', { detail: { data: fullData } }));
+        window.dispatchEvent(new CustomEvent('syncComplete'));
+        console.log(`[Data Engine] Direct Stream Sync completed (${count} records).`);
+    } catch (err) {
+        console.warn('[Data Engine] Direct Stream Sync error:', err.message, 'Falling back to pullDeltaSince...');
+        await pullDeltaSince(0);
+    }
+}
+
+window.fetchBatchAppData = fetchDirectStreamSync;
 
 let _lastStreamRefreshTime = 0;
 let _streamRefreshTimeout = null;
