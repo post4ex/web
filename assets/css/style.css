@@ -4593,3 +4593,28 @@ html.needs-sync body::after {
     color: #3730a3;
     border-color: #818cf8;
 }
+
+/* =============================================================================
+   PAGE TITLE BRANDED STYLES (.pagetitle, .pagetitle-bar)
+============================================================================= */
+.pagetitle,
+.rn-dash-title {
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.5px !important;
+    background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.pagetitle-bar,
+.rn-dash-titlebar {
+    width: 46px !important;
+    height: 3px !important;
+    border-radius: 2px !important;
+    margin-top: 8px !important;
+    background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+}
+

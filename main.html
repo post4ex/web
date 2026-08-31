@@ -25,18 +25,18 @@
             background-color: #f8fafc;
         }
         
-        /* --- CLASSY REACT-STYLE TILES (Aggressive Vibrant Hover) --- */
+        /* --- CLASSY REACT-STYLE TILES (Smooth & Responsive Hover) --- */
         .classy-tile {
             background: var(--tile-bg, #ffffff);
             border: 1.5px solid var(--tile-border, #e2e8f0);
-            border-radius: 1rem;
-            padding: 0.75rem 0.5rem;
+            border-radius: 0.85rem;
+            padding: 0.55rem 0.35rem;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            min-height: 5.5rem;
-            transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease, border-color 0.24s ease, background 0.24s ease;
+            justify-content: center;
+            min-height: 3.6rem;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
             text-decoration: none;
             cursor: pointer;
             width: 100%;
@@ -44,22 +44,35 @@
             position: relative;
             box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.04);
         }
+        @media (min-width: 640px) {
+            .classy-tile {
+                padding: 0.75rem 0.5rem;
+                justify-content: space-between;
+                min-height: 5.5rem;
+                border-radius: 1rem;
+            }
+        }
         @media (min-width: 1024px) {
             .classy-tile { padding: 0.95rem 0.65rem; min-height: 6.2rem; }
         }
         .classy-tile:hover {
-            transform: translateY(-5px) scale(1.03);
+            transform: translateY(-3px);
             background: var(--tile-hover-bg, var(--tile-bg)) !important;
             border-color: var(--tile-accent) !important;
-            box-shadow: 0 14px 26px -3px var(--icon-shadow), 0 0 0 2px var(--tile-accent-fade) !important;
+            box-shadow: 0 10px 20px -3px var(--icon-shadow), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
         }
         .classy-tile-header {
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             gap: 0.35rem;
             width: 100%;
             margin-top: 0.3rem;
+        }
+        @media (min-width: 640px) {
+            .classy-tile-header {
+                display: flex;
+            }
         }
         .classy-tile-dot {
             width: 5px;
@@ -68,11 +81,10 @@
             background: var(--tile-accent);
             flex-shrink: 0;
             opacity: 0.85;
-            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            transition: transform 0.22s ease, opacity 0.22s ease;
         }
         .classy-tile:hover .classy-tile-dot {
-            transform: scale(1.6);
-            box-shadow: 0 0 8px var(--tile-accent);
+            transform: scale(1.2);
             opacity: 1;
         }
         .classy-tile-label {
@@ -81,26 +93,32 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: #334155;
-            transition: color 0.2s ease, font-weight 0.2s ease;
+            transition: color 0.2s ease;
         }
         .classy-tile:hover .classy-tile-label {
             color: var(--tile-accent);
-            font-weight: 800;
         }
         .classy-icon-box {
-            width: 2.6rem;
-            height: 2.6rem;
-            border-radius: 0.8rem;
+            width: 2.3rem;
+            height: 2.3rem;
+            border-radius: 0.7rem;
             display: flex;
             align-items: center;
             justify-content: center;
             background: var(--icon-grad);
             box-shadow: 0 3px 10px -1px var(--icon-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-            transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        @media (min-width: 640px) {
+            .classy-icon-box {
+                width: 2.6rem;
+                height: 2.6rem;
+                border-radius: 0.8rem;
+            }
         }
         .classy-tile:hover .classy-icon-box {
-            transform: scale(1.15) translateY(-2px);
-            box-shadow: 0 8px 22px -1px var(--icon-shadow);
+            transform: scale(1.06);
+            box-shadow: 0 6px 14px -1px var(--icon-shadow);
         }
         .classy-icon-box i {
             font-size: 1.15rem;
@@ -108,32 +126,31 @@
             filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
         }
 
-        /* Color Themes matching React App GRADIENTS + Soft Tinted Tile Fill & Bold Hover Fills */
-        .ct-blue    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); --tile-hover-bg: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); --tile-border: #bfdbfe; --tile-accent: #2563EB; --tile-accent-fade: rgba(37, 99, 235, 0.35); --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.45); }
-        .ct-indigo  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); --tile-hover-bg: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%); --tile-border: #c7d2fe; --tile-accent: #4F46E5; --tile-accent-fade: rgba(79, 70, 229, 0.35); --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.45); }
-        .ct-amber   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); --tile-hover-bg: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); --tile-border: #fde68a; --tile-accent: #D97706; --tile-accent-fade: rgba(217, 119, 6, 0.35); --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.45); }
-        .ct-teal    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); --tile-hover-bg: linear-gradient(180deg, #f0fdfa 0%, #ccfbf1 100%); --tile-border: #99f6e4; --tile-accent: #0D9488; --tile-accent-fade: rgba(13, 148, 136, 0.35); --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.45); }
-        .ct-orange  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff7ed 100%); --tile-hover-bg: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%); --tile-border: #fed7aa; --tile-accent: #EA580C; --tile-accent-fade: rgba(234, 88, 12, 0.35); --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.45); }
-        .ct-cyan    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); --tile-hover-bg: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%); --tile-border: #a5f3fc; --tile-accent: #0891B2; --tile-accent-fade: rgba(8, 145, 178, 0.35); --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.45); }
-        .ct-slate   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f5f3ff 100%); --tile-hover-bg: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%); --tile-border: #ddd6fe; --tile-accent: #7C3AED; --tile-accent-fade: rgba(124, 58, 237, 0.35); --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.45); }
-        .ct-yellow  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fefce8 100%); --tile-hover-bg: linear-gradient(180deg, #fefce8 0%, #fef08a 100%); --tile-border: #fde047; --tile-accent: #CA8A04; --tile-accent-fade: rgba(202, 138, 4, 0.35); --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.45); }
-        .ct-green   { --tile-accent: #16A34A; --tile-accent-fade: rgba(22, 163, 74, 0.35); --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.45); }
-        .ct-emerald { --tile-accent: #059669; --tile-accent-fade: rgba(5, 150, 105, 0.35); --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.45); }
+        /* Color Themes matching React App GRADIENTS + Soft Tinted Tile Fill & Subtle Hover Fills */
+        .ct-blue    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); --tile-border: #bfdbfe; --tile-accent: #2563EB; --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.25); }
+        .ct-indigo  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%); --tile-border: #c7d2fe; --tile-accent: #4F46E5; --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.25); }
+        .ct-amber   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%); --tile-border: #fde68a; --tile-accent: #D97706; --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.25); }
+        .ct-teal    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%); --tile-border: #99f6e4; --tile-accent: #0D9488; --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.25); }
+        .ct-orange  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff7ed 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%); --tile-border: #fed7aa; --tile-accent: #EA580C; --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.25); }
+        .ct-cyan    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); --tile-hover-bg: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%); --tile-border: #a5f3fc; --tile-accent: #0891B2; --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.25); }
+        .ct-slate   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f5f3ff 100%); --tile-hover-bg: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%); --tile-border: #ddd6fe; --tile-accent: #7C3AED; --icon-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); --icon-shadow: rgba(139, 92, 246, 0.25); }
+        .ct-yellow  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fefce8 100%); --tile-hover-bg: linear-gradient(180deg, #fefce8 0%, #fef08a 100%); --tile-border: #fde047; --tile-accent: #CA8A04; --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.25); }
+        .ct-green   { --tile-accent: #16A34A; --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.25); }
+        .ct-emerald { --tile-accent: #059669; --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.25); }
 
-        /* --- CLASSY TRACKING BOX (Aggressive Vibrant Hover) --- */
+        /* --- CLASSY TRACKING BOX (Smooth & Responsive Hover) --- */
         .classy-track-box {
             background: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%);
             border: 1.5px solid #fde68a;
             border-radius: 1.25rem;
             padding: 1.5rem;
-            box-shadow: 0 4px 20px -2px rgba(245, 158, 11, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
-            transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease, border-color 0.24s ease, background 0.24s ease;
+            box-shadow: 0 4px 16px -2px rgba(245, 158, 11, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         }
         .classy-track-box:hover {
-            transform: translateY(-5px) scale(1.02);
-            background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) !important;
+            transform: translateY(-3px);
             border-color: #f59e0b !important;
-            box-shadow: 0 18px 36px -4px rgba(245, 158, 11, 0.32), 0 0 0 2.5px rgba(245, 158, 11, 0.3) !important;
+            box-shadow: 0 12px 24px -4px rgba(245, 158, 11, 0.18) !important;
         }
         
         /* --- MODAL STYLES --- */

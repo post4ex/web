@@ -278,7 +278,6 @@ async function verifyAndFetchAppData(clearAll = false) {
 
     if (!window.appDB) {
         console.warn('[Data Engine] IndexedDB not available');
-        showNotification('⚠️ Using localStorage fallback - Limited offline storage', 'info');
         return;
     }
 
@@ -299,18 +298,27 @@ async function verifyAndFetchAppData(clearAll = false) {
         }
     }
 
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        const completed_layers = await getCompletedLayersFromIDB();
-        window._syncInProgress = true;
-        navigator.serviceWorker.controller.postMessage({
-            type: 'start_sync',
-            completed_layers,
-            token: getSessionId(),
-            base: ''
-        });
-    } else {
-        console.warn('[Data Engine] Service Worker controller not active yet. Retrying in 500ms...');
-        setTimeout(() => verifyAndFetchAppData(clearAll), 500);
+    if ('serviceWorker' in navigator) {
+        if (!navigator.serviceWorker.controller) {
+            console.log('[Data Engine] Waiting for Service Worker activation...');
+            await new Promise((resolve) => {
+                if (navigator.serviceWorker.controller) return resolve();
+                navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
+                navigator.serviceWorker.ready.then(() => resolve());
+            });
+        }
+
+        const worker = navigator.serviceWorker.controller || (await navigator.serviceWorker.ready).active;
+        if (worker) {
+            const completed_layers = await getCompletedLayersFromIDB();
+            window._syncInProgress = true;
+            worker.postMessage({
+                type: 'start_sync',
+                completed_layers,
+                token: getSessionId(),
+                base: ''
+            });
+        }
     }
 }
 

@@ -285,8 +285,9 @@ html, body, button, input, select, textarea {
    REACT NATIVE MATCHED DASHBOARD COMPONENTS (Tile, Tray, ListItem)
 ============================================================================= */
 
-/* 1. Dashboard Title */
-.rn-dash-title {
+/* 1. Page & Dashboard Title */
+.rn-dash-title,
+.pagetitle {
   font-size: 26px !important;
   font-weight: 900 !important;
   letter-spacing: 0.5px !important;
@@ -296,7 +297,8 @@ html, body, button, input, select, textarea {
   margin: 0 !important;
   line-height: 1.2 !important;
 }
-.rn-dash-titlebar {
+.rn-dash-titlebar,
+.pagetitle-bar {
   width: 46px !important;
   height: 3px !important;
   border-radius: 2px !important;
