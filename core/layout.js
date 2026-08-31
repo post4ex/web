@@ -803,9 +803,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(reg => {
+        navigator.serviceWorker.register('sw.js?v=20260831_4', { updateViaCache: 'none' }).then(reg => {
             console.log('[ServiceWorker] Registered, scope:', reg.scope);
+            if (reg.waiting) {
+                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed') {
+                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    });
+                }
+            });
             try { reg.update(); } catch (e) {}
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('[ServiceWorker] New Service Worker active and in control.');
         });
         navigator.serviceWorker.addEventListener('message', (event) => {
             _handleSWMessage(event);
