@@ -117,6 +117,7 @@ async function runStreamSync(completedLayers, token, baseUrl) {
   await setMetadata('base_url', baseUrl);
 
   try {
+    const streamUrl = baseUrl ? `${baseUrl}/api/sync/stream` : '/api/sync/stream';
     let response = await fetch(streamUrl, {
       method: 'POST',
       headers: {
