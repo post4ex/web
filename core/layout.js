@@ -383,7 +383,11 @@ function _handleSWMessage(event) {
             _scheduleRefresh();
         });
     } else if (type === 'sync_failed') {
+        console.warn('[Layout] SW sync failed. Triggering fallback data fetch...');
         window._syncInProgress = false;
+        if (typeof fetchBatchAppData === 'function') {
+            fetchBatchAppData().catch(e => console.warn('[Layout] Fallback fetch failed:', e));
+        }
         window.dispatchEvent(new CustomEvent('syncComplete'));
         if (_syncLeader) {
             localStorage.removeItem('genie-sync-active');
