@@ -6,6 +6,8 @@
     <title>Master Panel</title>
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/fontawesome.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ── Shared ── */
         .modal-overlay { position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center; }
@@ -13,15 +15,6 @@
         .modal-content { background:#fff;border-radius:.5rem;padding:1.5rem;width:100%;max-width:32rem;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto; }
         .form-input { border-radius:.375rem;border:1px solid #d1d5db;padding:.5rem .75rem;font-size:.875rem;width:100%;transition:border-color .2s; }
         .form-input:focus { outline:none;border-color:#4f46e5;box-shadow:0 0 0 1px #4f46e5; }
-
-        /* ── Tiles view ── */
-        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;flex:1;padding:2rem 1rem;overflow-y:auto; }
-        .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;width:100%;max-width:900px; }
-        .tile { background:#fff;border-radius:.75rem;padding:1.5rem 1rem;text-align:center;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .15s; }
-        .tile:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12); }
-        .tile-icon { font-size:2rem;margin-bottom:.5rem; }
-        .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
-        .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
 
         /* ── Split view ── */
         #splitView { display:none;width:100%; }
@@ -148,72 +141,174 @@
     <div class="flex flex-col" style="overflow:hidden;flex:1;">
 
         <!-- ── TILES VIEW ── -->
-        <div id="tilesView">
-            <div class="w-full max-w-900px mb-6 flex flex-col items-center sm:items-start" style="max-width:900px;">
-                <h1 class="pagetitle">Master Panel</h1>
-                <div class="pagetitle-bar"></div>
-            </div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="users" style="border-color:#e0e7ff;">
-                    <div class="tile-icon">👥</div>
-                    <div class="tile-count text-indigo-700" id="cnt-users">…</div>
-                    <div class="tile-label">Users</div>
+        <div id="tilesView" class="w-full flex-grow p-4 sm:p-8">
+            <div class="container mx-auto max-w-7xl space-y-6">
+                <div class="mb-6 flex flex-col items-center justify-center text-center">
+                    <h1 class="pagetitle">Master Panel</h1>
+                    <div class="pagetitle-bar"></div>
                 </div>
-                <div class="tile" data-tile="registrations" style="border-color:#fef3c7;">
-                    <div class="tile-icon">📋</div>
-                    <div class="tile-count text-amber-600" id="cnt-registrations">…</div>
-                    <div class="tile-label">Registrations</div>
-                </div>
-                <div class="tile" data-tile="services" style="border-color:#fce7f3;">
-                    <div class="tile-icon">⚙️</div>
-                    <div class="tile-count text-pink-700" id="cnt-services">…</div>
-                    <div class="tile-label">Services</div>
-                </div>
-                <div class="tile" data-tile="branches" style="border-color:#d1fae5;">
-                    <div class="tile-icon">🏢</div>
-                    <div class="tile-count text-green-700" id="cnt-branches">…</div>
-                    <div class="tile-label">Branches</div>
-                </div>
-                <div class="tile" data-tile="staff" style="border-color:#dbeafe;">
-                    <div class="tile-icon">🧑‍💼</div>
-                    <div class="tile-count text-blue-700" id="cnt-staff">…</div>
-                    <div class="tile-label">Staff</div>
-                </div>
-                <div class="tile" data-tile="attendance" style="border-color:#dcfce7;"><div class="tile-icon">🕐</div><div class="tile-count text-green-700" id="cnt-attendance">…</div><div class="tile-label">Attendance</div></div>
-                <div class="tile" data-tile="pincodes" style="border-color:#f3f4f6;">
-                    <div class="tile-icon">📍</div>
-                    <div class="tile-count text-gray-500" id="cnt-pincodes">—</div>
-                    <div class="tile-label">Pincodes</div>
-                </div>
-                <div class="tile" data-tile="clients" style="border-color:#ede9fe;">
-                    <div class="tile-icon">🤝</div>
-                    <div class="tile-count text-purple-700" id="cnt-clients">…</div>
-                    <div class="tile-label">Clients</div>
-                </div>
-                <div class="tile" data-tile="b2b2c" style="border-color:#ffe4e6;">
-                    <div class="tile-icon">🛍️</div>
-                    <div class="tile-count text-rose-700" id="cnt-b2b2c">…</div>
-                    <div class="tile-label">B2B2C</div>
-                </div>
-                <div class="tile" data-tile="holidays" style="border-color:#fef9c3;">
-                    <div class="tile-icon">🗓️</div>
-                    <div class="tile-count text-yellow-700" id="cnt-holidays">…</div>
-                    <div class="tile-label">Holidays</div>
-                </div>
-                <div class="tile" data-tile="shifts" style="border-color:#ede9fe;">
-                    <div class="tile-icon">🔄</div>
-                    <div class="tile-count text-purple-700" id="cnt-shifts">…</div>
-                    <div class="tile-label">Shifts & Leaves</div>
-                </div>
-                <div class="tile" data-tile="modes" style="border-color:#e0f2fe;">
-                    <div class="tile-icon">🚚</div>
-                    <div class="tile-count text-sky-700" id="cnt-modes">…</div>
-                    <div class="tile-label">Modes</div>
-                </div>
-                <div class="tile" data-tile="carriers" style="border-color:#fce7f3;">
-                    <div class="tile-icon">🏭</div>
-                    <div class="tile-count text-pink-700" id="cnt-carriers">…</div>
-                    <div class="tile-label">Carriers</div>
+                
+                <!-- TRAY CONTAINER -->
+                <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                        
+                        <!-- 1. Users -->
+                        <div class="classy-tile tile ct-indigo group" data-tile="users">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-users">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Users</span>
+                            </div>
+                        </div>
+
+                        <!-- 2. Registrations -->
+                        <div class="classy-tile tile ct-amber group" data-tile="registrations">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-user-plus"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-registrations">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Registrations</span>
+                            </div>
+                        </div>
+
+                        <!-- 3. Services -->
+                        <div class="classy-tile tile ct-purple group" data-tile="services">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-gears"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-services">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Services</span>
+                            </div>
+                        </div>
+
+                        <!-- 4. Branches -->
+                        <div class="classy-tile tile ct-emerald group" data-tile="branches">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-building"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-branches">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Branches</span>
+                            </div>
+                        </div>
+
+                        <!-- 5. Staff -->
+                        <div class="classy-tile tile ct-blue group" data-tile="staff">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-staff">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Staff</span>
+                            </div>
+                        </div>
+
+                        <!-- 6. Attendance -->
+                        <div class="classy-tile tile ct-green group" data-tile="attendance">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-calendar-check"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-attendance">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Attendance</span>
+                            </div>
+                        </div>
+
+                        <!-- 7. Pincodes -->
+                        <div class="classy-tile tile ct-slate group" data-tile="pincodes">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-pincodes">—</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Pincodes</span>
+                            </div>
+                        </div>
+
+                        <!-- 8. Clients -->
+                        <div class="classy-tile tile ct-purple group" data-tile="clients">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-handshake"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-clients">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Clients</span>
+                            </div>
+                        </div>
+
+                        <!-- 9. B2B2C -->
+                        <div class="classy-tile tile ct-rose group" data-tile="b2b2c">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-shop"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-b2b2c">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">B2B2C</span>
+                            </div>
+                        </div>
+
+                        <!-- 10. Holidays -->
+                        <div class="classy-tile tile ct-yellow group" data-tile="holidays">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-calendar-days"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-holidays">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Holidays</span>
+                            </div>
+                        </div>
+
+                        <!-- 11. Shifts & Leaves -->
+                        <div class="classy-tile tile ct-cyan group" data-tile="shifts">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-shifts">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Shifts &amp; Leaves</span>
+                            </div>
+                        </div>
+
+                        <!-- 12. Modes -->
+                        <div class="classy-tile tile ct-sky group" data-tile="modes">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-truck-fast"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-modes">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Modes</span>
+                            </div>
+                        </div>
+
+                        <!-- 13. Carriers -->
+                        <div class="classy-tile tile ct-orange group" data-tile="carriers">
+                            <div class="classy-icon-box">
+                                <i class="fa-solid fa-warehouse"></i>
+                            </div>
+                            <div class="tile-count" id="cnt-carriers">…</div>
+                            <div class="classy-tile-header">
+                                <span class="classy-tile-dot"></span>
+                                <span class="classy-tile-label">Carriers</span>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </div>

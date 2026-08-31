@@ -294,16 +294,19 @@ html, body, button, input, select, textarea {
   background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
-  margin: 0 !important;
+  margin: 0 auto !important;
   line-height: 1.2 !important;
+  text-align: center !important;
+  display: block !important;
 }
 .rn-dash-titlebar,
 .pagetitle-bar {
   width: 46px !important;
   height: 3px !important;
   border-radius: 2px !important;
-  margin-top: 8px !important;
+  margin: 8px auto 0 !important;
   background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+  display: block !important;
 }
 
 /* 2-Column Dashboard Split: Graphs on LEFT, Recent Orders on RIGHT */
@@ -312,6 +315,9 @@ html, body, button, input, select, textarea {
   flex-direction: column !important;
   gap: 18px !important;
   width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
 }
 
 .dashboard-left-graphs {
@@ -319,13 +325,40 @@ html, body, button, input, select, textarea {
   flex-direction: column !important;
   gap: 18px !important;
   width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
 }
 
 .dashboard-left-graphs .rn-tray {
   margin-bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .dashboard-right-orders {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+
+.dashboard-right-orders .rn-tray {
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#recent-orders-container {
+  max-height: 480px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 6px 2px !important;
+  box-sizing: border-box !important;
   width: 100% !important;
 }
 
@@ -345,15 +378,10 @@ html, body, button, input, select, textarea {
     display: flex !important;
     flex-direction: column !important;
   }
-  .dashboard-right-orders .rn-tray {
-    display: flex !important;
-    flex-direction: column !important;
-    margin-bottom: 0 !important;
-    box-sizing: border-box !important;
-  }
   #recent-orders-container {
     flex: 1 1 0% !important;
     min-height: 0 !important;
+    max-height: 520px !important;
     overflow-y: auto !important;
     padding-right: 6px !important;
   }

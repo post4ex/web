@@ -44,6 +44,7 @@
                 <div id="container-desktop-public" class="flex items-center space-x-2">
                     <a id="nav-home-public" href="main.html" class="btn">Home</a>
                     <a id="nav-pincode-public" href="Pincode.html" class="btn">Pincode</a>
+                    <a id="nav-apps-public" href="apps.html" class="btn">Apps</a>
                     <a id="nav-complaint-public" href="complaint.html" class="btn">Complaint</a>
                 </div>
                 <div id="container-desktop-private" class="hidden items-center space-x-2">
@@ -155,6 +156,7 @@
         public: [
             { label: 'Home', link: 'main.html', id: 'home' },
             { label: 'Pincode', link: 'Pincode.html', id: 'pincode' },
+            { label: 'Apps', link: 'apps.html', id: 'apps' },
             { label: 'Complaint', link: 'complaint.html', id: 'complaint' }
         ],
         private: [
@@ -228,15 +230,15 @@
         if (!container) return;
 
         let html = '';
-        NAV_CONFIG.sidebar.forEach(item => {
+        NAV_CONFIG.sidebar.forEach((item, index) => {
             if (!hasPermission(item.reqRole)) return; 
 
             if (item.submenu) {
                 const visibleSubItems = item.submenu.filter(sub => hasPermission(sub.reqRole));
                 if (visibleSubItems.length > 0) {
-                    const submenuId = `${item.id}-submenu`;
+                    const submenuId = `submenu-${item.id || index}`;
                     html += `
-                        <div>
+                        <div class="mb-1">
                             <button onclick="toggleSubmenu('${submenuId}')" class="btn w-full mb-1 justify-between">
                                 <span>${item.label}</span>
                                 <svg class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
@@ -278,6 +280,8 @@
             'service-agreement.html',
             'complaint.html',
             'pincode.html',
+            'apps.html',
+            'download.html',
             'zipfinder.html',
             'faqs.html',
             'awareness.html',
@@ -324,9 +328,14 @@
         const notifBtn = document.getElementById('notification-container-global');
         const notifDrop = document.getElementById('notification-dropdown');
         if (notifBtn && notifDrop) {
+            if (typeof window.bindNotificationActions === 'function') window.bindNotificationActions();
             notifBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 notifDrop.classList.toggle('hidden');
+                if (!notifDrop.classList.contains('hidden')) {
+                    if (typeof window.bindNotificationActions === 'function') window.bindNotificationActions();
+                    if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
+                }
             });
             document.addEventListener('click', (e) => {
                 if (!notifDrop.contains(e.target) && !notifBtn.contains(e.target)) {

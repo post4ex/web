@@ -473,8 +473,8 @@
             </div>
 
             <!-- RESULTS AREA — separate tray, shown when content loads -->
-            <div id="services-tray" style="display:none;margin-top:1rem;" class="tray">
-                <div id="services-content-area"></div>
+            <div id="services-tray" style="display:none; margin-top:1.75rem; padding:1.5rem sm:padding:2rem;" class="tray">
+                <div id="services-content-area" class="space-y-6"></div>
             </div>
         </div>
     </main>
@@ -599,12 +599,13 @@
                 if (!svc) return;
                 if (tray) tray.style.display = 'block';
                 svc.innerHTML = `
-                    <div style="background:white;border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-                            <p style="font-size:0.75rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">Tracking Result</p>
-                            <button id="main-track-close" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.8rem;display:flex;align-items:center;gap:0.3rem;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#94a3b8'">
-                                <i class="fa-solid fa-xmark"></i> Close
-                            </button>
+                    <div style="background:white; border-radius:1.25rem; padding:1.5rem sm:padding:1.75rem; box-shadow:0 4px 24px rgba(0,0,0,0.06); margin-bottom:1rem;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; padding-bottom:0.75rem; border-bottom:1px solid #f1f5f9;">
+                            <div style="display:flex; align-items:center; gap:0.45rem;">
+                                <span style="width:7px; height:7px; background:#10B981; border-radius:50%; display:inline-block; box-shadow:0 0 6px rgba(16,185,129,0.5);"></span>
+                                <p style="font-size:0.75rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin:0;">Tracking Result</p>
+                            </div>
+                            <button id="main-track-close" class="btn-close" style="font-size:0.8rem; cursor:pointer;" aria-label="Close">✕</button>
                         </div>
                         <div id="main-track-full-result"></div>
                     </div>`;

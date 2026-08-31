@@ -66,6 +66,38 @@ window.setActiveBranch = function (branch) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 let lastActivity = Date.now();
+let _isRefreshing = false;
+
+async function silentRefreshSession() {
+    if (_isRefreshing) return false;
+    _isRefreshing = true;
+    try {
+        const raw = localStorage.getItem(CONSTANTS.KEYS.LOGIN);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (!data.refreshToken) return false;
+        const res = await fetch('/api/refreshSession', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: data.refreshToken })
+        });
+        if (!res.ok) return false;
+        const json = await res.json();
+        if (json.status === 'success' && json.sessionId) {
+            data.sessionId = json.sessionId;
+            data.refreshToken = json.refreshToken || data.refreshToken;
+            data.expires = Date.now() + ((json.expiresIn || 28800) * 1000);
+            localStorage.setItem(CONSTANTS.KEYS.LOGIN, JSON.stringify(data));
+            console.log('[Auth] Active session renewed silently in background');
+            return true;
+        }
+    } catch (_) {
+    } finally {
+        _isRefreshing = false;
+    }
+    return false;
+}
+window.silentRefreshSession = silentRefreshSession;
 
 function initHeartbeat() {
     const resetTimer = () => {
@@ -73,22 +105,27 @@ function initHeartbeat() {
         if (now - lastActivity > CONSTANTS.ACTIVITY_THROTTLE) lastActivity = now;
     };
 
-    ['mousemove', 'keydown', 'click', 'scroll'].forEach(e => window.addEventListener(e, resetTimer));
+    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(e => window.addEventListener(e, resetTimer));
 
-    let _expiryWarned = false;
-    setInterval(() => {
+    setInterval(async () => {
         const now = Date.now();
+        // If inactive beyond idle timeout, log out
         if (now - lastActivity > CONSTANTS.IDLE_TIMEOUT) {
             handleLogout();
             return;
         }
-        // Warn 5 min before session token expires
+        
         const expiry = getSessionExpiry();
-        if (expiry && !_expiryWarned && (expiry - now) < 5 * 60 * 1000 && (expiry - now) > 0) {
-            _expiryWarned = true;
-            showNotification('⚠️ Session expiring in 5 minutes. Save your work.', 'warning', 10000);
+        if (!expiry) return;
+
+        // If user is actively working and token expires within 15 minutes, auto-renew silently
+        if (now - lastActivity < CONSTANTS.IDLE_TIMEOUT && (expiry - now) < 15 * 60 * 1000 && (expiry - now) > 0) {
+            const renewed = await silentRefreshSession();
+            if (renewed) return;
         }
-        if (expiry && expiry < now) {
+
+        // Only logout if token expired and could not be renewed
+        if (expiry < now) {
             handleLogout();
         }
     }, CONSTANTS.PING_INTERVAL);

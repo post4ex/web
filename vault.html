@@ -7,21 +7,12 @@
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ── Vault Specific Styles ── */
         .form-input { border-radius:.375rem;border:1px solid #d1d5db;padding:.5rem .75rem;font-size:.875rem;width:100%;transition:border-color .2s; }
         .form-input:focus { outline:none;border-color:#4f46e5;box-shadow:0 0 0 1px #4f46e5; }
-
-        /* Tiles view remains independent */
-        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;flex:1;padding:2rem 1rem;overflow-y:auto; }
-        .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem;width:100%;max-width:1100px; }
-        .tile-section { width:100%;max-width:1100px;margin:1.5rem 0 .5rem; }
-        .tile-section h2 { font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;padding-bottom:.4rem;border-bottom:1px solid #e5e7eb; }
-        .tile { background:#fff;border-radius:.75rem;padding:1.5rem 1rem;text-align:center;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .15s; }
-        .tile:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12); }
-        .tile-icon { font-size:2rem;margin-bottom:.5rem; }
-        .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
-        .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
+        .filter-active { background-color:#fca5a5 !important; color:#b91c1c !important; }
 
         /* Split view sticky sidebar without white gap */
         @media(min-width:768px){
@@ -189,102 +180,402 @@
     <main class="flex-grow flex flex-col">
 
         <!-- ── TILES VIEW ── -->
-        <div id="tilesView">
-            <div class="w-full mb-4 flex flex-col gap-2.5" style="max-width:1100px;">
-                <div class="flex items-center gap-3 justify-between w-full flex-wrap">
-                    <div class="flex flex-col">
-                        <h1 class="pagetitle">The Vault</h1>
-                        <div class="pagetitle-bar"></div>
+        <div id="tilesView" class="w-full flex-grow p-4 sm:p-8">
+            <div class="container mx-auto max-w-7xl space-y-6">
+                <div class="mb-4 flex flex-col gap-2.5">
+                    <div class="flex items-center gap-3 justify-between w-full flex-wrap">
+                        <div class="flex flex-col">
+                            <h1 class="pagetitle">The Vault</h1>
+                            <div class="pagetitle-bar"></div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Accounting &amp; Finance</span>
+                            <div id="vaultBranchStatus" class="text-xs text-amber-600 font-semibold leading-tight sm:whitespace-nowrap text-right">
+                                ⚠️ Select branch
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-end gap-1">
-                        <span class="text-xs text-gray-400">Accounting &amp; Finance</span>
-                        <div id="vaultBranchStatus" class="text-xs text-amber-600 font-medium leading-tight sm:whitespace-nowrap text-right">
-                            ⚠️ Select branch
+                    
+                    <!-- Vault Header Selector Bar (Hidden natively for backward compatibility) -->
+                    <div id="vaultBranchSelectorBar" class="hidden">
+                        <select id="vaultBranchSelect" class="hidden">
+                            <option value="">— Select Branch —</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Branch Selection Tiles Section -->
+                <div id="vaultBranchTilesSection" class="vault-section w-full hidden space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-building text-emerald-600"></i> Select Branch
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 w-full" id="vaultBranchTilesGrid">
+                            <!-- Dynamic branch tiles populated by JS -->
                         </div>
                     </div>
                 </div>
-                
-                <!-- Vault Header Selector Bar (Hidden natively for backward compatibility) -->
-                <div id="vaultBranchSelectorBar" class="hidden">
-                    <select id="vaultBranchSelect" class="hidden">
-                        <option value="">— Select Branch —</option>
-                    </select>
+
+                <!-- Overview Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-chart-pie text-blue-600"></i> Overview
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-blue group" data-tile="summary">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-chart-pie"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Summary</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Branch Selection Tiles Section -->
-            <div id="vaultBranchTilesSection" class="w-full mb-6 hidden" style="max-width:1100px;">
-                <div class="tile-section"><h2>Select Branch</h2></div>
-                <div class="tile-grid" id="vaultBranchTilesGrid">
-                    <!-- Dynamic branch tiles populated by JS -->
+                <!-- Sales Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-cart-shopping text-amber-600"></i> Sales
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-amber group" data-tile="billing">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-calculator"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Billing</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-green group" data-tile="sales-invoices">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Sales Invoices</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-rose group" data-tile="credit-notes">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-file-circle-minus"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Credit Notes</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-purple group" data-tile="customers">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-users-viewfinder"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Customers</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="tile-section"><h2>Overview</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="summary"          style="border-color:#dbeafe;"><div class="tile-icon">📊</div><div class="tile-label">Financial Summary</div></div>
-            </div>
+                <!-- Purchases Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-bag-shopping text-orange-600"></i> Purchases
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-orange group" data-tile="purchase-bills">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-cart-shopping"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Purchase Bills</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-red group" data-tile="debit-notes">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-file-circle-exclamation"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Debit Notes</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-yellow group" data-tile="suppliers">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-industry"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Suppliers</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="tile-section"><h2>Sales</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="billing"          style="border-color:#fef3c7;"><div class="tile-icon">🧮</div><div class="tile-label">Billing</div></div>
-                <div class="tile" data-tile="sales-invoices"   style="border-color:#dcfce7;"><div class="tile-icon">🧾</div><div class="tile-label">Sales Invoices</div></div>
-                <div class="tile" data-tile="credit-notes"     style="border-color:#fce7f3;"><div class="tile-icon">📝</div><div class="tile-label">Credit Notes</div></div>
-                <div class="tile" data-tile="customers"        style="border-color:#ede9fe;"><div class="tile-icon">🤝</div><div class="tile-label">Customers</div></div>
+                <!-- Inventory Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-boxes-stacked text-emerald-600"></i> Inventory
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-emerald group" data-tile="inventory">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-boxes-packing"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Inventory</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-sky group" data-tile="stock-transfers">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-truck-ramp-box"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Stock Transfers</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            </div>
+                <!-- Payments Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-money-bill-transfer text-indigo-600"></i> Payments
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-emerald group" data-tile="receipts">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Receipts</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-amber group" data-tile="payments">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-money-bill-transfer"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Payments</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-indigo group" data-tile="cheques">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-money-check-dollar"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Cheques &amp; PDC</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-blue group" data-tile="bank-accounts">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-building-columns"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Bank Accounts</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-teal group" data-tile="wallet">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-wallet"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Wallet</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="tile-section"><h2>Purchases</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="purchase-bills"   style="border-color:#ffedd5;"><div class="tile-icon">🛒</div><div class="tile-label">Purchase Bills</div></div>
-                <div class="tile" data-tile="debit-notes"      style="border-color:#fee2e2;"><div class="tile-icon">📄</div><div class="tile-label">Debit Notes</div></div>
-                <div class="tile" data-tile="suppliers"        style="border-color:#fef9c3;"><div class="tile-icon">🏭</div><div class="tile-label">Suppliers</div></div>
-            </div>
+                <!-- Payroll & Expenses Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-receipt text-rose-600"></i> Payroll &amp; Expenses
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-slate group" data-tile="employees">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-id-card-clip"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Employees</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-blue group" data-tile="payroll">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-briefcase"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Payroll</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-rose group" data-tile="expense-claims">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-receipt"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Expense Claims</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-yellow group" data-tile="petty-cash">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-coins"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Petty Cash</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-purple group" data-tile="staff-advances">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-user-gear"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Staff Advances</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-pink group" data-tile="branch-advances">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-building-user"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Branch Advances</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="tile-section"><h2>Inventory</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="inventory"        style="border-color:#d1fae5;"><div class="tile-icon">📦</div><div class="tile-label">Inventory</div></div>
-                <div class="tile" data-tile="stock-transfers"  style="border-color:#e0f2fe;"><div class="tile-icon">🔀</div><div class="tile-label">Stock Transfers</div></div>
-            </div>
+                <!-- Ledger & Journals Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-book-journal-whills text-emerald-600"></i> Ledger &amp; Journals
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-emerald group" data-tile="journal-entries">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-book-journal-whills"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Journal Entries</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-purple group" data-tile="recurring">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-repeat"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Recurring</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-amber group" data-tile="opening-balances">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-scale-balanced"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Opening Balances</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-red group" data-tile="pending-approvals">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Pending Approvals</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="tile-section"><h2>Payments</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="receipts"         style="border-color:#d1fae5;"><div class="tile-icon">💰</div><div class="tile-label">Receipts</div></div>
-                <div class="tile" data-tile="payments"         style="border-color:#fef3c7;"><div class="tile-icon">💸</div><div class="tile-label">Payments</div></div>
-                <div class="tile" data-tile="cheques"          style="border-color:#e0e7ff;"><div class="tile-icon">🏦</div><div class="tile-label">Cheques &amp; PDC</div></div>
-                <div class="tile" data-tile="bank-accounts"    style="border-color:#dbeafe;"><div class="tile-icon">🏛️</div><div class="tile-label">Bank Accounts</div></div>
-                <div class="tile" data-tile="wallet"           style="border-color:#d1fae5;"><div class="tile-icon">👛</div><div class="tile-label">Wallet</div></div>
-            </div>
+                <!-- Taxes Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-tags text-teal-600"></i> Taxes &amp; GST
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-green group" data-tile="taxes">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-tags"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Taxes &amp; GST</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="tile-section"><h2>Payroll &amp; Expenses</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="employees"        style="border-color:#f3f4f6;"><div class="tile-icon">👥</div><div class="tile-label">Employees</div></div>
-                <div class="tile" data-tile="payroll"          style="border-color:#dbeafe;"><div class="tile-icon">💼</div><div class="tile-label">Payroll</div></div>
-                <div class="tile" data-tile="expense-claims"   style="border-color:#ffe4e6;"><div class="tile-icon">🧳</div><div class="tile-label">Expense Claims</div></div>
-                <div class="tile" data-tile="petty-cash"       style="border-color:#fef9c3;"><div class="tile-icon">🪙</div><div class="tile-label">Petty Cash</div></div>
-                <div class="tile" data-tile="staff-advances"   style="border-color:#ede9fe;"><div class="tile-icon">👤</div><div class="tile-label">Staff Advances</div></div>
-                <div class="tile" data-tile="branch-advances"  style="border-color:#fce7f3;"><div class="tile-icon">🏢</div><div class="tile-label">Branch Advances</div></div>
-            </div>
+                <!-- Reports Section -->
+                <div class="vault-section space-y-2">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        <i class="fa-solid fa-folder-open text-yellow-600"></i> Reports &amp; Tools
+                    </div>
+                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                            <div class="classy-tile tile ct-yellow group" data-tile="close-fy">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-folder-closed"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Close FY</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-sky group" data-tile="bank-recon">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-landmark"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Bank Recon</span>
+                                </div>
+                            </div>
+                            <div class="classy-tile tile ct-emerald group" data-tile="bulk-import">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-file-import"></i>
+                                </div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label">Bulk Import</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="tile-section"><h2>Ledger &amp; Journals</h2></div>
-            <div class="tile-grid">
-
-                <div class="tile" data-tile="journal-entries"   style="border-color:#e8f5e9;"><div class="tile-icon">✏️</div><div class="tile-label">Journal Entries</div></div>
-                <div class="tile" data-tile="recurring"         style="border-color:#f5f3ff;"><div class="tile-icon">🔄</div><div class="tile-label">Recurring Entries</div></div>
-                <div class="tile" data-tile="opening-balances"  style="border-color:#fef3c7;"><div class="tile-icon">🗂️</div><div class="tile-label">Opening Balances</div></div>
-                <div class="tile" data-tile="pending-approvals"  style="border-color:#fee2e2;"><div class="tile-icon">⏳</div><div class="tile-label">Pending Approvals</div></div>
-            </div>
-
-            <div class="tile-section"><h2>Taxes</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="taxes"          style="border-color:#dcfce7;"><div class="tile-icon">🏷️</div><div class="tile-label">Taxes</div></div>
-            </div>
-
-            <div class="tile-section"><h2>Reports</h2></div>
-            <div class="tile-grid">
-                <div class="tile" data-tile="close-fy"         style="border-color:#fef9c3;"><div class="tile-icon">🗂️</div><div class="tile-label">Close FY</div></div>
-                <div class="tile" data-tile="bank-recon"       style="border-color:#fef9c3;"><div class="tile-icon">🏦</div><div class="tile-label">Bank Recon</div></div>
-                <div class="tile" data-tile="bulk-import"      style="border-color:#f0fdf4;"><div class="tile-icon">📥</div><div class="tile-label">Bulk Import</div></div>
             </div>
         </div>
 

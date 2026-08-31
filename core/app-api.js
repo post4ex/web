@@ -1,27 +1,44 @@
-// ============================================================================
-// APP-API.JS — Network, Data Engine & Date Utilities
-// ============================================================================
+// Telemetry & High-Accuracy Geolocation Binding
+function getClientSourceHeaders() {
+    const headers = {
+        'X-Client-Source': 'WEBAPP',
+        'X-App-Version': 'v2.4.1',
+    };
 
-async function fetchClientIP() {
-    // IP detection removed — was calling external api.ipify.org but value was never used
+    // Hardware Telemetry (CPU cores, RAM, Arch, Screen)
+    try {
+        if (navigator.hardwareConcurrency) headers['X-Device-CPU'] = String(navigator.hardwareConcurrency);
+        if (navigator.deviceMemory) headers['X-Device-RAM'] = `${navigator.deviceMemory}GB`;
+        const arch = navigator.userAgentData?.platform || navigator.platform;
+        if (arch) headers['X-Device-Arch'] = String(arch);
+        if (window.screen) {
+            const dpr = window.devicePixelRatio || 1;
+            headers['X-Device-Screen'] = `${window.screen.width * dpr}x${window.screen.height * dpr} @${dpr}x`;
+        }
+    } catch (_) {}
+
+    // Geolocation Telemetry
+    try {
+        const geo = window._geoContext || JSON.parse(localStorage.getItem('geo_coords') || sessionStorage.getItem('geo_coords') || 'null');
+        if (geo && geo.lat && geo.lng) {
+            const ageMs = Date.now() - (geo.ts || 0);
+            if (ageMs < 7200000) { // Valid within 2 hours
+                headers['X-Geo-Lat'] = String(geo.lat);
+                headers['X-Geo-Lng'] = String(geo.lng);
+                if (geo.acc) headers['X-Geo-Acc'] = String(geo.acc);
+            }
+        }
+    } catch (_) {}
+    return headers;
 }
-
-const MUTATING_ENDPOINTS = [
-    // kept for reference only — SSE broadcasts replace post-write sync
-    '/api/bookOrder', '/api/updateOrder',
-    '/api/writeB2B', '/api/deleteB2B', '/api/writeRateList', '/api/deleteRateList',
-    '/api/writeB2B2C', '/api/updateB2B2C', '/api/deleteB2B2C',
-    '/api/writeStaff', '/api/deleteStaff',
-    '/api/writeBranch', '/api/deleteBranch',
-    '/api/writeCarrier', '/api/deleteCarrier',
-    '/api/writeMode', '/api/deleteMode',
-    '/api/uploadOrders', '/api/editUpload', '/api/deleteOrder', '/api/closeInvoice',
-];
 
 async function callApi(endpoint, payload = {}, method = 'POST', timeoutMs = 30000) {
     const token = getSessionId();
 
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {
+        'Content-Type': 'application/json',
+        ...getClientSourceHeaders()
+    };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const branch = typeof getActiveBranch === 'function' ? getActiveBranch() : '';
@@ -83,6 +100,32 @@ async function _applyDelta({ collection, action, key, data, id }) {
     if (!window.appDB || !window.appDB.db) return;
     const deltaMap = {};
 
+    if (collection === 'NOTIFICATIONS') {
+        const currentUser = (typeof getUser === 'function' ? getUser()?.USER : '') || '';
+        let dismissedBy = [];
+        let readBy = [];
+        try {
+            dismissedBy = Array.isArray(data?.DISMISSED_BY) ? data.DISMISSED_BY : JSON.parse(data?.DISMISSED_BY || '[]');
+        } catch (_) {}
+        try {
+            readBy = Array.isArray(data?.READ_BY) ? data.READ_BY : JSON.parse(data?.READ_BY || '[]');
+        } catch (_) {}
+
+        if (currentUser && dismissedBy.includes(currentUser)) {
+            // Dismissed by this user — treat as delete from local IndexedDB
+            const deletes = [key];
+            if (id && id !== key) deletes.push(id);
+            deltaMap['NOTIFICATIONS'] = { __deletes: deletes };
+            await window.appDB.bulkMerge(deltaMap);
+            if (typeof loadNotificationsFromStorage === 'function') loadNotificationsFromStorage();
+            return;
+        }
+
+        if (data && currentUser) {
+            data.IS_READ = readBy.includes(currentUser);
+        }
+    }
+
     if (action === 'upsert') {
         deltaMap[collection] = { [key]: data };
     } else if (action === 'delete') {
@@ -141,11 +184,18 @@ async function pullDeltaSince(since_ms, retryCount) {
         console.log('[pullDeltaSince] fetchEvents returned', events.length, 'events');
         if (!events.length) { window._lastDeltaSync = Date.now(); return; }
 
+const _FETCHABLE_SHEETS = new Set([
+    'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE',
+    'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS',
+    'UPLOADS', 'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'
+]);
+
         // Split into upserts and deletes
         const upserts = {}, deletes = {};
         for (const ev of events) {
             const { COLLECTION: col, ACTION: action, PB_ID: pb_id } = ev;
             if (!col || !pb_id) continue;
+            if (!_FETCHABLE_SHEETS.has(col)) continue;
             if (action === 'create' || action === 'update') {
                 (upserts[col] = upserts[col] || []).push(pb_id);
             } else if (action === 'delete') {
@@ -167,6 +217,23 @@ async function pullDeltaSince(since_ms, retryCount) {
                 const [col] = entries[i];
                 const res = results[i];
                 if (!res || !res.data) continue;
+                const currentUser = (typeof getUser === 'function' ? getUser()?.USER : '') || '';
+                if (col === 'NOTIFICATIONS' && currentUser) {
+                    for (const [k, rec] of Object.entries(res.data)) {
+                        let dismissedBy = [];
+                        let readBy = [];
+                        try { dismissedBy = Array.isArray(rec?.DISMISSED_BY) ? rec.DISMISSED_BY : JSON.parse(rec?.DISMISSED_BY || '[]'); } catch (_) {}
+                        try { readBy = Array.isArray(rec?.READ_BY) ? rec.READ_BY : JSON.parse(rec?.READ_BY || '[]'); } catch (_) {}
+                        if (dismissedBy.includes(currentUser)) {
+                            if (!deltaMap['NOTIFICATIONS']) deltaMap['NOTIFICATIONS'] = {};
+                            if (!deltaMap['NOTIFICATIONS'].__deletes) deltaMap['NOTIFICATIONS'].__deletes = [];
+                            deltaMap['NOTIFICATIONS'].__deletes.push(k);
+                            delete res.data[k];
+                        } else {
+                            rec.IS_READ = readBy.includes(currentUser);
+                        }
+                    }
+                }
                 const n = Object.keys(res.data).length;
                 console.log('[pullDeltaSince] getRecords', col, ':', n, 'records merged');
                 if (n > 0) {

@@ -6,42 +6,32 @@ const AdminServices = (() => {
 
     // ── Service definitions ──────────────────────────────────────────────────
     const SERVICES = [
-        { id: 'app',        name: 'App',         icon: '🖥️',  desc: 'Genie backend (FastAPI)' },
-        { id: 'pocketbase', name: 'PocketBase',  icon: '🗄️',  desc: 'Primary database' },
+        { id: 'app',        name: 'App Core',    icon: '🖥️',  desc: 'Genie backend (FastAPI)' },
+        { id: 'supabase',   name: 'Supabase DB', icon: '⚡',  desc: 'Primary PostgreSQL database' },
+        { id: 'sqlite',     name: 'SQLite Cache',icon: '💾',  desc: 'In-memory fast replica' },
+        { id: 'ninja',      name: 'Invoice Ninja',icon: '💼', desc: 'Accounting & invoicing API' },
         { id: 'tracking',   name: 'Tracking',    icon: '📦',  desc: 'Carrier tracking service' },
-        { id: 'managerio',  name: 'Manager.io',  icon: '💼',  desc: 'Manager.io accounting sync service' },
         { id: 'whatsapp',   name: 'WhatsApp',    icon: '💬',  desc: 'WA messaging (Render)' },
-        { id: 'captcha',    name: 'Captcha',     icon: '🔒',  desc: 'Captcha service (HF)' },
+        { id: 'push',       name: 'Mobile Push', icon: '📱',  desc: 'Expo Push / FCM wakeups' },
+        { id: 'r2',         name: 'R2 Bucket',   icon: '🪣',  desc: 'Cloudflare R2: post4ex-objects' },
         { id: 'mailjet',    name: 'Mailjet',     icon: '📧',  desc: 'Transactional email' },
         { id: 'brevo',      name: 'Brevo',       icon: '📨',  desc: 'Email / SMS' },
-        { id: 'render',     name: 'Render',      icon: '☁️',  desc: 'WA service host' },
         { id: 'turso',      name: 'Turso',       icon: '🗃️',  desc: 'Turso DB (tracking/WA/mail logs)' },
-        { id: 'ds-objects',  name: 'HF Objects',  icon: '🗂️',  desc: 'HF dataset: media files (POD/KYC/receipts)' },
-        { id: 'ds-track-db', name: 'HF Track DB', icon: '💾',  desc: 'HF dataset: tracking SQLite DB' },
-        { id: 'ds-pb',       name: 'HF PocketBase',icon: '💽', desc: 'HF dataset: PocketBase data' },
-        { id: 'ds-todo',     name: 'HF Todo',     icon: '📋',  desc: 'HF dataset: todo/docs' },
-        { id: 'r2',          name: 'R2 Bucket',   icon: '🪣',  desc: 'Cloudflare R2: post4ex-objects' },
-        { id: 'hfbucket',    name: 'HF Bucket',   icon: '🗑️',  desc: 'HF S3 bucket: post4ex/Objects-bucket' },
     ];
 
     // Log tab definitions per service
     const SERVICE_TABS = {
-        app:        ['app_logs', 'notifications', 'hf_logs'],
-        pocketbase: ['app_logs', 'hf_logs'],
-        tracking:   ['tracking_logs', 'shipments', 'movements', 'hf_logs'],
-        managerio:  ['app_logs', 'notifications'],
-        whatsapp:   ['wa_logs', 'render_logs'],
-        captcha:    ['hf_logs'],
+        app:        ['app_logs', 'notifications'],
+        supabase:   ['app_logs', 'notifications'],
+        sqlite:     ['app_logs'],
+        ninja:      ['app_logs'],
+        tracking:   ['tracking_logs', 'shipments', 'movements'],
+        whatsapp:   ['wa_logs'],
+        push:       ['notifications'],
+        r2:         ['bucket_files'],
         mailjet:    ['mail_logs'],
         brevo:      ['mail_logs'],
-        render:     ['render_logs'],
         turso:      ['turso_tracking', 'turso_wa', 'turso_mail'],
-        'ds-objects':  ['ds_files'],
-        'ds-track-db': ['ds_files'],
-        'ds-pb':       ['ds_files'],
-        'ds-todo':     ['ds_files'],
-        r2:            ['bucket_files'],
-        hfbucket:      ['hfbucket_files'],
     };
 
     const TAB_LABELS = {
@@ -160,10 +150,6 @@ const AdminServices = (() => {
                             <button id="svc-wa-status-btn"  class="btn btn-sm text-xs">Status</button>
                             <button id="svc-wa-logout-btn"  class="btn btn-sm text-xs bg-red-50 text-red-600">Logout</button>
                             <button id="svc-wa-qr-btn"      class="btn btn-sm text-xs bg-indigo-50 text-indigo-600">Show QR</button>
-                            <button id="svc-render-restart-btn" class="btn btn-sm text-xs bg-orange-50 text-orange-600">Restart</button>
-                        ` : ''}
-                        ${serviceId === 'render' ? `
-                            <button id="svc-render-restart-btn" class="btn btn-sm text-xs bg-orange-50 text-orange-600">Restart WA</button>
                         ` : ''}
                     </div>
                 </div>

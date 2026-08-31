@@ -6,6 +6,8 @@
     <title>Shipments</title>
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/fontawesome.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/cropper.min.css">
 
     <style>
@@ -42,25 +44,6 @@
         /* Assign Carrier incomplete list items */
         #ac-list li.incomplete { border-color: #fcd34d; background-color: #fffbeb; }
         #ac-list li.incomplete:hover { background-color: #fef3c7; }
-
-        /* Tiles view */
-        #tilesView { display:flex;flex-direction:column;align-items:center;width:100%;flex:1;padding:2rem 1rem;overflow-y:auto; }
-        .tile-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1rem;width:100%;max-width:900px; }
-        .tile { background:#fff;border-radius:.75rem;padding:1.5rem 1rem;text-align:center;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:all .15s; }
-        .tile:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12); }
-        .tile-icon { font-size:2rem;margin-bottom:.5rem; }
-        .tile-count { font-size:1.75rem;font-weight:700;line-height:1; }
-        .tile-label { font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:.35rem;color:#6b7280; }
-
-        /* Mobile tile grid */
-        @media (max-width: 480px) {
-            #tilesView { padding:1rem 0.5rem; }
-            .tile-grid { grid-template-columns:repeat(2,1fr);gap:0.5rem; }
-            .tile { padding:1rem 0.5rem; }
-            .tile-icon { font-size:1.5rem;margin-bottom:.25rem; }
-            .tile-count { font-size:1.35rem; }
-            .tile-label { font-size:.6rem; }
-        }
 
         /* Empty state styling */
         .empty-state-icon {
@@ -256,81 +239,186 @@
     <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
 
     <!-- Tiles View -->
-    <div id="tilesView" style="display:none;">
-        <div class="w-full mb-6 flex flex-col items-center sm:items-start" style="max-width:900px;">
-            <h1 class="pagetitle">Shipments</h1>
-            <div class="pagetitle-bar"></div>
-        </div>
-        <div class="tile-grid">
-            <div class="tile" data-tile="all" style="border-color:#e5e7eb;">
-                <div class="tile-icon">📦</div>
-                <div class="tile-count text-gray-700" id="cnt-all">…</div>
-                <div class="tile-label">Total</div>
+    <div id="tilesView" style="display:none;" class="w-full flex-grow p-4 sm:p-8">
+        <div class="container mx-auto max-w-7xl space-y-6">
+            <div class="mb-6 flex flex-col items-center justify-center text-center">
+                <h1 class="pagetitle">Shipments</h1>
+                <div class="pagetitle-bar"></div>
             </div>
-            <div class="tile" data-tile="assign-carrier" style="border-color:#e0f2fe;">
-                <div class="tile-icon">🚚</div>
-                <div class="tile-count text-sky-700" id="cnt-assign-carrier">…</div>
-                <div class="tile-label">Assign Carrier</div>
-            </div>
-            <div class="tile" data-tile="overduetat" style="border-color:#fca5a5;">
-                <div class="tile-icon">🔥</div>
-                <div class="tile-count text-red-700" id="cnt-overduetat">…</div>
-                <div class="tile-label">Overdue TAT</div>
-            </div>
-            <div class="tile" data-tile="exceptions" style="border-color:#fee2e2;">
-                <div class="tile-icon">⚠️</div>
-                <div class="tile-count text-red-700" id="cnt-exceptions">…</div>
-                <div class="tile-label">Exceptions</div>
-            </div>
-            <div class="tile" data-tile="pending-pod" style="border-color:#f3e8ff;">
-                <div class="tile-icon">📝</div>
-                <div class="tile-count text-purple-700" id="cnt-pending-pod">…</div>
-                <div class="tile-label">Pending PODs</div>
-            </div>
-            <div class="tile" data-tile="topay" style="border-color:#fef3c7;">
-                <div class="tile-icon">💰</div>
-                <div class="tile-count text-amber-600" id="cnt-topay">…</div>
-                <div class="tile-label">To Pay</div>
-            </div>
-            <div class="tile" data-tile="cod" style="border-color:#ede9fe;">
-                <div class="tile-icon">💵</div>
-                <div class="tile-count text-purple-700" id="cnt-cod">…</div>
-                <div class="tile-label">COD</div>
-            </div>
-            <div class="tile" data-tile="ofd" style="border-color:#dbeafe;">
-                <div class="tile-icon">🚐</div>
-                <div class="tile-count text-blue-700" id="cnt-ofd">…</div>
-                <div class="tile-label">Out for Delivery</div>
-            </div>
-            <div class="tile" data-tile="new-bookings" style="border-color:#fefce8;">
-                <div class="tile-icon">📅</div>
-                <div class="tile-count text-yellow-700" id="cnt-new-bookings">…</div>
-                <div class="tile-label">New Bookings</div>
-            </div>
-            <div class="tile" data-tile="tat" style="border-color:#fee2e2;">
-                <div class="tile-icon">⏰</div>
-                <div class="tile-count text-red-600" id="cnt-tat">…</div>
-                <div class="tile-label">TAT Due (3 Days)</div>
-            </div>
-            <div class="tile" data-tile="heavy" style="border-color:#d1fae5;">
-                <div class="tile-icon">🏋️</div>
-                <div class="tile-count text-emerald-700" id="cnt-heavy">…</div>
-                <div class="tile-label">Heavy (&gt;25 kg)</div>
-            </div>
-            <div class="tile" data-tile="highvalue" style="border-color:#bfdbfe;">
-                <div class="tile-icon">💎</div>
-                <div class="tile-count text-blue-700" id="cnt-highvalue">…</div>
-                <div class="tile-label">High Value (&gt;1L)</div>
-            </div>
-            <div class="tile" data-tile="fov" style="border-color:#ccfbf1;">
-                <div class="tile-icon">📄</div>
-                <div class="tile-count text-teal-700" id="cnt-fov">…</div>
-                <div class="tile-label">FOV</div>
-            </div>
-            <div class="tile" data-tile="delivered" style="border-color:#bbf7d0;">
-                <div class="tile-icon">✅</div>
-                <div class="tile-count text-green-700" id="cnt-delivered">…</div>
-                <div class="tile-label">Delivered</div>
+
+            <!-- TRAY CONTAINER -->
+            <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
+                    
+                    <!-- 1. Total -->
+                    <div class="classy-tile tile ct-slate group" data-tile="all">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-boxes-stacked"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-all">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Total</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. Assign Carrier -->
+                    <div class="classy-tile tile ct-sky group" data-tile="assign-carrier">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-truck-ramp-box"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-assign-carrier">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Assign Carrier</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Overdue TAT -->
+                    <div class="classy-tile tile ct-red group" data-tile="overduetat">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-fire-flame-curved"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-overduetat">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Overdue TAT</span>
+                        </div>
+                    </div>
+
+                    <!-- 4. Exceptions -->
+                    <div class="classy-tile tile ct-rose group" data-tile="exceptions">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-exceptions">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Exceptions</span>
+                        </div>
+                    </div>
+
+                    <!-- 5. Pending PODs -->
+                    <div class="classy-tile tile ct-purple group" data-tile="pending-pod">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-file-signature"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-pending-pod">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Pending PODs</span>
+                        </div>
+                    </div>
+
+                    <!-- 6. To Pay -->
+                    <div class="classy-tile tile ct-amber group" data-tile="topay">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-topay">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">To Pay</span>
+                        </div>
+                    </div>
+
+                    <!-- 7. COD -->
+                    <div class="classy-tile tile ct-indigo group" data-tile="cod">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-cod">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">COD</span>
+                        </div>
+                    </div>
+
+                    <!-- 8. Out for Delivery -->
+                    <div class="classy-tile tile ct-blue group" data-tile="ofd">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-van-shuttle"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-ofd">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Out for Delivery</span>
+                        </div>
+                    </div>
+
+                    <!-- 9. New Bookings -->
+                    <div class="classy-tile tile ct-yellow group" data-tile="new-bookings">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-new-bookings">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">New Bookings</span>
+                        </div>
+                    </div>
+
+                    <!-- 10. TAT Due -->
+                    <div class="classy-tile tile ct-orange group" data-tile="tat">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-stopwatch-20"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-tat">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">TAT Due</span>
+                        </div>
+                    </div>
+
+                    <!-- 11. Heavy (>25 kg) -->
+                    <div class="classy-tile tile ct-teal group" data-tile="heavy">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-weight-hanging"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-heavy">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Heavy (&gt;25kg)</span>
+                        </div>
+                    </div>
+
+                    <!-- 12. High Value (>1L) -->
+                    <div class="classy-tile tile ct-cyan group" data-tile="highvalue">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-gem"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-highvalue">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">High Value</span>
+                        </div>
+                    </div>
+
+                    <!-- 13. FOV -->
+                    <div class="classy-tile tile ct-emerald group" data-tile="fov">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-fov">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">FOV</span>
+                        </div>
+                    </div>
+
+                    <!-- 14. Delivered -->
+                    <div class="classy-tile tile ct-green group" data-tile="delivered">
+                        <div class="classy-icon-box">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="tile-count" id="cnt-delivered">…</div>
+                        <div class="classy-tile-header">
+                            <span class="classy-tile-dot"></span>
+                            <span class="classy-tile-label">Delivered</span>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>

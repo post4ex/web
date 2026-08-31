@@ -105,201 +105,216 @@
     <main class="flex-grow w-full p-4 sm:p-8">
         <div class="container mx-auto space-y-6">
             
-            <!-- SECTION 1: COMPLIANCE STATEMENT -->
-            <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
-                <h2 class="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-ban"></i> Dangerous Goods Regulations (DGR)
-                </h2>
-                <p class="text-gray-600 mb-6 leading-relaxed text-sm sm:text-base">
-                    Customer/Consignor/Sender agrees not to ship the prohibited and restricted items listed below. If shipped, the sender is fully responsible and may bear penalties enforced by TCOI, Customs, airlines, or government agencies. The IATA DGR defines how dangerous goods must be classified, packed, marked, labeled, and documented for air transport.
+            <!-- SECTION 1: COMPLIANCE STATEMENT (Classy Amber Filled Header) -->
+            <section style="background: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); border: 1.5px solid #fde68a; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 16px -2px rgba(217, 119, 6, 0.08);">
+                <div style="display:flex; align-items:center; gap:0.45rem; margin-bottom:0.75rem;">
+                    <span style="width:7px; height:7px; background:#D97706; border-radius:50%; display:inline-block; box-shadow:0 0 6px rgba(217,119,6,0.5);"></span>
+                    <span style="font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#b45309;">Aviation Safety Standard</span>
+                </div>
+                <div class="mb-3">
+                    <h1 class="pagetitle">Dangerous Goods Regulations (DGR)</h1>
+                    <div class="pagetitle-bar"></div>
+                </div>
+                <p class="text-gray-600 mb-4 leading-relaxed text-sm sm:text-base">
+                    Customer/Consignor/Sender agrees not to ship prohibited and restricted items. If shipped, the sender is fully responsible and liable for statutory penalties enforced by TCOI, Customs, airlines, or aviation safety agencies.
                 </p>
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-                    <p class="text-blue-800 text-sm font-medium">
-                        <strong>Important:</strong> The IATA DGR is updated annually and is legally enforced via ICAO/UN requirements by civil aviation authorities worldwide.
+                <div style="background:#ffffff; border-left:4px solid #ef4444; border:1px solid #fee2e2; border-left-width:4px; padding:0.85rem 1rem; border-radius:0.75rem;">
+                    <p class="text-gray-800 text-xs sm:text-sm font-semibold">
+                        <strong class="text-red-600">Mandatory Rule:</strong> The IATA DGR is updated annually and legally enforced worldwide under ICAO / UN civil aviation mandates.
                     </p>
                 </div>
             </section>
 
             <!-- SECTION 2: SCOPE & LIMITATIONS -->
-            <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-6 border-b pb-2">Scope and Limitations</h2>
-                <div class="space-y-6">
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0 w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl">📦</div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Applicability and Responsibilities</h3>
-                            <p class="text-sm text-gray-500 mt-1">Shippers and operators must ensure correct classification, packing, marking, labeling, and documentation for any dangerous goods shipment.</p>
+            <section style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-blue-600"></i> Scope & Shippers Responsibilities
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div style="background:#eff6ff; border:1px solid #dbeafe; border-radius:0.875rem; padding:1rem;">
+                        <div class="flex items-center gap-2.5 mb-2">
+                            <span class="text-xl">📦</span>
+                            <h3 class="font-bold text-sm text-blue-950">Classification & Pack</h3>
                         </div>
+                        <p class="text-xs text-gray-600 leading-relaxed">Shippers must ensure precise UN specification packaging, UN labels, and accurate dangerous goods declarations.</p>
                     </div>
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0 w-10 h-10 bg-red-50 text-red-600 rounded-full flex items-center justify-center text-xl">⛔</div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Forbidden and Hidden Goods</h3>
-                            <p class="text-sm text-gray-500 mt-1">Certain items are outright forbidden for air transport; hidden dangerous goods (misdeclared or concealed) are strictly prohibited.</p>
+                    <div style="background:#fef2f2; border:1px solid #fee2e2; border-radius:0.875rem; padding:1rem;">
+                        <div class="flex items-center gap-2.5 mb-2">
+                            <span class="text-xl">⛔</span>
+                            <h3 class="font-bold text-sm text-red-950">Forbidden / Hidden</h3>
                         </div>
+                        <p class="text-xs text-gray-600 leading-relaxed">Concealed, misdeclared, or unregistered dangerous goods carry heavy regulatory penalties and forfeiture.</p>
                     </div>
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0 w-10 h-10 bg-yellow-50 text-yellow-600 rounded-full flex items-center justify-center text-xl">✉️</div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Transport by Post/Passengers</h3>
-                            <p class="text-sm text-gray-500 mt-1">The DGR sets limitations on transport by post and carriage by passengers or crew, including strict quantity limits and packaging rules.</p>
+                    <div style="background:#fffbeb; border:1px solid #fef3c7; border-radius:0.875rem; padding:1rem;">
+                        <div class="flex items-center gap-2.5 mb-2">
+                            <span class="text-xl">✉️</span>
+                            <h3 class="font-bold text-sm text-amber-950">Postal Limitations</h3>
                         </div>
+                        <p class="text-xs text-gray-600 leading-relaxed">Postal networks prohibit almost all dangerous items with narrow exceptions for biological specimens or dry ice.</p>
                     </div>
                 </div>
             </section>
 
-            <!-- SECTION 3: IATA CLASSIFICATION (GRID LAYOUT) -->
-            <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">IATA DGR Classification Categories</h2>
-                <p class="text-sm text-gray-500 mb-8">High‑level categories used to classify dangerous goods for air transport.</p>
+            <!-- SECTION 3: IATA 9 CLASSES (Classy Grid) -->
+            <section style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 1.25rem; padding: 1.5rem;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid #f1f5f9;">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800">IATA 9 Dangerous Goods Hazard Classes</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">International air transport hazard classification system</p>
+                    </div>
+                    <span style="font-size:0.7rem; font-weight:700; background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:0.25rem 0.65rem; border-radius:9999px;">9 UN Classes</span>
+                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                     
                     <!-- Class 1 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">💣</span>
+                    <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">💣</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Explosives (Class 1)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Risk of detonation (fireworks, ammo). Strictly controlled.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#dc2626; text-transform:uppercase;">Class 1</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Explosives</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Fireworks, ammo, flares. Risk of detonation.</p>
                         </div>
                     </div>
 
                     <!-- Class 2 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">🧯</span>
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">🧯</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Gases (Class 2)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Compressed, liquefied, dissolved (propane, nitrogen).</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#2563eb; text-transform:uppercase;">Class 2</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Gases</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Flammable & non-toxic compressed cylinders.</p>
                         </div>
                     </div>
 
                     <!-- Class 3 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">🛢️</span>
+                    <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">🛢️</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Flammable Liquids (Class 3)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Paints, solvents, fuels. Low flash points cause fire risk.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#ea580c; text-transform:uppercase;">Class 3</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Flammable Liquids</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Paints, solvents, fuels, alcohol, adhesives.</p>
                         </div>
                     </div>
 
                     <!-- Class 4 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">🔥</span>
+                    <div style="background:#fefce8; border:1px solid #fde047; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">🔥</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Flammable Solids (Class 4)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Matches, metal powders. Ignition from friction/heat.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#ca8a04; text-transform:uppercase;">Class 4</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Flammable Solids</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Matches, sulfur, phosphorus, reactive metals.</p>
                         </div>
                     </div>
 
                     <!-- Class 5 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">🧪</span>
+                    <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">🧪</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Oxidizers (Class 5)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Bleach, nitrates, peroxides. Supply oxygen to fires.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#9333ea; text-transform:uppercase;">Class 5</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Oxidizers & Peroxides</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Bleach, nitrates. Supply oxygen to burn.</p>
                         </div>
                     </div>
 
                     <!-- Class 6 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">☠️</span>
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">☠️</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Toxic/Infectious (Class 6)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Poisons, biological samples. Serious health risks.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#16a34a; text-transform:uppercase;">Class 6</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Toxic & Infectious</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Poisons, pesticides, clinical bio-samples.</p>
                         </div>
                     </div>
 
                     <!-- Class 7 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">📡</span>
+                    <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">📡</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Radioactive (Class 7)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Medical/industrial isotopes. Radiation hazards.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#d97706; text-transform:uppercase;">Class 7</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Radioactive Material</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Medical isotopes, industrial radiography.</p>
                         </div>
                     </div>
 
                     <!-- Class 8 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">🧫</span>
+                    <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">🧫</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Corrosives (Class 8)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Acids, alkalis. Damage to tissue/aircraft.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#475569; text-transform:uppercase;">Class 8</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Corrosives</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Battery acid, caustic soda, corrosive fluids.</p>
                         </div>
                     </div>
 
                     <!-- Class 9 -->
-                    <div class="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <span class="text-2xl w-8 text-center">🔋</span>
+                    <div style="background:#ecfeff; border:1px solid #a5f3fc; border-radius:0.875rem; padding:0.85rem;" class="flex items-start gap-3">
+                        <span class="text-2xl flex-shrink-0">🔋</span>
                         <div>
-                            <h4 class="font-bold text-gray-700 text-sm">Miscellaneous (Class 9)</h4>
-                            <p class="text-xs text-gray-500 mt-1">Lithium batteries, magnets, dry ice.</p>
+                            <span style="font-size:0.65rem; font-weight:800; color:#0891b2; text-transform:uppercase;">Class 9</span>
+                            <h4 class="font-bold text-gray-900 text-sm">Miscellaneous (Lithium)</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Lithium ion batteries, dry ice, magnetized cargo.</p>
                         </div>
                     </div>
+
                 </div>
             </section>
 
-            <!-- SECTION 4: COMPANY PROHIBITED ITEMS -->
-            <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Company Prohibited Items</h2>
-                <p class="text-sm text-gray-500 mb-6">Items prohibited by company policy or restricted under IATA DGR.</p>
+            <!-- SECTION 4: STRICTLY PROHIBITED ITEMS -->
+            <section style="background: linear-gradient(180deg, #ffffff 15%, #fff1f2 100%); border: 1.5px solid #fecdd3; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 4px 16px -2px rgba(225, 29, 72, 0.05);">
+                <div style="display:flex; align-items:center; gap:0.45rem; margin-bottom:0.75rem;">
+                    <span style="width:7px; height:7px; background:#e11d48; border-radius:50%; display:inline-block; box-shadow:0 0 6px rgba(225,29,72,0.5);"></span>
+                    <span style="font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#9f1239;">Strictly Prohibited Goods List</span>
+                </div>
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Non-Acceptable Items for Booking</h2>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🥦</span>
-                        <span class="text-sm font-medium text-gray-700">Perishables</span>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🥦</span><span class="text-xs font-bold text-gray-800">Perishables</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🐓</span>
-                        <span class="text-sm font-medium text-gray-700">Live Animals</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🐓</span><span class="text-xs font-bold text-gray-800">Live Animals</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🐆</span>
-                        <span class="text-sm font-medium text-gray-700">Animal Skins</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🐆</span><span class="text-xs font-bold text-gray-800">Animal Skins</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">💣</span>
-                        <span class="text-sm font-medium text-gray-700">Explosives</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">💣</span><span class="text-xs font-bold text-gray-800">Explosives</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🖼️</span>
-                        <span class="text-sm font-medium text-gray-700">Antiques / Art</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🖼️</span><span class="text-xs font-bold text-gray-800">Antiques / Art</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🔥</span>
-                        <span class="text-sm font-medium text-gray-700">Chemical Powders</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🔥</span><span class="text-xs font-bold text-gray-800">Chemicals</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">💧</span>
-                        <span class="text-sm font-medium text-gray-700">Liquids (All)</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">💧</span><span class="text-xs font-bold text-gray-800">Liquids (All)</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🎟️</span>
-                        <span class="text-sm font-medium text-gray-700">Lottery Tickets</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🎟️</span><span class="text-xs font-bold text-gray-800">Lottery Tickets</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🔫</span>
-                        <span class="text-sm font-medium text-gray-700">Firearms</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🔫</span><span class="text-xs font-bold text-gray-800">Firearms</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">💵</span>
-                        <span class="text-sm font-medium text-gray-700">Cash / Money</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">💵</span><span class="text-xs font-bold text-gray-800">Currency / Cash</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">📱</span>
-                        <span class="text-sm font-medium text-gray-700">Lithium Batteries</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">📱</span><span class="text-xs font-bold text-gray-800">Loose Batteries</span>
                     </div>
-                    <div class="flex items-center gap-3 p-2 border rounded hover:border-red-300 transition-colors">
-                        <span class="text-xl">🍷</span>
-                        <span class="text-sm font-medium text-gray-700">Alcohol / Drugs</span>
+                    <div class="flex items-center gap-2 p-2 bg-white border border-rose-200 rounded-lg shadow-2xs">
+                        <span class="text-base">🍷</span><span class="text-xs font-bold text-gray-800">Alcohol / Drugs</span>
                     </div>
                 </div>
             </section>
 
             <!-- SECTION 5: TRAINING COMPLIANCE -->
-            <section class="bg-blue-50 rounded-lg border border-blue-200 p-6 text-center">
-                <h3 class="font-bold text-blue-900 mb-2">Training and Compliance</h3>
-                <p class="text-sm text-blue-800 leading-relaxed">
-                    Staff involved in preparing, accepting, or handling dangerous goods must be trained and kept current with the latest DGR updates. Non‑compliance leads to shipment rejection, fines, and safety incidents.
+            <section style="background: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); border: 1.5px solid #bfdbfe; border-radius: 1.25rem; padding: 1.25rem; text-align: center;">
+                <h3 class="font-bold text-blue-900 text-sm sm:text-base mb-1 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-graduation-cap text-blue-600"></i> Mandatory Staff Training Compliance
+                </h3>
+                <p class="text-xs text-blue-800 leading-relaxed max-w-2xl mx-auto">
+                    All logistics staff preparing, receiving, or handling air cargo must hold active IATA DGR certification. Non-compliance results in immediate air consignment rejection and regulatory fines.
                 </p>
             </section>
 

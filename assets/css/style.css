@@ -3894,9 +3894,27 @@ video {
 .tray {
   background: #ffffff;
   border-radius: 1.5rem;
-  padding: 1.5rem;
+  padding: 1.25rem;
   border: 1.5px solid #e2e8f0;
   box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .tray {
+    padding: 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tray {
+    padding: 2.25rem;
+  }
+}
+
+.tray .tray {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 /* =============================================================================
@@ -4605,8 +4623,10 @@ html.needs-sync body::after {
     background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     line-height: 1.2 !important;
+    text-align: center !important;
+    display: block !important;
 }
 
 .pagetitle-bar,
@@ -4614,7 +4634,149 @@ html.needs-sync body::after {
     width: 46px !important;
     height: 3px !important;
     border-radius: 2px !important;
-    margin-top: 8px !important;
+    margin: 8px auto 0 !important;
     background: linear-gradient(135deg, #9C2007 0%, #f59e0b 100%) !important;
+    display: block !important;
 }
+
+/* =============================================================================
+   CLASSY TILES & TRAYS SYSTEM (.classy-tile, .classy-icon-box, .ct-*)
+============================================================================= */
+.classy-tile {
+    background: var(--tile-bg, #ffffff);
+    border: 1.5px solid var(--tile-border, #e2e8f0);
+    border-radius: 0.85rem;
+    padding: 0.65rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 4.5rem;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    text-decoration: none;
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+    box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+}
+@media (min-width: 640px) {
+    .classy-tile {
+        padding: 0.85rem 0.65rem;
+        justify-content: space-between;
+        min-height: 5.8rem;
+        border-radius: 1rem;
+    }
+}
+@media (min-width: 1024px) {
+    .classy-tile { padding: 1rem 0.75rem; min-height: 6.2rem; }
+}
+.classy-tile:hover {
+    transform: translateY(-3px);
+    background: var(--tile-hover-bg, var(--tile-bg)) !important;
+    border-color: var(--tile-accent) !important;
+    box-shadow: 0 10px 20px -3px var(--icon-shadow), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+}
+.classy-tile-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    margin-top: 0.35rem;
+}
+.classy-tile-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--tile-accent);
+    flex-shrink: 0;
+    opacity: 0.85;
+    transition: transform 0.22s ease, opacity 0.22s ease;
+}
+.classy-tile:hover .classy-tile-dot {
+    transform: scale(1.25);
+    opacity: 1;
+}
+.classy-tile-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #334155;
+    transition: color 0.2s ease;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+@media (min-width: 640px) {
+    .classy-tile-label {
+        font-size: 0.72rem;
+    }
+}
+.classy-tile:hover .classy-tile-label {
+    color: var(--tile-accent);
+}
+.classy-icon-box {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--icon-grad);
+    box-shadow: 0 3px 10px -1px var(--icon-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    margin-bottom: 0.25rem;
+}
+@media (min-width: 640px) {
+    .classy-icon-box {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.75rem;
+        margin-bottom: 0.35rem;
+    }
+}
+.classy-tile:hover .classy-icon-box {
+    transform: scale(1.08);
+    box-shadow: 0 6px 14px -1px var(--icon-shadow);
+}
+.classy-icon-box i {
+    font-size: 1.1rem;
+    color: #ffffff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+.classy-tile .tile-count {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #1e293b;
+    margin: 0.15rem 0;
+    transition: color 0.2s ease;
+}
+@media (min-width: 640px) {
+    .classy-tile .tile-count {
+        font-size: 1.55rem;
+    }
+}
+.classy-tile:hover .tile-count {
+    color: var(--tile-accent);
+}
+
+/* Color Themes */
+.ct-blue    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eff6ff 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); --tile-border: #bfdbfe; --tile-accent: #2563EB; --icon-grad: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --icon-shadow: rgba(59, 130, 246, 0.25); }
+.ct-indigo  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #eef2ff 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%); --tile-border: #c7d2fe; --tile-accent: #4F46E5; --icon-grad: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); --icon-shadow: rgba(67, 56, 202, 0.25); }
+.ct-amber   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fffbeb 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%); --tile-border: #fde68a; --tile-accent: #D97706; --icon-grad: linear-gradient(135deg, #d97706 0%, #ef4444 100%); --icon-shadow: rgba(217, 119, 6, 0.25); }
+.ct-teal    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdfa 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%); --tile-border: #99f6e4; --tile-accent: #0D9488; --icon-grad: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); --icon-shadow: rgba(13, 148, 136, 0.25); }
+.ct-orange  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff7ed 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%); --tile-border: #fed7aa; --tile-accent: #EA580C; --icon-grad: linear-gradient(135deg, #ea580c 0%, #f97316 100%); --icon-shadow: rgba(234, 88, 12, 0.25); }
+.ct-cyan    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfeff 100%); --tile-hover-bg: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%); --tile-border: #a5f3fc; --tile-accent: #0891B2; --icon-grad: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%); --icon-shadow: rgba(8, 145, 178, 0.25); }
+.ct-slate   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f8fafc 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); --tile-border: #cbd5e1; --tile-accent: #475569; --icon-grad: linear-gradient(135deg, #475569 0%, #64748b 100%); --icon-shadow: rgba(71, 85, 105, 0.25); }
+.ct-purple  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #faf5ff 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #f3e8ff 100%); --tile-border: #e9d5ff; --tile-accent: #9333EA; --icon-grad: linear-gradient(135deg, #9333ea 0%, #c084fc 100%); --icon-shadow: rgba(147, 51, 234, 0.25); }
+.ct-yellow  { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fefce8 100%); --tile-hover-bg: linear-gradient(180deg, #fefce8 0%, #fef08a 100%); --tile-border: #fde047; --tile-accent: #CA8A04; --icon-grad: linear-gradient(135deg, #ca8a04 0%, #f59e0b 100%); --icon-shadow: rgba(202, 138, 4, 0.25); }
+.ct-green   { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0fdf4 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #dcfce7 100%); --tile-border: #bbf7d0; --tile-accent: #16A34A; --icon-grad: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); --icon-shadow: rgba(22, 163, 74, 0.25); }
+.ct-emerald { --tile-bg: linear-gradient(180deg, #ffffff 15%, #ecfdf5 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #d1fae5 100%); --tile-border: #a7f3d0; --tile-accent: #059669; --icon-grad: linear-gradient(135deg, #059669 0%, #10b981 100%); --icon-shadow: rgba(5, 150, 105, 0.25); }
+.ct-sky     { --tile-bg: linear-gradient(180deg, #ffffff 15%, #f0f9ff 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #e0f2fe 100%); --tile-border: #bae6fd; --tile-accent: #0284C7; --icon-grad: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); --icon-shadow: rgba(2, 132, 199, 0.25); }
+.ct-red     { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fef2f2 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #fee2e2 100%); --tile-border: #fecaca; --tile-accent: #DC2626; --icon-grad: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); --icon-shadow: rgba(220, 38, 38, 0.25); }
+.ct-rose    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff1f2 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #ffe4e6 100%); --tile-border: #fecdd3; --tile-accent: #E11D48; --icon-grad: linear-gradient(135deg, #e11d48 0%, #fb7185 100%); --icon-shadow: rgba(225, 29, 72, 0.25); }
 

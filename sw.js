@@ -240,12 +240,18 @@ async function checkAndPullDeltas() {
       return;
     }
     
+const _FETCHABLE_SHEETS = new Set([
+  'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE',
+  'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS',
+  'UPLOADS', 'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'
+]);
+
     // 2. Parse upserts and deletes
     const upserts = {};
     const deletes = {};
     for (const ev of events) {
       const { COLLECTION: col, ACTION: action, PB_ID: pb_id } = ev;
-      if (!col || !pb_id) continue;
+      if (!col || !pb_id || !_FETCHABLE_SHEETS.has(col)) continue;
       if (action === 'create' || action === 'update') {
         (upserts[col] = upserts[col] || []).push(pb_id);
       } else if (action === 'delete') {
@@ -353,6 +359,25 @@ async function checkAndPullDeltas() {
 
 // Start periodic safety ticker inside Service Worker
 setInterval(checkAndPullDeltas, 5 * 60 * 1000);
+
+// W3C Periodic Background Sync (Chrome on Android, Windows, Chromebooks)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'post4ex-delta-sync') {
+    event.waitUntil(checkAndPullDeltas());
+  }
+});
+
+// W3C Background Sync (one-shot catch-up on network recovery)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'post4ex-delta-sync' || event.tag === 'post4ex-sync') {
+    event.waitUntil(checkAndPullDeltas());
+  }
+});
+
+// Web Push Silent Wakeup handler
+self.addEventListener('push', (event) => {
+  event.waitUntil(checkAndPullDeltas());
+});
 
 // ----------------------------------------------------------------------------
 // NATIVE OS NOTIFICATION CLICK HANDLER

@@ -322,12 +322,20 @@ function _bindNotifActions() {
         markAllBtn.addEventListener('click', async () => {
             if (!window.appDB || !window.appDB.db) return;
             const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
-            const ids = Object.values(all).filter(n => !n.IS_READ).map(n => n.NOTIF_ID);
-            if (ids.length) {
-                // Optimistic: mark all read in cache first, push to server in background
-                for (const id of ids)
-                    await window.appDB.mergeSheet('NOTIFICATIONS', { [id]: { ...all[id], IS_READ: true } });
-                if (navigator.onLine) callApi('/api/notifread', { notif_ids: ids }).catch(() => {});
+            const unreadItems = Object.values(all).filter(n => !n.IS_READ);
+            if (unreadItems.length) {
+                // Optimistic: bulk update IndexedDB in ONE single transaction
+                const updateMap = {};
+                unreadItems.forEach(n => {
+                    const key = n.NOTIF_ID || n.id;
+                    updateMap[key] = { ...n, IS_READ: true };
+                });
+                await window.appDB.mergeSheet('NOTIFICATIONS', updateMap);
+
+                // Single call to backend API with all: true
+                if (navigator.onLine) {
+                    callApi('/api/notifread', { all: true, notif_ids: Object.keys(updateMap) }).catch(() => {});
+                }
             }
             document.getElementById('notification-list-global')
                 ?.querySelectorAll('.bg-blue-500').forEach(dot => dot.remove());
@@ -343,17 +351,32 @@ function _bindNotifActions() {
         clearAllBtn.addEventListener('click', async () => {
             if (!window.appDB || !window.appDB.db) return;
             const all = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
-            // non-CRITICAL only — CRITICAL requires ADMIN to dismiss individually
-            const ids = Object.values(all).filter(n => n.LEVEL !== 'CRITICAL').map(n => n.NOTIF_ID);
-            if (ids.length) {
-                // Optimistic: delete from cache first, push to server in background
-                for (const id of ids) await window.appDB.deleteRecord('NOTIFICATIONS', id);
-                if (navigator.onLine) callApi('/api/notifclear', { notif_ids: ids }).catch(() => {});
+            const userRole = (typeof getUser === 'function' ? getUser().ROLE : 'GUEST') || 'GUEST';
+            const userLevel = (window.ROLE_LEVELS || {})[userRole] || 0;
+            const isAdmin = userLevel >= ((window.ROLE_LEVELS || {})['ADMIN'] || 90);
+
+            // non-CRITICAL only unless admin
+            const dismissable = Object.values(all).filter(n => n.LEVEL !== 'CRITICAL' || isAdmin);
+            if (dismissable.length) {
+                const ids = dismissable.map(n => n.NOTIF_ID || n.id);
+                // Optimistic: delete in ONE single IndexedDB transaction
+                if (window.appDB.db) {
+                    const tx = window.appDB.db.transaction(['NOTIFICATIONS'], 'readwrite');
+                    const store = tx.objectStore('NOTIFICATIONS');
+                    ids.forEach(id => store.delete(id));
+                    await new Promise(resolve => { tx.oncomplete = resolve; tx.onerror = resolve; });
+                }
+
+                // Single call to backend API with all: true
+                if (navigator.onLine) {
+                    callApi('/api/notifclear', { all: true, notif_ids: ids }).catch(() => {});
+                }
             }
             await loadNotificationsFromStorage();
         });
     }
 }
+window.bindNotificationActions = _bindNotifActions;
 
 // Called once by layout.js — owns the full notification boot sequence
 async function fetchAndSaveNotifications() {
@@ -361,7 +384,15 @@ async function fetchAndSaveNotifications() {
     try {
         const res = await callApi('/api/fetchNotifications', {}, 'GET');
         if (res && res.status === 'success' && res.data) {
-            await window.appDB.mergeSheet('NOTIFICATIONS', res.data);
+            const existing = await window.appDB.getSheet('NOTIFICATIONS').catch(() => ({}));
+            const existingKeys = Object.keys(existing);
+            const incomingKeys = new Set(Object.keys(res.data));
+            const toDelete = existingKeys.filter(k => !incomingKeys.has(k));
+            const delta = { ...res.data };
+            if (toDelete.length > 0) {
+                delta.__deletes = toDelete;
+            }
+            await window.appDB.bulkMerge({ 'NOTIFICATIONS': delta });
         }
     } catch (e) {
         console.warn('[Notif] Failed to fetch notifications from server:', e);

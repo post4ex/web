@@ -479,8 +479,11 @@ async function _handleSSEMessage(payload) {
         console.log('[SSE] delta applying:', payload.collection, payload.action, payload.key);
         await _applyDelta(payload);
         if (payload.ts) await window.appDB.setMetadata('lastEventStamp', payload.ts).catch(() => {});
-        // Always write to IDB. Only skip UI refresh if tab is hidden.
-        if (document.hidden) return;
+        // Always write to IDB. If tab is hidden, flag pending so UI updates instantly when resumed
+        if (document.hidden) {
+            window._pendingHiddenUpdates = true;
+            return;
+        }
         _scheduleRefresh();
     }
 }
@@ -581,28 +584,72 @@ window.addEventListener('pagehide', () => {
     }
 });
 
-// online / visibilitychange recovery
-window.addEventListener('online', () => {
+// online / visibilitychange / focus / pageshow recovery
+window.addEventListener('online', async () => {
     if (!isLoggedIn()) return;
-    const since = window._lastEventTime ?? window._idbLastStamp;
-    console.log('[online] pullDeltaSince:', since, 'openSSE');
-    if (since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
+    const lastStamp = window.appDB ? await window.appDB.getLastEventStamp().catch(() => 0) : 0;
+    console.log('[online] pullDeltaSince:', lastStamp, 'openSSE');
+    if (lastStamp && lastStamp > 0) pullDeltaSince(lastStamp).catch(() => {});
     openSSE();
 });
 
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
-    const since = window._lastEventTime ?? window._idbLastStamp;
-    // skip delta pull if SSE is live and recent (< 60s)
-    const sseRecent = window._sseConnected && window._lastEventTime && (Date.now() - window._lastEventTime) < 60000;
-    if (!sseRecent && since !== null && since !== undefined) pullDeltaSince(since).catch(() => {});
-    console.log('[visibilitychange] visible, since:', since, '_sseConnected:', window._sseConnected, '_lastHeartbeat age:', Date.now() - (window._lastHeartbeat||0), 'ms');
-    if (!_sseConnectedOnce || (Date.now() - (window._lastHeartbeat || 0)) > 45000) openSSE();
+// Focus and page-show instant catch-up (covers laptop lid open, tab focus, navigation back)
+window.addEventListener('focus', async () => {
+    if (!isLoggedIn()) return;
+    const lastStamp = window.appDB ? await window.appDB.getLastEventStamp().catch(() => 0) : 0;
+    if (lastStamp && lastStamp > 0) pullDeltaSince(lastStamp).catch(() => {});
 });
+
+window.addEventListener('pageshow', async () => {
+    if (!isLoggedIn()) return;
+    const lastStamp = window.appDB ? await window.appDB.getLastEventStamp().catch(() => 0) : 0;
+    if (lastStamp && lastStamp > 0) pullDeltaSince(lastStamp).catch(() => {});
+});
+
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
+    initGeoCapture(); // Auto-refresh location if user has moved
+
+    // 1. If deltas arrived while tab was hidden, re-render UI instantly
+    if (window._pendingHiddenUpdates) {
+        window._pendingHiddenUpdates = false;
+        _scheduleRefresh();
+    }
+
+    // 2. Fetch actual last recorded mutation timestamp from IndexedDB to catch up any missed sleep events
+    const lastStamp = window.appDB ? await window.appDB.getLastEventStamp().catch(() => 0) : 0;
+    const sseStale = !_sseConnectedOnce || !window._sseConnected || (Date.now() - (window._lastHeartbeat || 0)) > 30000;
+    
+    if (lastStamp && lastStamp > 0) {
+        pullDeltaSince(lastStamp).catch(() => {});
+    }
+    if (sseStale) {
+        openSSE();
+    }
+});
+
+// W3C Periodic Background Sync registration (Chrome on Android, Windows, Chromebooks)
+async function registerPeriodicBackgroundSync() {
+    if ('serviceWorker' in navigator && 'PeriodicSyncManager' in window) {
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+            if (status.state === 'granted') {
+                await reg.periodicSync.register('post4ex-delta-sync', {
+                    minInterval: 5 * 60 * 1000, // 5 minutes
+                });
+                console.log('[SW] Periodic background sync registered with browser (5 min)');
+            }
+        } catch (_) {}
+    }
+}
+if (document.readyState === 'complete') registerPeriodicBackgroundSync();
+else window.addEventListener('load', registerPeriodicBackgroundSync);
 
 // 5-min safety net tick
 setInterval(() => {
     if (document.hidden || !isLoggedIn()) return;
+    initGeoCapture(); // Auto-refresh location coordinates as user travels
     if (window._sseConnected && window._lastEventTime && (Date.now() - window._lastEventTime) < 60000) return;
     const since = window._lastEventTime ?? window._idbLastStamp;
     console.log('[5min-tick] pullDeltaSince:', since);
@@ -639,9 +686,79 @@ function _isSyncActive() {
     return true;
 }
 
+function initGeoCapture() {
+    if (!('geolocation' in navigator)) return;
+
+    // 1. Hydrate memory from persistent storage immediately so 1st request has data
+    try {
+        const cached = JSON.parse(localStorage.getItem('geo_coords') || sessionStorage.getItem('geo_coords') || 'null');
+        if (cached && (Date.now() - (cached.ts || 0)) < 7200000) {
+            window._geoContext = cached;
+        }
+    } catch (_) {}
+
+    // 2. Progressive accuracy refinement loop (resolves browser cold-start lag across 2-3 pings)
+    let watchId = null;
+    let sampleCount = 0;
+    const maxSamples = 4;
+    const targetAccuracyMeters = 40;
+
+    const stopTracking = () => {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+    };
+
+    const handlePos = (pos) => {
+        sampleCount++;
+        const currentAcc = Number(pos.coords.accuracy.toFixed(1));
+        const bestAcc = window._geoContext?.acc || Infinity;
+
+        // If this sample is more accurate or memory is unset, lock it in
+        if (currentAcc <= bestAcc || !window._geoContext) {
+            const geoObj = {
+                lat: Number(pos.coords.latitude.toFixed(6)),
+                lng: Number(pos.coords.longitude.toFixed(6)),
+                acc: currentAcc,
+                ts: Date.now()
+            };
+            window._geoContext = geoObj;
+            try {
+                localStorage.setItem('geo_coords', JSON.stringify(geoObj));
+                sessionStorage.setItem('geo_coords', JSON.stringify(geoObj));
+            } catch (_) {}
+        }
+
+        // Once high precision achieved or enough samples collected, stop tracking
+        if (currentAcc <= targetAccuracyMeters || sampleCount >= maxSamples) {
+            stopTracking();
+        }
+    };
+
+    try {
+        // Fast initial position request
+        navigator.geolocation.getCurrentPosition(handlePos, () => {}, {
+            timeout: 5000,
+            maximumAge: 120000,
+            enableHighAccuracy: false
+        });
+
+        // Background watch for accuracy refinement (locks in on 2nd/3rd ping)
+        watchId = navigator.geolocation.watchPosition(handlePos, () => {}, {
+            timeout: 10000,
+            maximumAge: 0,
+            enableHighAccuracy: true
+        });
+
+        // Safety timeout to ensure background watch stops after 15s max
+        setTimeout(stopTracking, 15000);
+    } catch (_) {}
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     createNotificationModal();
-    fetchClientIP();
+    initGeoCapture();
 
     // Loading overlay — CSS-driven (html.needs-sync), removed on syncComplete
     if (isLoggedIn()) {

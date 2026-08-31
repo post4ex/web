@@ -245,20 +245,13 @@ const VaultPage = (() => {
         });
 
         // Auto-hide empty section headings and grids
-        document.querySelectorAll('.tile-grid').forEach(grid => {
-            if (grid.id === 'vaultBranchTilesGrid') return;
-            const visibleTiles = grid.querySelectorAll('[data-tile]:not(.hidden)');
-            const sectionHdr = grid.previousElementSibling;
-            if (visibleTiles.length === 0) {
-                grid.classList.add('hidden');
-                if (sectionHdr && sectionHdr.classList.contains('tile-section')) {
-                    sectionHdr.classList.add('hidden');
-                }
-            } else {
-                grid.classList.remove('hidden');
-                if (sectionHdr && sectionHdr.classList.contains('tile-section')) {
-                    sectionHdr.classList.remove('hidden');
-                }
+        document.querySelectorAll('.vault-section, .tile-grid').forEach(sec => {
+            if (sec.id === 'vaultBranchTilesSection' || sec.id === 'vaultBranchTilesGrid') return;
+            const visibleTiles = sec.querySelectorAll('[data-tile]:not(.hidden)');
+            sec.classList.toggle('hidden', visibleTiles.length === 0);
+            const sectionHdr = sec.previousElementSibling;
+            if (sectionHdr && sectionHdr.classList.contains('tile-section')) {
+                sectionHdr.classList.toggle('hidden', visibleTiles.length === 0);
             }
         });
     }
@@ -555,11 +548,15 @@ const VaultPage = (() => {
 
                         // Render branch selection tiles dynamically
                         tilesGrid.innerHTML = branches.map(b => `
-                            <div class="tile select-branch-tile hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer" data-branch="${b.BRANCH_CODE}" style="border-color:${select.value === b.BRANCH_CODE ? '#4f46e5' : '#dbeafe'}; padding: 1.25rem 1rem;">
-                                <div class="tile-icon text-indigo-600">🏢</div>
-                                <div class="tile-label font-bold text-indigo-700">${b.BRANCH_CODE}</div>
-                                <div class="text-[12px] font-bold text-gray-800 mt-1 truncate" style="max-width: 100%;">${b.BRANCH_NAME || b.BRANCH_CODE}</div>
-                                <div class="text-[9px] text-gray-400 font-mono mt-0.5">${b.GST_CODE || b.GSTIN || b.BRANCH_GSTIN ? 'GST: ' + (b.GST_CODE || b.GSTIN || b.BRANCH_GSTIN) : (b.CITY || 'Active Branch')}</div>
+                            <div class="classy-tile tile ct-emerald select-branch-tile group cursor-pointer" data-branch="${b.BRANCH_CODE}" style="${select.value === b.BRANCH_CODE ? 'border-color: #059669; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25);' : ''}">
+                                <div class="classy-icon-box">
+                                    <i class="fa-solid fa-building"></i>
+                                </div>
+                                <div class="tile-count font-mono" style="font-size:1.15rem; font-weight:800; color:#065f46;">${b.BRANCH_CODE}</div>
+                                <div class="classy-tile-header">
+                                    <span class="classy-tile-dot"></span>
+                                    <span class="classy-tile-label truncate" style="max-width:100px;">${b.BRANCH_NAME || b.BRANCH_CODE}</span>
+                                </div>
                             </div>
                         `).join('');
 

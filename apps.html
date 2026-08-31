@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genie App Suite | Post4Ex</title>
+    <link rel="icon" href="assets/images/favicon.png" type="image/png">
+    
+    <!-- CSS Dependencies -->
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Inline Hydration Script for Header/Footer -->
+    <script>
+        (function() {
+            try {
+                const cachedHeader = sessionStorage.getItem('component-header.html');
+                const cachedFooter = sessionStorage.getItem('component-footer.html');
+                
+                const observer = new MutationObserver((mutations, obs) => {
+                    const headerEl = document.getElementById('header-placeholder');
+                    const footerEl = document.getElementById('footer-placeholder');
+                    
+                    if (headerEl && headerEl.getAttribute('data-fully-loaded') !== 'true') {
+                        const doc = new DOMParser().parseFromString(cachedHeader, 'text/html');
+                        const scripts = Array.from(doc.querySelectorAll('script'));
+                        headerEl.innerHTML = '';
+                        while (doc.body.firstChild) headerEl.appendChild(doc.body.firstChild);
+                        
+                        scripts.forEach(script => {
+                            const newScript = document.createElement('script');
+                            if (script.src) newScript.src = script.src;
+                            else newScript.textContent = script.textContent;
+                            document.head.appendChild(newScript);
+                        });
+                        headerEl.setAttribute('data-fully-loaded', 'true');
+                    }
+                    
+                    if (footerEl && footerEl.getAttribute('data-fully-loaded') !== 'true') {
+                        const doc = new DOMParser().parseFromString(cachedFooter, 'text/html');
+                        const scripts = Array.from(doc.querySelectorAll('script'));
+                        footerEl.innerHTML = '';
+                        while (doc.body.firstChild) footerEl.appendChild(doc.body.firstChild);
+                        
+                        scripts.forEach(script => {
+                            const newScript = document.createElement('script');
+                            if (script.src) newScript.src = script.src;
+                            else newScript.textContent = script.textContent;
+                            document.head.appendChild(newScript);
+                        });
+                        footerEl.setAttribute('data-fully-loaded', 'true');
+                    }
+                    
+                    if ((!cachedHeader || (headerEl && headerEl.getAttribute('data-fully-loaded') === 'true')) &&
+                        (!cachedFooter || (footerEl && footerEl.getAttribute('data-fully-loaded') === 'true'))) {
+                        obs.disconnect();
+                    }
+                });
+                
+                observer.observe(document.documentElement, { childList: true, subtree: true });
+            } catch (_) {}
+        })();
+    </script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col text-slate-900">
+
+    <!-- HEADER: Injected by layout.js -->
+    <div id="header-placeholder" style="min-height:56px"><div class="animate-pulse bg-gray-200 h-14 w-full"></div></div>
+
+    <main class="flex-grow w-full p-4 sm:p-8">
+        <div class="container mx-auto max-w-6xl space-y-8">
+            
+            <!-- APP INSIGHTS HEADER (Clean, informative overview) -->
+            <section style="background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); border: 1.5px solid #bfdbfe; border-radius: 1.5rem; padding: 1.75rem; box-shadow: 0 10px 30px -5px rgba(37, 99, 235, 0.06);">
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                        <div style="display:flex; align-items:center; gap:0.45rem;">
+                            <span style="width:7px; height:7px; background:#2563EB; border-radius:50%; display:inline-block; box-shadow:0 0 6px rgba(37,99,235,0.6);"></span>
+                            <span style="font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#1e40af;">Official Post4Ex Suite</span>
+                        </div>
+                        <span style="font-size:0.7rem; font-weight:800; background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; padding:0.2rem 0.65rem; border-radius:9999px;">
+                            Client & Field Suite
+                        </span>
+                    </div>
+
+                    <div>
+                        <h1 class="pagetitle">Genie App Overview & Insights</h1>
+                        <div class="pagetitle-bar"></div>
+                    </div>
+                    <p class="text-gray-600 text-xs sm:text-sm leading-relaxed max-w-4xl mt-2">
+                        Genie App is Post4Ex’s native operations client designed for rapid field scanning, real-time dispatch telemetry, offline pincode serviceability, and instant cargo rate estimation across mobile and desktop platforms.
+                    </p>
+                </div>
+            </section>
+
+            <!-- PLATFORM MATRIX SECTION -->
+            <section class="space-y-4">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fa-solid fa-laptop-mobile text-blue-600"></i> Supported Platforms
+                        </h2>
+                        <p class="text-xs sm:text-sm text-gray-500 mt-0.5">Download or check availability for your operating system</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    
+                    <!-- 1. ANDROID (Available Now) -->
+                    <div style="background:#ffffff; border:2px solid #22c55e; border-radius:1.25rem; padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 4px 16px rgba(34,197,94,0.08);">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-2xl">
+                                    <i class="fa-brands fa-android"></i>
+                                </div>
+                                <span style="font-size:0.7rem; font-weight:800; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:0.2rem 0.6rem; border-radius:9999px;">
+                                    AVAILABLE NOW
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base text-gray-900">Android</h3>
+                                <p class="text-xs text-gray-500 mt-0.5">Phones, Tablets & Handheld PDA Terminals</p>
+                            </div>
+                            <ul class="text-xs text-gray-600 space-y-1.5 pt-2 border-t">
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-600"></i> Universal Release APK</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-600"></i> Camera Barcode Scanner</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-600"></i> Push Notifications</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-6 space-y-2">
+                            <a href="https://github.com/post4ex/genie-app/releases/latest/download/app-release.apk" class="btn btn-active w-full text-center block" style="border-radius:0.75rem; padding:0.7rem; font-size:0.85rem; font-weight:800;">
+                                <i class="fa-solid fa-download mr-1.5"></i> Download APK
+                            </a>
+                            <a href="https://github.com/post4ex/genie-app/releases/latest" target="_blank" class="btn btn-ghost w-full text-center block" style="border-radius:0.75rem; padding:0.5rem; font-size:0.75rem; font-weight:700;">
+                                Release Notes (v1.2.0)
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 2. iOS (Coming Soon) -->
+                    <div style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:1.25rem; padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; opacity:0.9;">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center text-2xl">
+                                    <i class="fa-brands fa-apple"></i>
+                                </div>
+                                <span style="font-size:0.7rem; font-weight:800; background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:0.2rem 0.6rem; border-radius:9999px;">
+                                    COMING SOON
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base text-gray-900">iOS (Apple)</h3>
+                                <p class="text-xs text-gray-500 mt-0.5">iPhone & iPad (iOS 15.0+)</p>
+                            </div>
+                            <ul class="text-xs text-gray-500 space-y-1.5 pt-2 border-t">
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> App Store & TestFlight</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> Apple Push Notification</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> Face ID / Biometric Auth</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-6">
+                            <button disabled class="btn w-full" style="border-radius:0.75rem; padding:0.7rem; font-size:0.82rem; font-weight:700; opacity:0.6; cursor:not-allowed; background:#f8fafc; border-color:#cbd5e1; color:#64748b;">
+                                Coming Soon
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. WINDOWS (Coming Soon) -->
+                    <div style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:1.25rem; padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; opacity:0.9;">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-2xl">
+                                    <i class="fa-brands fa-windows"></i>
+                                </div>
+                                <span style="font-size:0.7rem; font-weight:800; background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:0.2rem 0.6rem; border-radius:9999px;">
+                                    COMING SOON
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base text-gray-900">Windows</h3>
+                                <p class="text-xs text-gray-500 mt-0.5">Windows 10 / 11 (64-bit)</p>
+                            </div>
+                            <ul class="text-xs text-gray-500 space-y-1.5 pt-2 border-t">
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> MSIX Installer & Portable</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> Thermal Label Printer Support</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> Multi-Window Dispatch View</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-6">
+                            <button disabled class="btn w-full" style="border-radius:0.75rem; padding:0.7rem; font-size:0.82rem; font-weight:700; opacity:0.6; cursor:not-allowed; background:#f8fafc; border-color:#cbd5e1; color:#64748b;">
+                                Coming Soon
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. LINUX (Coming Soon) -->
+                    <div style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:1.25rem; padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; opacity:0.9;">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-2xl">
+                                    <i class="fa-brands fa-linux"></i>
+                                </div>
+                                <span style="font-size:0.7rem; font-weight:800; background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:0.2rem 0.6rem; border-radius:9999px;">
+                                    COMING SOON
+                                </span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base text-gray-900">Linux</h3>
+                                <p class="text-xs text-gray-500 mt-0.5">Ubuntu, Debian, Fedora & Arch</p>
+                            </div>
+                            <ul class="text-xs text-gray-500 space-y-1.5 pt-2 border-t">
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> AppImage, .deb & .rpm</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> Headless Scanner Support</li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-clock text-slate-400"></i> Lightweight Memory Footprint</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-6">
+                            <button disabled class="btn w-full" style="border-radius:0.75rem; padding:0.7rem; font-size:0.82rem; font-weight:700; opacity:0.6; cursor:not-allowed; background:#f8fafc; border-color:#cbd5e1; color:#64748b;">
+                                Coming Soon
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- WHY YOU SHOULD HAVE GENIE APP -->
+            <section style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:1.5rem; padding:2rem; box-shadow:0 2px 8px rgba(0,0,0,0.02);" class="space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <i class="fa-solid fa-sparkles text-amber-500"></i> Why You Need Genie App
+                    </h2>
+                    <p class="text-xs sm:text-sm text-gray-500 mt-0.5">Essential advantages engineered specifically for fast logistics operations</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem;">
+                        <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid fa-barcode"></i>
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-900 mb-1">Camera Barcode & AWB Scanning</h3>
+                        <p class="text-xs text-gray-600 leading-relaxed">
+                            Scan 1D and 2D shipping labels directly using your smartphone camera with hardware acceleration—no expensive handheld laser scanners needed.
+                        </p>
+                    </div>
+
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem;">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid fa-bell"></i>
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-900 mb-1">Instant Milestone Alerts</h3>
+                        <p class="text-xs text-gray-600 leading-relaxed">
+                            Receive real-time push notifications the moment a consignment is dispatched, reaches a transit hub, or goes out for delivery.
+                        </p>
+                    </div>
+
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem;">
+                        <div class="w-10 h-10 bg-teal-100 text-teal-700 rounded-lg flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-900 mb-1">Offline Pincode Database</h3>
+                        <p class="text-xs text-gray-600 leading-relaxed">
+                            Lookup all 19,000+ Indian postal codes, carrier coverage zones, and estimated delivery times even in warehouse basements with zero network.
+                        </p>
+                    </div>
+
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem;">
+                        <div class="w-10 h-10 bg-orange-100 text-orange-700 rounded-lg flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid fa-calculator"></i>
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-900 mb-1">Volumetric Freight Estimator</h3>
+                        <p class="text-xs text-gray-600 leading-relaxed">
+                            Quickly compute dimensional weight calculations and estimate surface and express cargo tariffs in seconds before booking.
+                        </p>
+                    </div>
+
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem;">
+                        <div class="w-10 h-10 bg-rose-100 text-rose-700 rounded-lg flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-900 mb-1">Direct Dispute Resolution</h3>
+                        <p class="text-xs text-gray-600 leading-relaxed">
+                            Raise priority investigation tickets, upload package damage photos directly from your camera, and track resolution timelines live.
+                        </p>
+                    </div>
+
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1.25rem;">
+                        <div class="w-10 h-10 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid fa-shield-check"></i>
+                        </div>
+                        <h3 class="font-bold text-sm text-gray-900 mb-1">Encrypted & Phishing-Proof</h3>
+                        <p class="text-xs text-gray-600 leading-relaxed">
+                            Eliminates risks from fraudulent SMS and WhatsApp phishing scams by providing a verified, TLS-encrypted direct gateway to Post4Ex.
+                        </p>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- 3-STEP ANDROID INSTALLATION GUIDE -->
+            <section style="background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%); border: 1.5px solid #bbf7d0; border-radius: 1.5rem; padding: 1.75rem;" class="space-y-4">
+                <h3 class="font-bold text-base text-gray-900 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-green-600"></i> How to Install on Android
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs sm:text-sm">
+                    <div class="bg-white p-3.5 rounded-xl border border-green-200">
+                        <span class="font-black text-green-700 block mb-1">STEP 1</span>
+                        <p class="text-gray-700">Tap <strong>"Download APK"</strong> on the Android card above to save <code>app-release.apk</code>.</p>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl border border-green-200">
+                        <span class="font-black text-green-700 block mb-1">STEP 2</span>
+                        <p class="text-gray-700">Open your browser Downloads and tap the APK. If prompted, select <strong>"Allow install from this source"</strong>.</p>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl border border-green-200">
+                        <span class="font-black text-green-700 block mb-1">STEP 3</span>
+                        <p class="text-gray-700">Tap <strong>Install</strong>. Once complete, launch Genie App and log in with your Post4Ex staff or client credentials.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- FOOTER: Injected by layout.js -->
+    <div id="footer-placeholder" class="mt-auto" style="min-height:26px"><div class="animate-pulse bg-gray-200 h-7 w-full"></div></div>
+
+    <!-- Core App Scripts -->
+    <script src="core/indexeddb.js"></script>
+    <script src="core/app-config.js"></script>
+    <script src="core/formatIST.js"></script>
+    <script src="core/app-notify.js"></script>
+    <script src="core/app-api.js"></script>
+    <script src="core/app-auth.js"></script>
+    <script src="core/layout.js"></script>
+</body>
+</html>
