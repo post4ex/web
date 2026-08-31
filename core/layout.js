@@ -801,24 +801,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, { once: true });
     });
 
-    // Register Service Worker
+    // Clean and Register Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js?v=20260831_4', { updateViaCache: 'none' }).then(reg => {
-            console.log('[ServiceWorker] Registered, scope:', reg.scope);
-            if (reg.waiting) {
-                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        navigator.serviceWorker.getRegistration().then(async (reg) => {
+            const currentVer = '20260831_5';
+            const installedVer = localStorage.getItem('post4ex_sw_version');
+            if (reg && installedVer !== currentVer) {
+                console.log('[ServiceWorker] Upgrading ServiceWorker from', installedVer, 'to', currentVer);
+                await reg.unregister();
+                localStorage.setItem('post4ex_sw_version', currentVer);
+                reg = await navigator.serviceWorker.register(`sw.js?v=${currentVer}`, { updateViaCache: 'none' });
+            } else if (!reg) {
+                reg = await navigator.serviceWorker.register(`sw.js?v=${currentVer}`, { updateViaCache: 'none' });
+                localStorage.setItem('post4ex_sw_version', currentVer);
             }
-            reg.addEventListener('updatefound', () => {
-                const newWorker = reg.installing;
-                if (newWorker) {
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed') {
-                            newWorker.postMessage({ type: 'SKIP_WAITING' });
-                        }
-                    });
-                }
-            });
+            console.log('[ServiceWorker] Registered, scope:', reg.scope);
             try { reg.update(); } catch (e) {}
+        }).catch(err => {
+            console.warn('[ServiceWorker] Registration error:', err);
         });
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             console.log('[ServiceWorker] New Service Worker active and in control.');
