@@ -117,8 +117,7 @@ async function runStreamSync(completedLayers, token, baseUrl) {
   await setMetadata('base_url', baseUrl);
 
   try {
-    const streamUrl = baseUrl ? `${baseUrl}/api/sync/stream` : '/api/sync/stream';
-    const response = await fetch(streamUrl, {
+    let response = await fetch(streamUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -126,6 +125,16 @@ async function runStreamSync(completedLayers, token, baseUrl) {
       },
       body: JSON.stringify({ completed_layers: completedLayers })
     });
+
+    if (response.status === 405) {
+      console.warn('[SW] POST returned 405, retrying with GET...');
+      response = await fetch(streamUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
 
     if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
     if (!response.body) throw new Error('ReadableStream not supported');

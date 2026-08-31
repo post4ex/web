@@ -805,6 +805,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
             console.log('[ServiceWorker] Registered, scope:', reg.scope);
+            try { reg.update(); } catch (e) {}
         });
         navigator.serviceWorker.addEventListener('message', (event) => {
             _handleSWMessage(event);
