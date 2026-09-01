@@ -11,7 +11,7 @@ const AdminServices = (() => {
         { id: 'sqlite',     name: 'SQLite Cache',icon: '💾',  desc: 'In-memory fast replica' },
         { id: 'ninja',      name: 'Invoice Ninja',icon: '💼', desc: 'Accounting & invoicing API' },
         { id: 'tracking',   name: 'Tracking',    icon: '📦',  desc: 'Carrier tracking service' },
-        { id: 'whatsapp',   name: 'WhatsApp',    icon: '💬',  desc: 'WA messaging (Render)' },
+        { id: 'whatsapp',   name: 'WhatsApp',    icon: '💬',  desc: 'WhatsApp messaging service' },
         { id: 'push',       name: 'Mobile Push', icon: '📱',  desc: 'Expo Push / FCM wakeups' },
         { id: 'r2',         name: 'R2 Bucket',   icon: '🪣',  desc: 'Cloudflare R2: post4ex-objects' },
         { id: 'mailjet',    name: 'Mailjet',     icon: '📧',  desc: 'Transactional email' },
@@ -192,17 +192,17 @@ const AdminServices = (() => {
             } finally { btn.disabled = false; btn.textContent = 'Ping'; }
         });
 
-        // WA / Render action buttons
+        // WA action buttons
         const restartBtn = document.getElementById('svc-render-restart-btn');
         if (restartBtn) restartBtn.addEventListener('click', async () => {
-            if (!confirm('Restart the WhatsApp Render service?')) return;
+            if (!confirm('Restart the WhatsApp microservice?')) return;
             restartBtn.disabled = true; restartBtn.textContent = '…';
             try {
                 await ServicesAPI.renderRestart();
-                showNotification('Render restart triggered.', 'success');
+                showNotification('WhatsApp restart triggered.', 'success');
             } catch (e) {
                 showNotification('Restart failed: ' + e.message, 'error');
-            } finally { restartBtn.disabled = false; restartBtn.textContent = serviceId === 'render' ? 'Restart WA' : 'Restart'; }
+            } finally { restartBtn.disabled = false; restartBtn.textContent = 'Restart'; }
         });
 
         // Tracking worker trigger button
