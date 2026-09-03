@@ -296,15 +296,13 @@ const AdminModes = (() => {
             data.MODE = document.getElementById('modesMode').value;
         }
         try {
-            // Mode write/delete is OTP-gated
-            const writeToken = await window.otpRequest(
-                'mode_write',
-                action === 'delete' ? data.MODE : (_isUpdate ? data.MODE : 'new'),
-                action === 'delete' ? `Delete mode ${data.MODE}` : (_isUpdate ? `Update mode ${data.MODE}` : 'Create mode')
-            );
+            // Mode write/delete is OTP-gated — callApi auto-asks. deleteMode needs
+            // top-level MODE (backend ModeDeleteRequest), not nested data.MODE.
             const result = await callApi(
                 action === 'delete' ? '/api/deleteMode' : '/api/writeMode',
-                { data, record_id: action !== 'delete' && _isUpdate ? data.MODE : null, write_token: writeToken },
+                action === 'delete'
+                    ? { MODE: data.MODE }
+                    : { data, record_id: _isUpdate ? data.MODE : null },
                 'POST'
             );
             _showResponseMsg(result.message || 'Done.', 'success', result.data);
@@ -314,7 +312,7 @@ const AdminModes = (() => {
             _allModes = Object.values(appData?.MODES || {});
             _renderList(_allModes);
         } catch (err) {
-            _showResponseMsg(err.message, 'error');
+            if (err.message !== 'OTP action cancelled') _showResponseMsg(err.message, 'error');
         } finally {
             _setLoading(false, action === 'delete' ? 'delete' : 'submit');
             if (action === 'delete') document.getElementById('modesDeleteModal').classList.add('hidden');

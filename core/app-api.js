@@ -52,6 +52,22 @@ async function callApi(endpoint, payload = {}, method = 'POST', timeoutMs = 3000
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    // OTP gate (otp-write.js): OTP-gated write actions auto-ask before sending.
+    // If otp-write.js isn't loaded, gate is skipped and the server rejects.
+    if (method !== 'GET' && typeof window.OtpGate !== 'undefined') {
+        const rule = window.OtpGate.ruleFor(endpoint, method);
+        if (rule && !(payload && payload.write_token)) {
+            try {
+                const identifier = window.OtpGate.identifier(rule, payload || {}, endpoint);
+                const writeToken = await window.OtpGate.ask(rule, identifier);
+                payload = { ...(payload || {}), write_token: writeToken };
+            } catch (gateErr) {
+                if (gateErr && gateErr.message === 'cancelled') throw gateErr;
+                throw gateErr; // re-ask failed / invalid — surface to caller
+            }
+        }
+    }
+
     const options = { method, headers, signal: controller.signal };
     if (method !== 'GET') options.body = JSON.stringify(payload);
 
@@ -503,14 +519,12 @@ window.deleteUploadRecord = async function (uploadUid, btnEl) {
     if (!confirm('Delete this upload? This will permanently remove the file.')) return;
     if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.4'; }
     try {
-        // Upload delete is OTP-gated
-        const writeToken = await window.otpRequest('upload_delete', uploadUid, 'Delete upload');
-        await callApi(`/api/upload/${uploadUid}`, { write_token: writeToken }, 'DELETE');
+        await callApi(`/api/upload/${uploadUid}`, {}, 'DELETE');   // OTP auto-asked inside callApi
         showNotification('\u2705 Upload deleted', 'success');
         const row = btnEl?.closest('tr') || btnEl?.closest('.p-3');
         if (row) row.remove();
     } catch (err) {
-        showNotification(`\u274c Delete failed: ${err.message}`, 'error');
+        if (err.message !== 'OTP action cancelled') showNotification(`\u274c Delete failed: ${err.message}`, 'error');
         if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = ''; }
     }
 };

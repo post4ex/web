@@ -496,22 +496,15 @@ const B2B2CModule = (() => {
         try {
             const uid = isDelete ? currentUid : ui.uidInput.value;
             let result;
-            if (isDelete || isUpdateMode) {
-                // Edit/delete are OTP-gated (create is not)
-                const writeToken = await window.otpRequest(
-                    'b2b2c_write', uid,
-                    isDelete ? `Delete contact ${uid}` : `Edit contact ${uid}`
-                );
-                if (isDelete) {
-                    result = await b2b2cDelete(uid, writeToken);
-                } else {
-                    const payload = { MOBILE: _joinMobile() };
-                    ['EMAIL', 'ADDRESS', 'CARRIER'].forEach(f => {
-                        const el = ui.form.querySelector(`[name="${f}"]`);
-                        if (el) payload[f] = el.value;
-                    });
-                    result = await b2b2cUpdate(uid, payload, writeToken);
-                }
+            if (isDelete) {
+                result = await b2b2cDelete(uid);       // OTP auto-asked inside callApi
+            } else if (isUpdateMode) {
+                const payload = { MOBILE: _joinMobile() };
+                ['EMAIL', 'ADDRESS', 'CARRIER'].forEach(f => {
+                    const el = ui.form.querySelector(`[name="${f}"]`);
+                    if (el) payload[f] = el.value;
+                });
+                result = await b2b2cUpdate(uid, payload);  // OTP auto-asked inside callApi
             } else {
                 const data = {};
                 new FormData(ui.form).forEach((v, k) => { data[k] = v; });
@@ -532,7 +525,7 @@ const B2B2CModule = (() => {
             }
             _showMsg(msg, 'success');
         } catch (err) {
-            _showMsg(err.message, 'error');
+            if (err.message !== 'OTP action cancelled') _showMsg(err.message, 'error');
             if (isDelete) { ui.deleteConfirm.classList.add('hidden'); ui.deleteButton.classList.remove('hidden'); }
         }
         _setLoading(false, isDelete ? 'delete' : 'submit');

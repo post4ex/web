@@ -383,15 +383,13 @@ const AdminCarriers = (() => {
             data.COMPANY_CODE = document.getElementById('carriersCode').value;
         }
         try {
-            // Carrier write/delete is OTP-gated
-            const writeToken = await window.otpRequest(
-                'carrier_write',
-                action === 'delete' ? data.COMPANY_CODE : (_isUpdate ? data.COMPANY_CODE : 'new'),
-                action === 'delete' ? `Delete carrier ${data.COMPANY_CODE}` : (_isUpdate ? `Update carrier ${data.COMPANY_CODE}` : 'Create carrier')
-            );
+            // Carrier write/delete is OTP-gated — callApi auto-asks. deleteCarrier
+            // needs top-level COMPANY_CODE (backend CarrierDeleteRequest).
             const result = await callApi(
                 action === 'delete' ? '/api/deleteCarrier' : '/api/writeCarrier',
-                { data, record_id: action !== 'delete' && _isUpdate ? data.COMPANY_CODE : null, write_token: writeToken },
+                action === 'delete'
+                    ? { COMPANY_CODE: data.COMPANY_CODE }
+                    : { data, record_id: _isUpdate ? data.COMPANY_CODE : null },
                 'POST'
             );
             document.getElementById('carriersDeleteModal').classList.add('hidden');
@@ -401,7 +399,7 @@ const AdminCarriers = (() => {
             _allCarriers = Object.values(appData?.CARRIERS || {});
             _renderList(_allCarriers);
         } catch (err) {
-            _showResponseMsg(err.message, 'error');
+            if (err.message !== 'OTP action cancelled') _showResponseMsg(err.message, 'error');
         } finally {
             _setLoading(false);
         }

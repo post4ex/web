@@ -337,9 +337,7 @@ if (saveBtn) {
         try {
             let result;
             if (editingUid) {
-                // Contact edit is OTP-gated
-                const writeToken = await window.otpRequest('b2b2c_write', editingUid, `Edit contact ${editingUid}`);
-                result = await b2b2cUpdate(editingUid, payload, writeToken);
+                result = await b2b2cUpdate(editingUid, payload);   // OTP auto-asked inside callApi
             } else {
                 result = await b2b2cCreate(payload);
             }
@@ -378,6 +376,7 @@ if (saveBtn) {
             closeModal();
 
         } catch (err) {
+            if (err.message === 'OTP action cancelled') { closeModal(); return; }
             errorEl.textContent = err.message || 'Failed to save contact.';
             errorEl.classList.remove('hidden');
         } finally {

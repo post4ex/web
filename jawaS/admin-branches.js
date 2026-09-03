@@ -478,12 +478,8 @@ const AdminBranches = (() => {
 
             try {
                 (async () => {
-                    // Branch write is OTP-gated
-                    const writeToken = await window.otpRequest(
-                        'branch_write', isEdit ? b.id : 'new',
-                        isEdit ? `Update branch ${b.BRANCH_CODE}` : 'Create branch'
-                    );
-                    const payload = { data, write_token: writeToken };
+                    // Branch write is OTP-gated — callApi auto-asks (rule: record_id/'new')
+                    const payload = { data };
                     if (isEdit) payload.record_id = b.id;
                     const res = await callApi('/api/writeBranch', payload, 'POST');
                     const rec = res.record;
@@ -500,9 +496,11 @@ const AdminBranches = (() => {
                     if (cnt) cnt.textContent = _branches.length;
                     if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`✅ Branch ${isEdit ? 'updated' : 'created'}`, 'success');
-                })();
+                })().catch(err => {
+                    if (err.message !== 'OTP action cancelled') showNotification('❌ ' + err.message, 'error');
+                });
             } catch (err) {
-                showNotification('❌ ' + err.message, 'error');
+                if (err.message !== 'OTP action cancelled') showNotification('❌ ' + err.message, 'error');
             }
         });
 
@@ -511,8 +509,8 @@ const AdminBranches = (() => {
                 if (!confirm(`Delete branch "${b.BRANCH_CODE}"? This cannot be undone.`)) return;
                 (async () => {
                     try {
-                        const writeToken = await window.otpRequest('branch_write', b.id, `Delete branch ${b.BRANCH_CODE}`);
-                        await callApi('/api/deleteBranch', { record_id: b.id, write_token: writeToken }, 'POST');
+                        await callApi('/api/deleteBranch', { record_id: b.id }, 'POST');  // OTP auto-asked
+
                         _branches = _branches.filter(x => x.BRANCH_CODE !== b.BRANCH_CODE);
                         _selected = null;
                         renderList(_branches);
@@ -522,7 +520,7 @@ const AdminBranches = (() => {
                         if (window.NavigationGuard) NavigationGuard.markClean();
                         showNotification('✅ Branch deleted', 'success');
                     } catch (err) {
-                        showNotification('❌ ' + err.message, 'error');
+                        if (err.message !== 'OTP action cancelled') showNotification('❌ ' + err.message, 'error');
                     }
                 })();
             });
