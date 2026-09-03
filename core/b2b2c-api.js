@@ -7,13 +7,13 @@ async function b2b2cCreate(data) {
     return await callApi('/api/writeB2B2C', data, 'POST');
 }
 
-async function b2b2cUpdate(uid, data = {}) {
+async function b2b2cUpdate(uid, data = {}, writeToken = '') {
     ['EXPRESS_TAT', 'AIRLINE_TAT', 'SURFACE_TAT', 'PREMIUM_TAT'].forEach(f => {
         if (data[f] !== undefined && data[f] !== null) data[f] = parseFloat(data[f]) || 0;
     });
-    return await callApi('/api/updateB2B2C', { UID: uid, ...data }, 'PATCH');
+    return await callApi('/api/updateB2B2C', { UID: uid, ...data, write_token: writeToken }, 'PATCH');
 }
 
-async function b2b2cDelete(uid) {
-    return await callApi('/api/deleteB2B2C', { UID: uid }, 'DELETE');
+async function b2b2cDelete(uid, writeToken = '') {
+    return await callApi('/api/deleteB2B2C', { UID: uid, write_token: writeToken }, 'DELETE');
 }

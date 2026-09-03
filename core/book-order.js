@@ -93,10 +93,10 @@ function buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, 
     return payload;
 }
 
-async function submitEditOrder(payload) {
-    return await callApi('/api/editOrder', payload, 'PUT');
+async function submitEditOrder(payload, writeToken = '') {
+    return await callApi('/api/editOrder', { ...payload, write_token: writeToken }, 'PUT');
 }
 
-async function deleteOrder(reference) {
-    return await callApi('/api/deleteOrder', { reference }, 'DELETE');
+async function deleteOrder(reference, writeToken = '') {
+    return await callApi('/api/deleteOrder', { reference, write_token: writeToken }, 'DELETE');
 }

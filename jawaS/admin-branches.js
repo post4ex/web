@@ -478,7 +478,12 @@ const AdminBranches = (() => {
 
             try {
                 (async () => {
-                    const payload = { data };
+                    // Branch write is OTP-gated
+                    const writeToken = await window.otpRequest(
+                        'branch_write', isEdit ? b.id : 'new',
+                        isEdit ? `Update branch ${b.BRANCH_CODE}` : 'Create branch'
+                    );
+                    const payload = { data, write_token: writeToken };
                     if (isEdit) payload.record_id = b.id;
                     const res = await callApi('/api/writeBranch', payload, 'POST');
                     const rec = res.record;
@@ -506,7 +511,8 @@ const AdminBranches = (() => {
                 if (!confirm(`Delete branch "${b.BRANCH_CODE}"? This cannot be undone.`)) return;
                 (async () => {
                     try {
-                        await callApi('/api/deleteBranch', { record_id: b.id }, 'POST');
+                        const writeToken = await window.otpRequest('branch_write', b.id, `Delete branch ${b.BRANCH_CODE}`);
+                        await callApi('/api/deleteBranch', { record_id: b.id, write_token: writeToken }, 'POST');
                         _branches = _branches.filter(x => x.BRANCH_CODE !== b.BRANCH_CODE);
                         _selected = null;
                         renderList(_branches);

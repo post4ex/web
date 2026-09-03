@@ -503,7 +503,9 @@ window.deleteUploadRecord = async function (uploadUid, btnEl) {
     if (!confirm('Delete this upload? This will permanently remove the file.')) return;
     if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.4'; }
     try {
-        await callApi(`/api/upload/${uploadUid}`, {}, 'DELETE');
+        // Upload delete is OTP-gated
+        const writeToken = await window.otpRequest('upload_delete', uploadUid, 'Delete upload');
+        await callApi(`/api/upload/${uploadUid}`, { write_token: writeToken }, 'DELETE');
         showNotification('\u2705 Upload deleted', 'success');
         const row = btnEl?.closest('tr') || btnEl?.closest('.p-3');
         if (row) row.remove();

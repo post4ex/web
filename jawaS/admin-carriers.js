@@ -383,9 +383,15 @@ const AdminCarriers = (() => {
             data.COMPANY_CODE = document.getElementById('carriersCode').value;
         }
         try {
+            // Carrier write/delete is OTP-gated
+            const writeToken = await window.otpRequest(
+                'carrier_write',
+                action === 'delete' ? data.COMPANY_CODE : (_isUpdate ? data.COMPANY_CODE : 'new'),
+                action === 'delete' ? `Delete carrier ${data.COMPANY_CODE}` : (_isUpdate ? `Update carrier ${data.COMPANY_CODE}` : 'Create carrier')
+            );
             const result = await callApi(
                 action === 'delete' ? '/api/deleteCarrier' : '/api/writeCarrier',
-                { data, record_id: action !== 'delete' && _isUpdate ? data.COMPANY_CODE : null },
+                { data, record_id: action !== 'delete' && _isUpdate ? data.COMPANY_CODE : null, write_token: writeToken },
                 'POST'
             );
             document.getElementById('carriersDeleteModal').classList.add('hidden');

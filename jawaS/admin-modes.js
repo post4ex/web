@@ -296,9 +296,15 @@ const AdminModes = (() => {
             data.MODE = document.getElementById('modesMode').value;
         }
         try {
+            // Mode write/delete is OTP-gated
+            const writeToken = await window.otpRequest(
+                'mode_write',
+                action === 'delete' ? data.MODE : (_isUpdate ? data.MODE : 'new'),
+                action === 'delete' ? `Delete mode ${data.MODE}` : (_isUpdate ? `Update mode ${data.MODE}` : 'Create mode')
+            );
             const result = await callApi(
                 action === 'delete' ? '/api/deleteMode' : '/api/writeMode',
-                { data, record_id: action !== 'delete' && _isUpdate ? data.MODE : null },
+                { data, record_id: action !== 'delete' && _isUpdate ? data.MODE : null, write_token: writeToken },
                 'POST'
             );
             _showResponseMsg(result.message || 'Done.', 'success', result.data);

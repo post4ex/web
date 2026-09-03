@@ -872,7 +872,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.boDeleteOrder = async (ref) => {
         if (!confirm(`Delete order ${ref}? This cannot be undone.`)) return;
-        try { await deleteOrder(ref); } catch(e) { alert('Delete failed: ' + e.message); }
+        try {
+            const writeToken = await window.otpRequest('order_write', ref, `Delete order ${ref}`);
+            await deleteOrder(ref, writeToken);
+        } catch(e) { alert('Delete failed: ' + e.message); }
     };
 
     function _boSetupMaps() {
@@ -1471,7 +1474,8 @@ function renderLastBooked(ref) {
             try {
                 const savedEditRef = editOrderRef;
                 const payload = buildEditPayload(consignmentBoxes, consignmentProducts, summaryTotals, orderDateInput, editOrderRef, selectedCustomerDetails.BILL_CYCLE);
-                await submitEditOrder(payload);
+                const writeToken = await window.otpRequest('order_write', savedEditRef, `Edit order ${savedEditRef}`);
+                await submitEditOrder(payload, writeToken);
                 bookingMessage.textContent = `Updated! Ref: ${savedEditRef} — waiting for server confirmation...`;
                 bookingMessage.className = 'p-2 text-sm text-center rounded-md mt-2 text-blue-700 bg-blue-50';
                 editOrderRef = null;

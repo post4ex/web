@@ -337,7 +337,9 @@ if (saveBtn) {
         try {
             let result;
             if (editingUid) {
-                result = await b2b2cUpdate(editingUid, payload);
+                // Contact edit is OTP-gated
+                const writeToken = await window.otpRequest('b2b2c_write', editingUid, `Edit contact ${editingUid}`);
+                result = await b2b2cUpdate(editingUid, payload, writeToken);
             } else {
                 result = await b2b2cCreate(payload);
             }

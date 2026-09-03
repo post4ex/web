@@ -515,6 +515,20 @@
                     status_remark: finalRemark
                 };
 
+                // Delivery OTP gate: non-manager users marking Delivered need the
+                // consignee's OTP (auto-sent on Out for Delivery). Managers bypass.
+                if (/deliver/i.test(statusRaw) && !/out\s*for/i.test(statusRaw)) {
+                    const userRole = (window.getUser ? getUser().ROLE : '') || '';
+                    const roleLevels = (typeof ROLE_LEVELS !== 'undefined') ? ROLE_LEVELS : { STAFF: 20, MANAGER: 40 };
+                    if ((roleLevels[userRole] || 0) < (roleLevels.MANAGER || 40)) {
+                        const code = await window.otpAskCode(
+                            'Delivery confirmation',
+                            'Consignee ke WhatsApp par bheja gaya delivery OTP enter karein.'
+                        );
+                        if (code) payload.delivery_otp = code;
+                    }
+                }
+
                 if (statusTimeMs) {
                     payload.status_time = statusTimeMs;
                 }
@@ -553,6 +567,40 @@
 
             } catch (err) {
                 console.error('[UpdateStatusModal error]', err);
+                // Delivery OTP required — prompt and retry once with the code
+                if (/Delivery OTP required/i.test(err.message || '')) {
+                    try {
+                        const code = await window.otpAskCode(
+                            'Delivery confirmation',
+                            'Consignee ke WhatsApp par bheja gaya delivery OTP enter karein.'
+                        );
+                        if (code) {
+                            payload.delivery_otp = code;
+                            let retryData;
+                            if (typeof callApi === 'function') {
+                                retryData = await callApi('/api/updateShipmentStatus', payload, 'POST');
+                            } else {
+                                const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                                const res = await fetch('/api/updateShipmentStatus', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                                    body: JSON.stringify(payload)
+                                });
+                                if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Failed');
+                                retryData = await res.json();
+                            }
+                            if (typeof showNotification === 'function') showNotification('Shipment status updated successfully!', 'success', 2500);
+                            UpdateStatusModal.close();
+                            if (typeof window.onShipmentStatusUpdated === 'function') window.onShipmentStatusUpdated(currentReference, statusRaw);
+                            else if (typeof window.loadFromIndexedDB === 'function') window.loadFromIndexedDB();
+                            return;
+                        }
+                    } catch (retryErr) {
+                        errorMsg.textContent = retryErr.message || 'Delivery OTP verification failed.';
+                        errorMsg.classList.remove('hidden');
+                        return;
+                    }
+                }
                 errorMsg.textContent = err.message || 'An error occurred while updating status.';
                 errorMsg.classList.remove('hidden');
             } finally {
