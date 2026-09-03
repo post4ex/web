@@ -529,6 +529,14 @@ window.deleteUploadRecord = async function (uploadUid, btnEl) {
     }
 };
 
+// deleteShipmentMovements — ADMIN+ reset: wipe ALL tracking movements of a
+// shipment and revert its state back to 'pickup' (OTP auto-asked in callApi)
+window.deleteShipmentMovements = async function (reference) {
+    const json = await callApi('/api/deleteShipmentMovements', { reference }, 'POST');
+    if (json.status === 'error') throw new Error(json.message || 'Reset failed');
+    return json;
+};
+
 // trackShipment — shipment from IDB, movements from app cache
 window.trackShipment = async function (ref) {
     const shipment = (await window.appDB?.getSheet('SHIPMENTS') || {})[ref];

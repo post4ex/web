@@ -197,6 +197,7 @@
         carrierDel:   (p) => p.COMPANY_CODE || (p.data && p.data.COMPANY_CODE),
         rateCode:     (p) => p.CODE,
         uploadUid:    (p, ep) => (ep.match(/\/api\/upload\/([^/?#]+)/) || [])[1] || p.upload_uid || p.UPLOAD_UID,
+        shipmentRef:  (p) => p.reference || p.REFERENCE,
     };
 
     const _titles = {
@@ -208,6 +209,7 @@
         rates_delete:   'Confirm with OTP',
         upload_delete:  'Confirm with OTP',
         charges_write:  'Confirm with OTP',
+        movements_write:'Confirm with OTP',
     };
 
     // [method, pathPrefix, otp_type, identifierFn, actionLabel]
@@ -225,6 +227,7 @@
         ['DELETE', '/api/upload/',          'upload_delete', _ident.uploadUid,    'Delete upload'],
         ['PATCH',  '/api/patchCharges',     'charges_write', _ident.orderWrite,   'Update charges'],
         ['DELETE', '/api/deleteRateList',   'rates_delete',  _ident.rateCode,     'Delete rate list'],
+        ['POST',   '/api/deleteShipmentMovements', 'movements_write', _ident.shipmentRef, 'Reset shipment tracking'],
     ];
 
     window.OtpGate = {

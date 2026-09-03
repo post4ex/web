@@ -842,8 +842,38 @@ const _stateConfig = {
     deleted:         { label: 'Deleted',          cls: 'bg-red-100 text-red-800'       },
 };
 
+// --- RESET TRACKING (ADMIN+) — wipe all movements + revert shipment to pickup ---
+const _resetMovIco = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
+
+window.resetShipmentTracking = async function (reference) {
+    if (!reference) return;
+    if (!confirm(`Delete ALL tracking movements of ${reference} and reset the shipment to 'Pickup'?\n\nOrder / AWB / Carrier records will NOT be touched. This cannot be undone.`)) return;
+    try {
+        const res = await window.deleteShipmentMovements(reference);
+        showNotification(`\u2705 ${res.deleted} movements deleted — shipment back to Pickup`, 'success', 4000);
+        // Refresh the live tracking pane + history from the (now empty) cache.
+        const orderObj = shipmentsDataMap.get(reference);
+        if (orderObj) {
+            await _fetchAndRenderTracking(orderObj, false, true);
+        } else {
+            const historyEl = document.getElementById('liveTrackingHistory');
+            if (historyEl) historyEl.innerHTML = `<p class="text-sm text-gray-400">No movement history available.</p>`;
+        }
+        return true;
+    } catch (err) {
+        if (err && err.message !== 'OTP action cancelled')
+            showNotification(`\u274c Reset failed: ${err.message}`, 'error');
+        return false;
+    }
+};
+
 // --- RENDER: TRACKING STATUS ---
 function renderTrackingStatus(order) {
+    const userRole  = (typeof getUser === 'function' && getUser().ROLE) || 'GUEST';
+    const isAdmin   = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['ADMIN'] || 90);
+    const resetBtn  = isAdmin
+        ? `<button onclick="resetShipmentTracking('${order.REFERENCE}')" title="Reset Tracking (delete all movements)" class="p-1.5 text-orange-500 rounded hover:bg-orange-50">${_resetMovIco}</button>`
+        : '';
     const copyIcon = order.AWB_NUMBER ? `<button data-copy="${order.AWB_NUMBER}" onclick="navigator.clipboard.writeText(this.dataset.copy).then(() => showNotification('AWB Copied','success',1000))" class="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none" title="Copy AWB"><svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>` : '';
     const staticGrid = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm mb-3">
         <div><div class="text-gray-500 text-xs">AWB Number</div><div class="font-semibold text-gray-800">${order.AWB_NUMBER || 'N/A'}${copyIcon}</div></div>
@@ -858,6 +888,7 @@ function renderTrackingStatus(order) {
         `<button onclick="mailSelectedShipmentTracking()" title="Mail" class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`,
         `<button onclick="waSelectedShipmentTracking()" title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`,
         `<button id="refreshTrackingBtn" title="Refresh Tracking" class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>`,
+        resetBtn,
     ].join('');
 
     ui.trackingStatusContainer.innerHTML = `
@@ -995,8 +1026,16 @@ function renderPartyDetails(label, name, city, pincode, state, mobile, container
 
 // --- RENDER: TRACKING HISTORY ---
 function renderTrackingHistory(order) {
+    const userRole = (typeof getUser === 'function' && getUser().ROLE) || 'GUEST';
+    const isAdmin  = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['ADMIN'] || 90);
+    const resetBtn = isAdmin
+        ? `<button onclick="resetShipmentTracking('${order.REFERENCE}')" title="Reset Tracking (delete all movements)" class="p-1.5 text-orange-500 rounded hover:bg-orange-50">${_resetMovIco}</button>`
+        : '';
     ui.trackingHistoryContainer.innerHTML = `
-        <div class="detail-card-header"><h3 class="font-semibold text-gray-700">Tracking History</h3></div>
+        <div class="detail-card-header flex justify-between items-center">
+            <h3 class="font-semibold text-gray-700">Tracking History</h3>
+            <div class="flex items-center gap-0.5">${resetBtn}</div>
+        </div>
         <div class="detail-card-body"><div id="liveTrackingHistory"><p class="text-sm text-gray-400">Loading…</p></div></div>`;
 }
 
