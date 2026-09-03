@@ -500,11 +500,13 @@ let _sseWatchdog = null;
 
 function _resetWatchdog() {
     clearTimeout(_sseWatchdog);
+    // Server heartbeats every 15s — healthy connection resets this constantly.
+    // 90s = 6 missed heartbeats; reduces reconnect churn on throttled clients.
     _sseWatchdog = setTimeout(() => {
         _sseAbort?.abort();
         _sseDirect = false;
         _openSSEDirect();
-    }, 45000);
+    }, 90000);
 }
 
 async function _openSSEDirect() {

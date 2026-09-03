@@ -15,7 +15,12 @@ let _running  = false;
 
 function _resetWatchdog() {
     clearTimeout(_watchdog);
-    _watchdog = setTimeout(() => { _abort?.abort(); _open(); }, 45000);
+    // Server heartbeats every 15s — a healthy connection resets this constantly.
+    // 90s = 6 missed heartbeats: long enough to survive throttled/backgrounded
+    // clients, short enough to detect a silently dead stream. (Was 45s — that
+    // caused reconnect churn every ~45s on clients that briefly stopped
+    // receiving, which showed up as "stream canceled by remote" in cloudflared.)
+    _watchdog = setTimeout(() => { _abort?.abort(); _open(); }, 90000);
 }
 
 function _broadcast(payload) {
