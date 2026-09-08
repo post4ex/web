@@ -13,6 +13,8 @@ const InputValidator = {
   positive:    (v) => v != null && parseFloat(v) > 0,
   nonNegative: (v) => v != null && parseFloat(v) >= 0,
   uppercase:   (v) => !v || v === v.toUpperCase(),
+  clientCode:  (v) => !v || /^[A-Z]{4}$/.test(v),
+  titleCase:   (v) => !v ? '' : v.replace(/\b\w+/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()),
 
   // Kept from original
   upi:         (v) => !v || /^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/.test(v),
@@ -45,24 +47,51 @@ const FieldValidation = {
 
   b2b(data) {
     const e = {};
-    if (!data.CODE) e.CODE = 'CODE is required';
-    if ('MOBILE_NUMBER' in data && !InputValidator.mobile(data.MOBILE_NUMBER))
-      e.MOBILE_NUMBER = 'MOBILE_NUMBER must be 91XXXXXXXXXX';
-    if ('EMAIL'    in data && !InputValidator.email(data.EMAIL))    e.EMAIL   = 'Invalid EMAIL';
-    if ('GSTIN'    in data && !InputValidator.gstin(data.GSTIN))    e.GSTIN   = 'Invalid GSTIN';
-    if ('PAN'      in data && !InputValidator.pan(data.PAN))        e.PAN     = 'Invalid PAN';
-    if ('AADHAAR'  in data && !InputValidator.aadhar(data.AADHAAR)) e.AADHAAR = 'AADHAAR must be 12 digits';
-    if ('GST_CODE' in data && !InputValidator.gstCode(data.GST_CODE)) e.GST_CODE = 'GST_CODE must be 2 digits';
-    if ('B2B_PINCODE' in data && !InputValidator.pin(data.B2B_PINCODE)) e.B2B_PINCODE = 'B2B_PINCODE must be 6 digits';
-    if ('CREDIT_LIMIT' in data && !InputValidator.nonNegative(data.CREDIT_LIMIT)) e.CREDIT_LIMIT = 'CREDIT_LIMIT must be >= 0';
-    if ('USED_LIMIT'   in data && !InputValidator.nonNegative(data.USED_LIMIT))   e.USED_LIMIT   = 'USED_LIMIT must be >= 0';
-    if ('MAX_USERS_ALLOWED' in data && (isNaN(data.MAX_USERS_ALLOWED) || parseInt(data.MAX_USERS_ALLOWED) <= 0))
+    if (!data.CODE) {
+      e.CODE = 'CODE is required';
+    } else if (!InputValidator.clientCode(data.CODE)) {
+      e.CODE = 'CODE must be 4 uppercase letters (e.g., AGWL)';
+    }
+    if (!data.BRANCH) {
+      e.BRANCH = 'BRANCH is required';
+    } else if (!InputValidator.branchCode(data.BRANCH)) {
+      e.BRANCH = 'BRANCH must be 3 uppercase letters (e.g., DDN)';
+    }
+    if (!data.B2B_NAME) {
+      e.B2B_NAME = 'B2B Name is required';
+    }
+    if (!data.B2B_PINCODE) {
+      e.B2B_PINCODE = 'Pincode is required (6 digits)';
+    } else if (!InputValidator.pin(data.B2B_PINCODE)) {
+      e.B2B_PINCODE = 'B2B_PINCODE must be 6 digits';
+    }
+    if (data.MOBILE_NUMBER && !InputValidator.mobile(data.MOBILE_NUMBER))
+      e.MOBILE_NUMBER = 'MOBILE_NUMBER must be 91XXXXXXXXXX (12 digits)';
+    if (data.EMAIL && !InputValidator.email(data.EMAIL))
+      e.EMAIL = 'Invalid EMAIL';
+    if (data.GSTIN && !InputValidator.gstin(data.GSTIN))
+      e.GSTIN = 'Invalid GSTIN';
+    if (data.PAN && !InputValidator.pan(data.PAN))
+      e.PAN = 'Invalid PAN';
+    if (data.AADHAAR && !InputValidator.aadhar(data.AADHAAR))
+      e.AADHAAR = 'AADHAAR must be 12 digits';
+    if (data.GST_CODE && !InputValidator.gstCode(data.GST_CODE))
+      e.GST_CODE = 'GST_CODE must be 2 digits';
+    if (data.CREDIT_LIMIT !== undefined && data.CREDIT_LIMIT !== '' && data.CREDIT_LIMIT !== null && !InputValidator.nonNegative(data.CREDIT_LIMIT))
+      e.CREDIT_LIMIT = 'CREDIT_LIMIT must be >= 0';
+    if (data.USED_LIMIT !== undefined && data.USED_LIMIT !== '' && data.USED_LIMIT !== null && !InputValidator.nonNegative(data.USED_LIMIT))
+      e.USED_LIMIT = 'USED_LIMIT must be >= 0';
+    if (data.MAX_USERS_ALLOWED && (isNaN(data.MAX_USERS_ALLOWED) || parseInt(data.MAX_USERS_ALLOWED) <= 0))
       e.MAX_USERS_ALLOWED = 'MAX_USERS_ALLOWED must be > 0';
-    if ('MAX_LOGINS_PER_USER' in data && (isNaN(data.MAX_LOGINS_PER_USER) || parseInt(data.MAX_LOGINS_PER_USER) <= 0))
+    if (data.MAX_LOGINS_PER_USER && (isNaN(data.MAX_LOGINS_PER_USER) || parseInt(data.MAX_LOGINS_PER_USER) <= 0))
       e.MAX_LOGINS_PER_USER = 'MAX_LOGINS_PER_USER must be > 0';
-    if ('B2B_TYPE' in data && !['CLIENT','VENDOR','SUPPLIER'].includes(data.B2B_TYPE))
+    if (data.B2B_TYPE && !['CLIENT','VENDOR','SUPPLIER'].includes(String(data.B2B_TYPE).toUpperCase()))
       e.B2B_TYPE = 'Invalid B2B_TYPE';
-    if ('SUBSCRIPTION_TYPE' in data && !['Basic','Standard','Premium','Enterprise'].includes(data.SUBSCRIPTION_TYPE))
+    if (data.STATUS && !['ACTIVE','BLOCKED','QUOTED','INACTIVE','DELETED'].includes(String(data.STATUS).toUpperCase()))
+      e.STATUS = 'Invalid STATUS';
+    if (data.RATE_LIST && !['DYNAMIC','STANDARD','SIMPLIFIED'].includes(String(data.RATE_LIST).toUpperCase()))
+      e.RATE_LIST = 'Invalid RATE_LIST';
+    if (data.SUBSCRIPTION_TYPE && !['BASIC','STANDARD','PREMIUM','ENTERPRISE','Basic','Standard','Premium','Enterprise'].includes(data.SUBSCRIPTION_TYPE))
       e.SUBSCRIPTION_TYPE = 'Invalid SUBSCRIPTION_TYPE';
     return e;
   },

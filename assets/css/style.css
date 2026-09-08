@@ -4780,3 +4780,16 @@ html.needs-sync body::after {
 .ct-red     { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fef2f2 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #fee2e2 100%); --tile-border: #fecaca; --tile-accent: #DC2626; --icon-grad: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); --icon-shadow: rgba(220, 38, 38, 0.25); }
 .ct-rose    { --tile-bg: linear-gradient(180deg, #ffffff 15%, #fff1f2 100%); --tile-hover-bg: linear-gradient(180deg, #ffffff 0%, #ffe4e6 100%); --tile-border: #fecdd3; --tile-accent: #E11D48; --icon-grad: linear-gradient(135deg, #e11d48 0%, #fb7185 100%); --icon-shadow: rgba(225, 29, 72, 0.25); }
 
+
+/* ── B2B client form: mobile field pairs ─────────────────────────────────── */
+/* Each pair becomes a ratio grid on phones; on md+ the wrapper collapses
+   (display:contents) so children flow back into the original 4-col grid.  */
+.cf-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; min-width: 0; }
+.cf-pair > div { min-width: 0; }
+.cf-pair.p23 { grid-template-columns: 2fr 3fr; }
+.cf-pair.p31 { grid-template-columns: 3fr 1fr; }
+.cf-pair.p13 { grid-template-columns: 1fr 3fr; }
+.cf-pair.p11 { grid-template-columns: 1fr 1fr; }
+@media (min-width: 768px) {
+    .cf-pair { display: contents; }
+}

@@ -34,7 +34,11 @@ function buildBookingPayload(consignmentBoxes, consignmentProducts, summaryTotal
         CONSIGNEE:      cleanValue(document.getElementById('display_consignee').textContent),
         DEST_CITY:      cleanValue(document.getElementById('display_dest_city').textContent),
         DEST_PINCODE:   cleanValue(document.getElementById('display_dest_pincode').textContent),
-        TAT:            cleanValue(document.getElementById('display_tat').textContent),
+        // TAT is a double precision column in ORDERS — must be numeric. The
+        // summary shows '---'/'N' when the receiver has no TAT for the mode;
+        // sending that raw string made the DB insert fail with
+        // 'invalid input syntax for type double precision'.
+        TAT:            cleanValue(document.getElementById('display_tat').textContent, 'float'),
         ZONE:           cleanValue(document.getElementById('display_zone').textContent),
         MODE:           cleanValue(document.getElementById('display_mode').textContent),
         GLOBAL:         cleanValue(document.getElementById('display_global').textContent),

@@ -13,9 +13,25 @@ async function _b2bFetch(endpoint, payload = {}, method = 'POST') {
     if (method !== 'GET') options.body = JSON.stringify(payload);
     const res = await fetch(endpoint, options);
     let json = {};
-    try { json = await res.json(); } catch { /* empty */ }
-    if (!res.ok) throw new Error(json.detail || json.message || `Request failed (${res.status})`);
-    if (json.status === 'error') throw new Error(json.message || 'Request failed');
+    try {
+        const raw = await res.json();
+        json = raw || {};
+    } catch { /* empty */ }
+    if (!res.ok) {
+        // FastAPI validation errors (422) return detail as an array of objects —
+        // throw-ning it raw makes the UI show "[object Object]...". Flatten to text.
+        let msg = '';
+        if (Array.isArray(json.detail)) {
+            msg = json.detail.map(d => {
+                const where = Array.isArray(d.loc) ? d.loc.slice(1).join('.') : '';
+                return where ? `${where}: ${d.msg}` : d.msg;
+            }).join('; ');
+        } else {
+            msg = json.detail || json.message || '';
+        }
+        throw new Error(msg || `Request failed (${res.status})`);
+    }
+    if (json && json.status === 'error') throw new Error(json.message || 'Request failed');
     return json;
 }
 

@@ -63,8 +63,8 @@ const AdminClients = (() => {
         const ul = document.getElementById('clientsList');
         if (!ul) return;
         const entries = Object.values(customers || {})
-            .filter(c => c.STATUS !== 'DELETED')
-            .sort((a, b) => (a.CODE || '').localeCompare(b.CODE || ''));
+            .filter(c => c && c.STATUS !== 'DELETED')
+            .sort((a, b) => ((a && a.CODE) || '').localeCompare((b && b.CODE) || ''));
         if (!entries.length) {
             ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No clients found.</li>';
             return;
@@ -87,10 +87,10 @@ const AdminClients = (() => {
     function search(term) {
         const t = (term || '').toLowerCase();
         const filtered = {};
-        Object.entries(_allCustomers).forEach(([k, c]) => {
-            if (c.STATUS !== 'DELETED' &&
-                ((c.B2B_NAME || '').toLowerCase().includes(t) ||
-                 (c.CODE || '').toLowerCase().includes(t))) filtered[k] = c;
+        Object.entries(_allCustomers || {}).forEach(([k, c]) => {
+            if (c && c.STATUS !== 'DELETED' &&
+                (((c.B2B_NAME || '').toLowerCase().includes(t)) ||
+                 ((c.CODE || '').toLowerCase().includes(t)))) filtered[k] = c;
         });
         _renderList(filtered);
     }
@@ -147,7 +147,7 @@ const AdminClients = (() => {
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div class="md:col-span-1">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Code*</label>
-                                    <input name="CODE" id="clientsCode" required class="form-input uppercase" placeholder="e.g., AGWL">
+                                    <input name="CODE" id="clientsCode" required maxlength="4" class="form-input uppercase" placeholder="e.g., AGWL">
                                 </div>
                                 <div class="md:col-span-3">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">B2B Name*</label>
@@ -157,7 +157,7 @@ const AdminClients = (() => {
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
                                     <div class="flex gap-2">
                                         <input name="MOBILE_CC" class="form-input" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" value="91">
-                                        <input name="MOBILE_NUM" type="tel" class="form-input flex-1" placeholder="Number">
+                                        <input name="MOBILE_NUM" type="tel" class="form-input flex-1" placeholder="10-digit Number" maxlength="10">
                                     </div>
                                 </div>
                                 <div class="md:col-span-3">
@@ -166,75 +166,84 @@ const AdminClients = (() => {
                                 </div>
                                 <div class="md:col-span-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">B2B Address</label>
-                                    <input name="B2B_ADDRESS" class="form-input">
+                                    <input name="B2B_ADDRESS" class="form-input" placeholder="Building, Street Name">
                                 </div>
                                 <div class="md:col-span-1">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
-                                    <input name="B2B_LANDMARK" class="form-input">
+                                    <input name="B2B_LANDMARK" class="form-input" placeholder="Near Landmark">
                                 </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
-                                    <input name="B2B_PINCODE" id="clientsPincode" class="form-input" maxlength="6">
+                                <div class="cf-pair p23">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Pincode*</label>
+                                        <input name="B2B_PINCODE" id="clientsPincode" required class="form-input" maxlength="6" placeholder="e.g., 248001">
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                        <input name="B2B_CITY" id="clientsCity" class="form-input" placeholder="City">
+                                    </div>
                                 </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                                    <input name="B2B_CITY" id="clientsCity" class="form-input">
+                                <div class="cf-pair p31">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                        <input name="B2B_STATE" id="clientsState" class="form-input" placeholder="State">
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Code State</label>
+                                        <input name="CODE_STATE" id="clientsCodeState" class="form-input uppercase" maxlength="2" placeholder="e.g., UT">
+                                    </div>
                                 </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
-                                    <input name="B2B_STATE" id="clientsState" class="form-input">
+                                <div class="cf-pair p13">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">GST Code</label>
+                                        <input name="GST_CODE" id="clientsGstCode" class="form-input" maxlength="2" placeholder="e.g., 05">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
+                                        <input name="GSTIN" class="form-input uppercase" maxlength="15" placeholder="22AAAAA0000A1Z5">
+                                    </div>
                                 </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Code State</label>
-                                    <input name="CODE_STATE" id="clientsCodeState" class="form-input" maxlength="2">
+                                <div class="cf-pair p23">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">PAN</label>
+                                        <input name="PAN" class="form-input uppercase" maxlength="10" placeholder="AAAAA0000A">
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Aadhaar</label>
+                                        <input name="AADHAAR" class="form-input" maxlength="12" placeholder="12-digit number">
+                                    </div>
                                 </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">GST Code</label>
-                                    <input name="GST_CODE" id="clientsGstCode" class="form-input" maxlength="2">
+                                <div class="cf-pair p11">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Branch*</label>
+                                        <input name="BRANCH" required maxlength="3" class="form-input uppercase" placeholder="e.g., DDN">
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">B2B Type</label>
+                                        <select name="B2B_TYPE" class="form-input">
+                                            <option value="CLIENT">CLIENT</option>
+                                            <option value="SUPPLIER">SUPPLIER</option>
+                                            <option value="VENDOR">VENDOR</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
-                                    <input name="GSTIN" class="form-input uppercase" maxlength="15" placeholder="22AAAAA0000A1Z5">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">PAN</label>
-                                    <input name="PAN" class="form-input uppercase" maxlength="10" placeholder="AAAAA0000A">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Aadhaar</label>
-                                    <input name="AADHAAR" class="form-input" maxlength="12" placeholder="12-digit number">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch*</label>
-                                    <input name="BRANCH" required class="form-input uppercase" placeholder="e.g., DDN">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">B2B Type</label>
-                                    <select name="B2B_TYPE" class="form-input">
-                                        <option value="CLIENT">CLIENT</option>
-                                        <option value="SUPPLIER">SUPPLIER</option>
-                                        <option value="VENDOR">VENDOR</option>
-                                    </select>
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Status*</label>
-                                    <select name="STATUS" required class="form-input">
-                                        <option value="ACTIVE">ACTIVE</option>
-                                        <option value="BLOCKED">BLOCKED</option>
-                                        <option value="QUOTED">QUOTED</option>
-                                        <option value="DELETED">DELETED</option>
-                                    </select>
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Clearing Charge</label>
-                                    <input type="number" step="any" name="CLEARING_CHG" class="form-input" placeholder="e.g., 50">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Rate List Type*</label>
-                                    <select name="RATE_LIST" required class="form-input">
-                                        <option value="SIMPLIFIED">SIMPLIFIED</option>
-                                        <option value="DYNAMIC">DYNAMIC</option>
-                                    </select>
+                                <div class="cf-pair p11">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Status*</label>
+                                        <select name="STATUS" required class="form-input">
+                                            <option value="ACTIVE">ACTIVE</option>
+                                            <option value="BLOCKED">BLOCKED</option>
+                                            <option value="QUOTED">QUOTED</option>
+                                            <option value="INACTIVE">INACTIVE</option>
+                                        </select>
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Rate List Type*</label>
+                                        <select name="RATE_LIST" required class="form-input">
+                                            <option value="STANDARD">STANDARD</option>
+                                            <option value="DYNAMIC">DYNAMIC</option>
+                                            <option value="SIMPLIFIED">SIMPLIFIED</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             <h3 class="text-md font-semibold text-indigo-600 mt-5 mb-3 border-t pt-4">Charges &amp; Settings</h3>
@@ -245,15 +254,15 @@ const AdminClients = (() => {
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">% TO-PAY</label>
-                                    <input type="number" step="0.001" min="0" name="PCT_TOPAY_IF" class="form-input" placeholder="e.g., 0.03">
+                                    <input type="number" step="any" min="0" name="PCT_TOPAY_IF" class="form-input" placeholder="e.g., 3">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">% COD</label>
-                                    <input type="number" step="0.001" min="0" name="PCT_COD_IF" class="form-input" placeholder="e.g., 0.005">
+                                    <input type="number" step="any" min="0" name="PCT_COD_IF" class="form-input" placeholder="e.g., 0.5">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">% FOV</label>
-                                    <input type="number" step="0.001" min="0" name="PCT_FOV_IF" class="form-input" placeholder="e.g., 0.02">
+                                    <input type="number" step="any" min="0" name="PCT_FOV_IF" class="form-input" placeholder="e.g., 0.2">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">E-Way Charge</label>
@@ -268,12 +277,16 @@ const AdminClients = (() => {
                                     <input type="number" step="any" min="0" name="PACKING_CHARGES" class="form-input" placeholder="e.g., 0">
                                 </div>
                                 <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Clearing Charge</label>
+                                    <input type="number" step="any" min="0" name="CLEARING_CHG" class="form-input" placeholder="e.g., 50">
+                                </div>
+                                <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Fuel Charge %</label>
-                                    <input type="number" step="any" min="0" name="FUEL_CHARGES" class="form-input" placeholder="e.g., 0.125">
+                                    <input type="number" step="any" min="0" name="FUEL_CHARGES" class="form-input" placeholder="e.g., 10">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Dev. Charge %</label>
-                                    <input type="number" step="any" min="0" name="DEV_CHARGES" class="form-input" placeholder="e.g., 0.05">
+                                    <input type="number" step="any" min="0" name="DEV_CHARGES" class="form-input" placeholder="e.g., 5">
                                 </div>
                                 <div class="flex items-center space-x-2 pt-5">
                                     <input type="checkbox" id="clientsGstIncCheck" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
@@ -321,11 +334,10 @@ const AdminClients = (() => {
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Subscription Type</label>
                                     <select name="SUBSCRIPTION_TYPE" class="form-input">
-                                        <option value="">— Select —</option>
-                                        <option value="Basic">Basic</option>
-                                        <option value="Standard">Standard</option>
-                                        <option value="Premium">Premium</option>
-                                        <option value="Enterprise">Enterprise</option>
+                                        <option value="BASIC">BASIC</option>
+                                        <option value="STANDARD">STANDARD</option>
+                                        <option value="PREMIUM">PREMIUM</option>
+                                        <option value="ENTERPRISE">ENTERPRISE</option>
                                     </select>
                                 </div>
                             </div>
@@ -566,7 +578,7 @@ const AdminClients = (() => {
         const headerTitle = document.getElementById('clientsViewTitle');
         if (headerTitle) headerTitle.textContent = 'B2B Customers Overview';
 
-        const customers = Object.values(_allCustomers).filter(c => c.STATUS !== 'DELETED');
+        const customers = Object.values(_allCustomers || {}).filter(c => c && c.STATUS !== 'DELETED');
 
         let html = `
             <div class="overflow-x-auto">
@@ -715,11 +727,11 @@ const AdminClients = (() => {
                 <h3 class="text-md font-semibold text-indigo-600 mb-3">Charges & Settings</h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div><span class="font-semibold text-gray-600">Weight Change:</span> ${c.WEIGHT_CHANGE||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">% TO-PAY:</span> ${c.PCT_TOPAY_IF||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">% COD:</span> ${c.PCT_COD_IF||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">% FOV:</span> ${c.PCT_FOV_IF||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Fuel %:</span> ${c.FUEL_CHARGES||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Dev %:</span> ${c.DEV_CHARGES||'-'}</div>
+                    <div><span class="font-semibold text-gray-600">% TO-PAY:</span> ${c.PCT_TOPAY_IF != null && c.PCT_TOPAY_IF !== '' ? (parseFloat(c.PCT_TOPAY_IF) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
+                    <div><span class="font-semibold text-gray-600">% COD:</span> ${c.PCT_COD_IF != null && c.PCT_COD_IF !== '' ? (parseFloat(c.PCT_COD_IF) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
+                    <div><span class="font-semibold text-gray-600">% FOV:</span> ${c.PCT_FOV_IF != null && c.PCT_FOV_IF !== '' ? (parseFloat(c.PCT_FOV_IF) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
+                    <div><span class="font-semibold text-gray-600">Fuel %:</span> ${c.FUEL_CHARGES != null && c.FUEL_CHARGES !== '' ? (parseFloat(c.FUEL_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
+                    <div><span class="font-semibold text-gray-600">Dev %:</span> ${c.DEV_CHARGES != null && c.DEV_CHARGES !== '' ? (parseFloat(c.DEV_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
                     <div><span class="font-semibold text-gray-600">AWB Charge:</span> ${c.AWB_CHARGES||'-'}</div>
                     <div><span class="font-semibold text-gray-600">GST Inc:</span> ${c.GST_INC==='Y'?'Yes':'No'}</div>
                     <div><span class="font-semibold text-gray-600">Bill Cycle:</span> ${c.BILL_CYCLE||'-'}</div>
@@ -793,7 +805,13 @@ const AdminClients = (() => {
                 return;
             }
             const el = [...inputs].find(i => i.getAttribute('name') === k);
-            if (el) el.value = v || '';
+            if (el) {
+                if (PERCENT_FIELDS.includes(k) && v != null && v !== '') {
+                    el.value = (parseFloat(v) * 100).toFixed(4).replace(/\.?0+$/, '');
+                } else {
+                    el.value = v || '';
+                }
+            }
         });
         const codeEl = document.getElementById('clientsCode');
         codeEl.value    = _currentCode;
@@ -816,8 +834,40 @@ const AdminClients = (() => {
         document.getElementById('clientsEditContainer').classList.remove('hidden');
         document.getElementById('clientsMsg').classList.add('hidden');
         document.getElementById('clientsFormTitle').textContent = 'New Client';
-        document.getElementById('clientsForm').reset();
-        document.getElementById('clientsGstInc').value = 'N';
+        
+        const form = document.getElementById('clientsForm');
+        form.reset();
+        _clearFieldErrors(form);
+
+        const setVal = (name, val) => {
+            const el = form.querySelector(`[name="${name}"]`);
+            if (el) el.value = val;
+        };
+
+        // Defaults requested:
+        setVal('FUEL_CHARGES', '10');
+        setVal('DEV_CHARGES', '5');
+        setVal('PCT_TOPAY_IF', '0.3');
+        setVal('PCT_COD_IF', '0.3');
+        setVal('PCT_FOV_IF', '0.02');
+        setVal('AWB_CHARGES', '0');
+        setVal('PACKING_CHARGES', '0');
+        setVal('CLEARING_CHG', '0');
+        setVal('EWAY_IF', '0');
+        setVal('WEIGHT_CHANGE', '0');
+        setVal('CREDIT_LIMIT', '0');
+        setVal('MAX_USERS_ALLOWED', '1');
+        setVal('MAX_LOGINS_PER_USER', '1');
+        setVal('GST_INC', 'N');
+        setVal('B2B_TYPE', 'CLIENT');
+        setVal('STATUS', 'ACTIVE');
+        setVal('RATE_LIST', 'STANDARD');
+        setVal('SUBSCRIPTION_TYPE', 'BASIC');
+        setVal('MOBILE_CC', '91');
+
+        const gstCheck = document.getElementById('clientsGstIncCheck');
+        if (gstCheck) gstCheck.checked = false;
+
         const codeEl = document.getElementById('clientsCode');
         codeEl.readOnly = false;
         document.getElementById('clientsSubmitText').textContent = 'Save Customer';
@@ -833,13 +883,18 @@ const AdminClients = (() => {
     // ── Validation ────────────────────────────────────────────────────────────
     // field name → [validator fn, error message]
     const FIELD_VALIDATORS = {
-        'MOBILE_NUM':  [v => !v || window.InputValidator.mobile('91' + v.replace(/^91/, '')), 'Invalid mobile number'],
-        'EMAIL':       [v => window.InputValidator.email(v),    'Invalid email address'],
-        'B2B_PINCODE': [v => window.InputValidator.pin(v),      'Invalid pincode (6 digits)'],
-        'BRANCH':      [v => window.InputValidator.branchCode(v.toUpperCase()), 'Branch must be 3 uppercase letters (e.g., DDN)'],
-        'GSTIN':       [v => window.InputValidator.gstin(v.toUpperCase()),  'Invalid GSTIN'],
-        'PAN':         [v => window.InputValidator.pan(v.toUpperCase()),    'Invalid PAN'],
-        'AADHAAR':     [v => window.InputValidator.aadhar(v),              'Aadhaar must be 12 digits'],
+        'CODE':        [v => !!v.trim() && (window.InputValidator?.clientCode ? window.InputValidator.clientCode(v.trim().toUpperCase()) : /^[A-Z]{4}$/.test(v.trim().toUpperCase())), 'Code must be 4 uppercase letters (e.g., AGWL)'],
+        'BRANCH':      [v => !!v.trim() && (window.InputValidator?.branchCode ? window.InputValidator.branchCode(v.trim().toUpperCase()) : /^[A-Z]{3}$/.test(v.trim().toUpperCase())), 'Branch must be 3 uppercase letters (e.g., DDN)'],
+        'B2B_NAME':    [v => !!v.trim(), 'B2B Name is required'],
+        'B2B_PINCODE': [v => !!v.trim() && (window.InputValidator?.pin ? window.InputValidator.pin(v.trim()) : /^[0-9]{6}$/.test(v.trim())), 'Pincode is required (6 digits)'],
+        'MOBILE_NUM':  [v => !v || (window.InputValidator?.mobile ? window.InputValidator.mobile('91' + v.replace(/^91/, '')) : /^[0-9]{10}$/.test(v)), 'Invalid mobile number (10 digits)'],
+        'EMAIL':       [v => !v || (window.InputValidator?.email ? window.InputValidator.email(v.trim()) : /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/i.test(v.trim())), 'Invalid email address'],
+        'GSTIN':       [v => !v || (window.InputValidator?.gstin ? window.InputValidator.gstin(v.trim().toUpperCase()) : /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v.trim().toUpperCase())), 'Invalid GSTIN format (15 characters)'],
+        'PAN':         [v => !v || (window.InputValidator?.pan ? window.InputValidator.pan(v.trim().toUpperCase()) : /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.trim().toUpperCase())), 'Invalid PAN format (10 characters)'],
+        'AADHAAR':     [v => !v || (window.InputValidator?.aadhar ? window.InputValidator.aadhar(v.trim()) : /^[0-9]{12}$/.test(v.trim())), 'Aadhaar must be 12 digits'],
+        'CREDIT_LIMIT': [v => v === '' || v == null || (window.InputValidator?.nonNegative ? window.InputValidator.nonNegative(v) : parseFloat(v) >= 0), 'Credit limit must be >= 0'],
+        'MAX_USERS_ALLOWED': [v => v === '' || v == null || parseInt(v) > 0, 'Max users must be > 0'],
+        'MAX_LOGINS_PER_USER': [v => v === '' || v == null || parseInt(v) > 0, 'Max logins must be > 0'],
     };
 
     function _showFieldError(input, msg) {
@@ -879,14 +934,25 @@ const AdminClients = (() => {
         e.preventDefault();
         const form = document.getElementById('clientsForm');
         if (!_validateForm(form)) return;
-        // uppercase required fields
-        ['CODE', 'BRANCH', 'B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE', 'GSTIN', 'PAN', 'CODE_STATE'].forEach(n => {
+        // uppercase code and tax fields
+        ['CODE', 'BRANCH', 'GSTIN', 'PAN', 'CODE_STATE'].forEach(n => {
             const el = form.querySelector(`[name="${n}"]`);
-            if (el && el.value) el.value = el.value.toUpperCase();
+            if (el && el.value) el.value = el.value.trim().toUpperCase();
+        });
+        // Title-case names and addresses
+        ['B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE'].forEach(n => {
+            const el = form.querySelector(`[name="${n}"]`);
+            if (el && el.value) {
+                el.value = window.InputValidator?.titleCase ? window.InputValidator.titleCase(el.value.trim()) : el.value.trim();
+            }
         });
         const data = {};
         new FormData(form).forEach((v, k) => {
-            data[k] = PERCENT_FIELDS.includes(k) && v !== '' ? parseFloat(v) / 100 : (v || '');
+            if (PERCENT_FIELDS.includes(k)) {
+                data[k] = v !== '' && v != null ? parseFloat(v) / 100 : 0.0;
+            } else {
+                data[k] = v || '';
+            }
         });
         // combine country code + number into MOBILE_NUMBER — no hyphen
         const cc  = (data.MOBILE_CC  || '91').trim();
@@ -911,20 +977,34 @@ const AdminClients = (() => {
             const action = _isUpdate ? 'update_client' : 'new_client';
             const writeToken = await _requestOtp(data.CODE || _currentCode, action);
             btn.disabled = true; spinner.classList.remove('hidden');
-            await b2bWrite(data, _isUpdate ? _currentCode : null, writeToken);
-            if (!_isUpdate) {
-                _currentCode = data.CODE;
-                _isUpdate    = true;
-                document.getElementById('clientsCode').readOnly = true;
-                document.getElementById('clientsSubmitText').textContent = 'Update Customer';
-                document.getElementById('clientsCancelBtn').classList.remove('hidden');
-                const ratesTab = document.getElementById('clientsTabRates');
-                ratesTab.disabled = false;
-                document.getElementById('clientsRateCode').textContent = _currentCode;
+            const res = await b2bWrite(data, _isUpdate ? _currentCode : null, writeToken);
+            const saved = res?.record || data;
+            const clientCode = (data.CODE || _currentCode || '').toUpperCase();
+
+            // Merge into local cache
+            _allCustomers[clientCode] = { ...(_allCustomers[clientCode] || {}), ...saved, CODE: clientCode };
+
+            // Merge directly into IndexedDB
+            if (window.appDB && window.appDB.db) {
+                window.appDB.bulkMerge({ 'B2B': { [clientCode]: _allCustomers[clientCode] } }).catch(() => {});
             }
-            _msg('Client saved successfully.', 'success');
+
+            _currentCode = clientCode;
+            _isUpdate    = true;
+
+            // Re-render list
+            _renderList(_allCustomers);
+
+            // Revert back to customer view
+            document.getElementById('clientsEditContainer').classList.add('hidden');
+            document.getElementById('clientsViewContainer').classList.remove('hidden');
+            _selectClient(clientCode);
+            _viewMsg('Client saved successfully.', 'success');
+            if (typeof showNotification === 'function') {
+                showNotification(`✅ Client ${clientCode} updated successfully`, 'success');
+            }
         } catch (err) {
-            _msg(err.message, 'error');
+            if (err.message !== 'cancelled') _msg(err.message, 'error');
         } finally {
             btn.disabled = false; spinner.classList.add('hidden');
         }
@@ -1257,6 +1337,28 @@ const AdminClients = (() => {
             }
         });
 
+        // Auto-uppercase code & tax fields on typing
+        ['CODE', 'BRANCH', 'GSTIN', 'PAN', 'CODE_STATE'].forEach(name => {
+            const el = document.querySelector(`#clientsForm [name="${name}"]`);
+            if (el) {
+                el.addEventListener('input', () => {
+                    el.value = el.value.toUpperCase();
+                });
+            }
+        });
+
+        // Auto-title-case Name, Address, Landmark, City, State on blur
+        ['B2B_NAME', 'B2B_ADDRESS', 'B2B_LANDMARK', 'B2B_CITY', 'B2B_STATE'].forEach(name => {
+            const el = document.querySelector(`#clientsForm [name="${name}"]`);
+            if (el) {
+                el.addEventListener('blur', () => {
+                    if (el.value && window.InputValidator?.titleCase) {
+                        el.value = window.InputValidator.titleCase(el.value.trim());
+                    }
+                });
+            }
+        });
+
         document.getElementById('clientsSetDefaultBtn').addEventListener('click', _setDefaultRates);
         document.getElementById('clientsLoadGroupsBtn').addEventListener('click', () => _loadWpGroups(_getSelectedWpGroups()));
         document.getElementById('clientsRateForm').addEventListener('submit', _handleRateSubmit);
@@ -1292,6 +1394,16 @@ const AdminClients = (() => {
             }
         });
     }
+
+    window.addEventListener('appDataRefreshed', e => {
+        if (window.AdminPage?.getActiveTile() === 'clients' && e.detail?.data) {
+            _handleData(e.detail.data);
+            const isViewing = !document.getElementById('clientsViewContainer')?.classList.contains('hidden');
+            if (isViewing && _currentCode && _allCustomers[_currentCode]) {
+                _selectClient(_currentCode);
+            }
+        }
+    });
 
     // ── Public API ────────────────────────────────────────────────────────────
     return { load, search, openAddPane };
