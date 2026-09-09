@@ -472,7 +472,7 @@ function renderDynamicInputs() {
     const restricted = _getRestrictedTypes();
     if (currentUploadType === null) {
         if (!restricted.includes('POD')) renderPodRow(tbody, orderDetails);
-        if (!uploadStatus.reciept && !restricted.includes('Reciept')) renderReceiptRow(tbody, orderDetails);
+        if (!restricted.includes('Reciept')) renderReceiptRow(tbody, orderDetails);
         if (!restricted.includes('KYC')) renderKycRows(tbody, orderDetails);
         if (!restricted.includes('Product')) renderProductRows(tbody, orderDetails);
         if (!restricted.includes('MultiBox')) renderMultiBoxRow(tbody, orderDetails);
@@ -482,7 +482,7 @@ function renderDynamicInputs() {
                 if (!restricted.includes('POD')) renderPodRow(tbody, orderDetails);
                 break;
             case 'Reciept':
-                if (!uploadStatus.reciept && !restricted.includes('Reciept')) renderReceiptRow(tbody, orderDetails);
+                if (!restricted.includes('Reciept')) renderReceiptRow(tbody, orderDetails);
                 break;
             case 'KYC':
                 if (!restricted.includes('KYC')) renderKycRows(tbody, orderDetails);

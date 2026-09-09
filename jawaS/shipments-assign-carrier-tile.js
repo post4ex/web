@@ -61,14 +61,9 @@ function initAssignCarrierTile(data) {
         return carrierValid && awbValid;
     }
 
-    // --- Real-time validation on blur and input ---
-    carrierSelect.addEventListener('change', _validateCarrier);
-    awbInput.addEventListener('input', _validateAwb);
-    awbInput.addEventListener('blur', _validateAwb);
-
     // --- Barcode Scanner Setup ---
     const awbScanner = document.getElementById('ac-awb-scanner');
-    if (awbScanner) {
+    if (awbScanner && !form._acInitialized) {
         // Handle mobile clipping by moving modal to body-level if needed
         const scanWrap = awbScanner.querySelector('.scan-wrap');
         if (scanWrap) awbScanner.parentElement.after(scanWrap);
@@ -83,6 +78,13 @@ function initAssignCarrierTile(data) {
             responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
             responseMessage.classList.remove('hidden');
         });
+    }
+
+    if (!form._acInitialized) {
+        // --- Real-time validation on blur and input ---
+        carrierSelect.addEventListener('change', _validateCarrier);
+        awbInput.addEventListener('input', _validateAwb);
+        awbInput.addEventListener('blur', _validateAwb);
     }
 
     // --- STATE ---
@@ -145,115 +147,99 @@ function initAssignCarrierTile(data) {
         listEl.classList.remove('hidden');
     }
 
+    form._allShipments = allShipments;
     renderList(allShipments);
 
-    // --- SEARCH ---
-    searchInput.addEventListener('input', () => {
-        const q = searchInput.value.toLowerCase();
-        const filtered = allShipments.filter(s =>
-            String(s.REFERENCE  || '').toLowerCase().includes(q) ||
-            String(s.AWB_NUMBER || '').toLowerCase().includes(q) ||
-            (s.CONSIGNOR || '').toLowerCase().includes(q) ||
-            (s.CONSIGNEE || '').toLowerCase().includes(q)
-        );
-        renderList(filtered);
-    });
+    // --- SEARCH & NAVIGATION & SUBMIT (Only bind once) ---
+    if (!form._acInitialized) {
+        form._acInitialized = true;
 
-    // --- SELECT ---
-    function selectShipment(shipment, li) {
-        if (activeEl) activeEl.classList.remove('selected');
-        li.classList.add('selected');
-        activeEl = li;
-
-        referenceInput.value = shipment.REFERENCE || '';
-        document.getElementById('ac-order-date').value   = fmtDate(shipment.ORDER_DATE, 'input');
-        document.getElementById('ac-transit-date').value = shipment.TRANSIT_DATE && shipment.TRANSIT_DATE !== 0 ? fmtDate(shipment.TRANSIT_DATE, 'input') : '';
-        carrierSelect.value = shipment.CARRIER    || '';
-        awbInput.value      = shipment.AWB_NUMBER || '';
-        document.getElementById('ac-dyna-awb').value = shipment.DYNA_AWB   || '';
-
-        // Clear validation state on new selection
-        _markFieldInvalid(carrierSelect, carrierErrorEl, true);
-        _markFieldInvalid(awbInput, awbErrorEl, true);
-        responseMessage.classList.add('hidden');
-
-        emptyView.classList.add('hidden');
-        formView.classList.remove('hidden');
-        mainPane.classList.remove('hidden');
-        aside.classList.add('hidden');
-        aside.classList.add('md:flex');
-    }
-
-    // mobile back-to-list
-    backToListBtn.addEventListener('click', () => {
-        mainPane.classList.add('hidden');
-        aside.classList.remove('hidden');
-    });
-
-    // back-to-tiles
-    backToTilesBtn.addEventListener('click', () => {
-        document.getElementById('assignCarrierView').style.display = 'none';
-        document.getElementById('tilesView').style.display = 'flex';
-    });
-
-    // --- FORM SUBMIT ---
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        // Run validation before submit
-        if (!_validateForm()) {
-            responseMessage.textContent = 'Please fix the highlighted fields before submitting.';
-            responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
-            responseMessage.classList.remove('hidden');
-            // Focus first invalid field
-            if (carrierSelect.value === '') {
-                carrierSelect.focus();
-            } else {
-                awbInput.focus();
-            }
-            return;
-        }
-
-        submitButton.disabled  = true;
-        buttonText.textContent = 'Updating...';
-        spinner.classList.remove('hidden');
-        responseMessage.classList.add('hidden');
-
-        const reference = referenceInput.value;
-        const fields    = {};
-        const fieldNames = [
-            { name: 'ORDER_DATE',   el: document.getElementById('ac-order-date') },
-            { name: 'TRANSIT_DATE', el: document.getElementById('ac-transit-date') },
-            { name: 'CARRIER',      el: carrierSelect },
-            { name: 'AWB_NUMBER',   el: awbInput },
-            { name: 'DYNA_AWB',     el: document.getElementById('ac-dyna-awb') },
-        ];
-        fieldNames.forEach(({ name, el }) => {
-            if (!el || !el.value) return;
-            if (name === 'ORDER_DATE' || name === 'TRANSIT_DATE') {
-                const ms = toUnix(el.value);
-                if (ms) fields[name] = ms;
-            } else {
-                fields[name] = el.value;
-            }
+        searchInput.addEventListener('input', () => {
+            const q = searchInput.value.toLowerCase();
+            const currentList = form._allShipments || [];
+            const filtered = currentList.filter(s =>
+                String(s.REFERENCE  || '').toLowerCase().includes(q) ||
+                String(s.AWB_NUMBER || '').toLowerCase().includes(q) ||
+                (s.CONSIGNOR || '').toLowerCase().includes(q) ||
+                (s.CONSIGNEE || '').toLowerCase().includes(q)
+            );
+            renderList(filtered);
         });
 
-        try {
-            await updateOrder(reference, fields);
-            responseMessage.textContent = 'Order updated successfully.';
-            responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-green-100 text-green-800';
-            if (activeEl) {
-                activeEl.classList.add('border-green-400', 'bg-green-50');
-                setTimeout(() => activeEl?.classList.remove('border-green-400', 'bg-green-50'), 2000);
+        // mobile back-to-list
+        backToListBtn.addEventListener('click', () => {
+            mainPane.classList.add('hidden');
+            aside.classList.remove('hidden');
+        });
+
+        // back-to-tiles
+        backToTilesBtn.addEventListener('click', () => {
+            document.getElementById('assignCarrierView').style.display = 'none';
+            document.getElementById('tilesView').style.display = 'flex';
+        });
+
+        // --- FORM SUBMIT ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (form._submitting) return;
+
+            // Run validation before submit
+            if (!_validateForm()) {
+                responseMessage.textContent = 'Please fix the highlighted fields before submitting.';
+                responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
+                responseMessage.classList.remove('hidden');
+                // Focus first invalid field
+                if (carrierSelect.value === '') {
+                    carrierSelect.focus();
+                } else {
+                    awbInput.focus();
+                }
+                return;
             }
-        } catch (error) {
-            responseMessage.textContent = `Error: ${error.message}`;
-            responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
-        } finally {
-            submitButton.disabled  = false;
-            buttonText.textContent = 'Update Order';
-            spinner.classList.add('hidden');
-            responseMessage.classList.remove('hidden');
-        }
-    });
+
+            form._submitting       = true;
+            submitButton.disabled  = true;
+            buttonText.textContent = 'Updating...';
+            spinner.classList.remove('hidden');
+            responseMessage.classList.add('hidden');
+
+            const reference = referenceInput.value;
+            const fields    = {};
+            const fieldNames = [
+                { name: 'ORDER_DATE',   el: document.getElementById('ac-order-date') },
+                { name: 'TRANSIT_DATE', el: document.getElementById('ac-transit-date') },
+                { name: 'CARRIER',      el: carrierSelect },
+                { name: 'AWB_NUMBER',   el: awbInput },
+                { name: 'DYNA_AWB',     el: document.getElementById('ac-dyna-awb') },
+            ];
+            fieldNames.forEach(({ name, el }) => {
+                if (!el || !el.value) return;
+                if (name === 'ORDER_DATE' || name === 'TRANSIT_DATE') {
+                    const ms = toUnix(el.value);
+                    if (ms) fields[name] = ms;
+                } else {
+                    fields[name] = el.value;
+                }
+            });
+
+            try {
+                await updateOrder(reference, fields);
+                responseMessage.textContent = 'Order updated successfully.';
+                responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-green-100 text-green-800';
+                if (activeEl) {
+                    activeEl.classList.add('border-green-400', 'bg-green-50');
+                    setTimeout(() => activeEl?.classList.remove('border-green-400', 'bg-green-50'), 2000);
+                }
+            } catch (error) {
+                responseMessage.textContent = `Error: ${error.message}`;
+                responseMessage.className   = 'mt-4 p-4 text-sm rounded-md bg-red-100 text-red-800';
+            } finally {
+                form._submitting       = false;
+                submitButton.disabled  = false;
+                buttonText.textContent = 'Update Order';
+                spinner.classList.add('hidden');
+                responseMessage.classList.remove('hidden');
+            }
+        });
+    }
 }

@@ -541,25 +541,21 @@ return; // Stop here
 
     // --- 3. Populate table based on mode ---
     if (currentUploadType === null) {
-// "All" mode - render every type
-renderPodRow(tableBody, orderDetails); // POD check is already done
-if (!uploadStatus.reciept) { // Check for Reciept
-    renderReceiptRow(tableBody, orderDetails);
-}
-renderKycRows(tableBody, orderDetails);
-renderProductRows(tableBody, orderDetails);
-renderMultiBoxRow(tableBody, orderDetails);
+        // "All" mode - render every type
+        renderPodRow(tableBody, orderDetails); // POD check is already done
+        renderReceiptRow(tableBody, orderDetails); // Multiple receipts allowed
+        renderKycRows(tableBody, orderDetails);
+        renderProductRows(tableBody, orderDetails);
+        renderMultiBoxRow(tableBody, orderDetails);
     } else {
-// "Filter" mode - render only the selected type
-switch (currentUploadType) {
-    case 'POD':
-renderPodRow(tableBody, orderDetails); // POD check is already done
-break;
-    case 'Reciept':
-if (!uploadStatus.reciept) { // Check for Reciept
-    renderReceiptRow(tableBody, orderDetails);
-}
-break;
+        // "Filter" mode - render only the selected type
+        switch (currentUploadType) {
+            case 'POD':
+                renderPodRow(tableBody, orderDetails); // POD check is already done
+                break;
+            case 'Reciept':
+                renderReceiptRow(tableBody, orderDetails); // Multiple receipts allowed
+                break;
     case 'KYC':
 renderKycRows(tableBody, orderDetails);
 break;
