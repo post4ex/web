@@ -150,8 +150,11 @@ function handleAssignCarrierTile() {
     document.getElementById('assignCarrierView').style.display = 'flex';
     // Initialize if not already done
     if (typeof initAssignCarrierTile === 'function') {
-        initAssignCarrierTile(window._acData || null);
-        window._acData = null; // clear so next data refresh sets it fresh
+        const d = window._acData || window._lastAcData || (typeof appData !== 'undefined' ? appData : null);
+        if (d) {
+            window._lastAcData = d;
+            initAssignCarrierTile(d);
+        }
     }
 }
 

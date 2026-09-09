@@ -4,7 +4,11 @@
 // Depends on: core/assign-carrier-api.js (updateOrder)
 
 function initAssignCarrierTile(data) {
+    if (!data) {
+        data = window._lastAcData || window.appData || null;
+    }
     if (!data) return;
+    window._lastAcData = data;
 
     // --- DOM refs ---
     const form            = document.getElementById('ac-form');
@@ -112,12 +116,45 @@ function initAssignCarrierTile(data) {
     }));
 
     // --- Filter incomplete (no carrier OR no AWB) ---
-    const byDate   = (a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0);
-    const cutoff   = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const recent   = processed.filter(s => (parseDate(s.ORDER_DATE)?.getTime() || 0) >= cutoff);
-    const incomplete = recent.filter(s => !s.CARRIER || !s.AWB_NUMBER).sort(byDate);
-    const complete   = recent.filter(s =>  s.CARRIER && s.AWB_NUMBER).sort(byDate);
+    const byDate     = (a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0);
+    const cutoff     = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recent     = processed.filter(s => (parseDate(s.ORDER_DATE)?.getTime() || 0) >= cutoff);
+    // Incomplete orders must NEVER be hidden just because they are older than 30 days
+    const incomplete = processed.filter(s => !s.CARRIER || !s.AWB_NUMBER).sort(byDate);
+    const complete   = (recent.length ? recent : processed).filter(s => s.CARRIER && s.AWB_NUMBER).sort(byDate);
     allShipments     = [...incomplete, ...complete];
+    if (!allShipments.length && processed.length) {
+        allShipments = processed.slice(0, 100).sort(byDate);
+    }
+
+    // --- SELECT ---
+    function selectShipment(shipment, li) {
+        if (activeEl) activeEl.classList.remove('selected');
+        li.classList.add('selected');
+        activeEl = li;
+
+        referenceInput.value = shipment.REFERENCE || '';
+        const orderDateEl    = document.getElementById('ac-order-date');
+        const transitDateEl  = document.getElementById('ac-transit-date');
+        const dynaAwbEl      = document.getElementById('ac-dyna-awb');
+
+        if (orderDateEl)   orderDateEl.value   = fmtDate(shipment.ORDER_DATE, 'input');
+        if (transitDateEl) transitDateEl.value = shipment.TRANSIT_DATE && shipment.TRANSIT_DATE !== 0 ? fmtDate(shipment.TRANSIT_DATE, 'input') : '';
+        carrierSelect.value = shipment.CARRIER    || '';
+        awbInput.value      = shipment.AWB_NUMBER || '';
+        if (dynaAwbEl)     dynaAwbEl.value     = shipment.DYNA_AWB   || '';
+
+        // Clear validation state on new selection
+        _markFieldInvalid(carrierSelect, carrierErrorEl, true);
+        _markFieldInvalid(awbInput, awbErrorEl, true);
+        responseMessage.classList.add('hidden');
+
+        emptyView.classList.add('hidden');
+        formView.classList.remove('hidden');
+        mainPane.classList.remove('hidden');
+        aside.classList.add('hidden');
+        aside.classList.add('md:flex');
+    }
 
     // --- RENDER ---
     function renderList(orders) {
