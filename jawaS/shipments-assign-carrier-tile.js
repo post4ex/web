@@ -115,17 +115,17 @@ function initAssignCarrierTile(data) {
         CONSIGNEE: nameLookup.get(s.CONSIGNEE) || s.CONSIGNEE,
     }));
 
-    // --- Filter incomplete (no carrier OR no AWB) ---
-    const byDate     = (a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0);
-    const cutoff     = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const recent     = processed.filter(s => (parseDate(s.ORDER_DATE)?.getTime() || 0) >= cutoff);
-    // Incomplete orders must NEVER be hidden just because they are older than 30 days
-    const incomplete = processed.filter(s => !s.CARRIER || !s.AWB_NUMBER).sort(byDate);
-    const complete   = (recent.length ? recent : processed).filter(s => s.CARRIER && s.AWB_NUMBER).sort(byDate);
-    allShipments     = [...incomplete, ...complete];
-    if (!allShipments.length && processed.length) {
-        allShipments = processed.slice(0, 100).sort(byDate);
-    }
+    // --- 1. Filter: Last 30 Days (with fallback if no recent orders exist) ---
+    const byDate       = (a, b) => (parseDate(b.ORDER_DATE)?.getTime() || 0) - (parseDate(a.ORDER_DATE)?.getTime() || 0);
+    const cutoff       = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const within30Days = processed.filter(s => (parseDate(s.ORDER_DATE)?.getTime() || 0) >= cutoff);
+    const targetPool   = within30Days.length ? within30Days : processed;
+
+    // --- 2. Prioritize: No AWB first, followed by orders with AWB (newest to oldest) ---
+    const isNoAwb      = s => !String(s.AWB_NUMBER || '').trim() || !String(s.CARRIER || '').trim();
+    const noAwbOrders  = targetPool.filter(isNoAwb).sort(byDate);
+    const hasAwbOrders = targetPool.filter(s => !isNoAwb(s)).sort(byDate);
+    allShipments       = [...noAwbOrders, ...hasAwbOrders];
 
     // --- SELECT ---
     function selectShipment(shipment, li) {
