@@ -72,9 +72,11 @@ function _isOverdueTat(order) {
     // Exclude delivered orders
     const s = shipmentsDataMap.get(order.REFERENCE);
     const state = s?.state || s?.STATE || null;
-    if (state === 'delivered') return false;
+    if (_isDelivered(state)) return false;
     return true;
 }
+
+const _isDelivered = st => st === 'delivered' || st === 'likelydelivered';
 
 function _isNewBooking(order) {
     // New Bookings = no carrier/awb AND order date within 24 hours
@@ -98,7 +100,7 @@ function updateTileCounts(orders) {
         const state = s?.state || s?.STATE || null;
 
         // Exclude delivered from: To Pay, COD, FOV, Heavy, High Value
-        const isDelivered = state === 'delivered';
+        const isDelivered = _isDelivered(state);
 
         if (o.TOPAY === 'Yes' && !isDelivered) counts.topay++;
         if (o.COD && parseFloat(o.COD) > 0 && !isDelivered) counts.cod++;
@@ -109,10 +111,10 @@ function updateTileCounts(orders) {
         // New tiles
         if (state === 'exception') counts.exceptions++;
         if (state === 'outfordelivery') counts.ofd++;
-        if (state === 'delivered') counts.delivered++;
+        if (isDelivered) counts.delivered++;
         if (_isNewBooking(o)) counts['new-bookings']++;
         if (o.FOV === 'Yes' && !isDelivered) counts.fov++;
-        if (state === 'delivered' && !_hasPODUpload(o.REFERENCE)) counts['pending-pod']++;
+        if (isDelivered && !_hasPODUpload(o.REFERENCE)) counts['pending-pod']++;
     });
     // Assign Carrier count = shipments where !CARRIER || !AWB_NUMBER (within 30 days, matching tile view)
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -182,19 +184,19 @@ function _tileFilterMatch(order) {
     if (activeTileFilter === 'topay') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return order.TOPAY === 'Yes' && state !== 'delivered';
+        return order.TOPAY === 'Yes' && !_isDelivered(state);
     }
     if (activeTileFilter === 'cod') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return order.COD && parseFloat(order.COD) > 0 && state !== 'delivered';
+        return order.COD && parseFloat(order.COD) > 0 && !_isDelivered(state);
     }
     if (activeTileFilter === 'tat') {
         if (!_isTatDue(order)) return false;
         if (activeTatFilter) {
             const st = tatTrackStatuses.get(order.REFERENCE);
-            if (activeTatFilter === 'intransit') return st && st !== 'delivered' && st !== 'outfordelivery';
-            return st === activeTatFilter;
+            if (activeTatFilter === 'intransit') return st && !_isDelivered(st) && st !== 'outfordelivery';
+            return activeTatFilter === 'delivered' ? _isDelivered(st) : st === activeTatFilter;
         }
         return true;
     }
@@ -202,20 +204,20 @@ function _tileFilterMatch(order) {
         if (!_isOverdueTat(order)) return false;
         if (activeTatFilter) {
             const st = tatTrackStatuses.get(order.REFERENCE);
-            if (activeTatFilter === 'intransit') return st && st !== 'delivered' && st !== 'outfordelivery';
-            return st === activeTatFilter;
+            if (activeTatFilter === 'intransit') return st && !_isDelivered(st) && st !== 'outfordelivery';
+            return activeTatFilter === 'delivered' ? _isDelivered(st) : st === activeTatFilter;
         }
         return true;
     }
     if (activeTileFilter === 'heavy') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return parseFloat(order.WEIGHT) > 25 && state !== 'delivered';
+        return parseFloat(order.WEIGHT) > 25 && !_isDelivered(state);
     }
     if (activeTileFilter === 'highvalue') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return parseFloat(order.VALUE)  > 100000 && state !== 'delivered';
+        return parseFloat(order.VALUE)  > 100000 && !_isDelivered(state);
     }
     // New tiles
     if (activeTileFilter === 'exceptions') {
@@ -231,18 +233,18 @@ function _tileFilterMatch(order) {
     if (activeTileFilter === 'delivered') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return state === 'delivered';
+        return _isDelivered(state);
     }
     if (activeTileFilter === 'new-bookings') return _isNewBooking(order);
     if (activeTileFilter === 'fov') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return order.FOV === 'Yes' && state !== 'delivered';
+        return order.FOV === 'Yes' && !_isDelivered(state);
     }
     if (activeTileFilter === 'pending-pod') {
         const s = shipmentsDataMap.get(order.REFERENCE);
         const state = s?.state || s?.STATE || null;
-        return state === 'delivered' && !_hasPODUpload(order.REFERENCE);
+        return _isDelivered(state) && !_hasPODUpload(order.REFERENCE);
     }
     return true;
 }
@@ -835,6 +837,7 @@ function renderShipmentDetails(order) {
 // --- TRACKING STATE CONFIG ---
 const _stateConfig = {
     delivered:       { label: 'Delivered',        cls: 'bg-green-100 text-green-800' },
+    likelydelivered: { label: 'Delivered',        cls: 'bg-green-100 text-green-800' },
     rto:             { label: 'RTO',              cls: 'bg-red-100 text-red-800'       },
     outfordelivery:  { label: 'Out for Delivery', cls: 'bg-blue-100 text-blue-800'     },
     exception:       { label: 'Exception',        cls: 'bg-orange-100 text-orange-800' },
