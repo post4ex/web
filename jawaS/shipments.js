@@ -440,6 +440,19 @@ function setupFilterListeners() {
         applyFilters();
     });
     ui.filterModal.addEventListener('click', e => { if (e.target === ui.filterModal) ui.filterModal.classList.add('hidden'); });
+
+    const chargesModal = document.getElementById('chargesModal');
+    if (chargesModal) {
+        document.getElementById('close-charges-modal')?.addEventListener('click', () => chargesModal.classList.add('hidden'));
+        document.getElementById('close-charges-modal-btn')?.addEventListener('click', () => chargesModal.classList.add('hidden'));
+        chargesModal.addEventListener('click', e => { if (e.target === chargesModal) chargesModal.classList.add('hidden'); });
+    }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            const cm = document.getElementById('chargesModal');
+            if (cm && !cm.classList.contains('hidden')) cm.classList.add('hidden');
+        }
+    });
 }
 
 function applyFilters() {
@@ -448,7 +461,7 @@ function applyFilters() {
     const branch  = ui.filterBranch.value;
     const code    = ui.filterCode.value;
     const carrier = ui.filterCarrier.value;
-    const searchTerm = ui.searchShipments.value.toLowerCase();
+    const searchTerm = ui.searchShipments.value.toLowerCase().trim();
 
     const isAnyFilterApplied = startDate || endDate || branch || code || carrier || searchTerm;
     let statusText = `Displaying {count} of ${allOrders.length} records.`;
@@ -476,6 +489,8 @@ function applyFilters() {
         const sMatch   = !searchTerm ||
             String(order.REFERENCE  || '').toLowerCase().includes(searchTerm) ||
             String(order.AWB_NUMBER || '').toLowerCase().includes(searchTerm) ||
+            String(order.INVOICE_ID || '').toLowerCase().includes(searchTerm) ||
+            String(order.INV_NUMBER || '').toLowerCase().includes(searchTerm) ||
             (b2b2cDataMap.get(order.CONSIGNOR)?.NAME || order.CONSIGNOR || '').toLowerCase().includes(searchTerm) ||
             (b2b2cDataMap.get(order.CONSIGNEE)?.NAME || order.CONSIGNEE || '').toLowerCase().includes(searchTerm) ||
             (b2b2cDataMap.get(order.CONSIGNEE)?.CITY || order.DEST_CITY || '').toLowerCase().includes(searchTerm) ||
@@ -727,7 +742,8 @@ function renderShipmentDetails(order) {
         {l:'Wt(kg)',    v:order.WEIGHT},   {l:'ChgWt(kg)', v:order.CHG_WT},
         {l:'Pcs',       v:order.PIECS},    {l:'Value',     v:order.VALUE},
         {l:'COD',       v:order.COD},      {l:'ToPay',     v:order.TOPAY},
-        {l:'FOV',       v:order.FOV},      {l:'Global',    v:order.GLOBAL}
+        {l:'FOV',       v:order.FOV},      {l:'Global',    v:order.GLOBAL},
+        {l:'Invoice ID', v:order.INVOICE_ID}, {l:'Inv No', v:order.INV_NUMBER}
     ];
     const visible = d.filter(i => i.v !== undefined && i.v !== null && i.v !== '');
     let h = `<table class="w-full text-xs border-collapse border border-gray-200">`;
@@ -746,17 +762,19 @@ function renderShipmentDetails(order) {
     }
     h += `</table>`;
 
-    const userRole  = getUser().ROLE || 'GUEST';
-    const canDelete = (ROLE_LEVELS[userRole] || 0) >= ROLE_LEVELS['ADMIN'];
+    const userRole    = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+    const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+    const canDelete   = (ROLE_LEVELS[userRole] || 0) >= ROLE_LEVELS['ADMIN'];
 
+    const infoBtn  = isStaffPlus ? `<button id="chargesInfoBtn" title="Charges Breakdown" class="p-1.5 text-blue-600 rounded hover:bg-blue-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>` : '';
     const editBtn  = !order.INV_NUMBER ? `<button id="editOrderBtn"  title="Edit"   class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>` : '';
-    const copyBtn  = `<button id="copyOrderBtn"  title="Copy"   class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`;
+    const copyBtn  = `<button id="copyOrderBtn"  title="Copy"   class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>`;
     const shareBtn = `<button id="shareOrderBtn" title="Share"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg></button>`;
     const mailBtn  = `<button id="mailOrderBtn"  title="Email"  class="p-1.5 text-gray-500 rounded hover:bg-gray-100">${_docIco.mail}</button>`;
     const waBtn    = `<button id="waOrderBtn"    title="WhatsApp" class="p-1.5 doc-action-btn--wa rounded hover:bg-green-50">${_docIco.whatsapp}</button>`;
     const delBtn   = canDelete ? `<button id="deleteOrderBtn" title="Delete" class="p-1.5 text-red-500 rounded hover:bg-red-50"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : '';
 
-    ui.shipmentDetailsContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Shipment Details</h3><div class="flex items-center gap-0.5">${editBtn}${copyBtn}${shareBtn}${mailBtn}${waBtn}${delBtn}</div></div><div class="detail-card-body">${h}</div>`;
+    ui.shipmentDetailsContainer.innerHTML = `<div class="detail-card-header flex justify-between items-center"><h3 class="font-semibold text-gray-700">Shipment Details</h3><div class="flex items-center gap-0.5">${infoBtn}${editBtn}${copyBtn}${shareBtn}${mailBtn}${waBtn}${delBtn}</div></div><div class="detail-card-body">${h}</div>`;
 
     function _buildOrderText() {
         const cnor  = b2b2cDataMap.get(order.CONSIGNOR) || {};
@@ -792,14 +810,17 @@ function renderShipmentDetails(order) {
         ].filter(l => l !== null).join('\n');
     }
 
+    if (isStaffPlus) {
+        document.getElementById('chargesInfoBtn')?.addEventListener('click', () => showShipmentCharges(order));
+    }
     document.getElementById('editOrderBtn')?.addEventListener('click', () => {
         sessionStorage.setItem('editOrderRef', order.REFERENCE);
         window.open('EditOrder.html', '_blank');
     });
     document.getElementById('copyOrderBtn').addEventListener('click', () => {
         navigator.clipboard.writeText(_buildOrderText())
-            .then(() => showNotification('\u2705 Copied to clipboard', 'success', 1500))
-            .catch(() => showNotification('\u274c Copy failed', 'error'));
+            .then(() => showNotification('✅ Copied to clipboard', 'success', 1500))
+            .catch(() => showNotification('❌ Copy failed', 'error'));
     });
     document.getElementById('shareOrderBtn').addEventListener('click', async () => {
         const text = _buildOrderText();
@@ -807,12 +828,12 @@ function renderShipmentDetails(order) {
             try {
                 await navigator.share({ title: `Shipment ${order.AWB_NUMBER || order.REFERENCE}`, text });
             } catch (e) {
-                if (e.name !== 'AbortError') showNotification('\u274c Share failed', 'error');
+                if (e.name !== 'AbortError') showNotification('❌ Share failed', 'error');
             }
         } else {
             navigator.clipboard.writeText(text)
-                .then(() => showNotification('\u2705 Copied (share not supported)', 'info', 2000))
-                .catch(() => showNotification('\u274c Share not supported', 'error'));
+                .then(() => showNotification('✅ Copied (share not supported)', 'info', 2000))
+                .catch(() => showNotification('❌ Share not supported', 'error'));
         }
     });
     document.getElementById('mailOrderBtn').addEventListener('click', () => mailSelectedShipment());
@@ -823,16 +844,221 @@ function renderShipmentDetails(order) {
             if (!confirm(`Delete order ${order.REFERENCE}? This cannot be undone.`)) return;
             try {
                 await deleteOrder(order.REFERENCE);
-                showNotification(`\u2705 Order ${order.REFERENCE} deleted`, 'success');
+                showNotification(`✅ Order ${order.REFERENCE} deleted`, 'success');
                 currentSelectedRef = null;
                 ui.detailView.classList.add('hidden');
                 ui.emptyView.classList.remove('hidden');
             } catch (err) {
-                showNotification(`\u274c Delete failed: ${err.message}`, 'error');
+                showNotification(`❌ Delete failed: ${err.message}`, 'error');
             }
         });
     }
 }
+
+// --- SHOW CHARGES BREAKDOWN MODAL ---
+function showShipmentCharges(orderOrRef) {
+    const userRole    = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+    const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+    if (!isStaffPlus) {
+        showNotification('Access denied: Staff+ permission required', 'error');
+        return;
+    }
+
+    let order = orderOrRef;
+    if (typeof orderOrRef === 'string') {
+        order = allOrders.find(o => String(o.REFERENCE) === String(orderOrRef)) || {};
+    }
+    if (!order || !order.REFERENCE) return;
+
+    const modal = document.getElementById('chargesModal');
+    const subtitle = document.getElementById('chargesModalSubtitle');
+    const body = document.getElementById('chargesModalBody');
+    if (!modal || !body) return;
+
+    if (subtitle) {
+        subtitle.textContent = `Ref: ${order.REFERENCE}${order.AWB_NUMBER ? ' | AWB: ' + order.AWB_NUMBER : ''}`;
+    }
+
+    const fmt = (v) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const gstTotal = (parseFloat(order.CGST || 0) + parseFloat(order.SGST || 0) + parseFloat(order.IGST || 0));
+
+    // Desktop: Clean Financial Table View
+    const desktopTable = `
+        <div class="hidden md:block">
+            <table class="w-full text-xs border-collapse border border-gray-200">
+                <thead>
+                    <tr class="bg-gray-100/80 text-gray-700">
+                        <th class="border border-gray-200 px-3 py-2 text-left font-semibold">Charge Head</th>
+                        <th class="border border-gray-200 px-3 py-2 text-right font-semibold">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-700 font-medium">Freight (Base)</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-semibold text-gray-900">₹${fmt(order.FRIGHT)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">Fuel Surcharge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.FUEL_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">Docket / Dev Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.DEV_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">AWB Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.AWB_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">Packaging Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.PACK_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">COD Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.COD_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">ToPay Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.TOPAY_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">FOV / Insurance Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.FOV_CHG)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">E-Way Bill Charge</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.EWAY_CHG)}</td>
+                    </tr>
+                    <tr class="bg-gray-50 font-semibold text-gray-800 border-t border-gray-300">
+                        <td class="border border-gray-200 px-3 py-2">Taxable Subtotal</td>
+                        <td class="border border-gray-200 px-3 py-2 text-right text-gray-900">₹${fmt(order.TAXABLE)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">CGST</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.CGST)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">SGST</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.SGST)}</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">IGST</td>
+                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.IGST)}</td>
+                    </tr>
+                    <tr class="bg-blue-50 font-bold text-blue-900 border-t-2 border-blue-300">
+                        <td class="border border-gray-200 px-3 py-2 text-sm">Grand Total</td>
+                        <td class="border border-gray-200 px-3 py-2 text-right text-blue-700 text-sm font-bold">₹${fmt(order.TOTAL)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    // Mobile: Card View
+    const mobileCards = `
+        <div class="md:hidden space-y-3">
+            <!-- Hero Total Card -->
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl p-3.5 text-white shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-blue-200 font-semibold">Grand Total</div>
+                        <div class="text-2xl font-black mt-0.5">₹${fmt(order.TOTAL)}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] uppercase tracking-wider text-blue-200 font-semibold">Taxable Amount</div>
+                        <div class="text-sm font-bold text-blue-100 mt-0.5">₹${fmt(order.TAXABLE)}</div>
+                    </div>
+                </div>
+                <div class="mt-2.5 pt-2 border-t border-white/20 flex justify-between text-xs text-blue-100 font-medium">
+                    <span>GST (Taxes Total):</span>
+                    <span class="font-bold">₹${fmt(gstTotal)}</span>
+                </div>
+            </div>
+
+            <!-- Card 1: Freight & Handling -->
+            <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
+                    <span>Freight & Handling</span>
+                    <span class="text-[10px] text-gray-500 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">Base</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">Freight:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.FRIGHT)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">Fuel Charge:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.FUEL_CHG)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">Docket / Dev:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.DEV_CHG)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">AWB Charge:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.AWB_CHG)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 col-span-2">
+                        <span class="text-gray-500 text-[11px]">Packaging Charge:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.PACK_CHG)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Value Added Services -->
+            <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
+                    <span>Value Added Services</span>
+                    <span class="text-[10px] text-gray-400 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">VAS</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">COD Charge:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.COD_CHG)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">ToPay Charge:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.TOPAY_CHG)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">FOV / Insurance:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.FOV_CHG)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                        <span class="text-gray-500 text-[11px]">E-Way Bill:</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.EWAY_CHG)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Taxes Breakdown -->
+            <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
+                    <span>Taxes Breakdown</span>
+                    <span class="text-[10px] text-gray-400 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">GST</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
+                        <span class="text-gray-500 text-[11px]">CGST</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.CGST)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
+                        <span class="text-gray-500 text-[11px]">SGST</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.SGST)}</div>
+                    </div>
+                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
+                        <span class="text-gray-500 text-[11px]">IGST</span>
+                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.IGST)}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    body.innerHTML = desktopTable + mobileCards;
+    modal.classList.remove('hidden');
+}
+window.showShipmentCharges = showShipmentCharges;
 
 // --- TRACKING STATE CONFIG ---
 const _stateConfig = {
