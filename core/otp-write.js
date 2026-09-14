@@ -37,7 +37,7 @@
 
     // ── Modal skeleton — FULLY self-constructed, inline styles (no page CSS
     //    dependency). Isliye ye file kisi bhi page pe kaam karti hai. ─────────
-    function _ensureModal(id, titleText, bodyHtml, inputLabel) {
+    function _ensureModal(id, titleText, bodyHtml, inputLabel, isGAuth) {
         let modal = document.getElementById(id);
         if (modal) modal.remove();
         modal = document.createElement('div');
@@ -45,22 +45,23 @@
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);font-family:inherit;';
+        const resendLabel = isGAuth ? 'Send OTP to WhatsApp instead' : 'Resend OTP';
         modal.innerHTML = `
             <div style="background:#fff;border-radius:14px;width:92%;max-width:360px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
                 <div style="font-size:15px;font-weight:700;color:#111827;margin-bottom:4px;">${titleText}</div>
-                <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">${bodyHtml}</div>
+                <div id="${id}Subtitle" style="font-size:12px;color:#6b7280;margin-bottom:12px;">${bodyHtml}</div>
                 <div id="${id}Msg" style="display:none;margin-bottom:10px;padding:8px;border-radius:6px;font-size:12px;text-align:center;"></div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                    <label style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;">${inputLabel || 'OTP'}</label>
+                    <label style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;">${inputLabel || 'Code'}</label>
                     <input id="${id}Input" type="text" inputmode="numeric" maxlength="10" autocomplete="one-time-code"
-                           placeholder="Enter OTP"
+                           placeholder="000000"
                            style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:9px 10px;font-size:16px;letter-spacing:6px;text-align:center;font-family:monospace;outline:none;min-width:0;">
                 </div>
                 <div style="display:flex;gap:8px;">
                     <button id="${id}Verify" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">Verify</button>
                     <button id="${id}Cancel" style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;">Cancel</button>
                 </div>
-                <button id="${id}Resend" style="margin-top:12px;width:100%;background:none;border:none;color:#4f46e5;font-size:12px;cursor:pointer;text-decoration:underline;">Resend OTP</button>
+                <button id="${id}Resend" style="margin-top:12px;width:100%;background:none;border:none;color:#4f46e5;font-size:12px;cursor:pointer;text-decoration:underline;">${resendLabel}</button>
             </div>`;
         document.body.appendChild(modal);
         return modal;
@@ -87,15 +88,24 @@
         return s;
     }
 
-    // ── Core ask flow: popup → send OTP → verify → write_token ──────────────
+    // ── Core ask flow: popup → send OTP / GAuth → verify → write_token ───────
     function _askModal(otpType, identifier, title, bodyHtml) {
+        const currentUser = (typeof window.getUser === 'function' ? window.getUser() : {}) || {};
+        const isGAuth = currentUser.IS_TOTP_ENABLED === true || currentUser.IS_TOTP_ENABLED === 1 || currentUser.IS_TOTP_ENABLED === 'true' || currentUser.IS_TOTP_ENABLED === '1';
         const modalId = 'otpWriteModal';
-        const modal = _ensureModal(modalId, title, bodyHtml || 'An OTP has been sent to your email &amp; WhatsApp.');
+        const defaultTitle = title || (isGAuth ? 'Confirm with Authenticator App' : 'Confirm with OTP');
+        const defaultSubtitle = isGAuth
+            ? 'Enter the 6-digit code from Google Authenticator.'
+            : (bodyHtml || 'An OTP has been sent to your email &amp; WhatsApp.');
+        const inputLabel = isGAuth ? 'Code' : 'OTP';
+
+        const modal = _ensureModal(modalId, defaultTitle, defaultSubtitle, inputLabel, isGAuth);
         const input    = modal.querySelector(`#${modalId}Input`);
         const verifyB  = modal.querySelector(`#${modalId}Verify`);
         const cancelB  = modal.querySelector(`#${modalId}Cancel`);
         const resendB  = modal.querySelector(`#${modalId}Resend`);
         const msgEl    = modal.querySelector(`#${modalId}Msg`);
+        const subEl    = modal.querySelector(`#${modalId}Subtitle`);
         const originalBtnText = verifyB.textContent;
 
         return new Promise((resolve, reject) => {
@@ -119,7 +129,9 @@
                 resendB.disabled = true;
                 try {
                     await _api('/api/otp/send', { otp_type: otpType, identifier });
+                    if (subEl) subEl.textContent = 'An OTP has been sent to your email & WhatsApp.';
                     _msg(modal, modalId, 'OTP sent to your email & WhatsApp.', 'ok');
+                    resendB.textContent = 'Resend WhatsApp OTP';
                 } catch (e) {
                     _msg(modal, modalId, e.message, 'error');
                 } finally {
@@ -127,9 +139,11 @@
                 }
             };
 
+            resendB.addEventListener('click', () => send(true));
+
             verifyB.addEventListener('click', async () => {
-                const code = input.value.trim();
-                if (!code) { _msg(modal, modalId, 'Enter the OTP.', 'error'); return; }
+                const code = input.value.replace(/\s+/g, '').trim();
+                if (!code) { _msg(modal, modalId, 'Enter the code.', 'error'); return; }
                 setBusy(true);
                 msgEl.style.display = 'none';
                 try {
@@ -143,14 +157,162 @@
                     setBusy(false);
                 }
             });
+            input.addEventListener('input', () => {
+                const val = input.value.replace(/\s+/g, '').trim();
+                if (val.length === 6 && !verifyB.disabled) {
+                    verifyB.click();
+                }
+            });
             input.addEventListener('keydown', e => { if (e.key === 'Enter') verifyB.click(); });
             cancelB.addEventListener('click', () => close(reject, new Error('OTP action cancelled')));
             modal.addEventListener('click', e => { if (e.target === modal) close(reject, new Error('OTP action cancelled')); });
 
-            send(false);
+            if (!isGAuth) {
+                send(false);
+            }
             setTimeout(() => input.focus(), 60);
         });
     }
+
+    // ── Google Authenticator Setup & Management Modal ───────────────────────
+    window.openTotpModal = async function () {
+        const modalId = 'totpConfigModal';
+        let existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+
+        const user = (typeof window.getUser === 'function' ? window.getUser() : {}) || {};
+        const isCurrentlyEnabled = !!user.IS_TOTP_ENABLED;
+
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);font-family:inherit;';
+
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:14px;width:92%;max-width:390px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.35);max-height:90vh;overflow-y:auto;box-sizing:border-box;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div style="font-size:15px;font-weight:700;color:#111827;">Google Authenticator (2FA)</div>
+                    <button id="${modalId}Close" style="background:none;border:none;font-size:22px;color:#9ca3af;cursor:pointer;line-height:1;">&times;</button>
+                </div>
+                <div id="${modalId}Body">
+                    <div style="text-align:center;padding:20px;color:#6b7280;font-size:13px;">Loading setup...</div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const close = () => modal.remove();
+        modal.querySelector(`#${modalId}Close`).addEventListener('click', close);
+        modal.addEventListener('click', e => { if (e.target === modal) close(); });
+
+        const bodyContainer = modal.querySelector(`#${modalId}Body`);
+
+        if (isCurrentlyEnabled) {
+            bodyContainer.innerHTML = `
+                <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px;margin-bottom:16px;text-align:center;">
+                    <div style="font-size:14px;font-weight:700;color:#065f46;margin-bottom:4px;">&#10003; 2FA is Active</div>
+                    <div style="font-size:12px;color:#047857;line-height:1.4;">Your account is secured with Google Authenticator (TOTP). Sensitive write operations verify via your authenticator app.</div>
+                </div>
+                <div style="border-top:1px solid #e5e7eb;padding-top:14px;">
+                    <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Disable Authenticator</div>
+                    <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">Enter current 6-digit code from app to disable:</div>
+                    <div id="${modalId}Error" style="display:none;margin-bottom:10px;padding:8px;border-radius:6px;font-size:12px;background:#fef2f2;color:#b91c1c;text-align:center;"></div>
+                    <div style="display:flex;gap:8px;">
+                        <input id="${modalId}DisableCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:16px;letter-spacing:4px;text-align:center;font-family:monospace;outline:none;">
+                        <button id="${modalId}DisableBtn" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">Disable 2FA</button>
+                    </div>
+                </div>
+            `;
+
+            const disBtn = modal.querySelector(`#${modalId}DisableBtn`);
+            const disInput = modal.querySelector(`#${modalId}DisableCode`);
+            const errEl = modal.querySelector(`#${modalId}Error`);
+
+            disBtn.addEventListener('click', async () => {
+                const code = disInput.value.replace(/\s+/g, '').trim();
+                if (!code) return;
+                disBtn.disabled = true;
+                try {
+                    await _api('/api/auth/totp/disable', { code });
+                    const ld = JSON.parse(localStorage.getItem('loginData') || '{}');
+                    if (ld.userData) ld.userData.IS_TOTP_ENABLED = false;
+                    localStorage.setItem('loginData', JSON.stringify(ld));
+                    close();
+                    if (typeof window.showToast === 'function') window.showToast('Google Authenticator disabled');
+                    else alert('Google Authenticator disabled');
+                    if (typeof window.renderUserProfileDetails === 'function') window.renderUserProfileDetails();
+                } catch (err) {
+                    errEl.textContent = err.message;
+                    errEl.style.display = 'block';
+                    disBtn.disabled = false;
+                }
+            });
+            disInput.addEventListener('input', () => {
+                const val = disInput.value.replace(/\s+/g, '').trim();
+                if (val.length === 6 && !disBtn.disabled) disBtn.click();
+            });
+            disInput.addEventListener('keydown', e => { if (e.key === 'Enter') disBtn.click(); });
+            setTimeout(() => disInput.focus(), 60);
+
+        } else {
+            try {
+                const setupData = await _api('/api/auth/totp/setup', null, 'GET');
+                bodyContainer.innerHTML = `
+                    <div style="font-size:12px;color:#4b5563;margin-bottom:12px;line-height:1.5;">
+                        1. Open <b>Google Authenticator</b> on your mobile phone.<br>
+                        2. Tap <b>+</b> and choose <b>Scan a QR code</b>.
+                    </div>
+                    <div style="text-align:center;margin-bottom:14px;">
+                        <img src="${setupData.qr_code}" alt="TOTP QR Code" style="width:170px;height:170px;margin:0 auto;border-radius:8px;border:1px solid #e5e7eb;display:block;">
+                    </div>
+                    <div id="${modalId}Error" style="display:none;margin-bottom:10px;padding:8px;border-radius:6px;font-size:12px;background:#fef2f2;color:#b91c1c;text-align:center;"></div>
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">3. Enter 6-digit code from app:</label>
+                        <input id="${modalId}VerifyCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px 10px;font-size:16px;letter-spacing:6px;text-align:center;font-family:monospace;outline:none;box-sizing:border-box;">
+                    </div>
+                    <button id="${modalId}EnableBtn" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">Enable 2FA</button>
+                `;
+
+                const enableBtn = modal.querySelector(`#${modalId}EnableBtn`);
+                const verifyInput = modal.querySelector(`#${modalId}VerifyCode`);
+                const errEl = modal.querySelector(`#${modalId}Error`);
+
+                enableBtn.addEventListener('click', async () => {
+                    const code = verifyInput.value.replace(/\s+/g, '').trim();
+                    if (!code) {
+                        errEl.textContent = 'Enter the 6-digit code from app';
+                        errEl.style.display = 'block';
+                        return;
+                    }
+                    enableBtn.disabled = true;
+                    enableBtn.textContent = 'Activating...';
+                    try {
+                        await _api('/api/auth/totp/verify-setup', { code });
+                        const ld = JSON.parse(localStorage.getItem('loginData') || '{}');
+                        if (ld.userData) ld.userData.IS_TOTP_ENABLED = true;
+                        localStorage.setItem('loginData', JSON.stringify(ld));
+                        close();
+                        if (typeof window.showToast === 'function') window.showToast('Google Authenticator activated!');
+                        else alert('Google Authenticator activated!');
+                        if (typeof window.renderUserProfileDetails === 'function') window.renderUserProfileDetails();
+                    } catch (err) {
+                        errEl.textContent = err.message;
+                        errEl.style.display = 'block';
+                        enableBtn.disabled = false;
+                        enableBtn.textContent = 'Verify & Activate Authenticator';
+                    }
+                });
+                verifyInput.addEventListener('input', () => {
+                    const val = verifyInput.value.replace(/\s+/g, '').trim();
+                    if (val.length === 6 && !enableBtn.disabled) enableBtn.click();
+                });
+                verifyInput.addEventListener('keydown', e => { if (e.key === 'Enter') enableBtn.click(); });
+                setTimeout(() => verifyInput.focus(), 60);
+
+            } catch (err) {
+                bodyContainer.innerHTML = `<div style="color:#b91c1c;font-size:13px;text-align:center;padding:16px;">Failed to initialize setup: ${err.message}</div>`;
+            }
+        }
+    };
 
     // ── Manual helpers (used by delivery-OTP + legacy call sites) ────────────
     window.otpRequest = function (otpType, identifier, title = 'Confirm with OTP') {
@@ -190,7 +352,7 @@
     const _ident = {
         orderWrite:   (p) => p.reference || p.REFERENCE || p.order?.REFERENCE,
         b2b2cUid:     (p) => p.UID || p.uid,
-        branchScope:  (p) => p.record_id || 'new',
+        branchScope:  (p) => p.record_id || null,
         modeWrite:    (p) => p.record_id || 'new',
         modeDelete:   (p) => p.MODE || (p.data && p.data.MODE),
         carrierWrite: (p) => p.record_id || 'new',
@@ -232,8 +394,13 @@
 
     window.OtpGate = {
         rules: RULES,
-        ruleFor(endpoint, method) {
+        ruleFor(endpoint, method, payload) {
             const m = (method || 'GET').toUpperCase();
+            // Branch creation is free; edit is OTP gated
+            if (endpoint === '/api/writeBranch' && m === 'POST') {
+                if (!payload || !payload.record_id) return null; // free creation
+                return { otp_type: 'branch_write', identifierFn: _ident.branchScope, title: 'Confirm Branch Edit' };
+            }
             for (const [rm, prefix, type, fn, label] of RULES) {
                 if (rm === m && endpoint && endpoint.startsWith(prefix)) {
                     return { otp_type: type, identifierFn: fn, title: label || 'Confirm with OTP' };

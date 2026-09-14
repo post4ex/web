@@ -52,6 +52,7 @@ const AdminBranches = (() => {
         'BRANCH_BANK_AC', 'BRANCH_IFSC', 'BRANCH_BANK_NAME',
         'BRANCH_GEO_TEG',
         '__CREDIT_SECTION__',
+        '__ACCOUNTING_SECTION__',
     ];
     // Read-only on edit (key field)
     const READONLY_ON_EDIT = new Set(['BRANCH_CODE']);
@@ -171,6 +172,12 @@ const AdminBranches = (() => {
                 <div><span class="font-semibold text-gray-500 block text-xs">Unbilled Usage:</span> <span class="text-amber-700 font-medium">₹${uu.toLocaleString('en-IN')}</span></div>
                 <div><span class="font-semibold text-gray-500 block text-xs">Remaining Limit:</span> ${remainingLimitHtml}</div>
             </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 mb-3">
+                <div><span class="font-semibold text-emerald-800 block text-xs">Accounting Entity</span> <span class="font-medium text-emerald-950">${b.ENTITY_ID ? '#' + b.ENTITY_ID : '<span class="text-xs text-gray-400 italic">Unlinked</span>'}</span></div>
+                <div><span class="font-semibold text-emerald-800 block text-xs">Bank Ledger A/C</span> <span class="font-medium text-emerald-950">${b.BANK_AC_ID ? '#' + b.BANK_AC_ID : '<span class="text-xs text-gray-400 italic">Unlinked</span>'}</span></div>
+                <div><span class="font-semibold text-emerald-800 block text-xs">Cash Ledger A/C</span> <span class="font-medium text-emerald-950">${b.CASH_AC_ID ? '#' + b.CASH_AC_ID : '<span class="text-xs text-gray-400 italic">Unlinked</span>'}</span></div>
+                <div><span class="font-semibold text-emerald-800 block text-xs">Cash in Hand</span> <span class="font-bold text-emerald-700">₹${parseFloat(b.CASH_IN_HAND || 0).toLocaleString('en-IN')}</span></div>
+            </div>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                 <div><span class="font-semibold text-gray-500 block text-xs">Branch Code</span><span class="font-medium text-gray-800">${b.BRANCH_CODE || '—'}</span></div>
                 <div><span class="font-semibold text-gray-500 block text-xs">Branch Name</span><span>${b.BRANCH_NAME || '—'}</span></div>
@@ -268,6 +275,31 @@ const AdminBranches = (() => {
                                 return '<span class="text-green-600 font-semibold">₹' + remaining.toLocaleString('en-IN') + '</span>';
                             })()}
                         </div>` : ''}
+                    </div>
+                </div>`;
+            if (f === '__ACCOUNTING_SECTION__') return `
+                <div class="sm:col-span-2 border-t pt-3 mt-2">
+                    <h3 class="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Accounting & Treasury Integration (Pyacc)
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-emerald-50/60 p-3 rounded-lg border border-emerald-100">
+                        <div>
+                            <span class="block text-xs font-medium text-emerald-800 mb-0.5">Entity ID</span>
+                            <span class="text-sm font-semibold text-gray-800">${b?.ENTITY_ID ? '#' + b.ENTITY_ID : '<span class="text-xs text-gray-400 italic">Auto-provisioned</span>'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-medium text-emerald-800 mb-0.5">Bank Account ID</span>
+                            <span class="text-sm font-semibold text-gray-800">${b?.BANK_AC_ID ? '#' + b.BANK_AC_ID : '<span class="text-xs text-gray-400 italic">Auto-provisioned</span>'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-medium text-emerald-800 mb-0.5">Cash Account ID</span>
+                            <span class="text-sm font-semibold text-gray-800">${b?.CASH_AC_ID ? '#' + b.CASH_AC_ID : '<span class="text-xs text-gray-400 italic">Auto-provisioned</span>'}</span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-emerald-800 mb-1">Cash in Hand (₹)</label>
+                            <input name="CASH_IN_HAND" type="number" step="any" value="${b?.CASH_IN_HAND ?? 0}" class="form-input text-sm bg-white" placeholder="0">
+                        </div>
                     </div>
                 </div>`;
             if (f === 'BRANCH_STATUS') return `
@@ -470,6 +502,11 @@ const AdminBranches = (() => {
                         const el = f.elements[sf];
                         if (el) data[sf] = el.value.trim();
                     });
+                } else if (field === '__ACCOUNTING_SECTION__') {
+                    const el = f.elements['CASH_IN_HAND'];
+                    if (el && el.value !== '') {
+                        data.CASH_IN_HAND = parseFloat(el.value) || 0.0;
+                    }
                 } else {
                     const el = f.elements[field];
                     if (el) data[field] = el.value.trim();

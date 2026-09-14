@@ -159,7 +159,8 @@ function checkLoginStatus() {
 
         const excludedFields = [
             'token', 'expires', 'userdata', 'pass', 'password', 'reset_token',
-            'status', 'message', 'success', 'filter_value', 'col_filter', 'logintime'
+            'status', 'message', 'success', 'filter_value', 'col_filter', 'logintime',
+            'is_totp_enabled', 'totp_secret'
         ];
 
         const populateDetails = (container) => {
@@ -183,6 +184,29 @@ function checkLoginStatus() {
                 detailEl.innerHTML = `<p class="text-xs text-gray-700"><strong class="font-semibold text-gray-900">${displayKey}:</strong> <span>${value}</span></p>`;
                 container.appendChild(detailEl);
             });
+
+            // 2FA / Google Authenticator Row
+            const isTotp = !!(window.getUser && window.getUser().IS_TOTP_ENABLED);
+            const totpRow = document.createElement('div');
+            totpRow.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.1);';
+            totpRow.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:#111827;">Google 2FA</div>
+                        <div style="font-size:10px;color:${isTotp ? '#059669' : '#6b7280'};font-weight:${isTotp ? '600' : '400'};">
+                            ${isTotp ? '● Active' : '○ Inactive'}
+                        </div>
+                    </div>
+                    <button type="button" onclick="if(window.openTotpModal) window.openTotpModal();" style="border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;background:${isTotp ? '#dc2626' : '#10b981'};color:#fff;">
+                        ${isTotp ? 'Disable 2FA' : 'Enable 2FA'}
+                    </button>
+                </div>
+            `;
+            container.appendChild(totpRow);
+        };
+
+        window.renderUserProfileDetails = () => {
+            populateDetails(document.getElementById('profile-details-container'));
         };
 
         populateDetails(document.getElementById('profile-details-container'));

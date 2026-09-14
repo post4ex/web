@@ -49,24 +49,26 @@ async function callApi(endpoint, payload = {}, method = 'POST', timeoutMs = 3000
         headers['X-Client-Code'] = user.CODE;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
     // OTP gate (otp-write.js): OTP-gated write actions auto-ask before sending.
     // If otp-write.js isn't loaded, gate is skipped and the server rejects.
     if (method !== 'GET' && typeof window.OtpGate !== 'undefined') {
-        const rule = window.OtpGate.ruleFor(endpoint, method);
+        const rule = window.OtpGate.ruleFor(endpoint, method, payload);
         if (rule && !(payload && payload.write_token)) {
             try {
                 const identifier = window.OtpGate.identifier(rule, payload || {}, endpoint);
-                const writeToken = await window.OtpGate.ask(rule, identifier);
-                payload = { ...(payload || {}), write_token: writeToken };
+                if (identifier) {
+                    const writeToken = await window.OtpGate.ask(rule, identifier);
+                    payload = { ...(payload || {}), write_token: writeToken };
+                }
             } catch (gateErr) {
                 if (gateErr && gateErr.message === 'cancelled') throw gateErr;
                 throw gateErr; // re-ask failed / invalid — surface to caller
             }
         }
     }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const options = { method, headers, signal: controller.signal };
     if (method !== 'GET') options.body = JSON.stringify(payload);

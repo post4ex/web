@@ -11,8 +11,8 @@ const AdminUsers = (() => {
     const ROLES    = ['MASTER','ADMIN','AUDITOR','ACCOUNTANT','MANAGER','STAFF','CLIENT'];
     const STATUSES = ['ACTIVE','INACTIVE'];
 
-    // Fields excluded from editing — shown as read-only labels instead
-    const SKIP_FIELDS = new Set(['PASS','RESET_TOKEN','id','collectionId','collectionName','created','updated']);
+    // Fields excluded from editing — shown as read-only labels instead or handled separately
+    const SKIP_FIELDS = new Set(['PASS','RESET_TOKEN','id','collectionId','collectionName','created','updated','TOTP_SECRET','IS_TOTP_ENABLED']);
     // Fields shown as read-only (displayed but not in the form)
     const READONLY_FIELDS = new Set(['USER']);
 
@@ -53,15 +53,21 @@ const AdminUsers = (() => {
             return;
         }
         if (msg) msg.classList.add('hidden');
-        ul.innerHTML = users.map(u => `
+        ul.innerHTML = users.map(u => {
+            const hasTotp = u.IS_TOTP_ENABLED === true || u.IS_TOTP_ENABLED === 'true' || u.IS_TOTP_ENABLED === 1 || u.IS_TOTP_ENABLED === '1';
+            return `
             <li data-user="${u.USER}" class="${_selected === u.USER ? 'selected' : ''}">
-                <strong>${u.USER}</strong>
+                <div class="flex items-center justify-between">
+                    <strong>${u.USER}</strong>
+                    ${hasTotp ? '<span class="text-xs" title="2FA Active">🛡️</span>' : ''}
+                </div>
                 <span class="client-info">${u.NAME || ''}</span>
                 <div class="details-info">
                     <span class="status-badge ${ROLE_COLORS[u.ROLE] || 'bg-gray-100 text-gray-600'}">${u.ROLE}</span>
                     <span class="${u.STATUS === 'ACTIVE' ? 'text-green-600' : 'text-red-500'} text-xs">${u.STATUS || ''}</span>
                 </div>
-            </li>`).join('');
+            </li>`;
+        }).join('');
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => _selectUser(li.dataset.user))
         );
@@ -85,7 +91,7 @@ const AdminUsers = (() => {
             li.classList.toggle('selected', li.dataset.user === username)
         );
         AdminPage.showDetailPane();
-        _renderDetail(u, true); // directly opens edit pane
+        _renderDetail(u, false); // open in view pane
     }
 
     function _renderDetail(u, forceEdit = false) {
@@ -105,6 +111,17 @@ const AdminUsers = (() => {
             const btnClass = u.STATUS === 'ACTIVE' ? 'btn-danger' : 'btn';
             const btnLabel = u.STATUS === 'ACTIVE' ? 'Deactivate' : 'Activate';
             toggleBtnHtml = `<button id="toggleUserStatusBtn" class="${btnClass} btn-sm">${btnLabel}</button>`;
+        }
+
+        const isTotpEnabled = u.IS_TOTP_ENABLED === true || u.IS_TOTP_ENABLED === 'true' || u.IS_TOTP_ENABLED === 1 || u.IS_TOTP_ENABLED === '1';
+
+        let totpBtnHtml = '';
+        if (canEdit) {
+            if (isTotpEnabled) {
+                totpBtnHtml = `<button class="toggle-totp-btn view-only btn-danger btn-sm" title="Disable Google Authenticator (TOTP) for this user">Disable 2FA</button>`;
+            } else if (isSelf) {
+                totpBtnHtml = `<button class="toggle-totp-btn view-only btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white" title="Enable Google Authenticator (TOTP)">Enable 2FA</button>`;
+            }
         }
 
         // Build view fields from actual user keys
@@ -158,19 +175,51 @@ const AdminUsers = (() => {
                         <div class="flex items-center gap-2 mt-0.5">
                             <span class="status-badge ${ROLE_COLORS[u.ROLE] || 'bg-gray-100 text-gray-600'}">${u.ROLE}</span>
                             <span class="${u.STATUS === 'ACTIVE' ? 'text-green-600' : 'text-red-500'} text-xs font-semibold">${u.STATUS || ''}</span>
+                            <span class="text-xs px-2 py-0.5 rounded font-medium ${isTotpEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
+                                ${isTotpEnabled ? '🛡️ 2FA Active' : '⚪ 2FA Disabled'}
+                            </span>
                         </div>
                     </div>
                     <div class="flex gap-2 items-center">
                         ${canEdit ? `<button id="userEditBtn" class="view-only btn btn-sm">Edit User</button>` : ''}
                         ${toggleBtnHtml ? `<span class="view-only">${toggleBtnHtml}</span>` : ''}
+                        ${totpBtnHtml}
                         ${canDelete ? `<button id="deleteUserBtn" class="view-only btn-danger btn-sm">Delete</button>` : ''}
                         ${canEdit ? `<button id="userCancelEditBtn" class="edit-only btn-ghost btn-sm">Cancel</button>` : ''}
                     </div>
                 </div>
                 <div class="detail-card-body">
                     <!-- View Mode -->
-                    <div class="view-only grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        ${viewHtml}
+                    <div class="view-only space-y-4">
+                        <!-- 2FA Status Card -->
+                        <div class="p-3.5 rounded-lg border ${isTotpEnabled ? 'bg-emerald-50/70 border-emerald-200' : 'bg-gray-50 border-gray-200'} flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold ${isTotpEnabled ? 'text-emerald-800' : 'text-gray-700'} flex items-center gap-2">
+                                    <span>${isTotpEnabled ? '🛡️ Google Authenticator (TOTP 2FA)' : '⚪ Google Authenticator (TOTP 2FA)'}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded font-semibold ${isTotpEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}">
+                                        ${isTotpEnabled ? 'ENABLED' : 'DISABLED'}
+                                    </span>
+                                </div>
+                                <p class="text-xs ${isTotpEnabled ? 'text-emerald-700' : 'text-gray-500'} mt-1">
+                                    ${isTotpEnabled 
+                                        ? 'Protected by 6-digit TOTP codes generated in Google Authenticator.' 
+                                        : 'Standard login only (no authenticator app required).'}
+                                </p>
+                            </div>
+                            ${canEdit ? `
+                                <div>
+                                    ${isTotpEnabled 
+                                        ? `<button class="toggle-totp-btn btn-danger btn-sm">Disable 2FA</button>` 
+                                        : (isSelf 
+                                            ? `<button class="toggle-totp-btn btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white">Enable 2FA</button>` 
+                                            : `<button class="toggle-totp-btn btn-secondary btn-sm" title="User must configure in their own session">Setup Info</button>`)}
+                                </div>` : ''}
+                        </div>
+
+                        <!-- Fields Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            ${viewHtml}
+                        </div>
                     </div>
 
                     <!-- Edit Mode -->
@@ -218,6 +267,57 @@ const AdminUsers = (() => {
                     renderList(_users);
                 } catch (err) {
                     showNotification('❌ ' + err.message, 'error');
+                }
+            });
+        });
+
+        // ── 2FA Toggle Button ─────────────────────────────────────────────────
+        view.querySelectorAll('.toggle-totp-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!canEdit) return;
+                if (isTotpEnabled) {
+                    if (!confirm(`Are you sure you want to disable Two-Factor Authentication (Google Authenticator) for "${u.USER}"?`)) return;
+                    AdminPage.requireSudo(async sudoToken => {
+                        try {
+                            const payload = { IS_TOTP_ENABLED: false, TOTP_SECRET: null };
+                            await AdminAPI.updateUser(u.USER, sudoToken, payload);
+                            u.IS_TOTP_ENABLED = false;
+                            u.TOTP_SECRET = null;
+                            if (isSelf) {
+                                const ld = JSON.parse(localStorage.getItem('loginData') || '{}');
+                                if (ld.userData) ld.userData.IS_TOTP_ENABLED = false;
+                                localStorage.setItem('loginData', JSON.stringify(ld));
+                                if (typeof window.renderUserProfileDetails === 'function') {
+                                    window.renderUserProfileDetails();
+                                }
+                            }
+                            showNotification('✅ 2FA disabled for user ' + u.USER, 'success');
+                            _renderDetail(u, false);
+                            renderList(_users);
+                        } catch (err) {
+                            showNotification('❌ ' + err.message, 'error');
+                        }
+                    });
+                } else {
+                    if (isSelf) {
+                        if (typeof window.openTotpModal === 'function') {
+                            window.openTotpModal();
+                            const checkInterval = setInterval(() => {
+                                const ld = JSON.parse(localStorage.getItem('loginData') || '{}');
+                                if (ld.userData && !!ld.userData.IS_TOTP_ENABLED) {
+                                    clearInterval(checkInterval);
+                                    u.IS_TOTP_ENABLED = true;
+                                    _renderDetail(u, false);
+                                    renderList(_users);
+                                }
+                            }, 1000);
+                            setTimeout(() => clearInterval(checkInterval), 60000);
+                        } else {
+                            showNotification('2FA setup modal is not available', 'error');
+                        }
+                    } else {
+                        showNotification('ℹ️ To enable 2FA for this user, they must log in to their account and scan their QR code.', 'info');
+                    }
                 }
             });
         });
