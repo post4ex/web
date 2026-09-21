@@ -18,7 +18,18 @@ const VaultCOA = (() => {
     };
 
     const _getAuthToken = () => {
-        return localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
+        if (typeof getSessionId === 'function') {
+            const s = getSessionId();
+            if (s) return s;
+        }
+        try {
+            const raw = localStorage.getItem('loginData') || localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return parsed.sessionId || parsed.token || parsed.jwt || parsed.access_token || raw;
+            }
+        } catch { /* fallback */ }
+        return localStorage.getItem('token') || '';
     };
 
     const TYPE_COLORS = {

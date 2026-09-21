@@ -24,11 +24,15 @@ const VaultCustomers = (() => {
     };
 
     function _getAuthToken() {
+        if (typeof getSessionId === 'function') {
+            const s = getSessionId();
+            if (s) return s;
+        }
         try {
-            const raw = localStorage.getItem('post4ex_session') || localStorage.getItem('session') || '';
+            const raw = localStorage.getItem('loginData') || localStorage.getItem('post4ex_session') || localStorage.getItem('session') || '';
             if (raw) {
                 const parsed = JSON.parse(raw);
-                return parsed.token || parsed.jwt || parsed.access_token || raw;
+                return parsed.sessionId || parsed.token || parsed.jwt || parsed.access_token || raw;
             }
         } catch { /* fallback */ }
         return localStorage.getItem('token') || '';
