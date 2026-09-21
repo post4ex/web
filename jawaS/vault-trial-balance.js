@@ -1,7 +1,7 @@
 // ============================================================================
 // VAULT-TRIAL-BALANCE.JS — Trial Balance (Double-Entry Verification)
 // Tile: trial-balance
-// Data source: /api/accounting/reports/trial-balance (pyacc) with 15-min ETag cache
+// Data source: /api/accounting/reports/trial-balance with 15-min ETag cache
 // ============================================================================
 
 const VaultTrialBalance = (() => {
@@ -81,32 +81,24 @@ const VaultTrialBalance = (() => {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Calculating live Trial Balance from pyacc ledger...</p>
+                    <p>Calculating live Trial Balance...</p>
                 </li>
             `;
         }
 
         try {
             let report = {};
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                const tbArr = await window.VaultStream.syncAndGet('TRIAL_BALANCE');
-                report = tbArr.length > 0 ? tbArr[0] : {};
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let resData = null;
+            if (window.VaultCache) {
+                const res = await window.VaultCache.fetchWithEtag('/api/accounting/reports/trial-balance', { headers });
+                resData = res.data;
             } else {
-                // Fallback: direct REST
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let resData = null;
-                if (window.VaultCache) {
-                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/reports/trial-balance', { headers });
-                    resData = res.data;
-                } else {
-                    const r = await fetch('/api/accounting/reports/trial-balance', { headers });
-                    resData = await r.json();
-                }
-                report = resData?.trial_balance || resData || {};
+                const r = await fetch('/api/accounting/reports/trial-balance', { headers });
+                resData = await r.json();
             }
+            report = resData?.trial_balance || resData || {};
 
             _tbData = report;
 

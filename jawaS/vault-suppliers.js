@@ -2,8 +2,8 @@
 // VAULT-SUPPLIERS.JS — Suppliers & Vendors (Accounts Payable)
 // Tile: suppliers (Suppliers & Vendors)
 // ARCHITECTURAL RULE: Only the 'billing' tile has access to IndexedDB data.
-// All other Vault tiles (including this one) sync PURELY & DIRECTLY with pyacc.
-// Data source: /api/accounting/vendors (pyacc) with 15-min incremental ETag cache
+// All other Vault tiles (including this one) sync with backend accounts.
+// Data source: /api/accounting/vendors with 15-min incremental ETag cache
 // ============================================================================
 
 const VaultSuppliers = (() => {
@@ -55,38 +55,28 @@ const VaultSuppliers = (() => {
 
     async function load() {
         _injectListPane();
-        window.setLoading?.(true, "Loading suppliers & vendors directly from pyacc...", "list");
+        window.setLoading?.(true, "Loading suppliers & vendors...", "list");
 
         const listEl = document.getElementById("vaultList");
         if (listEl) {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Fetching Vendor/Carrier Accounts Payable from pyacc engine...</p>
+                    <p>Loading Vendors/Suppliers...</p>
                 </li>
             `;
         }
 
         try {
             let raw = [];
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                raw = await window.VaultStream.syncAndGet('VENDORS');
-            } else {
-                // Fallback: direct REST
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let resData = null;
-                if (window.VaultCache) {
-                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/vendors', { headers });
-                    resData = res.data;
-                } else {
-                    const r = await fetch('/api/accounting/vendors', { headers });
-                    resData = await r.json();
-                }
-                raw = Array.isArray(resData) ? resData : (resData?.vendors || resData?.data || []);
-            }
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let resData = null;
+            try {
+                const r = await fetch('/api/accounting/vendors', { headers });
+                if (r.ok) resData = await r.json();
+            } catch (_) {}
+            raw = Array.isArray(resData) ? resData : (resData?.vendors || resData?.data || []);
             // raw = array of vendor records
 
             _vendors = raw.map(v => ({
@@ -111,7 +101,7 @@ const VaultSuppliers = (() => {
         } catch (err) {
             console.error("[VaultSuppliers.load error]", err);
             if (listEl) {
-                listEl.innerHTML = `<li class="p-4 text-center text-red-600 text-xs">Failed to load suppliers from pyacc: ${_escapeHtml(err.message)}</li>`;
+                listEl.innerHTML = `<li class="p-4 text-center text-red-600 text-xs">Failed to load suppliers: ${_escapeHtml(err.message)}</li>`;
             }
         } finally {
             window.setLoading?.(false);
@@ -136,7 +126,7 @@ const VaultSuppliers = (() => {
 
         if (!filtered.length) {
             if (msgEl) {
-                msgEl.textContent = q ? "No matching suppliers found." : "No vendor accounts in pyacc ledger.";
+                msgEl.textContent = q ? "No matching suppliers found." : "No vendor accounts in ledger.";
                 msgEl.classList.remove("hidden");
             }
             return;
@@ -200,7 +190,7 @@ const VaultSuppliers = (() => {
                                 <span class="px-2 py-0.5 text-[10px] font-bold bg-white/10 text-white rounded">CARRIER: ${_escapeHtml(code)}</span>
                             </div>
                             <h1 class="text-xl font-black text-white">${_escapeHtml(name)}</h1>
-                            <p class="text-xs text-amber-200 mt-1">${_escapeHtml(vendor.description || 'PyAcc Carrier / Vendor Payable Account')}</p>
+                            <p class="text-xs text-amber-200 mt-1">${_escapeHtml(vendor.description || 'Carrier / Vendor Payable Account')}</p>
                         </div>
                         <div class="text-right">
                             <span class="text-[11px] text-amber-300 block">Payable Balance</span>
@@ -233,9 +223,9 @@ const VaultSuppliers = (() => {
                 <div class="p-4 bg-white border border-gray-200 rounded-xl space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
-                            <i class="fa-solid fa-truck-ramp-box text-amber-600"></i> PyAcc Vendor Payable Scope
+                            <i class="fa-solid fa-truck-ramp-box text-amber-600"></i> Vendor Payable Scope
                         </h3>
-                        <span class="text-[11px] text-gray-500 font-mono">Sync: Pure pyacc engine</span>
+                        <span class="text-[11px] text-gray-500 font-mono">Sync: Accounts Engine</span>
                     </div>
                     <div class="text-xs text-gray-700 space-y-2">
                         <p>All purchase bills, carrier manifests, outward payments, and debit notes for <strong>${_escapeHtml(name)}</strong> post to ledger account <strong>#${_escapeHtml(vendor.account_code)}</strong>.</p>

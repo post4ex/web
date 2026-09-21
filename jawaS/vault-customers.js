@@ -2,8 +2,8 @@
 // VAULT-CUSTOMERS.JS — Customers (Accounts Receivable)
 // Tile: customers
 // ARCHITECTURAL RULE: Only the 'billing' tile has access to IndexedDB data.
-// All other Vault tiles (including this one) sync PURELY & DIRECTLY with pyacc.
-// Data source: /api/accounting/clients (pyacc) with 15-min incremental ETag cache
+// All other Vault tiles (including this one) sync with backend accounts.
+// Data source: /api/accounting/clients with 15-min incremental ETag cache
 // ============================================================================
 
 const VaultCustomers = (() => {
@@ -139,40 +139,28 @@ const VaultCustomers = (() => {
 
     async function load() {
         _injectListPane();
-        window.setLoading?.(true, "Loading customers directly from pyacc...", "list");
+        window.setLoading?.(true, "Loading customers...", "list");
 
         const listEl = document.getElementById("vaultList");
         if (listEl) {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Fetching Client Accounts Receivable from pyacc engine...</p>
+                    <p>Fetching Client Accounts Receivable...</p>
                 </li>
             `;
         }
 
         try {
             let raw = [];
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                // ACCOUNTS sheet — filter for RECEIVABLE type = clients
-                const accounts = await window.VaultStream.syncAndGet('ACCOUNTS');
-                raw = accounts.filter(a => (a.account_type || '').toUpperCase() === 'RECEIVABLE');
-            } else {
-                // Fallback: direct REST
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let resData = null;
-                if (window.VaultCache) {
-                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/clients', { headers });
-                    resData = res.data;
-                } else {
-                    const r = await fetch('/api/accounting/clients', { headers });
-                    resData = await r.json();
-                }
-                raw = Array.isArray(resData) ? resData : (resData?.clients || resData?.data || []);
-            }
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let resData = null;
+            try {
+                const r = await fetch('/api/accounting/clients', { headers });
+                if (r.ok) resData = await r.json();
+            } catch (_) {}
+            raw = Array.isArray(resData) ? resData : (resData?.clients || resData?.data || []);
             // raw = array of account/client records
 
             _customers = raw.map(c => ({
@@ -197,7 +185,7 @@ const VaultCustomers = (() => {
         } catch (err) {
             console.error("[VaultCustomers.load error]", err);
             if (listEl) {
-                listEl.innerHTML = `<li class="p-4 text-center text-red-600 text-xs">Failed to load customers from pyacc: ${_escapeHtml(err.message)}</li>`;
+                listEl.innerHTML = `<li class="p-4 text-center text-red-600 text-xs">Failed to load customers: ${_escapeHtml(err.message)}</li>`;
             }
         } finally {
             window.setLoading?.(false);
@@ -222,7 +210,7 @@ const VaultCustomers = (() => {
 
         if (!filtered.length) {
             if (msgEl) {
-                msgEl.textContent = q ? "No matching customers found." : "No client accounts in pyacc ledger.";
+                msgEl.textContent = q ? "No matching customers found." : "No client accounts in ledger.";
                 msgEl.classList.remove("hidden");
             }
             return;
@@ -286,7 +274,7 @@ const VaultCustomers = (() => {
                                 <span class="px-2 py-0.5 text-[10px] font-bold bg-white/10 text-white rounded">CODE: ${_escapeHtml(code)}</span>
                             </div>
                             <h1 class="text-xl font-black text-white">${_escapeHtml(name)}</h1>
-                            <p class="text-xs text-purple-200 mt-1">${_escapeHtml(cust.description || 'PyAcc Client Double-Entry Master')}</p>
+                            <p class="text-xs text-purple-200 mt-1">${_escapeHtml(cust.description || 'Client Ledger Master')}</p>
                         </div>
                         <div class="text-right">
                             <span class="text-[11px] text-purple-300 block">Ledger Balance</span>
@@ -319,9 +307,9 @@ const VaultCustomers = (() => {
                 <div class="p-4 bg-white border border-gray-200 rounded-xl space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
-                            <i class="fa-solid fa-receipt text-purple-600"></i> PyAcc Client Ledger Summary
+                            <i class="fa-solid fa-receipt text-purple-600"></i> Client Ledger Summary
                         </h3>
-                        <span class="text-[11px] text-gray-500 font-mono">Sync: Pure pyacc engine</span>
+                        <span class="text-[11px] text-gray-500 font-mono">Sync: Accounts Engine</span>
                     </div>
                     <div class="text-xs text-gray-700 space-y-2">
                         <p>All sales invoices, receipts, and journal postings for <strong>${_escapeHtml(name)}</strong> are linked to account <strong>#${_escapeHtml(cust.account_code)}</strong>.</p>

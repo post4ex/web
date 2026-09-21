@@ -169,7 +169,7 @@ const AdminCarriers = (() => {
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
                         </div>
 
-                        <!-- Taxation & Pyacc Double-Entry Accounting Section -->
+                        <!-- Taxation & Accounting Section -->
                         <div class="md:col-span-6 border-t pt-6 mt-4">
                             <h3 class="text-lg font-medium text-indigo-600 mb-4">Taxation & Accounting Profile</h3>
                         </div>

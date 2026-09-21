@@ -1,5 +1,5 @@
 // ============================================================================
-// VAULT-TAXES.JS — Tax Ledger & GST SAC/HSN Rates from pyacc Engine
+// VAULT-TAXES.JS — Tax Ledger & GST SAC/HSN Rates
 // Tile: taxes
 // Data source: /api/accounting/taxes & /api/accounting/reports/gst-summary (with ETag support)
 // ============================================================================
@@ -51,7 +51,7 @@ const VaultTaxes = (() => {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Fetching tax ledgers from pyacc engine...</p>
+                    <p>Fetching tax ledgers...</p>
                 </li>
             `;
         }
@@ -59,37 +59,20 @@ const VaultTaxes = (() => {
         try {
             let rawTaxes = [];
             let gstSummaryData = null;
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                await window.VaultStream.sync({ sheets: ['TAXES', 'GST_SUMMARY'] });
-                rawTaxes = window.VaultStream.get('TAXES');
-                const gstArr = window.VaultStream.get('GST_SUMMARY');
-                gstSummaryData = gstArr.length > 0 ? gstArr[0] : null;
-            } else {
-                // Fallback: direct REST
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let taxRes = null;
-                let gstRes = null;
-                if (window.VaultCache) {
-                    const r1 = await window.VaultCache.fetchWithEtag('/api/accounting/taxes', { headers });
-                    taxRes = r1.data;
-                    try {
-                        const r2 = await window.VaultCache.fetchWithEtag('/api/accounting/reports/gst-summary', { headers });
-                        gstRes = r2.data;
-                    } catch (_) {}
-                } else {
-                    const r1 = await fetch('/api/accounting/taxes', { headers });
-                    taxRes = await r1.json();
-                    try {
-                        const r2 = await fetch('/api/accounting/reports/gst-summary', { headers });
-                        gstRes = await r2.json();
-                    } catch (_) {}
-                }
-                rawTaxes = Array.isArray(taxRes) ? taxRes : (taxRes?.taxes || []);
-                gstSummaryData = gstRes || null;
-            }
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let taxRes = null;
+            let gstRes = null;
+            try {
+                const r1 = await fetch('/api/accounting/taxes', { headers });
+                if (r1.ok) taxRes = await r1.json();
+            } catch (_) {}
+            try {
+                const r2 = await fetch('/api/accounting/reports/gst-summary', { headers });
+                if (r2.ok) gstRes = await r2.json();
+            } catch (_) {}
+            rawTaxes = Array.isArray(taxRes) ? taxRes : (taxRes?.taxes || []);
+            gstSummaryData = gstRes || null;
 
             _taxes = rawTaxes;
             _gstSummary = gstSummaryData;
@@ -169,7 +152,7 @@ const VaultTaxes = (() => {
             <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-xl p-4 space-y-3">
                 <div class="flex justify-between items-center border-b border-white/10 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">GST 3B Return Control Summary</h3>
-                    <span class="text-[10px] text-gray-300">pyacc Live Ledgers</span>
+                    <span class="text-[10px] text-gray-300">Live Ledgers</span>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                     <div class="p-2 bg-white/5 rounded border border-white/10">

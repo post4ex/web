@@ -1,7 +1,7 @@
 // ============================================================================
 // VAULT-PURCHASES.JS — Purchase Bills (Vendor Bills)
 // Tile: purchase-bills (📦)
-// Connected to pyacc Double-Entry Accounting Engine (/api/accounting/vendor-bills)
+// Connected to Double-Entry Accounting Engine (/api/accounting/vendor-bills)
 // ============================================================================
 
 const VaultPurchases = (() => {

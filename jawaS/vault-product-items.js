@@ -1,7 +1,7 @@
 // ============================================================================
 // VAULT-PRODUCT-ITEMS.JS — Secondary Products Catalog (Stationery & Consumables)
 // Tile: product-items
-// Data source: /api/accounting/catalog/products (pyacc with ETag support)
+// Data source: /api/accounting/catalog/products with ETag support
 // ============================================================================
 
 const VaultProductItems = (() => {
@@ -50,31 +50,24 @@ const VaultProductItems = (() => {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Fetching stationery products from pyacc engine...</p>
+                    <p>Fetching stationery products...</p>
                 </li>
             `;
         }
 
         try {
             let raw = [];
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                raw = await window.VaultStream.syncAndGet('PRODUCTS');
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let resData = null;
+            if (window.VaultCache) {
+                const res = await window.VaultCache.fetchWithEtag('/api/accounting/catalog/products', { headers });
+                resData = res.data;
             } else {
-                // Fallback: direct REST
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let resData = null;
-                if (window.VaultCache) {
-                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/catalog/products', { headers });
-                    resData = res.data;
-                } else {
-                    const r = await fetch('/api/accounting/catalog/products', { headers });
-                    resData = await r.json();
-                }
-                raw = Array.isArray(resData) ? resData : (resData?.products || []);
+                const r = await fetch('/api/accounting/catalog/products', { headers });
+                resData = await r.json();
             }
+            raw = Array.isArray(resData) ? resData : (resData?.products || []);
             _products = raw;
             _renderList();
 

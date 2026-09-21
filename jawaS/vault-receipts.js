@@ -1,7 +1,7 @@
 // ============================================================================
 // VAULT-RECEIPTS.JS — Client Receipts & Vendor Payments
 // Tiles: receipts (💰), payments (💸)
-// Connected to pyacc Double-Entry Accounting Engine
+// Connected to Double-Entry Accounting Engine
 // ============================================================================
 
 const VaultReceipts = (() => {

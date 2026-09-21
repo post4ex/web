@@ -1,7 +1,7 @@
 // ============================================================================
 // VAULT-SERVICE-ITEMS.JS — Core Logistics Services Catalog (Transit Modes)
 // Tile: service-items
-// Data source: /api/accounting/catalog/services (pyacc with ETag support)
+// Data source: /api/accounting/catalog/services with ETag support
 // ============================================================================
 
 const VaultServiceItems = (() => {
@@ -50,31 +50,24 @@ const VaultServiceItems = (() => {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Fetching services from pyacc engine...</p>
+                    <p>Fetching services...</p>
                 </li>
             `;
         }
 
         try {
             let raw = [];
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                raw = await window.VaultStream.syncAndGet('SERVICES');
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let resData = null;
+            if (window.VaultCache) {
+                const res = await window.VaultCache.fetchWithEtag('/api/accounting/catalog/services', { headers });
+                resData = res.data;
             } else {
-                // Fallback: direct REST
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let resData = null;
-                if (window.VaultCache) {
-                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/catalog/services', { headers });
-                    resData = res.data;
-                } else {
-                    const r = await fetch('/api/accounting/catalog/services', { headers });
-                    resData = await r.json();
-                }
-                raw = Array.isArray(resData) ? resData : (resData?.services || []);
+                const r = await fetch('/api/accounting/catalog/services', { headers });
+                resData = await r.json();
             }
+            raw = Array.isArray(resData) ? resData : (resData?.services || []);
             _services = raw;
             _renderList();
 

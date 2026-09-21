@@ -153,7 +153,7 @@ const AdminClients = (() => {
                                         <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
                                         <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 1: Identity &amp; Entity Routing</h3>
                                     </div>
-                                    <span class="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">pyacc: Entity &amp; Receivable Account</span>
+                                    <span class="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">Entity &amp; Receivable Account</span>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="md:col-span-1">
@@ -203,7 +203,7 @@ const AdminClients = (() => {
                                         <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
                                         <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 2: Address, Contact &amp; Alerts</h3>
                                     </div>
-                                    <span class="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">pyacc: Contact Metadata</span>
+                                    <span class="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">Contact Metadata</span>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="md:col-span-1">
@@ -268,7 +268,7 @@ const AdminClients = (() => {
                                         <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
                                         <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 3: Statutory &amp; GST Compliance</h3>
                                     </div>
-                                    <span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">pyacc: Tax Ledger Rules</span>
+                                    <span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">Tax Ledger Rules</span>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="cf-pair p13">
@@ -299,14 +299,14 @@ const AdminClients = (() => {
                                 </div>
                             </div>
 
-                            <!-- ZONE 4: Commercials, Limits & pyacc Account Mapping -->
+                            <!-- ZONE 4: Commercials, Limits & Account Mapping -->
                             <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
                                 <div class="flex items-center justify-between border-b border-purple-50 pb-2">
                                     <div class="flex items-center gap-2">
                                         <span class="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">4</span>
-                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; pyacc Binding</h3>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; Ledger Binding</h3>
                                     </div>
-                                    <span class="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded">pyacc: Double-Entry Seeding</span>
+                                    <span class="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded">Double-Entry Seeding</span>
                                 </div>
                                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
                                     <div>
@@ -774,7 +774,7 @@ const AdminClients = (() => {
                         <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
                         <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 2: Address, Contact &amp; Alerts</h3>
                     </div>
-                    <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-medium">pyacc: Contact Metadata</span>
+                    <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-medium">Contact Metadata</span>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                     <div><span class="text-xs font-bold text-gray-500 uppercase block">Mobile</span> <span class="font-medium">${c.MOBILE_NUMBER||'-'}</span></div>
@@ -795,7 +795,7 @@ const AdminClients = (() => {
                         <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
                         <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 3: Statutory &amp; GST Compliance</h3>
                     </div>
-                    <span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded font-medium">pyacc: Tax Ledger Rules</span>
+                    <span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded font-medium">Tax Ledger Rules</span>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div class="col-span-2"><span class="text-xs font-bold text-gray-500 uppercase block">GSTIN</span> <strong class="font-mono text-gray-900">${c.GSTIN||'-'}</strong></div>
@@ -806,14 +806,14 @@ const AdminClients = (() => {
                 </div>
             </div>
 
-            <!-- ZONE 4: Commercials, Limits & pyacc Account Mapping -->
+            <!-- ZONE 4: Commercials, Limits & Account Mapping -->
             <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
                 <div class="flex items-center justify-between border-b border-purple-50 pb-2">
                     <div class="flex items-center gap-2">
                         <span class="w-5 h-5 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">4</span>
-                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; pyacc Binding</h3>
+                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; Ledger Binding</h3>
                     </div>
-                    <span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded font-medium">pyacc: Double-Entry Active</span>
+                    <span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded font-medium">Double-Entry Active</span>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div><span class="text-xs font-bold text-gray-500 uppercase block">Credit Limit</span> <strong class="text-gray-900">₹${c.CREDIT_LIMIT != null ? Number(c.CREDIT_LIMIT).toLocaleString('en-IN') : '0'}</strong></div>
@@ -824,8 +824,8 @@ const AdminClients = (() => {
                     <div><span class="text-xs font-bold text-gray-500 uppercase block">AWB / Docket Charge</span> ₹${c.AWB_CHARGES||'0'}</div>
                     <div><span class="text-xs font-bold text-gray-500 uppercase block">Dev Charges</span> ${c.DEV_CHARGES != null && c.DEV_CHARGES !== '' ? (parseFloat(c.DEV_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
                     <div><span class="text-xs font-bold text-gray-500 uppercase block">% TO-PAY / % COD</span> ${c.PCT_TOPAY_IF != null ? (parseFloat(c.PCT_TOPAY_IF)*100).toFixed(1)+'%' : '-'} / ${c.PCT_COD_IF != null ? (parseFloat(c.PCT_COD_IF)*100).toFixed(1)+'%' : '-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">pyacc Account ID</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_ID || 'Mapped'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">pyacc Ledger Code</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_CODE || 'Auto-assigned'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Account ID</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_ID || 'Mapped'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Ledger Code</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_CODE || 'Auto-assigned'}</span></div>
                     <div><span class="text-xs font-bold text-gray-500 uppercase block">Max Users / Logins</span> ${c.MAX_USERS_ALLOWED||1} / ${c.MAX_LOGINS_PER_USER||1}</div>
                 </div>
             </div>

@@ -206,7 +206,7 @@ const AdminModes = (() => {
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
                         <h2 class="text-base font-bold text-gray-800">${mode.MODE}</h2>
-                        <p class="text-xs text-gray-500">${mode.SHORT || ''} ${mode.ACCOUNT_CODE ? `• PyAcc Account: #${mode.ACCOUNT_CODE}` : ''}</p>
+                        <p class="text-xs text-gray-500">${mode.SHORT || ''} ${mode.ACCOUNT_CODE ? `• Account: #${mode.ACCOUNT_CODE}` : ''}</p>
                     </div>
                     ${canEdit ? `
                     <div class="flex gap-2">
@@ -223,7 +223,7 @@ const AdminModes = (() => {
                             <div><span class="block text-xs font-semibold text-gray-500">GST SAC Code</span><span class="text-sm font-mono font-medium">${mode.SAC_CODE || '996812'}</span></div>
                             <div><span class="block text-xs font-semibold text-gray-500">GST Rate</span><span class="text-sm font-semibold">${mode.TAX_RATE != null ? mode.TAX_RATE + '%' : '18%'}</span></div>
                             <div><span class="block text-xs font-semibold text-gray-500">Billing UOM</span><span class="text-sm">${mode.UOM || 'KG'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">PyAcc Ledger A/C</span><span class="text-sm font-semibold text-indigo-700">${mode.ACCOUNT_CODE ? '#' + mode.ACCOUNT_CODE : 'Auto-bound'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Ledger A/C</span><span class="text-sm font-semibold text-indigo-700">${mode.ACCOUNT_CODE ? '#' + mode.ACCOUNT_CODE : 'Auto-bound'}</span></div>
                         </div>
                         <div>
                             <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 mt-3">Zone Service Availability</h3>

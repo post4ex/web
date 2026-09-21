@@ -5,7 +5,7 @@
 // Create is free; edit + delete are OTP / Google Authenticator (2FA) gated.
 // Field contract (mirrors backend field_validation.classify_branch_fields):
 //   GENIE  — free edit, nothing to do with the ledger
-//   SYNCED — edit here is pushed to the pyacc Entity / bank Account
+//   SYNCED — edit here is pushed to the branch Entity / bank Account
 //   LOCKED — ENTITY_ID / BANK_AC_ID / CASH_AC_ID / BRANCH_CODE, never editable
 //   SYSTEM — STATUS / USED_LIMIT / UNBILLED_USAGE / CASH_IN_HAND, engine owned
 // ============================================================================
@@ -65,7 +65,7 @@ const AdminBranches = (() => {
     const READONLY_ON_EDIT = new Set(['BRANCH_CODE']);
     // Auto-filled from pincode API
     const PINCODE_AUTO = new Set(['BRANCH_CITY', 'BRANCH_STATE', 'CODE_STATE', 'GST_CODE']);
-    // An edit here is pushed to the pyacc accounting Entity / bank Account
+    // An edit here is pushed to the branch Entity / bank Account
     const ACCOUNTING_SYNCED = new Set([
         'BRANCH_NAME', 'BRANCH_BANK_NAME', 'BRANCH_BANK_AC',
         'BRANCH_IFSC', 'BRANCH_UPI', 'BRANCH_UPI_NAME',
@@ -225,7 +225,7 @@ const AdminBranches = (() => {
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
                         <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Python Accounting (Pyacc) Entity & Treasury
+                        Branch Entity &amp; Treasury
                     </h3>
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
                         IFRS / GAAP Double-Entry
@@ -343,7 +343,7 @@ const AdminBranches = (() => {
                 <div class="sm:col-span-2 border-t pt-3 mt-2">
                     <h3 class="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Accounting & Treasury Integration (Pyacc)
+                        Accounting &amp; Treasury Integration
                     </h3>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-emerald-50/60 p-3 rounded-lg border border-emerald-100">
                         <div>

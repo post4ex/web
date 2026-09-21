@@ -1,7 +1,7 @@
 // ============================================================================
-// VAULT-COA.JS — Chart of Accounts & Live Account Ledgers
-// Tile: chart-of-accounts / accounts (🏛️)
-// Connected to pyacc Double-Entry Accounting Engine
+// VAULT-COA.JS — Chart of Accounts (COA) Viewer
+// Tile: chart-of-accounts
+// Connected to Double-Entry Accounting Engine
 // ============================================================================
 
 const VaultCOA = (() => {
@@ -102,31 +102,21 @@ const VaultCOA = (() => {
             listEl.innerHTML = `
                 <li class="p-6 text-center text-gray-500 text-xs space-y-2">
                     <div class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p>Fetching Chart of Accounts from pyacc engine...</p>
+                    <p>Loading Chart of Accounts...</p>
                 </li>
             `;
         }
 
         try {
             let raw = [];
-
-            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
-            if (window.VaultStream) {
-                raw = await window.VaultStream.syncAndGet('ACCOUNTS');
-            } else {
-                // Fallback: direct REST (legacy / VaultStream not loaded)
-                const token = _getAuthToken();
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-                let resData = null;
-                if (window.VaultCache) {
-                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/accounts', { headers });
-                    resData = res.data;
-                } else {
-                    const r = await fetch('/api/accounting/accounts', { headers });
-                    resData = await r.json();
-                }
-                raw = Array.isArray(resData) ? resData : (resData?.accounts || resData?.data || []);
-            }
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let resData = null;
+            try {
+                const r = await fetch('/api/accounting/accounts', { headers });
+                if (r.ok) resData = await r.json();
+            } catch (_) {}
+            raw = Array.isArray(resData) ? resData : (resData?.accounts || resData?.data || []);
             // raw is now the array of account records
             if (Array.isArray(raw) && raw.length > 0) {
                 _coaList = raw.map(acc => ({
