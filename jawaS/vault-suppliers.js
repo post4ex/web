@@ -68,19 +68,27 @@ const VaultSuppliers = (() => {
         }
 
         try {
-            const token = _getAuthToken();
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let raw = [];
 
-            let resData = null;
-            if (window.VaultCache) {
-                const res = await window.VaultCache.fetchWithEtag('/api/accounting/vendors', { headers });
-                resData = res.data;
+            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
+            if (window.VaultStream) {
+                raw = await window.VaultStream.syncAndGet('VENDORS');
             } else {
-                const r = await fetch('/api/accounting/vendors', { headers });
-                resData = await r.json();
+                // Fallback: direct REST
+                const token = _getAuthToken();
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                let resData = null;
+                if (window.VaultCache) {
+                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/vendors', { headers });
+                    resData = res.data;
+                } else {
+                    const r = await fetch('/api/accounting/vendors', { headers });
+                    resData = await r.json();
+                }
+                raw = Array.isArray(resData) ? resData : (resData?.vendors || resData?.data || []);
             }
+            // raw = array of vendor records
 
-            const raw = Array.isArray(resData) ? resData : (resData?.vendors || resData?.data || []);
             _vendors = raw.map(v => ({
                 id: v.id,
                 account_code: v.account_code || v.code || '',

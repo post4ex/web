@@ -108,19 +108,26 @@ const VaultCOA = (() => {
         }
 
         try {
-            const token = _getAuthToken();
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let raw = [];
 
-            let resData = null;
-            if (window.VaultCache) {
-                const res = await window.VaultCache.fetchWithEtag('/api/accounting/accounts', { headers });
-                resData = res.data;
+            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
+            if (window.VaultStream) {
+                raw = await window.VaultStream.syncAndGet('ACCOUNTS');
             } else {
-                const r = await fetch('/api/accounting/accounts', { headers });
-                resData = await r.json();
+                // Fallback: direct REST (legacy / VaultStream not loaded)
+                const token = _getAuthToken();
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                let resData = null;
+                if (window.VaultCache) {
+                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/accounts', { headers });
+                    resData = res.data;
+                } else {
+                    const r = await fetch('/api/accounting/accounts', { headers });
+                    resData = await r.json();
+                }
+                raw = Array.isArray(resData) ? resData : (resData?.accounts || resData?.data || []);
             }
-
-            const raw = Array.isArray(resData) ? resData : (resData?.accounts || resData?.data || []);
+            // raw is now the array of account records
             if (Array.isArray(raw) && raw.length > 0) {
                 _coaList = raw.map(acc => ({
                     id: acc.id,

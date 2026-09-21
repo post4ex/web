@@ -87,19 +87,27 @@ const VaultTrialBalance = (() => {
         }
 
         try {
-            const token = _getAuthToken();
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let report = {};
 
-            let resData = null;
-            if (window.VaultCache) {
-                const res = await window.VaultCache.fetchWithEtag('/api/accounting/reports/trial-balance', { headers });
-                resData = res.data;
+            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
+            if (window.VaultStream) {
+                const tbArr = await window.VaultStream.syncAndGet('TRIAL_BALANCE');
+                report = tbArr.length > 0 ? tbArr[0] : {};
             } else {
-                const r = await fetch('/api/accounting/reports/trial-balance', { headers });
-                resData = await r.json();
+                // Fallback: direct REST
+                const token = _getAuthToken();
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                let resData = null;
+                if (window.VaultCache) {
+                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/reports/trial-balance', { headers });
+                    resData = res.data;
+                } else {
+                    const r = await fetch('/api/accounting/reports/trial-balance', { headers });
+                    resData = await r.json();
+                }
+                report = resData?.trial_balance || resData || {};
             }
 
-            const report = resData?.trial_balance || resData || {};
             _tbData = report;
 
             const balances = report.balances || {};

@@ -56,19 +56,25 @@ const VaultProductItems = (() => {
         }
 
         try {
-            const token = _getAuthToken();
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let raw = [];
 
-            let resData = null;
-            if (window.VaultCache) {
-                const res = await window.VaultCache.fetchWithEtag('/api/accounting/catalog/products', { headers });
-                resData = res.data;
+            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
+            if (window.VaultStream) {
+                raw = await window.VaultStream.syncAndGet('PRODUCTS');
             } else {
-                const r = await fetch('/api/accounting/catalog/products', { headers });
-                resData = await r.json();
+                // Fallback: direct REST
+                const token = _getAuthToken();
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                let resData = null;
+                if (window.VaultCache) {
+                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/catalog/products', { headers });
+                    resData = res.data;
+                } else {
+                    const r = await fetch('/api/accounting/catalog/products', { headers });
+                    resData = await r.json();
+                }
+                raw = Array.isArray(resData) ? resData : (resData?.products || []);
             }
-
-            const raw = Array.isArray(resData) ? resData : (resData?.products || []);
             _products = raw;
             _renderList();
 

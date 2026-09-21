@@ -57,31 +57,42 @@ const VaultTaxes = (() => {
         }
 
         try {
-            const token = _getAuthToken();
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let rawTaxes = [];
+            let gstSummaryData = null;
 
-            let taxRes = null;
-            let gstRes = null;
-
-            if (window.VaultCache) {
-                const r1 = await window.VaultCache.fetchWithEtag('/api/accounting/taxes', { headers });
-                taxRes = r1.data;
-                try {
-                    const r2 = await window.VaultCache.fetchWithEtag('/api/accounting/reports/gst-summary', { headers });
-                    gstRes = r2.data;
-                } catch (_) {}
+            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
+            if (window.VaultStream) {
+                await window.VaultStream.sync({ sheets: ['TAXES', 'GST_SUMMARY'] });
+                rawTaxes = window.VaultStream.get('TAXES');
+                const gstArr = window.VaultStream.get('GST_SUMMARY');
+                gstSummaryData = gstArr.length > 0 ? gstArr[0] : null;
             } else {
-                const r1 = await fetch('/api/accounting/taxes', { headers });
-                taxRes = await r1.json();
-                try {
-                    const r2 = await fetch('/api/accounting/reports/gst-summary', { headers });
-                    gstRes = await r2.json();
-                } catch (_) {}
+                // Fallback: direct REST
+                const token = _getAuthToken();
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                let taxRes = null;
+                let gstRes = null;
+                if (window.VaultCache) {
+                    const r1 = await window.VaultCache.fetchWithEtag('/api/accounting/taxes', { headers });
+                    taxRes = r1.data;
+                    try {
+                        const r2 = await window.VaultCache.fetchWithEtag('/api/accounting/reports/gst-summary', { headers });
+                        gstRes = r2.data;
+                    } catch (_) {}
+                } else {
+                    const r1 = await fetch('/api/accounting/taxes', { headers });
+                    taxRes = await r1.json();
+                    try {
+                        const r2 = await fetch('/api/accounting/reports/gst-summary', { headers });
+                        gstRes = await r2.json();
+                    } catch (_) {}
+                }
+                rawTaxes = Array.isArray(taxRes) ? taxRes : (taxRes?.taxes || []);
+                gstSummaryData = gstRes || null;
             }
 
-            const rawTaxes = Array.isArray(taxRes) ? taxRes : (taxRes?.taxes || []);
             _taxes = rawTaxes;
-            _gstSummary = gstRes || null;
+            _gstSummary = gstSummaryData;
 
             _renderList();
 

@@ -152,19 +152,29 @@ const VaultCustomers = (() => {
         }
 
         try {
-            const token = _getAuthToken();
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            let raw = [];
 
-            let resData = null;
-            if (window.VaultCache) {
-                const res = await window.VaultCache.fetchWithEtag('/api/accounting/clients', { headers });
-                resData = res.data;
+            // ── VaultStream (NDJSON x-ndjson stream) ─────────────────────────
+            if (window.VaultStream) {
+                // ACCOUNTS sheet — filter for RECEIVABLE type = clients
+                const accounts = await window.VaultStream.syncAndGet('ACCOUNTS');
+                raw = accounts.filter(a => (a.account_type || '').toUpperCase() === 'RECEIVABLE');
             } else {
-                const r = await fetch('/api/accounting/clients', { headers });
-                resData = await r.json();
+                // Fallback: direct REST
+                const token = _getAuthToken();
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                let resData = null;
+                if (window.VaultCache) {
+                    const res = await window.VaultCache.fetchWithEtag('/api/accounting/clients', { headers });
+                    resData = res.data;
+                } else {
+                    const r = await fetch('/api/accounting/clients', { headers });
+                    resData = await r.json();
+                }
+                raw = Array.isArray(resData) ? resData : (resData?.clients || resData?.data || []);
             }
+            // raw = array of account/client records
 
-            const raw = Array.isArray(resData) ? resData : (resData?.clients || resData?.data || []);
             _customers = raw.map(c => ({
                 id: c.id,
                 account_code: c.account_code || c.code || '',
