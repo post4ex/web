@@ -259,7 +259,7 @@ async function checkAndPullDeltas() {
 const _FETCHABLE_SHEETS = new Set([
   'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE',
   'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS',
-  'UPLOADS', 'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'
+  'UPLOADS', 'NOTIFICATIONS', 'HOLIDAYS', 'SHIPMENTS'
 ]);
 
     // 2. Parse upserts and deletes

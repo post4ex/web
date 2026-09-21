@@ -134,6 +134,10 @@ function initHeartbeat() {
 async function handleLogout() {
     callApi('/api/logout').catch(() => {});
     localStorage.removeItem(CONSTANTS.KEYS.LOGIN);
+    localStorage.removeItem('webapp_vault_cache_v1');
+    if (window.VaultCache) {
+        window.VaultCache.clear();
+    }
     sessionStorage.clear();
     if (window._sseWorker) {
         try { window._sseWorker.port.postMessage({ type: 'logout' }); } catch (_) {}

@@ -17,7 +17,7 @@
 class AppDatabase {
   constructor() {
     this.dbName = 'WEBIndexedDB';
-    this.version = 12; // Removed dropped HEADER & LEDGER stores
+    this.version = 12; // Removed dropped legacy accounting stores
     this.db = null;
     
     // Define unique key for each sheet (must match PocketBase field names)

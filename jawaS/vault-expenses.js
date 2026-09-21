@@ -2,18 +2,13 @@
 // VAULT-EXPENSES.JS — Expense Claims, Petty Cash, Staff & Branch Advances
 // Tiles: expense-claims, petty-cash, staff-advances, branch-advances
 //
-// Data sources:
-//   Expense Claims: IDB HEADER (DOX_TYPE === 'Expense Claim')
-//   Petty Cash:     IDB LEDGER (ACCOUNT contains 'Cash in Hand' / 'Petty Cash')
-//   Staff Advances: IDB LEDGER (ACCOUNT contains 'Staff Advance', grouped by STAFF_CODE)
-//   Branch Advances:IDB LEDGER (ACCOUNT contains 'Branch Advance', grouped by BRANCH)
-// Detail:          IDB LEDGER for GL postings
+// Data sources: pending — not yet wired to the accounting engine.
 // ============================================================================
 
 const VaultExpenses = (() => {
 
-    let _allExpenses = [];     // HEADER-based (expense-claims)
-    let _allLedger   = [];     // LEDGER-based (petty-cash, staff-advances, branch-advances)
+    let _allExpenses = [];     // expense claims
+    let _glRows      = [];     // GL rows (petty-cash, staff-advances, branch-advances)
     let _activeType  = 'expense-claims';
 
     // ── Date helper ────────────────────────────────────────────────────────────
@@ -51,7 +46,7 @@ const VaultExpenses = (() => {
         }
     }
 
-    // ── Helpers (LEDGER-based) ─────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────
     function _computeRunningBalance(entries, openingBalance) {
         let running = openingBalance;
         return entries.map(e => {
@@ -63,7 +58,7 @@ const VaultExpenses = (() => {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // A. EXPENSE CLAIMS — HEADER-based list + GL Postings detail
+    // A. EXPENSE CLAIMS — list + GL Postings detail
     // ══════════════════════════════════════════════════════════════════════════
 
     function _renderExpenseList() {
@@ -147,20 +142,20 @@ const VaultExpenses = (() => {
                     </div>
                     ` : ''}
 
-                    <!-- General Ledger Postings -->
+                    <!-- Postings -->
                     <details class="text-xs border border-slate-100 rounded-xl overflow-hidden" id="glPostingsDetails">
                         <summary class="cursor-pointer font-semibold text-gray-600 bg-slate-50 px-4 py-3 hover:bg-slate-100 transition-colors select-none">
-                            📒 General Ledger Postings
+                            📒 Postings
                         </summary>
                         <div id="glPostingsContent" class="p-3 text-gray-400 text-xs">Loading…</div>
                     </details>
 
                     <script>(async function() {
                         try {
-                            const ledgerRaw = await window.appDB?.getSheet('LEDGER');
+                            const ledgerRaw = {};
                             const glEntries = Object.values(ledgerRaw || {}).filter(e => e.DOX_KEY === '${key}');
                             if (!glEntries.length) {
-                                document.getElementById('glPostingsContent').innerHTML = '<p class="text-gray-400">No ledger entries found.</p>';
+                                document.getElementById('glPostingsContent').innerHTML = '<p class="text-gray-400">No postings found.</p>';
                                 return;
                             }
                             glEntries.sort((a,b) => (a.IO_TIMESTAMP || '').localeCompare(b.IO_TIMESTAMP || ''));
@@ -186,7 +181,7 @@ const VaultExpenses = (() => {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // B. PETTY CASH — LEDGER-based running balance
+    // B. PETTY CASH — running balance
     // ══════════════════════════════════════════════════════════════════════════
 
     function _renderPettyCashList() {
@@ -195,7 +190,7 @@ const VaultExpenses = (() => {
 
         const branch = VaultPage.getActiveBranch();
         const accounts = {};
-        _allLedger.forEach(e => {
+        _glRows.forEach(e => {
             const acct = (e.ACCOUNT || '').toLowerCase();
             if (acct.includes('cash in hand') || acct.includes('petty cash')) {
                 if (!branch || (e.BRANCH || '').toLowerCase() === branch.toLowerCase()) {
@@ -247,7 +242,7 @@ const VaultExpenses = (() => {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
 
-        const entries = _allLedger.filter(e =>
+        const entries = _glRows.filter(e =>
             (e.ACCOUNT || '').toLowerCase() === (accountName || '').toLowerCase()
         ).sort((a, b) => ((a.IO_TIMESTAMP || '') > (b.IO_TIMESTAMP || '') ? 1 : -1));
 
@@ -313,7 +308,7 @@ const VaultExpenses = (() => {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // C. STAFF ADVANCES — LEDGER-based, grouped by STAFF_CODE
+    // C. STAFF ADVANCES — grouped by STAFF_CODE
     // ══════════════════════════════════════════════════════════════════════════
 
     function _renderStaffAdvancesList() {
@@ -322,7 +317,7 @@ const VaultExpenses = (() => {
 
         const branch = VaultPage.getActiveBranch();
         const grouped = {};
-        _allLedger.forEach(e => {
+        _glRows.forEach(e => {
             const acct = (e.ACCOUNT || '').toLowerCase();
             if (acct.includes('staff advance') && e.STAFF_CODE) {
                 if (!branch || (e.BRANCH || '').toLowerCase() === branch.toLowerCase()) {
@@ -370,7 +365,7 @@ const VaultExpenses = (() => {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
 
-        const entries = _allLedger.filter(e =>
+        const entries = _glRows.filter(e =>
             (e.ACCOUNT || '').toLowerCase().includes('staff advance') &&
             e.STAFF_CODE === staffCode
         ).sort((a, b) => ((a.IO_TIMESTAMP || '') > (b.IO_TIMESTAMP || '') ? 1 : -1));
@@ -419,7 +414,7 @@ const VaultExpenses = (() => {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // D. BRANCH ADVANCES — LEDGER-based, grouped by BRANCH
+    // D. BRANCH ADVANCES — grouped by BRANCH
     // ══════════════════════════════════════════════════════════════════════════
 
     function _renderBranchAdvancesList() {
@@ -427,7 +422,7 @@ const VaultExpenses = (() => {
         if (!ul) return;
 
         const grouped = {};
-        _allLedger.forEach(e => {
+        _glRows.forEach(e => {
             const acct = (e.ACCOUNT || '').toLowerCase();
             if (acct.includes('branch advance') && e.BRANCH) {
                 if (!grouped[e.BRANCH]) grouped[e.BRANCH] = [];
@@ -473,7 +468,7 @@ const VaultExpenses = (() => {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
 
-        const entries = _allLedger.filter(e =>
+        const entries = _glRows.filter(e =>
             (e.ACCOUNT || '').toLowerCase().includes('branch advance') &&
             (e.BRANCH || '').toLowerCase() === (branchCode || '').toLowerCase()
         ).sort((a, b) => ((a.IO_TIMESTAMP || '') > (b.IO_TIMESTAMP || '') ? 1 : -1));
@@ -535,11 +530,8 @@ const VaultExpenses = (() => {
                 document.getElementById('vaultListMsg').textContent = 'No branch selected.';
                 return;
             }
-            const raw = await window.appDB.getSheet('HEADER');
-            _allExpenses = Object.values(raw || {}).filter(h =>
-                h.DOX_TYPE === 'Expense Claim' &&
-                (h.BRANCH || '').toLowerCase() === activeBranch.toLowerCase()
-            );
+            // Expense claims are pending a rewrite against the accounting engine.
+            _allExpenses = [];
             document.getElementById('vaultListMsg').textContent = '';
             _renderExpenseList();
         } catch (err) {
@@ -556,8 +548,7 @@ const VaultExpenses = (() => {
                 document.getElementById('vaultListMsg').textContent = 'IDB not available. Please wait for sync to complete.';
                 return;
             }
-            const raw = await window.appDB.getSheet('LEDGER');
-            _allLedger = Object.values(raw || {});
+            _glRows = [];
             document.getElementById('vaultListMsg').textContent = '';
 
             if (_activeType === 'petty-cash') {
@@ -603,7 +594,7 @@ const VaultExpenses = (() => {
                 li.style.display = match ? '' : 'none';
             });
         } else {
-            // For LEDGER-based views, filter by text content of each list item
+            // For GL-based views, filter by text content of each list item
             ul.querySelectorAll('li').forEach(li => {
                 const match = !q || (li.textContent || '').toLowerCase().includes(q);
                 li.style.display = match ? '' : 'none';
@@ -643,7 +634,7 @@ const VaultExpenses = (() => {
                 <div class="detail-card-body text-center py-8 text-gray-400 text-sm">
                     <div class="text-4xl mb-3">🚧</div>
                     <p class="font-semibold text-gray-600">Coming Soon</p>
-                    <p class="text-xs mt-1">Creating expense claims through Manager.io will be available in a future update.</p>
+                    <p class="text-xs mt-1">Creating expense claims is not available yet.</p>
                 </div>
             </div>`;
         VaultPage.showDetailPane();

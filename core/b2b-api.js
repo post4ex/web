@@ -37,8 +37,8 @@ async function _b2bFetch(endpoint, payload = {}, method = 'POST') {
 
 // ── OTP (new_client | update_client | save_rates | delete_client) ──────────
 
-async function b2bSendOtp(code, action) {
-    return _b2bFetch('/api/sendB2bOtp', { CODE: code, action });
+async function b2bSendOtp(code, action, forceOtp = false) {
+    return _b2bFetch('/api/sendB2bOtp', { CODE: code, action, force_otp: forceOtp });
 }
 
 async function b2bVerifyOtp(code, action, otp) {

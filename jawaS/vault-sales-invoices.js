@@ -297,16 +297,38 @@ const VaultSalesInvoices = (() => {
                             </div>
                             <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-bold text-gray-700">${branch}</span> · SAC: <span class="font-mono text-gray-700">996812</span></p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap justify-end">
                             <button onclick="window.print()" class="btn btn-sm">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                 <span>Print</span>
                             </button>
-                            <a href="https://gen4u-io.hf.space/#/invoices/${inv.id}/view" target="_blank" class="btn btn-sm bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100">
-                                <span>View PDF ↗</span>
-                            </a>
+
+                            ${!inv.is_posted ? `
+                                <button onclick="VaultSalesInvoices.postDraft('${inv.id}')" class="btn btn-sm bg-green-600 text-white hover:bg-green-700">
+                                    <span>✓ Post to Ledger</span>
+                                </button>
+                                <button onclick="VaultSalesInvoices.deleteDraft('${inv.id}')" class="btn btn-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100">
+                                    <span>🗑 Delete Draft</span>
+                                </button>
+                            ` : ""}
+
+                            ${inv.is_posted && inv.status !== "PAID" ? `
+                                <button onclick="VaultSalesInvoices.openCreditNote('${inv.id}')" class="btn btn-sm bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100">
+                                    <span>↩ Issue Credit Note</span>
+                                </button>
+                            ` : ""}
                         </div>
                     </div>
+
+                    ${inv.reference ? `
+                        <div class="p-2.5 bg-purple-50 rounded-lg border border-purple-200 text-xs text-purple-900 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5 font-medium">
+                                <span>📦</span>
+                                <span>Generated from Courier Billing Batch: <strong class="font-mono">${_escapeHtml(inv.reference)}</strong></span>
+                            </span>
+                            <span class="text-[11px] text-purple-700 italic">Adjustments must be made in Billing tile</span>
+                        </div>
+                    ` : ""}
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="p-4 bg-indigo-50/40 rounded-lg border border-indigo-100 space-y-1">
@@ -390,19 +412,73 @@ const VaultSalesInvoices = (() => {
         VaultPage.showDetailPane();
     }
 
+    async function postDraft(invoiceId) {
+        if (!confirm("Are you sure you want to post this draft invoice to the general ledger? This action creates permanent journal entries.")) return;
+        window.setLoading?.(true, "Posting invoice...", "detail");
+        try {
+            await callApi(`/api/accounting/invoices/${invoiceId}`, { auto_post: true }, "PUT");
+            alert("Invoice successfully posted to the general ledger.");
+            await load(_filterStart, _filterEnd);
+        } catch (err) {
+            console.error("[postDraft error]", err);
+            alert("Failed to post invoice: " + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
+    async function deleteDraft(invoiceId) {
+        if (!confirm("Are you sure you want to delete this draft invoice?")) return;
+        window.setLoading?.(true, "Deleting draft invoice...", "detail");
+        try {
+            await callApi(`/api/accounting/invoices/${invoiceId}`, {}, "DELETE");
+            alert("Draft invoice deleted.");
+            await load(_filterStart, _filterEnd);
+        } catch (err) {
+            console.error("[deleteDraft error]", err);
+            alert("Failed to delete draft: " + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
+    async function openCreditNote(invoiceId) {
+        const inv = _allInvoices.find(item => String(item.id) === String(invoiceId));
+        if (inv && inv.reference) {
+            alert("This invoice was generated from Courier Billing. Please issue credit notes or reversals from the Billing tile.");
+            return;
+        }
+
+        const reason = prompt("Enter narration/reason for issuing this Credit Note:", "Customer billing adjustment");
+        if (!reason) return;
+
+        window.setLoading?.(true, "Issuing Credit Note...", "detail");
+        try {
+            const res = await callApi(`/api/accounting/invoices/${invoiceId}/credit-note`, { narration: reason }, "POST");
+            const cnNo = res?.credit_note?.transaction_no || "Credit Note";
+            alert(`Successfully issued ${cnNo} and assigned clearance to invoice.`);
+            await load(_filterStart, _filterEnd);
+        } catch (err) {
+            console.error("[openCreditNote error]", err);
+            alert("Failed to issue credit note: " + (err.message || err));
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
     async function load(startDate = null, endDate = null) {
         _injectListPane();
         window.setLoading?.(true, "Loading invoices...", "list");
 
         try {
-            let url = "/api/ninja/invoices";
+            let url = "/api/accounting/invoices";
             const queryParts = [];
             if (startDate) queryParts.push(`start_date=${encodeURIComponent(startDate)}`);
             if (endDate) queryParts.push(`end_date=${encodeURIComponent(endDate)}`);
             if (queryParts.length) url += `?${queryParts.join("&")}`;
 
             const res = await callApi(url, {}, "GET");
-            _allInvoices = Array.isArray(res) ? res : (res?.data || []);
+            _allInvoices = Array.isArray(res) ? res : (res?.data || res?.invoices || []);
             _renderList();
 
             if (_allInvoices.length > 0) {
@@ -419,7 +495,13 @@ const VaultSalesInvoices = (() => {
         }
     }
 
-    return { load, search: _renderList };
+    return { 
+        load, 
+        search: _renderList,
+        postDraft,
+        deleteDraft,
+        openCreditNote
+    };
 })();
 
 window.VaultSalesInvoices = VaultSalesInvoices;

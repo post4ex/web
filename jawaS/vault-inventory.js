@@ -1,10 +1,9 @@
 // ============================================================================
 // VAULT-INVENTORY.JS — Inventory Overview Dashboard (Live API)
 // Tile: inventory
-// Data source: Manager.io live API (stays live — not migrated to IDB)
+// Data source: not yet wired.
 // Rationale: Stock quantities & pricing need real-time accuracy.
 //            Caching in IDB would cause oversell/concurrency issues.
-// API: /api/manager/all-inventory-items, /api/manager/inventory-item-details/{branch}/{key}
 // ============================================================================
 
 const VaultInventory = (() => {
@@ -56,10 +55,8 @@ const VaultInventory = (() => {
 
         window.setLoading?.(true, 'Loading inventory...', 'list');
         try {
-            const branch = VaultPage.getActiveBranch();
-            const url = branch ? `/api/manager/all-inventory-items?branch=${encodeURIComponent(branch)}` : '/api/manager/all-inventory-items';
-            const res = await callApi(url, {}, 'GET');
-            _allItems = res.inventoryItems || [];
+            // Inventory is pending a rewrite against the accounting engine.
+            _allItems = [];
         } catch (err) {
             console.error('[VaultInventory] load error:', err);
             _allItems = [];
@@ -334,14 +331,8 @@ const VaultInventory = (() => {
         const detailEl = document.getElementById('vaultDetailView');
         detailEl.innerHTML = '<div class="text-center text-gray-400 text-sm py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading details…</div>';
 
-        let formData = {};
-        if (item.key && item.branch) {
-            try {
-                formData = await callApi(`/api/manager/inventory-item-details/${item.branch}/${item.key}`, {}, 'GET');
-            } catch (err) {
-                console.error('[VaultInventory] detail error:', err);
-            }
-        }
+        // Item detail is pending a rewrite against the accounting engine.
+        const formData = {};
 
         const qoh = parseFloat(item.qtyOnHand) || 0;
         const avail = parseFloat(item.qtyAvailable) || 0;

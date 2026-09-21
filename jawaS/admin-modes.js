@@ -69,9 +69,29 @@ const AdminModes = (() => {
                                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg w-full p-2.5">
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block mb-2 text-sm font-medium text-gray-700">MIN WT</label>
+                                <label class="block mb-2 text-sm font-medium text-gray-700">MIN WT (kg)</label>
                                 <input type="number" step="any" name="MIN_WT"
                                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg w-full p-2.5">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="block mb-2 text-sm font-medium text-gray-700">GST SAC Code</label>
+                                <input type="text" name="SAC_CODE" placeholder="e.g. 996812"
+                                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg w-full p-2.5">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="block mb-2 text-sm font-medium text-gray-700">GST Rate (%)</label>
+                                <input type="number" step="any" name="TAX_RATE" placeholder="18.0"
+                                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg w-full p-2.5">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block mb-2 text-sm font-medium text-gray-700">Billing UOM</label>
+                                <select name="UOM" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg w-full p-2.5">
+                                    <option value="KG">KG (Weight Based)</option>
+                                    <option value="AWB">AWB (Per Consignment)</option>
+                                    <option value="SHIPMENT">SHIPMENT (E-Commerce)</option>
+                                    <option value="TRIP">TRIP (FTL / Vehicle)</option>
+                                    <option value="BOX">BOX (Temperature Container)</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -138,14 +158,15 @@ const AdminModes = (() => {
         if (!el) return;
         let content = `<p class="font-semibold">${message}</p>`;
         if (data && typeof data === 'object') {
-            content += '<div class="mt-2 text-left text-xs bg-gray-50 p-3 rounded border border-gray-200 max-w-md mx-auto">';
-            for (const [k, v] of Object.entries(data)) {
-                if (v) content += `<p><strong class="font-medium text-gray-600">${k.replace(/_/g, ' ')}:</strong> <span class="text-gray-800">${v}</span></p>`;
-            }
-            content += '</div>';
+            const lines = Object.entries(data).map(([k, v]) => `<strong>${k}:</strong> ${v ?? '—'}`).join(' | ');
+            content += `<p class="text-xs mt-1 text-gray-600">${lines}</p>`;
         }
         el.innerHTML = content;
-        el.className = `mt-6 text-center p-4 rounded-lg text-sm ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+        el.className = `mt-6 text-center p-4 rounded-lg text-sm ${
+            type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+            type === 'info'    ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                                 'bg-red-50 text-red-800 border border-red-200'
+        }`;
         el.classList.remove('hidden');
     }
 
@@ -161,7 +182,7 @@ const AdminModes = (() => {
         document.getElementById('modesResponseMsg').classList.add('hidden');
     }
 
-    // ── View mode: read-only detail (Plan 7) ─────────────────────────────────
+    // ── Render single mode view ───────────────────────────────────────────────
     function _showViewMode(mode) {
         if (!mode) return;
         const view = document.getElementById('detailView');
@@ -185,7 +206,7 @@ const AdminModes = (() => {
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
                         <h2 class="text-base font-bold text-gray-800">${mode.MODE}</h2>
-                        <p class="text-xs text-gray-500">${mode.SHORT || ''}</p>
+                        <p class="text-xs text-gray-500">${mode.SHORT || ''} ${mode.ACCOUNT_CODE ? `• PyAcc Account: #${mode.ACCOUNT_CODE}` : ''}</p>
                     </div>
                     ${canEdit ? `
                     <div class="flex gap-2">
@@ -196,9 +217,13 @@ const AdminModes = (() => {
                 <div class="detail-card-body">
                     <div class="view-only space-y-3">
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div><span class="block text-xs font-semibold text-gray-500">Short Name</span><span class="text-sm">${mode.SHORT || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Short Code</span><span class="text-sm font-semibold">${mode.SHORT || '—'}</span></div>
                             <div><span class="block text-xs font-semibold text-gray-500">VOL INGR</span><span class="text-sm">${mode.VOL_INGR || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">MIN WT</span><span class="text-sm">${mode.MIN_WT || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">MIN WT (kg)</span><span class="text-sm">${mode.MIN_WT || '—'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">GST SAC Code</span><span class="text-sm font-mono font-medium">${mode.SAC_CODE || '996812'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">GST Rate</span><span class="text-sm font-semibold">${mode.TAX_RATE != null ? mode.TAX_RATE + '%' : '18%'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">Billing UOM</span><span class="text-sm">${mode.UOM || 'KG'}</span></div>
+                            <div><span class="block text-xs font-semibold text-gray-500">PyAcc Ledger A/C</span><span class="text-sm font-semibold text-indigo-700">${mode.ACCOUNT_CODE ? '#' + mode.ACCOUNT_CODE : 'Auto-bound'}</span></div>
                         </div>
                         <div>
                             <h3 class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 mt-3">Zone Service Availability</h3>

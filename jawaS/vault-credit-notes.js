@@ -179,10 +179,10 @@ const VaultCreditNotes = (() => {
             ? rawItems
             : (rawItems && typeof rawItems === "object" ? Object.values(rawItems) : []);
         const rowsHtml = lineItems.map((it, idx) => {
-            const cost = parseFloat(it.cost || 0);
+            const cost = parseFloat(it.cost ?? it.unit_price ?? it.amount ?? 0);
             const qty = parseFloat(it.quantity || 1);
-            const lineAmt = cost * qty;
-            const label = it.notes || it.product_key || "Credit Adjustment";
+            const lineAmt = parseFloat(it.total ?? (cost * qty));
+            const label = it.description || it.notes || it.product_key || "Credit Adjustment";
             return `
                 <tr class="hover:bg-gray-50/50 transition-colors">
                     <td class="px-4 py-2 text-center text-xs text-gray-500">${idx + 1}</td>
@@ -263,14 +263,14 @@ const VaultCreditNotes = (() => {
         window.setLoading?.(true, "Loading credits...", "list");
 
         try {
-            let url = "/api/ninja/credits";
+            let url = "/api/accounting/credit-notes";
             const queryParts = [];
             if (startDate) queryParts.push(`start_date=${encodeURIComponent(startDate)}`);
             if (endDate) queryParts.push(`end_date=${encodeURIComponent(endDate)}`);
             if (queryParts.length) url += `?${queryParts.join("&")}`;
 
             const res = await callApi(url, {}, "GET");
-            _allCredits = Array.isArray(res) ? res : (res?.data || []);
+            _allCredits = Array.isArray(res) ? res : (res?.data || res?.credit_notes || []);
             _renderList();
 
             if (_allCredits.length > 0) {

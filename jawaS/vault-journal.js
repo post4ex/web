@@ -1,14 +1,14 @@
 // ============================================================================
-// VAULT-JOURNAL.JS — Journal entries & Opening Balances from IDB HEADER
-// Tiles: journal-entries (HEADER), opening-balances (HEADER), recurring (LEDGER)
-// Data source: IDB HEADER (DOX_TYPE filter) + IDB LEDGER (GL Postings)
-// Create/Edit/Delete/Print: Manager.io API (TODO — forms show Coming Soon)
+// VAULT-JOURNAL.JS — Journal entries & Opening Balances
+// Tiles: journal-entries, opening-balances, recurring
+// Data source: pending — not yet wired to the accounting engine.
+// Create/Edit/Delete/Print: TODO — forms show Coming Soon
 // ============================================================================
 
 const VaultJournal = (() => {
 
-    let _allJournals = [];    // HEADER entries for journals & OB
-    let _allLedger   = [];    // LEDGER entries (GL Postings + recurring)
+    let _allJournals = [];    // journal & opening-balance documents
+    let _glRows      = [];    // GL postings + recurring templates
     let _allB2B      = [];
     let _activeJournalType = 'JOURNAL';
 
@@ -16,7 +16,7 @@ const VaultJournal = (() => {
     let _recurringTemplates = [];
 
     function _loadRecurringTemplates() {
-        const templates = _allLedger.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING' && e.STATUS === 'ACTIVE');
+        const templates = _glRows.filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'RECURRING' && e.STATUS === 'ACTIVE');
         _recurringTemplates = templates.map(t => {
             try { return { ...JSON.parse(t.NARRATION || '{}'), entry_id: t.ENTRY_ID, code: t.CODE }; }
             catch { return null; }
@@ -40,7 +40,7 @@ const VaultJournal = (() => {
     function _getEntries() {
         const branch = VaultPage.getActiveBranch();
         if (_activeJournalType === 'RECURRING') {
-            return _allLedger.filter(e => 
+            return _glRows.filter(e => 
                 e.ENTRY_TYPE === 'JOURNAL' && 
                 e.JOURNAL_TYPE === 'RECURRING' &&
                 (!branch || (e.BRANCH || '').toLowerCase() === branch.toLowerCase())
@@ -72,7 +72,7 @@ const VaultJournal = (() => {
             return;
         }
 
-        // For HEADER-based (journal/OB), use DOX_KEY; for recurring (LEDGER-based), dedupe by TXN_ID
+        // Journals/OB use DOX_KEY; recurring entries dedupe by TXN_ID
         const seenKey = new Set();
         const unique = filtered.filter(e => {
             const key = e.DOX_KEY || e.TXN_ID || e.ENTRY_ID;
@@ -124,12 +124,12 @@ const VaultJournal = (() => {
 
     function _printEntry(key) {
         if (_activeJournalType === 'RECURRING') {
-            const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === key);
+            const rows = _glRows.filter(e => (e.TXN_ID || e.ENTRY_ID) === key);
             if (rows.length) VaultPrint.printJournal(rows);
         } else {
             const hdr = _allJournals.find(h => h.DOX_KEY === key);
             if (hdr) {
-                const rows = _allLedger.filter(e => e.DOX_KEY === key);
+                const rows = _glRows.filter(e => e.DOX_KEY === key);
                 if (rows.length) VaultPrint.printJournal(rows);
             }
         }
@@ -137,7 +137,7 @@ const VaultJournal = (() => {
 
     function search() { _renderList(); }
 
-    // ── Detail (multi-line aware) — HEADER + GL Postings from LEDGER ──────
+    // ── Detail (multi-line aware) ────────────────────────────────────────────
     function _renderDetail(key) {
         if (!key) return;
         VaultPage.showDetail(true);
@@ -148,14 +148,14 @@ const VaultJournal = (() => {
         let rows = [];
 
         if (isRecurring) {
-            // Recurring reads from LEDGER (JOURNAL_TYPE === 'RECURRING')
-            rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === key);
+            // Recurring templates (JOURNAL_TYPE === 'RECURRING')
+            rows = _glRows.filter(e => (e.TXN_ID || e.ENTRY_ID) === key);
             entry = rows[0];
         } else {
-            // HEADER-based: find the HEADER entry, then fetch GL Postings from LEDGER by DOX_KEY
+            // Journal/OB: find the document, then fetch its GL postings by DOX_KEY
             entry = _allJournals.find(h => h.DOX_KEY === key);
             if (entry) {
-                rows = _allLedger.filter(e => e.DOX_KEY === key);
+                rows = _glRows.filter(e => e.DOX_KEY === key);
             }
         }
 
@@ -456,11 +456,9 @@ const VaultJournal = (() => {
                     }))
                 };
 
-                const res = await callApi(`/api/manager/journal-entries?code=${encodeURIComponent(data.code)}`, payload, 'POST');
-                const refNum = res.Reference || res.reference || 'created';
-
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ ${_label()} ${refNum} saved successfully in Manager.io.`;
+                // Posting journal entries is pending a rewrite against the accounting engine.
+                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-amber-100 text-amber-800';
+                resp.textContent = 'Posting journal entries is not available yet.';
                 resp.classList.remove('hidden');
                 e.target.reset();
                 tbody.innerHTML = '';
@@ -572,7 +570,7 @@ const VaultJournal = (() => {
             const code = this.value.trim().toUpperCase();
             this.value = code;
             if (!code) return;
-            const existingOB = _allLedger.filter(e =>
+            const existingOB = _glRows.filter(e =>
                 e.CODE === code && e.JOURNAL_TYPE === 'OPENING_BALANCE' && e.STATUS === 'ACTIVE'
             );
             const warn = document.getElementById('obExistingWarning');
@@ -614,27 +612,9 @@ const VaultJournal = (() => {
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
 
             try {
-                // Use replace-ob endpoint (atomically voids old OB + creates new one)
-                // TODO: migrate opening balance to Manager.io
-                alert('Coming soon — setting opening balances through Manager.io');
+                // Opening balances are pending a rewrite against the accounting engine.
+                alert('Setting opening balances is not available yet.');
                 return;
-                const res = await callApi('/api/ledger/journal/replace-ob', {
-                    code: data.code,
-                    entry_date: toMs(data.entry_date),
-                    amount: amount,
-                    is_credit: isCr,
-                    narration: data.narration || `Opening balance for ${data.code}`,
-                    branch: data.branch || '',
-                }, 'POST');
-
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.textContent = `✅ Opening balance saved. Balance: ₹${(+res.balance).toFixed(2)}${res.voided_count > 0 ? ` (replaced ${res.voided_count} existing OB)` : ''}`;
-                resp.classList.remove('hidden');
-                e.target.reset();
-                document.querySelector('[name="entry_date"]').value = new Date().toISOString().split('T')[0];
-                const appData = await getAppData();
-                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
-                _renderList();
             } catch (err) {
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
                 resp.textContent = '❌ ' + (err.message || 'Failed');
@@ -741,15 +721,13 @@ const VaultJournal = (() => {
 
     // ── Delete (void) ─────────────────────────────────────────────────────
     async function _handleDelete(txnId) {
-        const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
+        const rows = _glRows.filter(e => (e.TXN_ID || e.ENTRY_ID) === txnId);
         const entry = rows[0];
         if (!entry || entry.STATUS === 'VOID') return;
         if (!confirm(`Delete this ${entry.JOURNAL_TYPE || 'journal'} entry? This will void all ${rows.length} rows.`)) return;
         const reason = prompt('Reason (optional):', '') || '';
         try {
-            // Void all rows in the transaction
-            // TODO: migrate void to Manager.io
-            alert('Coming soon — voiding journal entries through Manager.io');
+            alert('Voiding journal entries is not available yet.');
             return;
         } catch (err) { alert('Failed: ' + (err.message || err)); }
     }
@@ -765,7 +743,7 @@ const VaultJournal = (() => {
         let existingLines = [];
         let existingCode = '';
         if (isEdit) {
-            const rows = _allLedger.filter(e => (e.TXN_ID || e.ENTRY_ID) === editTxnId);
+            const rows = _glRows.filter(e => (e.TXN_ID || e.ENTRY_ID) === editTxnId);
             const entry = rows[0];
             if (entry) {
                 try { existingConfig = JSON.parse(entry.NARRATION || '{}'); } catch {}
@@ -965,52 +943,9 @@ const VaultJournal = (() => {
             const endMs = data.end_date ? toMs(data.end_date) : 0;
 
             try {
-                if (isEdit) {
-                    // TODO: migrate recurring entry update to Manager.io
-                    alert('Coming soon — managing recurring entries through Manager.io');
-                    return;
-                    await callApi(`/api/ledger/journal/recurring/${editTxnId}`, {
-                        schedule_name: data.schedule_name || '',
-                        narration: '',
-                        narration_template: data.narration_template || '',
-                        lines: lines.map(l => ({ coa_code: l.coa_code, debit: l.debit, credit: l.credit })),
-                        frequency: data.frequency || 'monthly',
-                        interval: parseInt(data.interval) || 1,
-                        day_of_month: parseInt(data.day_of_month) || 1,
-                        day_of_week: parseInt(data.day_of_week) || 0,
-                        next_run: nextRunMs,
-                        end_date: endMs,
-                        max_executions: parseInt(data.max_executions) || 0,
-                        status: 'ACTIVE',
-                    }, 'PUT');
-                    resp.textContent = '✅ Template updated.';
-                } else {
-                    // TODO: migrate recurring entry creation to Manager.io
-                    alert('Coming soon — creating recurring entries through Manager.io');
-                    return;
-                    await callApi('/api/ledger/journal/recurring', {
-                        code: data.code,
-                        branch: data.branch || '',
-                        schedule_name: data.schedule_name || '',
-                        narration: '',
-                        narration_template: data.narration_template || '',
-                        lines: lines.map(l => ({ coa_code: l.coa_code, debit: l.debit, credit: l.credit })),
-                        frequency: data.frequency || 'monthly',
-                        interval: parseInt(data.interval) || 1,
-                        day_of_month: parseInt(data.day_of_month) || 1,
-                        day_of_week: parseInt(data.day_of_week) || 0,
-                        next_run: nextRunMs,
-                        end_date: endMs,
-                        max_executions: parseInt(data.max_executions) || 0,
-                    }, 'POST');
-                    resp.textContent = '✅ Template created.';
-                }
-                resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
-                resp.classList.remove('hidden');
-                e.target.reset();
-                const appData = await getAppData();
-                if (appData?.LEDGER) _allLedger = Object.values(appData.LEDGER);
-                _renderList();
+                // Recurring entries are pending a rewrite against the accounting engine.
+                alert('Managing recurring entries is not available yet.');
+                return;
             } catch (err) {
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
                 resp.textContent = '❌ ' + (err.message || 'Failed');
@@ -1028,11 +963,9 @@ const VaultJournal = (() => {
         _activeJournalType = 'RECURRING';
         _injectListPane();
         const data = await getAppData();
-        if (data?.LEDGER) {
-            _allLedger = Object.values(data.LEDGER);
-            if (data.B2B) _allB2B = Object.values(data.B2B);
-            _renderList();
-        }
+        _glRows = [];
+        if (data?.B2B) _allB2B = Object.values(data.B2B);
+        _renderList();
         document.getElementById('vaultSearch').placeholder = 'Search recurring entries…';
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
@@ -1042,12 +975,9 @@ const VaultJournal = (() => {
     async function load() {
         _injectListPane();
         const data = await getAppData();
-        if (data?.HEADER) {
-            _allJournals = Object.values(data.HEADER);
-        }
-        if (data?.LEDGER) {
-            _allLedger = Object.values(data.LEDGER);
-        }
+        // Legacy GL document stores retired; journals are pending a rewrite.
+        _allJournals = [];
+        _glRows = [];
         if (data?.B2B) {
             _allB2B = Object.values(data.B2B);
         }

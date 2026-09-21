@@ -1,6 +1,7 @@
 // --- Global pattern validators ---
 const InputValidator = {
-  mobile:      (v) => !v || /^91[0-9]{10}$/.test(v),
+  mobile:      (v) => !v || /^(91)?[0-9]{10}$/.test(v),
+  mobile10:    (v) => !v || /^[0-9]{10}$/.test(v),
   email:       (v) => !v || /^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/i.test(v),
   gstin:       (v) => !v || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v),
   pan:         (v) => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v),
@@ -126,7 +127,10 @@ const FieldValidation = {
     const e = {};
     if (!data.COMPANY_CODE) e.COMPANY_CODE = 'COMPANY_CODE is required';
     if ('GSTIN'          in data && !InputValidator.gstin(data.GSTIN))          e.GSTIN          = 'Invalid GSTIN';
+    if ('PAN'            in data && !InputValidator.pan(data.PAN))              e.PAN            = 'Invalid PAN Number';
     if ('IFSC'           in data && !InputValidator.ifsc(data.IFSC))            e.IFSC           = 'Invalid IFSC';
+    if ('BANK_AC'        in data && !InputValidator.bankAccount(data.BANK_AC))  e.BANK_AC        = 'Invalid Bank Account Number';
+    if ('UPI'            in data && !InputValidator.upi(data.UPI))              e.UPI            = 'Invalid UPI ID';
     if ('MOBILE'         in data && !InputValidator.mobile(data.MOBILE))        e.MOBILE         = 'MOBILE must be 91XXXXXXXXXX';
     if ('CONTACT_MOBILE' in data && !InputValidator.mobile(data.CONTACT_MOBILE)) e.CONTACT_MOBILE = 'CONTACT_MOBILE must be 91XXXXXXXXXX';
     return e;

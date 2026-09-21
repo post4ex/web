@@ -2,10 +2,10 @@
 // VAULT-PAYROLL.JS — Employee management + Payroll dashboard + Payslips
 // Tiles: employees, payroll
 // Data sources:
-//   Employees:      IDB STAFF (list) + IDB LEDGER (balances by STAFF_CODE)
-//   Payslips:       IDB HEADER (DOX_TYPE === 'Payslip')
-//   Salary structs: IDB LEDGER (legacy JOURNAL + JOURNAL_TYPE='SALARY_STRUCTURE')
-//   Payroll dashbd: Computed from STAFF + LEDGER
+//   Employees:      IDB STAFF (list)
+//   Payslips:       pending — not yet wired to the accounting engine
+//   Salary structs: pending
+//   Payroll dashbd: IDB STAFF
 // ============================================================================
 
 const VaultPayroll = (() => {
@@ -13,7 +13,7 @@ const VaultPayroll = (() => {
     let _allStaff = [];
     let _allAttendance = [];
     let _allBranches = [];
-    let _allLedger = [];
+    let _glRows = [];
     let _allPayslips = [];
     let _balanceCache = {};
     let _activeTile = 'employees';
@@ -64,12 +64,12 @@ const VaultPayroll = (() => {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // EMPLOYEE BALANCE COMPUTATION (from LEDGER + BAL_LAST_FY)
+    // EMPLOYEE BALANCE COMPUTATION (from BAL_LAST_FY)
     // ══════════════════════════════════════════════════════════════════════════
 
     function _computeEmployeeBalances() {
         _balanceCache = {};
-        (_allLedger || []).forEach(e => {
+        (_glRows || []).forEach(e => {
             if (!e.STAFF_CODE) return;
             const debit = +(e.DEBIT || 0);
             const credit = +(e.CREDIT || 0);
@@ -82,7 +82,7 @@ const VaultPayroll = (() => {
         if (!staffEntry) return 0;
         
         let earliestTxn = null;
-        for (const entry of (_allLedger || [])) {
+        for (const entry of (_glRows || [])) {
             if (entry.STAFF_CODE === staffEntry.STAFF_CODE) {
                 const txnDateStr = _toDateStr(entry.IO_TIMESTAMP);
                 if (!earliestTxn || txnDateStr < earliestTxn) {
@@ -119,7 +119,7 @@ const VaultPayroll = (() => {
     }
 
     function _getStaffLedgerEntries(staffCode) {
-        return (_allLedger || []).filter(e => e.STAFF_CODE === staffCode)
+        return (_glRows || []).filter(e => e.STAFF_CODE === staffCode)
             .sort((a, b) => ((a.IO_TIMESTAMP || '') > (b.IO_TIMESTAMP || '') ? 1 : -1));
     }
 
@@ -259,13 +259,13 @@ const VaultPayroll = (() => {
     }
 
     // ========================================================================
-    // SALARY STRUCTURE (stored in LEDGER — legacy, keep until Manager.io)
+    // SALARY STRUCTURE
     // ========================================================================
 
     let _salaryStructures = [];
 
     function _loadSalaryStructures() {
-        _salaryStructures = (_allLedger || []).filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY_STRUCTURE' && e.STATUS === 'ACTIVE');
+        _salaryStructures = (_glRows || []).filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY_STRUCTURE' && e.STATUS === 'ACTIVE');
     }
 
     function _getSalaryForStaff(code) {
@@ -337,14 +337,14 @@ const VaultPayroll = (() => {
             const resp = document.getElementById('salResponse');
             try {
                 if (existingData && existingData.entry_id) {
-                    alert('Coming soon — managing salary structures through Manager.io');
+                    alert('Coming soon — managing salary structures.');
                     return;
                 }
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-green-100 text-green-800';
                 resp.textContent = `✅ Salary structure saved for ${staff?.STAFF_NAME || staffCode}: ₹${net.toFixed(2)}`;
                 resp.classList.remove('hidden');
-                const data = await getAppData();
-                if (data?.LEDGER) _allLedger = Object.values(data.LEDGER);
+                await getAppData();
+                _glRows = [];
                 _loadSalaryStructures();
             } catch (err) {
                 resp.className = 'mt-3 p-3 rounded text-sm text-center bg-red-100 text-red-800';
@@ -377,8 +377,8 @@ const VaultPayroll = (() => {
             return;
         }
         const month = new Date().toISOString().substring(0, 7);
-        if (!confirm(`Process salary for ${month}? This will create ledger entries for ${withSalary.length} employees.`)) return;
-        alert('Coming soon — processing payroll through Manager.io');
+        if (!confirm(`Process salary for ${month}? This will process ${withSalary.length} employees.`)) return;
+        alert('Processing payroll is not available yet.');
     }
 
     function _calcNet() {
@@ -481,7 +481,7 @@ const VaultPayroll = (() => {
     // PAYROLL TILE — Dashboard + Payslip List
     // ========================================================================
 
-    // ── Payslip list from HEADER ──────────────────────────────────────────────
+    // ── Payslip list ─────────────────────────────────────────────────────────
     function _renderPayslipList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
@@ -555,17 +555,17 @@ const VaultPayroll = (() => {
                     <!-- General Ledger Postings -->
                     <details class="text-xs border border-slate-100 rounded-xl overflow-hidden" id="glPostingsDetails">
                         <summary class="cursor-pointer font-semibold text-gray-600 bg-slate-50 px-4 py-3 hover:bg-slate-100 transition-colors select-none">
-                            📒 General Ledger Postings
+                            📒 Postings
                         </summary>
                         <div id="glPostingsContent" class="p-3 text-gray-400 text-xs">Loading…</div>
                     </details>
 
                     <script>(async function() {
                         try {
-                            const ledgerRaw = await window.appDB?.getSheet('LEDGER');
+                            const ledgerRaw = {};
                             const glEntries = Object.values(ledgerRaw || {}).filter(e => e.DOX_KEY === '${key}');
                             if (!glEntries.length) {
-                                document.getElementById('glPostingsContent').innerHTML = '<p class="text-gray-400">No ledger entries found.</p>';
+                                document.getElementById('glPostingsContent').innerHTML = '<p class="text-gray-400">No postings found.</p>';
                                 return;
                             }
                             glEntries.sort((a,b) => (a.IO_TIMESTAMP || '').localeCompare(b.IO_TIMESTAMP || ''));
@@ -596,9 +596,9 @@ const VaultPayroll = (() => {
         _renderPayslipList();
     }
 
-    // ── Salary history (from legacy LEDGER) ──────────────────────────────────
+    // ── Salary history ──────────────────────────────────────────────────────
     function _renderSalaryHistory() {
-        const salaryEntries = (_allLedger || [])
+        const salaryEntries = (_glRows || [])
             .filter(e => e.ENTRY_TYPE === 'JOURNAL' && e.JOURNAL_TYPE === 'SALARY' && e.STATUS === 'ACTIVE')
             .sort((a, b) => (b.TIME_STAMP || 0) - (a.TIME_STAMP || 0));
 
@@ -822,26 +822,12 @@ const VaultPayroll = (() => {
         );
         _allAttendance = Object.values(data.ATTENDANCE || {});
         _allBranches = Object.values(data.BRANCHES || {});
-        _allLedger = Object.values(data.LEDGER || {});
+        _glRows = [];
         _loadSalaryStructures();
         _computeEmployeeBalances();
 
-        // Load payslips from HEADER
-        try {
-            if (window.appDB) {
-                const raw = await window.appDB.getSheet('HEADER');
-                const activeBranch = VaultPage.getActiveBranch();
-                _allPayslips = Object.values(raw || {}).filter(h =>
-                    h.DOX_TYPE === 'Payslip' &&
-                    (!activeBranch || (h.BRANCH || '').toLowerCase() === activeBranch.toLowerCase())
-                );
-            } else {
-                _allPayslips = [];
-            }
-        } catch (err) {
-            console.error('[VaultPayroll] Failed to load payslips:', err);
-            _allPayslips = [];
-        }
+        // Payslips are pending a rewrite against the accounting engine.
+        _allPayslips = [];
 
         if (_activeTile === 'employees') {
             _injectListPane('Search name, code, department…');

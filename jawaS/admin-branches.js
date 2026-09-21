@@ -1,7 +1,13 @@
 // ============================================================================
 // ADMIN-BRANCHES.JS — Branches list, detail, add/edit/delete
 // BRANCH_MOBILE stored as CC-NUMBER (e.g. 91-9045451155)
-// Create/Update: POST /api/write  |  Delete: POST /api/delete  (ADMIN/MASTER)
+// Create/Update: POST /api/writeBranch  |  Delete: POST /api/deleteBranch  (ADMIN+)
+// Create is free; edit + delete are OTP / Google Authenticator (2FA) gated.
+// Field contract (mirrors backend field_validation.classify_branch_fields):
+//   GENIE  — free edit, nothing to do with the ledger
+//   SYNCED — edit here is pushed to the pyacc Entity / bank Account
+//   LOCKED — ENTITY_ID / BANK_AC_ID / CASH_AC_ID / BRANCH_CODE, never editable
+//   SYSTEM — STATUS / USED_LIMIT / UNBILLED_USAGE / CASH_IN_HAND, engine owned
 // ============================================================================
 
 const AdminBranches = (() => {
@@ -16,6 +22,7 @@ const AdminBranches = (() => {
         upi:        (v) => InputValidator.upi(v),
         ifsc:       (v) => InputValidator.ifsc(v),
         mobile:     (v) => InputValidator.mobile(v),
+        mobile10:   (v) => InputValidator.mobile10 ? InputValidator.mobile10(v) : (!v || /^[0-9]{10}$/.test(v)),
         bankAccount:(v) => InputValidator.bankAccount(v),
         stateCode:  (v) => InputValidator.stateCode(v),
         gstCode:    (v) => InputValidator.gstCode(v),
@@ -41,10 +48,10 @@ const AdminBranches = (() => {
     let _branches = [];   // array of branch objects from IndexedDB
     let _selected = null; // BRANCH_CODE of selected branch
 
-    // Fields in display/form order (BRANCH_STATE/CODE_STATE/GST_CODE rendered as one row separately)
+    // Fields in display/form order (BRANCH_CITY/BRANCH_STATE/CODE_STATE/GST_CODE rendered in responsive row)
     const FIELDS = [
         'BRANCH_CODE', 'BRANCH_NAME', 'BRANCH_STATUS', 'BRANCH_GSTIN', 'BRANCH_PAN',
-        'BRANCH_ADDRESS', 'BRANCH_LANDMARK', 'BRANCH_PINCODE', 'BRANCH_CITY', '__STATE_ROW__',
+        'BRANCH_ADDRESS', 'BRANCH_LANDMARK', 'BRANCH_PINCODE', '__STATE_ROW__',
         'BRANCH_MOBILE', 'BRANCH_EMAIL',
         'BRANCH_MANAGER', 'BRANCH_MANAGER_PHONE',
         'BRANCH_OPEN_TIME', 'BRANCH_CLOSE_TIME',
@@ -58,6 +65,13 @@ const AdminBranches = (() => {
     const READONLY_ON_EDIT = new Set(['BRANCH_CODE']);
     // Auto-filled from pincode API
     const PINCODE_AUTO = new Set(['BRANCH_CITY', 'BRANCH_STATE', 'CODE_STATE', 'GST_CODE']);
+    // An edit here is pushed to the pyacc accounting Entity / bank Account
+    const ACCOUNTING_SYNCED = new Set([
+        'BRANCH_NAME', 'BRANCH_BANK_NAME', 'BRANCH_BANK_AC',
+        'BRANCH_IFSC', 'BRANCH_UPI', 'BRANCH_UPI_NAME',
+    ]);
+    // Owned by the credit engine / accounting — rendered read-only, never sent
+    const SYSTEM_OWNED = new Set(['STATUS', 'USED_LIMIT', 'UNBILLED_USAGE', 'CROSSOVER', 'CASH_IN_HAND']);
 
     // ── Mobile helpers ────────────────────────────────────────────────────────
     function _splitMobile(val) {
@@ -66,7 +80,8 @@ const AdminBranches = (() => {
         return { cc: '91', num: clean.replace(/^91/, '') };
     }
     function _joinMobile(cc, num) {
-        cc = (cc || '91').trim(); num = (num || '').trim();
+        cc = (cc || '91').trim();
+        num = (num || '').trim().replace(/^91/, '');
         return num ? `${cc}${num}` : '';
     }
 
@@ -204,11 +219,58 @@ const AdminBranches = (() => {
                 <div><span class="font-semibold text-gray-500 block text-xs">Bank Name</span><span>${b.BRANCH_BANK_NAME || '—'}</span></div>
                 <div><span class="font-semibold text-gray-500 block text-xs">Geotag</span><span>${b.BRANCH_GEO_TEG || '—'}</span></div>
                 <div><span class="font-semibold text-gray-500 block text-xs">Cross Limit</span><span>${b.CROSS_LIMIT || 'No'}</span></div>
+            </div>
+            <!-- Accounting & Treasury Entity Information -->
+            <div class="mt-4 pt-3 border-t border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Python Accounting (Pyacc) Entity & Treasury
+                    </h3>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                        IFRS / GAAP Double-Entry
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gradient-to-br from-emerald-50/80 to-teal-50/50 border border-emerald-200/80 rounded-xl p-3.5 text-sm">
+                    <div>
+                        <span class="font-semibold text-emerald-900 block text-xs">Entity ID & Name</span>
+                        <span class="font-medium text-gray-900">${b.ENTITY_ID ? `<span class="font-mono font-bold text-emerald-700">#${b.ENTITY_ID}</span> · ${b.BRANCH_CODE} - ${b.BRANCH_NAME || ''}` : '<span class="text-xs text-gray-400 italic">Unlinked</span>'}</span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-emerald-900 block text-xs">Bank Ledger A/C</span>
+                        <span class="font-medium text-gray-900">${b.BANK_AC_ID ? `<span class="font-mono font-bold text-emerald-700">#${b.BANK_AC_ID}</span> · ${b.BRANCH_BANK_NAME || 'Primary Bank'}` : '<span class="text-xs text-gray-400 italic">Unlinked</span>'}</span>
+                        ${b.BRANCH_BANK_AC ? `<span class="block text-[11px] text-gray-500 font-mono">${b.BRANCH_BANK_AC} (${b.BRANCH_IFSC || '—'})</span>` : ''}
+                    </div>
+                    <div>
+                        <span class="font-semibold text-emerald-900 block text-xs">Cash Ledger A/C</span>
+                        <span class="font-medium text-gray-900">${b.CASH_AC_ID ? `<span class="font-mono font-bold text-emerald-700">#${b.CASH_AC_ID}</span> · Counter Cash - ${b.BRANCH_CODE}` : '<span class="text-xs text-gray-400 italic">Unlinked</span>'}</span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-emerald-900 block text-xs">Counter Cash in Hand</span>
+                        <span class="font-bold text-base text-emerald-700">₹${parseFloat(b.CASH_IN_HAND || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div class="sm:col-span-2 pt-2 border-t border-emerald-200/50 flex items-center gap-4 text-xs text-gray-600">
+                        <span><strong class="text-gray-700">Currency & Locale:</strong> INR (₹) · en_IN</span>
+                        <span><strong class="text-gray-700">FY Cycle:</strong> April–March (Month 4)</span>
+                    </div>
+                    <div class="sm:col-span-2 pt-2 border-t border-emerald-200/50 flex items-center justify-end gap-2 text-xs text-gray-600">
+                        <span class="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Ledger Integrity Protected
+                        </span>
+                    </div>
+                </div>
             </div>` : '';
 
         const fieldHtml = FIELDS.map(f => {
             if (f === '__STATE_ROW__') return `
-                <div class="sm:col-span-2 grid grid-cols-3 gap-3">
+                <div class="sm:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">BRANCH_CITY</label>
+                        <input name="BRANCH_CITY" value="${b?.BRANCH_CITY || ''}"
+                            class="form-input text-sm bg-gray-100 cursor-not-allowed" readonly data-auto
+                            placeholder="City name">
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">BRANCH_STATE</label>
                         <input name="BRANCH_STATE" value="${b?.BRANCH_STATE || ''}"
@@ -219,13 +281,13 @@ const AdminBranches = (() => {
                         <label class="block text-xs font-medium text-gray-600 mb-1">CODE_STATE</label>
                         <input name="CODE_STATE" value="${b?.CODE_STATE || ''}"
                             class="form-input text-sm bg-gray-100 cursor-not-allowed" readonly data-auto
-                            maxlength="2" data-validate="stateCode" placeholder="e.g. DL">
+                            maxlength="2" data-validate="stateCode" placeholder="e.g. UP">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">GST_CODE</label>
                         <input name="GST_CODE" value="${b?.GST_CODE || ''}"
                             class="form-input text-sm bg-gray-100 cursor-not-allowed" readonly data-auto
-                            maxlength="2" data-validate="gstCode" placeholder="e.g. 07">
+                            maxlength="2" data-validate="gstCode" placeholder="e.g. 09">
                     </div>
                 </div>`;
             if (f === 'BRANCH_GEO_TEG') return `
@@ -298,9 +360,10 @@ const AdminBranches = (() => {
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-emerald-800 mb-1">Cash in Hand (₹)</label>
-                            <input name="CASH_IN_HAND" type="number" step="any" value="${b?.CASH_IN_HAND ?? 0}" class="form-input text-sm bg-white" placeholder="0">
+                            <input name="CASH_IN_HAND" type="number" step="any" value="${b?.CASH_IN_HAND ?? 0}" class="form-input text-sm bg-gray-100 cursor-not-allowed" placeholder="0" readonly title="Owned by the accounting engine — post a counter-cash transaction to change it">
                         </div>
                     </div>
+                    <p class="text-xs text-emerald-700/80 mt-2">Entity, Bank A/C and Cash A/C ids are assigned by the accounting engine and locked. Editing branch name, bank name/account, IFSC or UPI also updates the accounting ledger.</p>
                 </div>`;
             if (f === 'BRANCH_STATUS') return `
                 <div>
@@ -326,7 +389,7 @@ const AdminBranches = (() => {
                     <label class="block text-xs font-medium text-gray-600 mb-1">BRANCH_MANAGER_PHONE</label>
                     <div class="flex gap-2">
                         <input name="MGR_PHONE_CC"  value="${mcc}"  class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3">
-                        <input name="MGR_PHONE_NUM" value="${mnum}" class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile">
+                        <input name="MGR_PHONE_NUM" value="${mnum}" class="form-input text-sm flex-1" placeholder="10-digit number" maxlength="10" data-validate="mobile10">
                     </div>
                 </div>`;
             }
@@ -335,15 +398,16 @@ const AdminBranches = (() => {
                     <label class="block text-xs font-medium text-gray-600 mb-1">BRANCH_MOBILE</label>
                     <div class="flex gap-2">
                         <input name="MOBILE_CC"  value="${cc}"  class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3">
-                        <input name="MOBILE_NUM" value="${num}" class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile">
+                        <input name="MOBILE_NUM" value="${num}" class="form-input text-sm flex-1" placeholder="10-digit number" maxlength="10" data-validate="mobile10">
                     </div>
-                    <p class="text-xs text-gray-400 mt-0.5">CCNumber (e.g. 919876543210)</p>
+                    <p class="text-xs text-gray-400 mt-0.5">10-digit number (CC: 91 auto-prepended)</p>
                 </div>`;
             const isRO = isEdit && READONLY_ON_EDIT.has(f);
             const isAuto = PINCODE_AUTO.has(f);
+            const isSynced = ACCOUNTING_SYNCED.has(f);
             return `
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">${f}</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">${f}${isSynced ? '<span class="ml-1 text-[10px] font-semibold text-emerald-600" title="Edits here are pushed to the accounting ledger">&#8594; accounting</span>' : ''}</label>
                     <input name="${f}" value="${b?.[f] || ''}"
                         class="form-input text-sm${isRO || isAuto ? ' bg-gray-100 cursor-not-allowed' : ''}"
                         ${isRO ? 'readonly' : ''}
@@ -448,7 +512,8 @@ const AdminBranches = (() => {
                         email: 'Invalid email format',
                         upi: 'Invalid UPI format (e.g., user@bank)',
                         ifsc: 'Invalid IFSC format (e.g., SBIN0001234)',
-                        mobile: 'Mobile must be 91XXXXXXXXXX (12 digits)',
+                        mobile: 'Mobile must be 10 or 12 digits (e.g., 9876543210 or 919876543210)',
+                        mobile10: 'Mobile number must be 10 digits (e.g. 9876543210)',
                         bankAccount: 'Invalid account number (9-18 digits)',
                         stateCode: 'Invalid state code (2 uppercase letters, e.g., DL, HR)',
                         gstCode: 'Invalid GST code (2 digits, e.g., 01, 27)'
@@ -489,7 +554,7 @@ const AdminBranches = (() => {
             const data = {};
             FIELDS.forEach(field => {
                 if (field === '__STATE_ROW__') {
-                    ['BRANCH_STATE', 'CODE_STATE', 'GST_CODE'].forEach(sf => {
+                    ['BRANCH_CITY', 'BRANCH_STATE', 'CODE_STATE', 'GST_CODE'].forEach(sf => {
                         const el = f.elements[sf];
                         if (el) data[sf] = el.value.trim();
                     });
@@ -498,23 +563,30 @@ const AdminBranches = (() => {
                 } else if (field === 'BRANCH_MANAGER_PHONE') {
                     data.BRANCH_MANAGER_PHONE = _joinMobile(f.MGR_PHONE_CC?.value, f.MGR_PHONE_NUM?.value);
                 } else if (field === '__CREDIT_SECTION__') {
+                    // USED_LIMIT / UNBILLED_USAGE are computed by the credit engine — never sent.
                     ['CREDIT_LIMIT', 'USED_LIMIT', 'UNBILLED_USAGE', 'CROSS_LIMIT'].forEach(sf => {
+                        if (SYSTEM_OWNED.has(sf)) return;
                         const el = f.elements[sf];
                         if (el) data[sf] = el.value.trim();
                     });
                 } else if (field === '__ACCOUNTING_SECTION__') {
-                    const el = f.elements['CASH_IN_HAND'];
-                    if (el && el.value !== '') {
-                        data.CASH_IN_HAND = parseFloat(el.value) || 0.0;
-                    }
+                    // CASH_IN_HAND is accounting-owned; the server ignores it regardless.
+                    // (intentionally not collected)
                 } else {
+                    if (SYSTEM_OWNED.has(field)) return;
                     const el = f.elements[field];
                     if (el) data[field] = el.value.trim();
                 }
             });
 
-            try {
-                (async () => {
+            const submitBtn = f.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ${isEdit ? 'Saving Changes…' : 'Creating Branch…'}`;
+            }
+
+            (async () => {
+                try {
                     // Branch write is OTP-gated — callApi auto-asks (rule: record_id/'new')
                     const payload = { data };
                     if (isEdit) payload.record_id = b.id;
@@ -533,17 +605,25 @@ const AdminBranches = (() => {
                     if (cnt) cnt.textContent = _branches.length;
                     if (window.NavigationGuard) NavigationGuard.markClean();
                     showNotification(`✅ Branch ${isEdit ? 'updated' : 'created'}`, 'success');
-                })().catch(err => {
+                } catch (err) {
                     if (err.message !== 'OTP action cancelled') showNotification('❌ ' + err.message, 'error');
-                });
-            } catch (err) {
-                if (err.message !== 'OTP action cancelled') showNotification('❌ ' + err.message, 'error');
-            }
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = isEdit ? 'Save Changes' : 'Create Branch';
+                    }
+                }
+            })();
         });
 
         if (isEdit && canDelete) {
             view.querySelector('#deleteBranchBtn').addEventListener('click', () => {
-                if (!confirm(`Delete branch "${b.BRANCH_CODE}"? This cannot be undone.`)) return;
+                if (!confirm(`Delete branch "${b.BRANCH_CODE}"?\n\nThis is only allowed while the accounting entity is in its initial state (no transactions). If it cannot be deleted, disable the branch instead by setting BRANCH_STATUS to Inactive.`)) return;
+                const delBtn = view.querySelector('#deleteBranchBtn');
+                if (delBtn) {
+                    delBtn.disabled = true;
+                    delBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Deleting…`;
+                }
                 (async () => {
                     try {
                         await callApi('/api/deleteBranch', { record_id: b.id }, 'POST');  // OTP auto-asked
@@ -558,6 +638,11 @@ const AdminBranches = (() => {
                         showNotification('✅ Branch deleted', 'success');
                     } catch (err) {
                         if (err.message !== 'OTP action cancelled') showNotification('❌ ' + err.message, 'error');
+                    } finally {
+                        if (delBtn) {
+                            delBtn.disabled = false;
+                            delBtn.innerHTML = 'Delete';
+                        }
                     }
                 })();
             });

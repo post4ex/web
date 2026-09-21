@@ -49,8 +49,8 @@ const AdminCarriers = (() => {
         document.getElementById('detailView').innerHTML = `
             <div class="w-full">
                 <div class="text-center mb-8">
-                    <h1 class="text-3xl font-bold text-gray-900">Carrier Management</h1>
-                    <p class="text-gray-600 mt-2">Select a carrier to edit, or create a new one.</p>
+                    <h1 class="text-3xl font-bold text-gray-900">Carrier & Vendor Management</h1>
+                    <p class="text-gray-600 mt-2">Select a carrier to edit, or create a new vendor account.</p>
                 </div>
                 <form id="carriersForm" autocomplete="off">
                     <h2 class="text-xl font-semibold mb-6 text-indigo-600">Carrier Details</h2>
@@ -75,12 +75,17 @@ const AdminCarriers = (() => {
                             <input type="url" name="LOGO_URL_POSTIMG" placeholder="https://"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
                         </div>
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-2">
                             <label class="block mb-2 text-sm font-medium text-gray-700">GSTIN</label>
                             <input type="text" name="GSTIN" placeholder="15-digit GSTIN" maxlength="15"
-                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 uppercase">
                         </div>
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">PAN Number</label>
+                            <input type="text" name="PAN" placeholder="10-digit PAN" maxlength="10"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 uppercase">
+                        </div>
+                        <div class="md:col-span-2">
                             <label class="block mb-2 text-sm font-medium text-gray-700">Transport ID</label>
                             <input type="text" name="TRANSPORT_ID" placeholder="Transport ID"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
@@ -109,9 +114,9 @@ const AdminCarriers = (() => {
                                 class="bg-gray-200 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                         </div>
 
-                        <!-- Contact & Account Details Section -->
+                        <!-- Contact Details Section -->
                         <div class="md:col-span-6 border-t pt-6 mt-4">
-                            <h3 class="text-lg font-medium text-indigo-600 mb-4">Contact & Account Details</h3>
+                            <h3 class="text-lg font-medium text-indigo-600 mb-4">Contact Details</h3>
                         </div>
                         <div class="md:col-span-3">
                             <label class="block mb-2 text-sm font-medium text-gray-700">Email</label>
@@ -133,6 +138,11 @@ const AdminCarriers = (() => {
                             <input type="text" name="CONTACT_MOBILE" placeholder="91XXXXXXXXXX" maxlength="12"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
                         </div>
+
+                        <!-- Banking & Payout Details Section -->
+                        <div class="md:col-span-6 border-t pt-6 mt-4">
+                            <h3 class="text-lg font-medium text-indigo-600 mb-4">Banking & Payout Details</h3>
+                        </div>
                         <div class="md:col-span-3">
                             <label class="block mb-2 text-sm font-medium text-gray-700">Bank Name</label>
                             <input type="text" name="BANK_NAME" placeholder="Bank Name"
@@ -143,14 +153,41 @@ const AdminCarriers = (() => {
                             <input type="text" name="BANK_AC" placeholder="Account Number"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
                         </div>
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-2">
                             <label class="block mb-2 text-sm font-medium text-gray-700">IFSC Code</label>
                             <input type="text" name="IFSC" placeholder="IFSC Code" maxlength="11"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 uppercase">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Beneficiary / A/C Name</label>
+                            <input type="text" name="BENEFICIARY_NAME" placeholder="Name as per Bank"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
                         </div>
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-2">
                             <label class="block mb-2 text-sm font-medium text-gray-700">UPI ID</label>
                             <input type="text" name="UPI" placeholder="UPI ID"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+
+                        <!-- Taxation & Pyacc Double-Entry Accounting Section -->
+                        <div class="md:col-span-6 border-t pt-6 mt-4">
+                            <h3 class="text-lg font-medium text-indigo-600 mb-4">Taxation & Accounting Profile</h3>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Reverse Charge (RCM)</label>
+                            <select name="IS_RCM" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                                <option value="N">No (Standard ITC / Forward)</option>
+                                <option value="Y">Yes (GTA / Carrier RCM)</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">TDS Section</label>
+                            <input type="text" name="TDS_SECTION" placeholder="e.g. 194C (Contractor)"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-gray-700">Accounting Entity ID</label>
+                            <input type="number" name="ENTITY_ID" placeholder="1 (Head Office)" defaultValue="1"
                                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5">
                         </div>
                     </div>
@@ -210,11 +247,18 @@ const AdminCarriers = (() => {
         );
 
         const canEdit = _can('ADMIN');
+        const isRcm = carrier.IS_RCM === 'Y' || carrier.IS_RCM === true;
+        const accountCode = carrier.ACCOUNT_CODE || '—';
+
         view.innerHTML = `
             <div class="detail-card mode-view" id="carrierDetailCard">
                 <div class="detail-card-header flex justify-between items-center">
                     <div>
-                        <h2 class="text-base font-bold text-gray-800">${carrier.COMPANY_CODE}</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-bold text-gray-800">${carrier.COMPANY_CODE}</h2>
+                            ${carrier.ACCOUNT_CODE ? `<span class="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded font-semibold">A/P #${carrier.ACCOUNT_CODE}</span>` : ''}
+                            ${isRcm ? `<span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-semibold">RCM</span>` : ''}
+                        </div>
                         <p class="text-xs text-gray-500">${carrier.COMPANY_NAME || ''}</p>
                     </div>
                     ${canEdit ? `
@@ -224,24 +268,50 @@ const AdminCarriers = (() => {
                     </div>` : ''}
                 </div>
                 <div class="detail-card-body">
-                    <div class="view-only space-y-3">
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <div><span class="block text-xs font-semibold text-gray-500">Company Code</span><span class="text-sm">${carrier.COMPANY_CODE || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Company Name</span><span class="text-sm">${carrier.COMPANY_NAME || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">GSTIN</span><span class="text-sm">${carrier.GSTIN || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Transport ID</span><span class="text-sm">${carrier.TRANSPORT_ID || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Address</span><span class="text-sm">${carrier.COMPANY_ADDRESS || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Pincode</span><span class="text-sm">${carrier.COMPANY_PINCODE || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">City</span><span class="text-sm">${carrier.COMPANY_CITY || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">State</span><span class="text-sm">${carrier.COMPANY_STATE || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Email</span><span class="text-sm">${carrier.EMAIL || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Company Mobile</span><span class="text-sm">${carrier.MOBILE || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Contact Person</span><span class="text-sm">${carrier.CONTACT_PERSON || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Contact Mobile</span><span class="text-sm">${carrier.CONTACT_MOBILE || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Bank Name</span><span class="text-sm">${carrier.BANK_NAME || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">Bank Account No.</span><span class="text-sm">${carrier.BANK_AC || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">IFSC Code</span><span class="text-sm">${carrier.IFSC || '—'}</span></div>
-                            <div><span class="block text-xs font-semibold text-gray-500">UPI ID</span><span class="text-sm">${carrier.UPI || '—'}</span></div>
+                    <div class="view-only space-y-4">
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Company & Location</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div><span class="block text-xs font-semibold text-gray-500">Company Code</span><span class="text-sm font-mono">${carrier.COMPANY_CODE || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Company Name</span><span class="text-sm">${carrier.COMPANY_NAME || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">GSTIN</span><span class="text-sm font-mono">${carrier.GSTIN || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">PAN</span><span class="text-sm font-mono">${carrier.PAN || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Transport ID</span><span class="text-sm">${carrier.TRANSPORT_ID || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Address</span><span class="text-sm">${carrier.COMPANY_ADDRESS || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Pincode</span><span class="text-sm">${carrier.COMPANY_PINCODE || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">City / State</span><span class="text-sm">${[carrier.COMPANY_CITY, carrier.COMPANY_STATE].filter(Boolean).join(', ') || '—'}</span></div>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div><span class="block text-xs font-semibold text-gray-500">Email</span><span class="text-sm">${carrier.EMAIL || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Company Mobile</span><span class="text-sm">${carrier.MOBILE || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Contact Person</span><span class="text-sm">${carrier.CONTACT_PERSON || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Contact Mobile</span><span class="text-sm">${carrier.CONTACT_MOBILE || '—'}</span></div>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Banking & Payout</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div><span class="block text-xs font-semibold text-gray-500">Bank Name</span><span class="text-sm">${carrier.BANK_NAME || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Bank Account No.</span><span class="text-sm font-mono">${carrier.BANK_AC || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">IFSC Code</span><span class="text-sm font-mono">${carrier.IFSC || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Beneficiary Name</span><span class="text-sm">${carrier.BENEFICIARY_NAME || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">UPI ID</span><span class="text-sm">${carrier.UPI || '—'}</span></div>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Accounting & Taxation</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div><span class="block text-xs font-semibold text-gray-500">A/P Account Code</span><span class="text-sm font-bold text-purple-700">${accountCode}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Reverse Charge (RCM)</span><span class="text-sm">${isRcm ? 'Yes (GTA / Carrier)' : 'No (Standard)'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">TDS Section</span><span class="text-sm">${carrier.TDS_SECTION || '—'}</span></div>
+                                <div><span class="block text-xs font-semibold text-gray-500">Entity ID</span><span class="text-sm">${carrier.ENTITY_ID || 1}</span></div>
+                            </div>
                         </div>
                     </div>
                 </div>

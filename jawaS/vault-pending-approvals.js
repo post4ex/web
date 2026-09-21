@@ -1,7 +1,7 @@
 // ============================================================================
 // VAULT-PENDING-APPROVALS.JS — Pending approvals with TXN-group handling
 // Tiles: pending-approvals
-// API: GET /api/ledger/pending, POST /api/ledger/approve, POST /api/ledger/batch-approve
+// Data source: pending — not yet wired to the accounting engine.
 // ============================================================================
 
 const VaultPendingApprovals = (() => {
@@ -309,8 +309,7 @@ const VaultPendingApprovals = (() => {
         const primary = rows.sort((a, b) => (parseInt(a.ENTRY_SQNSE) || 1) - (parseInt(b.ENTRY_SQNSE) || 1))[0];
 
         try {
-            // TODO: migrate approval to Manager.io
-            alert('Coming soon — approving entries through Manager.io');
+            alert('Coming soon — approving entries is not yet available');
             return;
         } catch (err) {
             alert('Failed: ' + (err.message || err));
@@ -350,8 +349,7 @@ const VaultPendingApprovals = (() => {
         }
 
         try {
-            // TODO: migrate batch approval to Manager.io
-            alert('Coming soon — batch approving entries through Manager.io');
+            alert('Coming soon — batch approving entries is not yet available');
             return;
         } catch (err) {
             alert('Failed: ' + (err.message || err));
@@ -385,10 +383,7 @@ const VaultPendingApprovals = (() => {
         _selectedForBulk.clear();
 
         try {
-            // TODO: load pending entries from Manager.io
             _pendingEntries = [];
-            // const res = await callApi('/api/ledger/pending', {}, 'GET');
-            // _pendingEntries = res.data || [];
             _renderFilterChips();
             _renderList();
             // Auto-select first entry's detail

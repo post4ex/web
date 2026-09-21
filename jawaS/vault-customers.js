@@ -1,6 +1,9 @@
 // ============================================================================
-// VAULT-CUSTOMERS.JS — Customers List from IDB B2B + Clean Statement of Account
+// VAULT-CUSTOMERS.JS — Customers (Accounts Receivable)
 // Tile: customers
+// ARCHITECTURAL RULE: Only the 'billing' tile has access to IndexedDB data.
+// All other Vault tiles (including this one) sync PURELY & DIRECTLY with pyacc.
+// Data source: /api/accounting/clients (pyacc) with 15-min incremental ETag cache
 // ============================================================================
 
 const VaultCustomers = (() => {
@@ -12,8 +15,29 @@ const VaultCustomers = (() => {
 
     const _escapeHtml = (str) => {
         if (!str) return "";
-        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     };
+
+    function _getAuthToken() {
+        try {
+            const raw = localStorage.getItem('post4ex_session') || localStorage.getItem('session') || '';
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return parsed.token || parsed.jwt || parsed.access_token || raw;
+            }
+        } catch { /* fallback */ }
+        return localStorage.getItem('token') || '';
+    }
+
+    function _fmtMoney(n) {
+        const num = Number(n) || 0;
+        return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     function _injectListPane() {
         const msg = document.getElementById("vaultListMsg");
@@ -22,7 +46,7 @@ const VaultCustomers = (() => {
         if (msg) { msg.textContent = ""; msg.classList.add("hidden"); }
         if (list) list.innerHTML = "";
         if (search) {
-            search.placeholder = "Search customer by name, code, GST...";
+            search.placeholder = "Search customers by name, code, account #...";
             search.oninput = () => _renderList();
         }
 
@@ -91,7 +115,7 @@ const VaultCustomers = (() => {
                 _filterStart = document.getElementById("custFilterStart").value;
                 _filterEnd = document.getElementById("custFilterEnd").value;
                 modal.classList.add("hidden");
-                if (_activeCustomer) _loadLiveLedger(_activeCustomer, _filterStart, _filterEnd);
+                if (_activeCustomer) _renderCustomerDetail(_activeCustomer, _filterStart, _filterEnd);
             };
 
             document.getElementById("custFilterResetBtn").onclick = () => {
@@ -100,7 +124,7 @@ const VaultCustomers = (() => {
                 _filterStart = "";
                 _filterEnd = "";
                 modal.classList.add("hidden");
-                if (_activeCustomer) _loadLiveLedger(_activeCustomer);
+                if (_activeCustomer) _renderCustomerDetail(_activeCustomer);
             };
 
             modal.onclick = (e) => {
@@ -109,255 +133,189 @@ const VaultCustomers = (() => {
         }
     }
 
+    async function load() {
+        _injectListPane();
+        window.setLoading?.(true, "Loading customers directly from pyacc...", "list");
+
+        const listEl = document.getElementById("vaultList");
+        if (listEl) {
+            listEl.innerHTML = `
+                <li class="p-6 text-center text-gray-500 text-xs space-y-2">
+                    <div class="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p>Fetching Client Accounts Receivable from pyacc engine...</p>
+                </li>
+            `;
+        }
+
+        try {
+            const token = _getAuthToken();
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+            let resData = null;
+            if (window.VaultCache) {
+                const res = await window.VaultCache.fetchWithEtag('/api/accounting/clients', { headers });
+                resData = res.data;
+            } else {
+                const r = await fetch('/api/accounting/clients', { headers });
+                resData = await r.json();
+            }
+
+            const raw = Array.isArray(resData) ? resData : (resData?.clients || resData?.data || []);
+            _customers = raw.map(c => ({
+                id: c.id,
+                account_code: c.account_code || c.code || '',
+                code: c.client_code || c.code || '',
+                name: c.name || c.full_name || '',
+                full_name: c.full_name || c.name || '',
+                balance: Number(c.balance || c.outstanding || 0),
+                outstanding: Number(c.outstanding || c.balance || 0),
+                description: c.description || '',
+                account_type: 'RECEIVABLE'
+            })).sort((a, b) => (a.name || a.code).localeCompare(b.name || b.code));
+
+            _renderList();
+
+            if (_customers.length > 0 && window.innerWidth >= 768) {
+                _renderCustomerDetail(_customers[0]);
+            } else {
+                VaultPage?.showDetail?.(false);
+            }
+        } catch (err) {
+            console.error("[VaultCustomers.load error]", err);
+            if (listEl) {
+                listEl.innerHTML = `<li class="p-4 text-center text-red-600 text-xs">Failed to load customers from pyacc: ${_escapeHtml(err.message)}</li>`;
+            }
+        } finally {
+            window.setLoading?.(false);
+        }
+    }
+
     function _renderList() {
         const ul = document.getElementById("vaultList");
+        const msgEl = document.getElementById("vaultListMsg");
         if (!ul) return;
+        ul.innerHTML = "";
 
         const q = (document.getElementById("vaultSearch")?.value || "").toLowerCase().trim();
 
         const filtered = _customers.filter(c => {
             if (!q) return true;
-            const code = (c.CODE || "").toLowerCase();
-            const name = (c.B2B_NAME || c.NAME || "").toLowerCase();
-            const gstin = (c.GSTIN || c.GST || "").toLowerCase();
-            const phone = (c.PHONE || c.MOBILE || "").toLowerCase();
-            return code.includes(q) || name.includes(q) || gstin.includes(q) || phone.includes(q);
+            const code = (c.code || "").toLowerCase();
+            const name = (c.name || c.full_name || "").toLowerCase();
+            const accCode = String(c.account_code || "").toLowerCase();
+            return code.includes(q) || name.includes(q) || accCode.includes(q);
         });
 
         if (!filtered.length) {
-            ul.innerHTML = `<li class="text-center text-gray-400 text-xs py-6">No matching customers found.</li>`;
+            if (msgEl) {
+                msgEl.textContent = q ? "No matching customers found." : "No client accounts in pyacc ledger.";
+                msgEl.classList.remove("hidden");
+            }
             return;
         }
+        if (msgEl) msgEl.classList.add("hidden");
 
         ul.innerHTML = filtered.map(c => {
-            const code = c.CODE || "N/A";
-            const name = c.B2B_NAME || c.NAME || code;
-            const branch = c.BRANCH || "";
-            const gstin = c.GSTIN || c.GST || "";
-
+            const isSelected = _activeCustomer && _activeCustomer.code === c.code;
             return `
-                <li data-code="${_escapeHtml(code)}" class="p-2.5 rounded-lg cursor-pointer hover:bg-blue-50/80 border border-gray-200 transition-colors">
+                <li data-code="${_escapeHtml(c.code)}" class="p-3 bg-white rounded-lg border ${isSelected ? 'border-purple-500 bg-purple-50/50' : 'border-gray-200'} hover:border-purple-400 cursor-pointer transition shadow-sm space-y-1">
                     <div class="flex items-center justify-between gap-2">
-                        <strong class="text-blue-950 text-xs font-bold truncate">${_escapeHtml(name)}</strong>
-                        <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-blue-100 text-blue-800 border border-blue-200 flex-shrink-0">${_escapeHtml(code)}</span>
+                        <strong class="text-gray-900 text-xs font-bold truncate">${_escapeHtml(c.name)}</strong>
+                        <span class="px-1.5 py-0.5 text-[9px] font-mono font-bold rounded bg-purple-100 text-purple-800 border border-purple-200 flex-shrink-0">
+                            #${_escapeHtml(c.account_code || c.code)}
+                        </span>
                     </div>
                     <div class="flex items-center justify-between text-[11px] text-gray-500 mt-1">
-                        <span>Branch: <strong class="text-gray-700">${_escapeHtml(branch)}</strong></span>
-                        ${gstin ? `<span class="font-mono text-[9px] text-gray-400">GST: ${_escapeHtml(gstin)}</span>` : ""}
+                        <span class="text-[10px] text-slate-500 font-mono">Code: <strong>${_escapeHtml(c.code)}</strong></span>
+                        <span class="font-mono text-[10px] font-bold ${c.balance > 0 ? 'text-rose-700' : 'text-emerald-700'}">
+                            ${_fmtMoney(c.balance)}
+                        </span>
                     </div>
                 </li>
             `;
         }).join("");
 
         const items = Array.from(ul.querySelectorAll("li"));
-        items.forEach((li, idx) => {
-            li.setAttribute("tabindex", "0");
-            const selectItem = () => {
-                items.forEach(x => x.classList.remove("selected"));
-                li.classList.add("selected");
-                li.focus({ preventScroll: true });
-                li.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        items.forEach((li) => {
+            li.addEventListener("click", () => {
+                items.forEach(x => {
+                    x.classList.remove("border-purple-500", "bg-purple-50/50");
+                    x.classList.add("border-gray-200");
+                });
+                li.classList.remove("border-gray-200");
+                li.classList.add("border-purple-500", "bg-purple-50/50");
                 const code = li.dataset.code;
-                const c = _customers.find(item => (item.CODE || "").toUpperCase() === code.toUpperCase());
-                if (c) _loadLiveLedger(c, _filterStart, _filterEnd);
-            };
-
-            li.addEventListener("click", selectItem);
-            li.addEventListener("keydown", (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    selectItem();
-                } else if (e.key === "ArrowDown" && idx < items.length - 1) {
-                    e.preventDefault();
-                    items[idx + 1].click();
-                } else if (e.key === "ArrowUp" && idx > 0) {
-                    e.preventDefault();
-                    items[idx - 1].click();
-                }
+                const c = _customers.find(item => (item.code || "").toUpperCase() === code.toUpperCase());
+                if (c) _renderCustomerDetail(c, _filterStart, _filterEnd);
             });
         });
     }
 
-    async function _loadLiveLedger(cust, startDate = null, endDate = null) {
+    async function _renderCustomerDetail(cust, startDate = null, endDate = null) {
         _activeCustomer = cust;
-        VaultPage.showDetail(true);
+        VaultPage?.showDetail?.(true);
         const view = document.getElementById("vaultDetailView");
         if (!view) return;
 
-        const code = cust.CODE || "";
-        const name = cust.B2B_NAME || cust.NAME || code;
+        const code = cust.code || "";
+        const name = cust.name || cust.full_name || code;
+        const balance = cust.balance || 0;
 
         view.innerHTML = `
-            <div class="p-12 text-center space-y-3">
-                <div class="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p class="text-xs font-medium text-gray-600">Generating Statement of Account for <strong class="text-blue-800">${_escapeHtml(name)}</strong>...</p>
-            </div>
-        `;
-
-        try {
-            let url = `/api/ninja/clients/${encodeURIComponent(code)}/ledger`;
-            const queryParts = [];
-            if (startDate) queryParts.push(`start_date=${encodeURIComponent(startDate)}`);
-            if (endDate) queryParts.push(`end_date=${encodeURIComponent(endDate)}`);
-            if (queryParts.length) url += `?${queryParts.join("&")}`;
-
-            const data = await callApi(url, {}, "GET");
-            _renderStatement(cust, data);
-        } catch (err) {
-            console.error("[_loadLiveLedger error]", err);
-            view.innerHTML = `
-                <div class="p-6 bg-red-50 rounded-xl border border-red-200 text-center space-y-2">
-                    <p class="text-xs font-bold text-red-700">Unable to load Statement of Account</p>
-                    <p class="text-[11px] text-red-600">${_escapeHtml(err.message || err)}</p>
-                </div>
-            `;
-        }
-    }
-
-    function _renderStatement(cust, data) {
-        const view = document.getElementById("vaultDetailView");
-        if (!view) return;
-
-        const code = cust.CODE || data.client_code || "";
-        const name = cust.B2B_NAME || cust.NAME || data.name || code;
-        const branch = cust.BRANCH || (typeof getActiveBranch === "function" ? getActiveBranch() : "DDN");
-        const gstin = cust.GSTIN || cust.GST || "";
-        const phone = cust.PHONE || cust.MOBILE || "";
-        const address = cust.ADDRESS || cust.CITY || "";
-
-        const totalInvoiced = parseFloat(data.total_invoiced || 0);
-        const totalPaid     = parseFloat(data.total_paid || 0);
-        const totalCredit   = parseFloat(data.total_credit || 0);
-        const netBalance    = parseFloat(data.net_outstanding || (totalInvoiced - totalPaid - totalCredit));
-
-        const transactions = data.transactions || [];
-
-        const txnRows = transactions.map((t, idx) => {
-            const isPay = t.type === "PAYMENT";
-            const isCred = t.type === "CREDIT";
-
-            let typeBadge = `<span class="px-2 py-0.5 text-[9px] font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-200">INVOICE</span>`;
-            if (isPay) {
-                typeBadge = `<span class="px-2 py-0.5 text-[9px] font-bold rounded bg-emerald-50 text-emerald-700 border border-emerald-200">PAYMENT</span>`;
-            } else if (isCred) {
-                typeBadge = `<span class="px-2 py-0.5 text-[9px] font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">CREDIT NOTE</span>`;
-            }
-
-            const debitStr = t.debit > 0 ? `₹${t.debit.toFixed(2)}` : "-";
-            const creditStr = t.credit > 0 ? `₹${t.credit.toFixed(2)}` : "-";
-            const balClass = t.running_balance > 0 ? "text-red-700 font-bold" : (t.running_balance < 0 ? "text-purple-700 font-bold" : "text-green-700 font-bold");
-
-            return `
-                <tr class="hover:bg-gray-50/60 transition-colors">
-                    <td class="px-4 py-2.5 text-center text-xs text-gray-400">${idx + 1}</td>
-                    <td class="px-4 py-2.5 text-xs text-gray-700 font-medium whitespace-nowrap">📅 ${t.date || "N/A"}</td>
-                    <td class="px-4 py-2.5 text-center">${typeBadge}</td>
-                    <td class="px-4 py-2.5 text-xs font-bold text-gray-900">${_escapeHtml(t.ref)}</td>
-                    <td class="px-4 py-2.5 text-xs text-gray-600 truncate" style="max-width: 220px;" title="${_escapeHtml(t.description)}">${_escapeHtml(t.description)}</td>
-                    <td class="px-4 py-2.5 text-xs text-right font-bold text-gray-900">${debitStr}</td>
-                    <td class="px-4 py-2.5 text-xs text-right font-bold text-emerald-700">${creditStr}</td>
-                    <td class="px-4 py-2.5 text-xs text-right ${balClass}">₹${t.running_balance.toFixed(2)}</td>
-                </tr>
-            `;
-        }).join("");
-
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-body p-6 space-y-6">
-                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-gray-100 pb-4">
+            <div class="space-y-6">
+                <!-- Header Card -->
+                <div class="p-5 bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-xl shadow-sm">
+                    <div class="flex justify-between items-start">
                         <div>
-                            <div class="flex items-center gap-2">
-                                <h1 class="text-xl font-bold text-gray-900">${_escapeHtml(name)}</h1>
-                                <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">${_escapeHtml(code)}</span>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/30 text-purple-200 rounded border border-purple-400/30">CLIENT RECEIVABLE</span>
+                                <span class="px-2 py-0.5 text-[10px] font-bold bg-white/10 text-white rounded">CODE: ${_escapeHtml(code)}</span>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-bold text-gray-700">${_escapeHtml(branch)}</span> · Statement of Account (Running Ledger)</p>
+                            <h1 class="text-xl font-black text-white">${_escapeHtml(name)}</h1>
+                            <p class="text-xs text-purple-200 mt-1">${_escapeHtml(cust.description || 'PyAcc Client Double-Entry Master')}</p>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="window.print()" class="btn btn-sm">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                <span>Print Statement</span>
-                            </button>
+                        <div class="text-right">
+                            <span class="text-[11px] text-purple-300 block">Ledger Balance</span>
+                            <span class="text-2xl font-mono font-bold ${balance > 0 ? 'text-amber-300' : 'text-emerald-300'}">${_fmtMoney(balance)}</span>
                         </div>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-1">
-                            <span class="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Account Details</span>
-                            <div class="text-sm font-bold text-gray-900">${_escapeHtml(name)}</div>
-                            ${gstin ? `<div class="text-xs font-mono text-gray-700 font-semibold">GSTIN: ${_escapeHtml(gstin)}</div>` : ""}
-                            ${phone ? `<div class="text-xs text-gray-600">📞 ${_escapeHtml(phone)}</div>` : ""}
-                            ${address ? `<div class="text-xs text-gray-600">📍 ${_escapeHtml(address)}</div>` : ""}
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-col justify-center">
-                                <span class="text-[9px] text-gray-500 font-bold uppercase block">Total Invoiced</span>
-                                <span class="text-sm font-bold text-gray-900 mt-1">₹${totalInvoiced.toFixed(2)}</span>
-                            </div>
-                            <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-100 flex flex-col justify-center">
-                                <span class="text-[9px] text-emerald-600 font-bold uppercase block">Total Paid</span>
-                                <span class="text-sm font-bold text-emerald-700 mt-1">₹${totalPaid.toFixed(2)}</span>
-                            </div>
-                            <div class="p-3 ${netBalance > 0 ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100"} rounded-lg border flex flex-col justify-center">
-                                <span class="text-[9px] ${netBalance > 0 ? "text-red-600" : "text-green-600"} font-bold uppercase block">Net Balance</span>
-                                <span class="text-base font-bold ${netBalance > 0 ? "text-red-700" : "text-green-700"} mt-1">₹${netBalance.toFixed(2)}</span>
-                            </div>
-                        </div>
+                <!-- Parameters Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <span class="block text-[10px] font-bold uppercase text-gray-500">Client Code</span>
+                        <span class="text-xs font-mono font-bold text-gray-900">${_escapeHtml(code)}</span>
                     </div>
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <span class="block text-[10px] font-bold uppercase text-gray-500">Account Code</span>
+                        <span class="text-xs font-mono font-bold text-purple-700">#${_escapeHtml(cust.account_code || '—')}</span>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <span class="block text-[10px] font-bold uppercase text-gray-500">Classification</span>
+                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 inline-block mt-0.5">ACCOUNTS RECEIVABLE</span>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <span class="block text-[10px] font-bold uppercase text-gray-500">Normal Balance</span>
+                        <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 inline-block mt-0.5">Debit (Dr)</span>
+                    </div>
+                </div>
 
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Statement of Account (${transactions.length} Transactions)</h3>
-                        </div>
-                        <div class="overflow-x-auto rounded-lg border border-gray-200">
-                            <table class="w-full text-left text-xs border-collapse">
-                                <thead class="bg-gray-100 text-gray-600 font-bold uppercase border-b border-gray-200">
-                                    <tr>
-                                        <th class="px-4 py-2.5 text-center" style="width:35px;">#</th>
-                                        <th class="px-4 py-2.5" style="width:95px;">Date</th>
-                                        <th class="px-4 py-2.5 text-center" style="width:105px;">Type</th>
-                                        <th class="px-4 py-2.5" style="width:140px;">Reference #</th>
-                                        <th class="px-4 py-2.5">Description</th>
-                                        <th class="px-4 py-2.5 text-right" style="width:110px;">Debit (Dr)</th>
-                                        <th class="px-4 py-2.5 text-right" style="width:110px;">Credit (Cr)</th>
-                                        <th class="px-4 py-2.5 text-right" style="width:120px;">Running Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 bg-white">
-                                    ${txnRows.length ? txnRows : `<tr><td colspan="8" class="p-8 text-center text-gray-400">No transactions recorded for this customer in Invoice Ninja.</td></tr>`}
-                                </tbody>
-                            </table>
-                        </div>
+                <!-- Live Statement / Ledger Scope -->
+                <div class="p-4 bg-white border border-gray-200 rounded-xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                            <i class="fa-solid fa-receipt text-purple-600"></i> PyAcc Client Ledger Summary
+                        </h3>
+                        <span class="text-[11px] text-gray-500 font-mono">Sync: Pure pyacc engine</span>
+                    </div>
+                    <div class="text-xs text-gray-700 space-y-2">
+                        <p>All sales invoices, receipts, and journal postings for <strong>${_escapeHtml(name)}</strong> are linked to account <strong>#${_escapeHtml(cust.account_code)}</strong>.</p>
+                        ${cust.id ? `<p class="text-slate-500 text-[11px]">Account ID: <span class="font-mono select-all">${_escapeHtml(cust.id)}</span></p>` : ''}
                     </div>
                 </div>
             </div>
         `;
-
-        VaultPage.showDetailPane();
-    }
-
-    async function load() {
-        _injectListPane();
-        window.setLoading?.(true, "Loading customer list...", "list");
-
-        try {
-            const b2bRaw = await getAppData("B2B");
-            _customers = Object.values(b2bRaw || {}).filter(c => c && c.CODE);
-            _customers.sort((a, b) => (a.B2B_NAME || a.CODE || "").localeCompare(b.B2B_NAME || b.CODE || ""));
-            _renderList();
-
-            if (_customers.length > 0) {
-                _loadLiveLedger(_customers[0]);
-                const firstLi = document.querySelector("#vaultList li");
-                if (firstLi) firstLi.classList.add("selected");
-            }
-        } catch (err) {
-            console.error("[VaultCustomers load error]", err);
-            const msg = document.getElementById("vaultListMsg");
-            if (msg) { msg.textContent = "Failed to load customers: " + (err.message || err); msg.classList.remove("hidden"); }
-        } finally {
-            window.setLoading?.(false);
-        }
     }
 
     return { load, search: _renderList };

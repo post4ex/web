@@ -16,7 +16,7 @@ const AdminClients = (() => {
         { label: 'ROI',      zones: [9, 10, 11, 12] },
         { label: 'EAST',     zones: [13, 14] },
     ];
-    const PERCENT_FIELDS = ['PCT_TOPAY_IF', 'PCT_COD_IF', 'PCT_FOV_IF', 'FUEL_CHARGES', 'DEV_CHARGES'];
+    const PERCENT_FIELDS = ['PCT_TOPAY_IF', 'PCT_COD_IF', 'PCT_FOV_IF', 'FUEL_CHARGES', 'DEV_CHARGES', 'PCT_TOPAY', 'PCT_COD', 'PCT_FOV'];
 
     // ── State ─────────────────────────────────────────────────────────────────
     let _allCustomers = {};
@@ -24,6 +24,7 @@ const AdminClients = (() => {
     let _allRates     = {};
     let _currentCode  = null;
     let _isUpdate     = false;
+    let _mode         = 'overview'; // 'overview' | 'view' | 'edit' | 'add'
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     function _msg(html, type) {
@@ -141,94 +142,42 @@ const AdminClients = (() => {
                         <div class="flex-grow"></div>
                     </div>
 
-                    <!-- Details form -->
+                    <!-- Details form (4-Zone Architecture) -->
                     <div id="clientsDetailsTab">
-                        <form id="clientsForm" class="space-y-5">
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Code*</label>
-                                    <input name="CODE" id="clientsCode" required maxlength="4" class="form-input uppercase" placeholder="e.g., AGWL">
-                                </div>
-                                <div class="md:col-span-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">B2B Name*</label>
-                                    <input name="B2B_NAME" required class="form-input" placeholder="Full legal name">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
-                                    <div class="flex gap-2">
-                                        <input name="MOBILE_CC" class="form-input" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" value="91">
-                                        <input name="MOBILE_NUM" type="tel" class="form-input flex-1" placeholder="10-digit Number" maxlength="10">
+                        <form id="clientsForm" class="space-y-6">
+                            
+                            <!-- ZONE 1: Identity & Entity Routing -->
+                            <div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-indigo-50 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 1: Identity &amp; Entity Routing</h3>
                                     </div>
+                                    <span class="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">pyacc: Entity &amp; Receivable Account</span>
                                 </div>
-                                <div class="md:col-span-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                    <input type="email" name="EMAIL" class="form-input" placeholder="primary@example.com">
-                                </div>
-                                <div class="md:col-span-4">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">B2B Address</label>
-                                    <input name="B2B_ADDRESS" class="form-input" placeholder="Building, Street Name">
-                                </div>
-                                <div class="md:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
-                                    <input name="B2B_LANDMARK" class="form-input" placeholder="Near Landmark">
-                                </div>
-                                <div class="cf-pair p23">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Pincode*</label>
-                                        <input name="B2B_PINCODE" id="clientsPincode" required class="form-input" maxlength="6" placeholder="e.g., 248001">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Code*</label>
+                                        <input name="CODE" id="clientsCode" required maxlength="4" class="form-input uppercase" placeholder="e.g., AGWL">
+                                    </div>
+                                    <div class="md:col-span-3">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">B2B Name*</label>
+                                        <input name="B2B_NAME" required class="form-input" placeholder="Full legal name">
                                     </div>
                                     <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                                        <input name="B2B_CITY" id="clientsCity" class="form-input" placeholder="City">
-                                    </div>
-                                </div>
-                                <div class="cf-pair p31">
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
-                                        <input name="B2B_STATE" id="clientsState" class="form-input" placeholder="State">
-                                    </div>
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Code State</label>
-                                        <input name="CODE_STATE" id="clientsCodeState" class="form-input uppercase" maxlength="2" placeholder="e.g., UT">
-                                    </div>
-                                </div>
-                                <div class="cf-pair p13">
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">GST Code</label>
-                                        <input name="GST_CODE" id="clientsGstCode" class="form-input" maxlength="2" placeholder="e.g., 05">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
-                                        <input name="GSTIN" class="form-input uppercase" maxlength="15" placeholder="22AAAAA0000A1Z5">
-                                    </div>
-                                </div>
-                                <div class="cf-pair p23">
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">PAN</label>
-                                        <input name="PAN" class="form-input uppercase" maxlength="10" placeholder="AAAAA0000A">
-                                    </div>
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Aadhaar</label>
-                                        <input name="AADHAAR" class="form-input" maxlength="12" placeholder="12-digit number">
-                                    </div>
-                                </div>
-                                <div class="cf-pair p11">
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Branch*</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Branch*</label>
                                         <input name="BRANCH" required maxlength="3" class="form-input uppercase" placeholder="e.g., DDN">
                                     </div>
                                     <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">B2B Type</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">B2B Type*</label>
                                         <select name="B2B_TYPE" class="form-input">
                                             <option value="CLIENT">CLIENT</option>
                                             <option value="SUPPLIER">SUPPLIER</option>
                                             <option value="VENDOR">VENDOR</option>
                                         </select>
                                     </div>
-                                </div>
-                                <div class="cf-pair p11">
                                     <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Status*</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Status*</label>
                                         <select name="STATUS" required class="form-input">
                                             <option value="ACTIVE">ACTIVE</option>
                                             <option value="BLOCKED">BLOCKED</option>
@@ -237,7 +186,7 @@ const AdminClients = (() => {
                                         </select>
                                     </div>
                                     <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Rate List Type*</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Rate List Type*</label>
                                         <select name="RATE_LIST" required class="form-input">
                                             <option value="STANDARD">STANDARD</option>
                                             <option value="DYNAMIC">DYNAMIC</option>
@@ -246,101 +195,197 @@ const AdminClients = (() => {
                                     </div>
                                 </div>
                             </div>
-                            <h3 class="text-md font-semibold text-indigo-600 mt-5 mb-3 border-t pt-4">Charges &amp; Settings</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Weight Change</label>
-                                    <input type="number" step="any" name="WEIGHT_CHANGE" class="form-input" placeholder="e.g., 2">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">% TO-PAY</label>
-                                    <input type="number" step="any" min="0" name="PCT_TOPAY_IF" class="form-input" placeholder="e.g., 3">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">% COD</label>
-                                    <input type="number" step="any" min="0" name="PCT_COD_IF" class="form-input" placeholder="e.g., 0.5">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">% FOV</label>
-                                    <input type="number" step="any" min="0" name="PCT_FOV_IF" class="form-input" placeholder="e.g., 0.2">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">E-Way Charge</label>
-                                    <input type="number" step="any" min="0" name="EWAY_IF" class="form-input" placeholder="e.g., 10">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">AWB Charge</label>
-                                    <input type="number" step="any" min="0" name="AWB_CHARGES" class="form-input" placeholder="e.g., 0">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Packing Charge</label>
-                                    <input type="number" step="any" min="0" name="PACKING_CHARGES" class="form-input" placeholder="e.g., 0">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Clearing Charge</label>
-                                    <input type="number" step="any" min="0" name="CLEARING_CHG" class="form-input" placeholder="e.g., 50">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fuel Charge %</label>
-                                    <input type="number" step="any" min="0" name="FUEL_CHARGES" class="form-input" placeholder="e.g., 10">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Dev. Charge %</label>
-                                    <input type="number" step="any" min="0" name="DEV_CHARGES" class="form-input" placeholder="e.g., 5">
-                                </div>
-                                <div class="flex items-center space-x-2 pt-5">
-                                    <input type="checkbox" id="clientsGstIncCheck" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                                    <label for="clientsGstIncCheck" class="text-sm font-medium text-gray-700">GST Included?</label>
-                                    <input type="hidden" name="GST_INC" id="clientsGstInc" value="N">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Bill Cycle</label>
-                                    <select name="BILL_CYCLE" class="form-input">
-                                        <option value="D">Daily</option>
-                                        <option value="W">Weekly</option>
-                                        <option value="H">Half Month</option>
-                                        <option value="M">Monthly</option>
-                                        <option value="E">Every</option>
-                                    </select>
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">WP Alerts <span class="text-xs text-gray-400">(comma-separated e.g. 91-9876543210)</span></label>
-                                    <input name="WP_ALERTS" id="clientsWpAlerts" class="form-input" placeholder="91-9876543210, 91-9123456789">
-                                </div>
-                                <div class="md:col-span-4">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <label class="block text-sm font-medium text-gray-700">WP Groups</label>
-                                        <button type="button" id="clientsLoadGroupsBtn" class="btn-ghost btn-sm">Load Groups</button>
-                                        <span class="text-xs text-gray-400" id="clientsWpGroupStatus"></span>
+
+                            <!-- ZONE 2: Address, Contact & Alerts -->
+                            <div class="border border-blue-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-blue-50 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 2: Address, Contact &amp; Alerts</h3>
                                     </div>
-                                    <div id="clientsWpGroupList" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border rounded-lg bg-gray-50">
+                                    <span class="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">pyacc: Contact Metadata</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Mobile</label>
+                                        <div class="flex gap-2">
+                                            <input name="MOBILE_CC" class="form-input" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3" value="91">
+                                            <input name="MOBILE_NUM" type="tel" class="form-input flex-1" placeholder="10-digit Number" maxlength="10">
+                                        </div>
+                                    </div>
+                                    <div class="md:col-span-3">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Email</label>
+                                        <input type="email" name="EMAIL" class="form-input" placeholder="primary@example.com">
+                                    </div>
+                                    <div class="md:col-span-3">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">B2B Address</label>
+                                        <input name="B2B_ADDRESS" class="form-input" placeholder="Building, Street Name">
+                                    </div>
+                                    <div class="md:col-span-1">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Landmark</label>
+                                        <input name="B2B_LANDMARK" class="form-input" placeholder="Near Landmark">
+                                    </div>
+                                    <div class="cf-pair p23">
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Pincode*</label>
+                                            <input name="B2B_PINCODE" id="clientsPincode" required class="form-input" maxlength="6" placeholder="e.g., 248001">
+                                        </div>
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">City</label>
+                                            <input name="B2B_CITY" id="clientsCity" class="form-input" placeholder="City">
+                                        </div>
+                                    </div>
+                                    <div class="cf-pair p31">
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">State</label>
+                                            <input name="B2B_STATE" id="clientsState" class="form-input" placeholder="State">
+                                        </div>
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Code State</label>
+                                            <input name="CODE_STATE" id="clientsCodeState" class="form-input uppercase" maxlength="2" placeholder="e.g., UT">
+                                        </div>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">WP Alerts <span class="text-xs text-gray-400 font-normal">(comma-separated)</span></label>
+                                        <input name="WP_ALERTS" id="clientsWpAlerts" class="form-input" placeholder="91-9876543210, 91-9123456789">
+                                    </div>
+                                    <div class="md:col-span-4">
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">WP Groups</label>
+                                            <button type="button" id="clientsLoadGroupsBtn" class="btn-ghost btn-sm">Load Groups</button>
+                                            <span class="text-xs text-gray-400" id="clientsWpGroupStatus"></span>
+                                        </div>
+                                        <div id="clientsWpGroupList" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border rounded-lg bg-gray-50">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <h3 class="text-md font-semibold text-indigo-600 mt-5 mb-3 border-t pt-4">Admin / Subscription</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Credit Limit (₹)</label>
-                                    <input type="number" step="any" min="0" name="CREDIT_LIMIT" class="form-input" placeholder="0">
+
+                            <!-- ZONE 3: Statutory & GST Compliance -->
+                            <div class="border border-emerald-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-emerald-50 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 3: Statutory &amp; GST Compliance</h3>
+                                    </div>
+                                    <span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">pyacc: Tax Ledger Rules</span>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Users</label>
-                                    <input type="number" min="1" name="MAX_USERS_ALLOWED" class="form-input" placeholder="e.g., 5">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Logins/User</label>
-                                    <input type="number" min="1" name="MAX_LOGINS_PER_USER" class="form-input" placeholder="e.g., 3">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Subscription Type</label>
-                                    <select name="SUBSCRIPTION_TYPE" class="form-input">
-                                        <option value="BASIC">BASIC</option>
-                                        <option value="STANDARD">STANDARD</option>
-                                        <option value="PREMIUM">PREMIUM</option>
-                                        <option value="ENTERPRISE">ENTERPRISE</option>
-                                    </select>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="cf-pair p13">
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">GST Code</label>
+                                            <input name="GST_CODE" id="clientsGstCode" class="form-input" maxlength="2" placeholder="e.g., 05">
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">GSTIN</label>
+                                            <input name="GSTIN" class="form-input uppercase" maxlength="15" placeholder="22AAAAA0000A1Z5">
+                                        </div>
+                                    </div>
+                                    <div class="cf-pair p23">
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">PAN</label>
+                                            <input name="PAN" class="form-input uppercase" maxlength="10" placeholder="AAAAA0000A">
+                                        </div>
+                                        <div class="md:col-span-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Aadhaar</label>
+                                            <input name="AADHAAR" class="form-input" maxlength="12" placeholder="12-digit number">
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2 pt-2">
+                                        <input type="checkbox" id="clientsGstIncCheck" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
+                                        <label for="clientsGstIncCheck" class="text-xs font-bold text-gray-700 uppercase tracking-wider">GST Included?</label>
+                                        <input type="hidden" name="GST_INC" id="clientsGstInc" value="N">
+                                    </div>
                                 </div>
                             </div>
+
+                            <!-- ZONE 4: Commercials, Limits & pyacc Account Mapping -->
+                            <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-purple-50 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; pyacc Binding</h3>
+                                    </div>
+                                    <span class="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded">pyacc: Double-Entry Seeding</span>
+                                </div>
+                                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Bill Cycle</label>
+                                        <select name="BILL_CYCLE" class="form-input">
+                                            <option value="D">Daily</option>
+                                            <option value="W">Weekly</option>
+                                            <option value="H">Half Month</option>
+                                            <option value="M">Monthly</option>
+                                            <option value="E">Every</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Fuel Charge %</label>
+                                        <input type="number" step="any" min="0" name="FUEL_CHARGES" class="form-input" placeholder="e.g., 10">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">AWB Charge</label>
+                                        <input type="number" step="any" min="0" name="AWB_CHARGES" class="form-input" placeholder="e.g., 0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Dev. Charge %</label>
+                                        <input type="number" step="any" min="0" name="DEV_CHARGES" class="form-input" placeholder="e.g., 5">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Packing Charge</label>
+                                        <input type="number" step="any" min="0" name="PACKING_CHARGES" class="form-input" placeholder="e.g., 0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Clearing Charge</label>
+                                        <input type="number" step="any" min="0" name="CLEARING_CHG" class="form-input" placeholder="e.g., 50">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Weight Change</label>
+                                        <input type="number" step="any" name="WEIGHT_CHANGE" class="form-input" placeholder="e.g., 2">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% TO-PAY</label>
+                                        <input type="number" step="any" min="0" name="PCT_TOPAY_IF" class="form-input" placeholder="e.g., 3">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% COD</label>
+                                        <input type="number" step="any" min="0" name="PCT_COD_IF" class="form-input" placeholder="e.g., 0.5">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% FOV</label>
+                                        <input type="number" step="any" min="0" name="PCT_FOV_IF" class="form-input" placeholder="e.g., 0.2">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">E-Way Charge</label>
+                                        <input type="number" step="any" min="0" name="EWAY_IF" class="form-input" placeholder="e.g., 10">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Subscription</label>
+                                        <select name="SUBSCRIPTION_TYPE" class="form-input">
+                                            <option value="BASIC">BASIC</option>
+                                            <option value="STANDARD">STANDARD</option>
+                                            <option value="PREMIUM">PREMIUM</option>
+                                            <option value="ENTERPRISE">ENTERPRISE</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-purple-50 pt-3">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Credit Limit (₹)</label>
+                                        <input type="number" step="any" min="0" name="CREDIT_LIMIT" class="form-input" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Max Users</label>
+                                        <input type="number" min="1" name="MAX_USERS_ALLOWED" class="form-input" placeholder="e.g., 5">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Max Logins/User</label>
+                                        <input type="number" min="1" name="MAX_LOGINS_PER_USER" class="form-input" placeholder="e.g., 3">
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="mt-6 flex justify-center items-center gap-4 flex-wrap border-t pt-6">
                                 <button type="submit" id="clientsSubmitBtn" class="btn px-8 py-3 flex items-center justify-center disabled:opacity-45">
                                     <span id="clientsSubmitText">Save Customer</span>
@@ -403,7 +448,7 @@ const AdminClients = (() => {
         _bindDetailEvents();
     }
 
-    // ── OTP Modal ─────────────────────────────────────────────────────────────
+    // ── OTP / 2FA Modal ─────────────────────────────────────────────────────────
     // Resolves with write_token on success, rejects on cancel/failure
     function _requestOtp(code, action) {
         return new Promise((resolve, reject) => {
@@ -417,16 +462,19 @@ const AdminClients = (() => {
                 delete_client: 'Delete Client',
             };
 
+            const currentUser = (typeof window.getUser === 'function' ? window.getUser() : {}) || window.currentUser || {};
+            const isGAuth = currentUser.IS_TOTP_ENABLED === true || currentUser.IS_TOTP_ENABLED === 1 || currentUser.IS_TOTP_ENABLED === '1' || currentUser.IS_TOTP_ENABLED === 'true';
+
             const modal = document.createElement('div');
             modal.id = 'b2bOtpModal';
             modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
             modal.innerHTML = `
                 <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
-                    <h3 class="text-base font-bold text-gray-800 mb-1">Confirm: ${actionLabels[action] || action}</h3>
-                    <p class="text-xs text-gray-500 mb-4">Client: <strong>${code}</strong> &mdash; An OTP has been sent to your email &amp; WhatsApp.</p>
+                    <h3 class="text-base font-bold text-gray-800 mb-1">${isGAuth ? '2FA: Google Authenticator' : 'Confirm: ' + (actionLabels[action] || action)}</h3>
+                    <p id="b2bOtpSubtitle" class="text-xs text-gray-500 mb-4">${isGAuth ? 'Enter the 6-digit code from your Authenticator app.' : `Client: <strong>${code}</strong> &mdash; An OTP has been sent to your email &amp; WhatsApp.`}</p>
                     <div id="b2bOtpMsg" class="hidden mb-3 p-2 rounded text-xs text-center"></div>
-                    <input id="b2bOtpInput" type="text" maxlength="6" placeholder="Enter 6-digit OTP"
-                        class="form-input w-full text-center text-lg tracking-widest mb-4">
+                    <input id="b2bOtpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000"
+                        class="form-input w-full text-center text-xl font-mono tracking-widest mb-4 focus:ring-2 focus:ring-indigo-500">
                     <div class="flex gap-3">
                         <button id="b2bOtpVerifyBtn" class="btn flex-1 flex items-center justify-center gap-2">
                             <span>Verify &amp; Proceed</span>
@@ -434,16 +482,19 @@ const AdminClients = (() => {
                         </button>
                         <button id="b2bOtpCancelBtn" class="btn-ghost btn-sm">Cancel</button>
                     </div>
-                    <button id="b2bOtpResendBtn" class="mt-3 w-full text-xs text-indigo-600 hover:underline">Resend OTP</button>
+                    <button id="b2bOtpResendBtn" class="mt-3 w-full text-xs text-indigo-600 hover:underline">${isGAuth ? 'Send OTP to WhatsApp instead' : 'Resend OTP'}</button>
                 </div>`;
             document.body.appendChild(modal);
 
             const msgEl     = modal.querySelector('#b2bOtpMsg');
+            const subTitleEl= modal.querySelector('#b2bOtpSubtitle');
             const inputEl   = modal.querySelector('#b2bOtpInput');
             const verifyBtn = modal.querySelector('#b2bOtpVerifyBtn');
             const spinner   = modal.querySelector('#b2bOtpSpinner');
             const cancelBtn = modal.querySelector('#b2bOtpCancelBtn');
             const resendBtn = modal.querySelector('#b2bOtpResendBtn');
+
+            inputEl.focus();
 
             const showMsg = (txt, type) => {
                 msgEl.textContent = txt;
@@ -452,21 +503,27 @@ const AdminClients = (() => {
                 msgEl.classList.remove('hidden');
             };
 
-            const sendOtp = async () => {
+            const sendOtp = async (forceOtp = false) => {
                 resendBtn.disabled = true; resendBtn.textContent = 'Sending…';
                 try {
-                    await b2bSendOtp(code, action);
-                    showMsg('OTP sent to your email & WhatsApp.', 'success');
+                    const res = await b2bSendOtp(code, action, forceOtp);
+                    if (res && res.status === 'gauth' && !forceOtp) {
+                        subTitleEl.textContent = 'Enter the 6-digit code from your Authenticator app.';
+                    } else {
+                        subTitleEl.innerHTML = `Client: <strong>${code}</strong> &mdash; OTP sent to your email &amp; WhatsApp.`;
+                        showMsg('OTP sent to your email & WhatsApp.', 'success');
+                    }
                 } catch (e) {
                     showMsg(e.message, 'error');
                 } finally {
-                    resendBtn.disabled = false; resendBtn.textContent = 'Resend OTP';
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = isGAuth && !forceOtp ? 'Send OTP to WhatsApp instead' : 'Resend OTP';
                 }
             };
 
             verifyBtn.addEventListener('click', async () => {
                 const otp = inputEl.value.trim();
-                if (otp.length !== 6) { showMsg('Enter the 6-digit OTP.', 'error'); return; }
+                if (otp.length !== 6) { showMsg('Enter the 6-digit code.', 'error'); return; }
                 verifyBtn.disabled = true; spinner.classList.remove('hidden');
                 try {
                     const res = await b2bVerifyOtp(code, action, otp);
@@ -479,11 +536,13 @@ const AdminClients = (() => {
             });
 
             cancelBtn.addEventListener('click', () => { modal.remove(); reject(new Error('cancelled')); });
-            resendBtn.addEventListener('click', sendOtp);
+            resendBtn.addEventListener('click', () => sendOtp(true));
             inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') verifyBtn.click(); });
 
-            // auto-send OTP on open
-            sendOtp();
+            // Only auto-send WhatsApp/Email OTP if user does NOT have GAuth
+            if (!isGAuth) {
+                sendOtp(false);
+            }
         });
     }
 
@@ -566,6 +625,9 @@ const AdminClients = (() => {
 
     // ── B2B Overview ──────────────────────────────────────────────────────────
     function _showB2bOverview() {
+        _mode = 'overview';
+        _currentCode = null;
+        _isUpdate = false;
         document.getElementById('clientsViewContainer').classList.remove('hidden');
         document.getElementById('clientsEditContainer').classList.add('hidden');
         document.getElementById('clientsDeleteConfirm').classList.add('hidden');
@@ -653,6 +715,7 @@ const AdminClients = (() => {
         if (!c) return;
         _currentCode = code;
         _isUpdate    = true;
+        _mode        = 'view';
 
         document.querySelectorAll('#clientsList li').forEach(li =>
             li.classList.toggle('selected', li.dataset.code === code)
@@ -678,81 +741,109 @@ const AdminClients = (() => {
 
     function _renderView(c) {
         const rates = Object.values(_allRates).filter(r => r.CODE === c.CODE);
-        let html = `<div class="space-y-6">
-            <div class="border-b pb-4">
-                <h3 class="text-md font-semibold text-indigo-600 mb-3">Basic Information</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div><span class="font-semibold text-gray-600">Code:</span> ${c.CODE||'-'}</div>
-                    <div class="col-span-3"><span class="font-semibold text-gray-600">Name:</span> ${c.B2B_NAME||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Branch:</span> ${c.BRANCH||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Type:</span> ${c.B2B_TYPE||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Status:</span>
-                        <span class="px-2 py-1 rounded text-xs font-semibold ${c.STATUS==='ACTIVE'?'bg-green-100 text-green-800':c.STATUS==='BLOCKED'?'bg-red-100 text-red-800':'bg-yellow-100 text-yellow-800'}">${c.STATUS||'-'}</span>
+        let html = `<div class="space-y-5">
+            
+            <!-- ZONE 1: Identity & Entity Routing -->
+            <div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-indigo-50 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 1: Identity &amp; Entity Routing</h3>
                     </div>
-                    <div><span class="font-semibold text-gray-600">Rate List:</span> ${c.RATE_LIST||'-'}</div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-indigo-50 text-indigo-700">Entity: #${c.ENTITY_ID || '21'}</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-50 text-emerald-700">A/C: ${c.ACCOUNT_CODE || 'Pending'}</span>
+                    </div>
                 </div>
-            </div>
-            <div class="border-b pb-4">
-                <h3 class="text-md font-semibold text-indigo-600 mb-3">Contact Details</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <div><span class="font-semibold text-gray-600">Mobile:</span> ${c.MOBILE_NUMBER||'-'}</div>
-                    <div class="col-span-2"><span class="font-semibold text-gray-600">Email:</span> ${c.EMAIL||'-'}</div>
-                    <div class="col-span-3"><span class="font-semibold text-gray-600">Address:</span> ${c.B2B_ADDRESS||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">City:</span> ${c.B2B_CITY||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">State:</span> ${c.B2B_STATE||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Code State:</span> ${c.CODE_STATE||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">GST Code:</span> ${c.GST_CODE||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Pincode:</span> ${c.B2B_PINCODE||'-'}</div>
-                </div>
-            </div>
-            <div class="border-b pb-4">
-                <h3 class="text-md font-semibold text-indigo-600 mb-3">Identity</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <div><span class="font-semibold text-gray-600">GSTIN:</span> ${c.GSTIN||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">PAN:</span> ${c.PAN||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Aadhaar:</span> ${c.AADHAAR||'-'}</div>
-                </div>
-            </div>
-            <div class="border-b pb-4">
-                <h3 class="text-md font-semibold text-indigo-600 mb-3">Admin / Subscription</h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div><span class="font-semibold text-gray-600">Credit Limit:</span> ₹${c.CREDIT_LIMIT??'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Used Limit:</span> ₹${c.USED_LIMIT??'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Max Users:</span> ${c.MAX_USERS_ALLOWED||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Max Logins/User:</span> ${c.MAX_LOGINS_PER_USER||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">Subscription:</span> ${c.SUBSCRIPTION_TYPE||'-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Code</span> <strong class="font-mono text-indigo-700 text-base">${c.CODE||'-'}</strong></div>
+                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">Name</span> <span class="font-medium text-gray-900">${c.B2B_NAME||'-'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Branch</span> <span class="font-bold text-gray-800">${c.BRANCH||'-'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Type</span> <span class="px-2 py-0.5 text-xs rounded bg-gray-100 font-semibold">${c.B2B_TYPE||'-'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Status</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold ${c.STATUS==='ACTIVE'?'bg-green-100 text-green-800':c.STATUS==='BLOCKED'?'bg-red-100 text-red-800':'bg-yellow-100 text-yellow-800'}">${c.STATUS||'-'}</span>
+                    </div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Rate Matrix</span> <span class="font-semibold text-indigo-600">${c.RATE_LIST||'-'}</span></div>
                 </div>
             </div>
-            <div class="border-b pb-4">
-                <h3 class="text-md font-semibold text-indigo-600 mb-3">Charges & Settings</h3>
+
+            <!-- ZONE 2: Address, Contact & Alerts -->
+            <div class="border border-blue-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-blue-50 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 2: Address, Contact &amp; Alerts</h3>
+                    </div>
+                    <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-medium">pyacc: Contact Metadata</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Mobile</span> <span class="font-medium">${c.MOBILE_NUMBER||'-'}</span></div>
+                    <div class="col-span-2"><span class="text-xs font-bold text-gray-500 uppercase block">Email</span> <span class="font-medium">${c.EMAIL||'-'}</span></div>
+                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">Address</span> <span class="text-gray-800">${c.B2B_ADDRESS||'-'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">City</span> ${c.B2B_CITY||'-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">State</span> ${c.B2B_STATE||'-'} (${c.CODE_STATE||'-'})</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Pincode</span> ${c.B2B_PINCODE||'-'}</div>
+                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">WP Alerts</span> <span class="text-xs text-gray-600">${Array.isArray(c.WP_ALERTS)&&c.WP_ALERTS.length?c.WP_ALERTS.join(', '):'-'}</span></div>
+                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">WP Groups</span> <span class="text-xs text-gray-600">${Array.isArray(c.WP_GROUP)&&c.WP_GROUP.length?c.WP_GROUP.map(id=>{const g=(_wpGroups||[]).find(x=>x.id===id);return g?g.name:id;}).join(', '):'-'}</span></div>
+                </div>
+            </div>
+
+            <!-- ZONE 3: Statutory & GST Compliance -->
+            <div class="border border-emerald-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-emerald-50 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 3: Statutory &amp; GST Compliance</h3>
+                    </div>
+                    <span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded font-medium">pyacc: Tax Ledger Rules</span>
+                </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div><span class="font-semibold text-gray-600">Weight Change:</span> ${c.WEIGHT_CHANGE||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">% TO-PAY:</span> ${c.PCT_TOPAY_IF != null && c.PCT_TOPAY_IF !== '' ? (parseFloat(c.PCT_TOPAY_IF) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="font-semibold text-gray-600">% COD:</span> ${c.PCT_COD_IF != null && c.PCT_COD_IF !== '' ? (parseFloat(c.PCT_COD_IF) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="font-semibold text-gray-600">% FOV:</span> ${c.PCT_FOV_IF != null && c.PCT_FOV_IF !== '' ? (parseFloat(c.PCT_FOV_IF) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="font-semibold text-gray-600">Fuel %:</span> ${c.FUEL_CHARGES != null && c.FUEL_CHARGES !== '' ? (parseFloat(c.FUEL_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="font-semibold text-gray-600">Dev %:</span> ${c.DEV_CHARGES != null && c.DEV_CHARGES !== '' ? (parseFloat(c.DEV_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="font-semibold text-gray-600">AWB Charge:</span> ${c.AWB_CHARGES||'-'}</div>
-                    <div><span class="font-semibold text-gray-600">GST Inc:</span> ${c.GST_INC==='Y'?'Yes':'No'}</div>
-                    <div><span class="font-semibold text-gray-600">Bill Cycle:</span> ${c.BILL_CYCLE||'-'}</div>
-                    <div class="col-span-2"><span class="font-semibold text-gray-600">WP Alerts:</span> ${Array.isArray(c.WP_ALERTS)&&c.WP_ALERTS.length?c.WP_ALERTS.join(', '):'-'}</div>
-                    <div class="col-span-2"><span class="font-semibold text-gray-600">WP Groups:</span> ${Array.isArray(c.WP_GROUP)&&c.WP_GROUP.length?c.WP_GROUP.map(id=>{const g=(_wpGroups||[]).find(x=>x.id===id);return g?g.name:id;}).join(', '):'-'}</div>
+                    <div class="col-span-2"><span class="text-xs font-bold text-gray-500 uppercase block">GSTIN</span> <strong class="font-mono text-gray-900">${c.GSTIN||'-'}</strong></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">GST Code</span> ${c.GST_CODE||'-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">GST Inclusive</span> <span class="px-2 py-0.5 text-xs rounded ${c.GST_INC==='Y'?'bg-emerald-100 text-emerald-800 font-bold':'bg-gray-100 text-gray-700'}">${c.GST_INC==='Y'?'Yes (Tax Included)':'No (Exclusive)'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">PAN</span> <span class="font-mono">${c.PAN||'-'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Aadhaar</span> <span class="font-mono">${c.AADHAAR||'-'}</span></div>
                 </div>
             </div>
+
+            <!-- ZONE 4: Commercials, Limits & pyacc Account Mapping -->
+            <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-purple-50 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; pyacc Binding</h3>
+                    </div>
+                    <span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded font-medium">pyacc: Double-Entry Active</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Credit Limit</span> <strong class="text-gray-900">₹${c.CREDIT_LIMIT != null ? Number(c.CREDIT_LIMIT).toLocaleString('en-IN') : '0'}</strong></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Used Limit</span> <strong class="text-gray-900">₹${c.USED_LIMIT != null ? Number(c.USED_LIMIT).toLocaleString('en-IN') : '0'}</strong></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Bill Cycle</span> ${c.BILL_CYCLE||'-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Subscription</span> <span class="px-2 py-0.5 text-xs rounded bg-purple-50 text-purple-700 font-bold">${c.SUBSCRIPTION_TYPE||'BASIC'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Fuel Surcharge</span> ${c.FUEL_CHARGES != null && c.FUEL_CHARGES !== '' ? (parseFloat(c.FUEL_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">AWB / Docket Charge</span> ₹${c.AWB_CHARGES||'0'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Dev Charges</span> ${c.DEV_CHARGES != null && c.DEV_CHARGES !== '' ? (parseFloat(c.DEV_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">% TO-PAY / % COD</span> ${c.PCT_TOPAY_IF != null ? (parseFloat(c.PCT_TOPAY_IF)*100).toFixed(1)+'%' : '-'} / ${c.PCT_COD_IF != null ? (parseFloat(c.PCT_COD_IF)*100).toFixed(1)+'%' : '-'}</div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">pyacc Account ID</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_ID || 'Mapped'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">pyacc Ledger Code</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_CODE || 'Auto-assigned'}</span></div>
+                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Max Users / Logins</span> ${c.MAX_USERS_ALLOWED||1} / ${c.MAX_LOGINS_PER_USER||1}</div>
+                </div>
+            </div>
+
             <div>
-                <h3 class="text-md font-semibold text-indigo-600 mb-3">Rate List (${rates.length} rates)</h3>`;
+                <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase mb-3">Rate List (${rates.length} rates)</h3>`;
         if (rates.length > 0) {
             html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100"><th class="border p-2">Mode</th><th class="border p-2">Weight</th>';
             for (let i = 1; i <= 14; i++) html += `<th class="border p-2">Z${i}</th>`;
             html += '</tr></thead><tbody>';
             rates.forEach(rate => {
-                html += `<tr><td class="border p-2">${rate.MODE||'-'}</td><td class="border p-2">${rate.WEIGHT||'-'}</td>`;
-                for (let i = 1; i <= 14; i++) html += `<td class="border p-2 text-right">${rate[`Z${i}`]||'-'}</td>`;
+                html += `<tr><td class="border p-2 font-semibold">${rate.MODE||'-'}</td><td class="border p-2 font-mono">${rate.WEIGHT||'-'}</td>`;
+                for (let i = 1; i <= 14; i++) html += `<td class="border p-2 text-right font-mono">${rate[`Z${i}`]||'-'}</td>`;
                 html += '</tr>';
             });
             html += '</tbody></table></div>';
         } else {
-            html += '<p class="text-gray-500 text-center py-4">No rates defined.</p>';
+            html += '<p class="text-gray-500 text-center py-4 text-xs bg-gray-50 rounded-lg">No rates defined for this customer.</p>';
         }
         html += '</div></div>';
         document.getElementById('clientsViewContent').innerHTML = html;
@@ -762,6 +853,8 @@ const AdminClients = (() => {
     function _switchToEdit() {
         const c = _allCustomers[_currentCode];
         if (!c) return;
+        _mode = 'edit';
+        _isUpdate = true;
         document.getElementById('clientsViewContainer').classList.add('hidden');
         document.getElementById('clientsEditContainer').classList.remove('hidden');
         document.getElementById('clientsFormTitle').textContent = `Edit: ${_currentCode}`;
@@ -830,6 +923,7 @@ const AdminClients = (() => {
     function openAddPane() {
         _currentCode = null;
         _isUpdate    = false;
+        _mode        = 'add';
         document.getElementById('clientsViewContainer').classList.add('hidden');
         document.getElementById('clientsEditContainer').classList.remove('hidden');
         document.getElementById('clientsMsg').classList.add('hidden');
@@ -1370,13 +1464,30 @@ const AdminClients = (() => {
     }
 
     // ── Data load ─────────────────────────────────────────────────────────────
-    function _handleData(data) {
+    function _handleData(data, isBackgroundSync = false) {
         if (!data) return;
         _allCustomers = data.B2B    || {};
         _allModes     = data.MODES  ? Object.values(data.MODES) : [];
         _allRates     = data.RATES  || {};
         _renderList(_allCustomers);
-        if (!_currentCode) {
+
+        if (isBackgroundSync) {
+            // Check if user is actively adding or editing in the form
+            const editEl = document.getElementById('clientsEditContainer');
+            const isEditing = (editEl && !editEl.classList.contains('hidden')) || _mode === 'edit' || _mode === 'add';
+            if (isEditing) {
+                // DO NOT touch or reset the form while user is typing!
+                return;
+            }
+            if (_mode === 'view' && _currentCode && _allCustomers[_currentCode]) {
+                _renderView(_allCustomers[_currentCode]);
+            } else if (_mode === 'overview') {
+                _showB2bOverview();
+            }
+            return;
+        }
+
+        if (!_currentCode && _mode === 'overview') {
             _showB2bOverview();
         }
     }
@@ -1387,7 +1498,7 @@ const AdminClients = (() => {
         _injectDetailPane();
         getAppData().then(data => {
             if (!data) return;
-            _handleData(data);
+            _handleData(data, false);
             // restore selected client view after DOM re-inject
             if (_currentCode && _allCustomers[_currentCode]) {
                 _selectClient(_currentCode);
@@ -1397,11 +1508,7 @@ const AdminClients = (() => {
 
     window.addEventListener('appDataRefreshed', e => {
         if (window.AdminPage?.getActiveTile() === 'clients' && e.detail?.data) {
-            _handleData(e.detail.data);
-            const isViewing = !document.getElementById('clientsViewContainer')?.classList.contains('hidden');
-            if (isViewing && _currentCode && _allCustomers[_currentCode]) {
-                _selectClient(_currentCode);
-            }
+            _handleData(e.detail.data, true);
         }
     });
 

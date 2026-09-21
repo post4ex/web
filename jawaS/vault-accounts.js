@@ -1,18 +1,14 @@
 // ============================================================================
-// VAULT-ACCOUNTS.JS — Cheque tracking (Manager.io) + Bank account reference
+// VAULT-ACCOUNTS.JS — Cheque tracking + Bank account reference
 // Tiles: cheques (💳), bank-accounts (🏛️)
-// API:
-//   GET  /api/manager/all-cheques                  — cross-branch cheque list
-//   GET  /api/manager/cheque-details/{type}/{b}/{k} — cheque form detail
-//   PUT  /api/manager/cheque-status/{type}/{k}      — mark cleared/pending
-//   GET  /api/manager/bank-accounts?code=XXX        — bank accounts (manager side)
+// Data source: pending — not yet wired to the accounting engine.
 // ============================================================================
 
 const VaultAccounts = (() => {
 
     let _chequesList = [];
     let _bankAccounts = [];
-    let _allLedger = [];
+    let _glRows = [];
     let _allBranches = [];
     let _allCarriers = [];
     let _b2bList = [];
@@ -60,7 +56,7 @@ const VaultAccounts = (() => {
     }
 
     // ========================================================================
-    // CHEQUES TILE (Manager.io API)
+    // CHEQUES TILE
     // ========================================================================
 
     async function _fetchCheques() {
@@ -68,11 +64,8 @@ const VaultAccounts = (() => {
         const branch = branchSelect ? branchSelect.value : '';
         window.setLoading?.(true, 'Loading cheques...', 'list');
         try {
-            const res = await callApi(
-                `/api/manager/all-cheques?startDate=${_filterStart || ''}&endDate=${_filterEnd || ''}&branch=${branch || ''}&status=${_filterStatus || ''}`,
-                {}, 'GET'
-            );
-            _chequesList = res.cheques || [];
+            // Cheque tracking is pending a rewrite against the accounting engine.
+            _chequesList = [];
         } catch (err) {
             console.error('[VaultAccounts] Failed to fetch cheques:', err);
             _chequesList = [];
@@ -154,10 +147,8 @@ const VaultAccounts = (() => {
 
         window.setLoading?.(true, 'Fetching cheque...', 'detail');
         try {
-            const formData = await callApi(
-                `/api/manager/cheque-details/${chequeType}/${branch}/${key}`,
-                {}, 'GET'
-            );
+            // Cheque detail is pending a rewrite against the accounting engine.
+            const formData = {};
 
             const isReceipt = chequeType === 'receipt';
             const dirLabel = isReceipt ? 'Receipt from client' : 'Payment to vendor';
@@ -262,7 +253,7 @@ const VaultAccounts = (() => {
                             <summary class="cursor-pointer hover:text-gray-600 transition-colors">Audit & System Metadata</summary>
                             <div class="grid grid-cols-2 gap-2 mt-2 p-2 border rounded-lg bg-gray-50/50">
                                 <div>Branch: ${_escapeHtml(branch.toUpperCase())}</div>
-                                <div>Manager UUID: <span class="font-mono text-[9px]">${formData.Key || formData.key || 'N/A'}</span></div>
+                                <div>UUID: <span class="font-mono text-[9px]">${formData.Key || formData.key || 'N/A'}</span></div>
                                 <div>Type: ${chequeType}</div>
                                 <div>Cleared: ${isCleared ? 'Yes' : 'No'}</div>
                             </div>
@@ -288,14 +279,8 @@ const VaultAccounts = (() => {
 
         window.setLoading?.(true, 'Updating cheque status...', 'detail');
         try {
-            const res = await callApi(
-                `/api/manager/cheque-status/${chequeType}/${key}?cleared=${cleared}&code=${encodeURIComponent(clientCode)}`,
-                {}, 'PUT'
-            );
-            // Refresh
-            await _fetchCheques();
-            _renderList();
-            _renderChequeDetail(chequeType, key, branch);
+            // Cheque clearance updates are pending a rewrite.
+            alert('Updating cheque status is not available yet.');
         } catch (err) {
             alert('Failed to update status: ' + (err.message || err));
         } finally {
@@ -308,7 +293,7 @@ const VaultAccounts = (() => {
         window.setLoading?.(true, 'Preparing print...', 'detail');
         try {
             const [formData, appData] = await Promise.all([
-                callApi(`/api/manager/cheque-details/${chequeType}/${branch}/${key}`, {}, 'GET'),
+                Promise.resolve({}),
                 getAppData()
             ]);
 
@@ -548,11 +533,7 @@ const VaultAccounts = (() => {
     }
 
     // ========================================================================
-    // BANK ACCOUNTS TILE (unchanged — uses appData ledger)
-    // ========================================================================
-
-    // ========================================================================
-    // BANK ACCOUNTS TILE (Live API + local LEDGER statement fallback)
+    // BANK ACCOUNTS TILE
     // ========================================================================
 
     function _enrichBankAccount(acct) {
@@ -591,9 +572,8 @@ const VaultAccounts = (() => {
         }
         window.setLoading?.(true, 'Loading bank accounts...', 'list');
         try {
-            const res = await callApi(`/api/manager/bank-accounts?branch=${encodeURIComponent(branch)}`, {}, 'GET');
-            const list = res.bankAndCashAccounts || [];
-            _bankAccounts = list.map(a => _enrichBankAccount(a));
+            // Bank accounts are pending a rewrite against the accounting engine.
+            _bankAccounts = [];
         } catch (err) {
             console.error('[VaultAccounts] Failed to fetch bank accounts:', err);
             _bankAccounts = [];
@@ -603,7 +583,7 @@ const VaultAccounts = (() => {
     }
 
     function _renderBankAccountStatement(acctKey, acctName, currentBalance) {
-        const entries = _allLedger.filter(e => e.BANK_ACCOUNT_KEY === acctKey)
+        const entries = _glRows.filter(e => e.BANK_ACCOUNT_KEY === acctKey)
             .sort((a, b) => (+a.TXN_DATE || 0) - (+b.TXN_DATE || 0) || (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0));
 
         if (!entries.length) {
@@ -813,7 +793,7 @@ const VaultAccounts = (() => {
         const data = await getAppData();
         if (!data) return;
 
-        _allLedger = Object.values(data.LEDGER || {});
+        _glRows = [];
         _allBranches = Object.values(data.BRANCHES || {});
         _allCarriers = Object.values(data.CARRIERS || {});
         _b2bMap.clear();

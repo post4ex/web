@@ -205,7 +205,7 @@ async function pullDeltaSince(since_ms, retryCount) {
 const _FETCHABLE_SHEETS = new Set([
     'ORDERS', 'B2B', 'B2B2C', 'RATES', 'STAFF', 'ATTENDANCE',
     'BRANCHES', 'MODES', 'CARRIERS', 'MULTIBOX', 'PRODUCTS',
-    'UPLOADS', 'NOTIFICATIONS', 'HOLIDAYS', 'LEDGER', 'SHIPMENTS', 'HEADER'
+    'UPLOADS', 'NOTIFICATIONS', 'HOLIDAYS', 'SHIPMENTS'
 ]);
 
         // Split into upserts and deletes
@@ -626,3 +626,111 @@ async function getAppData(sheetName = null) {
         return null;
     }
 }
+
+// ============================================================================
+// WEBAPP VAULT CACHE — 15-Minute Incremental Sliding TTL + ETag Support
+// ============================================================================
+const VAULT_CACHE_KEY = 'webapp_vault_cache_v1';
+const VAULT_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes sliding TTL
+
+window.VaultCache = {
+    purgeExpired() {
+        try {
+            const raw = localStorage.getItem(VAULT_CACHE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            const now = Date.now();
+            let changed = false;
+            for (const key of Object.keys(parsed)) {
+                const entry = parsed[key];
+                if (!entry || !entry.timestamp || (now - entry.timestamp > VAULT_CACHE_TTL_MS)) {
+                    delete parsed[key];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                localStorage.setItem(VAULT_CACHE_KEY, JSON.stringify(parsed));
+            }
+        } catch (_) {}
+    },
+    get(key) {
+        try {
+            this.purgeExpired();
+            const raw = localStorage.getItem(VAULT_CACHE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const entry = parsed[key];
+            if (!entry) return null;
+            // Check 15-minute sliding TTL
+            if (entry.timestamp && (Date.now() - entry.timestamp > VAULT_CACHE_TTL_MS)) {
+                delete parsed[key];
+                localStorage.setItem(VAULT_CACHE_KEY, JSON.stringify(parsed));
+                return null;
+            }
+            // Increment / slide TTL on access
+            entry.timestamp = Date.now();
+            parsed[key] = entry;
+            localStorage.setItem(VAULT_CACHE_KEY, JSON.stringify(parsed));
+            return entry;
+        } catch (_) {
+            return null;
+        }
+    },
+    set(key, data, etag = '') {
+        try {
+            this.purgeExpired();
+            const raw = localStorage.getItem(VAULT_CACHE_KEY);
+            const parsed = raw ? JSON.parse(raw) : {};
+            parsed[key] = {
+                data,
+                etag: etag || (parsed[key]?.etag || ''),
+                timestamp: Date.now()
+            };
+            localStorage.setItem(VAULT_CACHE_KEY, JSON.stringify(parsed));
+        } catch (_) {}
+    },
+    async fetchWithEtag(url, options = {}) {
+        const cached = this.get(url);
+        const headers = {
+            ...(options.headers || {})
+        };
+        if (cached && cached.etag) {
+            headers['If-None-Match'] = cached.etag;
+        }
+        try {
+            const res = await fetch(url, { ...options, headers });
+            if (res.status === 304 && cached) {
+                // Slide / increment TTL on 304 Not Modified
+                this.set(url, cached.data, cached.etag);
+                return { data: cached.data, notModified: true, fromCache: true };
+            }
+            if (res.ok) {
+                const etag = res.headers.get('etag') || res.headers.get('ETag') || '';
+                const json = await res.json();
+                this.set(url, json, etag);
+                return { data: json, notModified: false, fromCache: false };
+            }
+            // If server returns error but we have valid cache, fallback to cache
+            if (cached && cached.data) {
+                console.warn(`[VaultCache] Server returned ${res.status}, falling back to 15m cached data for: ${url}`);
+                return { data: cached.data, notModified: true, fromCache: true, fallback: true };
+            }
+            throw new Error(`Request failed with status ${res.status}`);
+        } catch (err) {
+            if (cached && cached.data) {
+                console.warn(`[VaultCache] Network error, falling back to 15m cached data for: ${url}`, err);
+                return { data: cached.data, notModified: true, fromCache: true, offline: true };
+            }
+            throw err;
+        }
+    },
+    clear() {
+        try {
+            localStorage.removeItem(VAULT_CACHE_KEY);
+        } catch (_) {}
+    }
+};
+
+// Automatic startup purge for expired items
+try { window.VaultCache.purgeExpired(); } catch (_) {}
+window.clearVaultCache = () => window.VaultCache.clear();

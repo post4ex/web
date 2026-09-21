@@ -1,12 +1,12 @@
 // ============================================================================
 // VAULT-SUMMARY.JS — Dashboard, Reports, Bank Recon, Bulk Import
 // Tiles: summary, reports, bank-recon, bulk-import
-// Legacy API calls removed — being migrated to Manager.io.
+// Data source: pending — not yet wired to the accounting engine.
 // ============================================================================
 
 const VaultSummary = (() => {
 
-    let _allLEDGER = [];
+    let _glRows    = [];
     let _allB2B    = [];
     let _activeView = 'summary';
 
@@ -54,7 +54,7 @@ const VaultSummary = (() => {
     function search(q) {
         if (_activeView !== 'summary') {
             const lq = q.toLowerCase();
-            _renderSummaryList(_allLEDGER.filter(e =>
+            _renderSummaryList(_glRows.filter(e =>
                 (e.CODE || '').toLowerCase().includes(lq) ||
                 (e.CLIENT_NAME || '').toLowerCase().includes(lq)
             ));
@@ -85,7 +85,7 @@ const VaultSummary = (() => {
     async function _showStatement(code) {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Statement view is being migrated to Manager.io. Coming soon.</div>';
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Statement view is not wired up yet.</div>';
         VaultPage.showDetailPane();
     }
 
@@ -143,7 +143,7 @@ const VaultSummary = (() => {
             return;
         }
         
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Financial detail view is being migrated to Manager.io. Coming soon.</div>';
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Financial detail view is not wired up yet.</div>';
         VaultPage.showDetailPane();
     }
 
@@ -167,7 +167,8 @@ const VaultSummary = (() => {
                 return;
             }
 
-            const ledger = Object.values(data.LEDGER || {});
+            // Legacy GL store retired; the dashboard is pending a rewrite.
+            const ledger = [];
             const b2b = Object.values(data.B2B || {});
             const staff = Object.values(data.STAFF || {});
 
@@ -267,18 +268,7 @@ const VaultSummary = (() => {
                 return found ? found.CODE : null;
             };
 
-            if (branch) {
-                try {
-                    const res = await callApi(`/api/manager/bank-accounts?branch=${encodeURIComponent(branch)}`, {}, 'GET');
-                    const list = res.bankAndCashAccounts || [];
-                    list.forEach(a => {
-                        bankBalanceSum += (+a.balance || 0);
-                    });
-                    loadedLive = true;
-                } catch (err) {
-                    console.error('[VaultSummary] Failed to fetch live bank accounts:', err);
-                }
-            }
+            // Live bank balances are pending a rewrite against the accounting engine.
 
             if (!loadedLive) {
                 let ledgerBankSum = 0;
@@ -407,23 +397,23 @@ const VaultSummary = (() => {
     function showReports() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Reports are being migrated to Manager.io. Coming soon.</div>';
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">📊 Reports are not wired up yet.</div>';
         VaultPage.showDetailPane();
     }
 
     async function _showPL(currentFY) {
         const rc = document.getElementById('reportContent');
-        rc.innerHTML = '<div class="text-center text-gray-400 py-8">📈 P&L is being migrated to Manager.io. Coming soon.</div>';
+        rc.innerHTML = '<div class="text-center text-gray-400 py-8">📈 P&L is not wired up yet.</div>';
     }
 
     async function _showBalanceSheet() {
         const rc = document.getElementById('reportContent');
-        rc.innerHTML = '<div class="text-center text-gray-400 py-8">📋 Balance Sheet is being migrated to Manager.io. Coming soon.</div>';
+        rc.innerHTML = '<div class="text-center text-gray-400 py-8">📋 Balance Sheet is not wired up yet.</div>';
     }
 
     async function _showAgingReport() {
         const rc = document.getElementById('reportContent');
-        rc.innerHTML = '<div class="text-center text-gray-400 py-8">📅 Aging report is being migrated to Manager.io. Coming soon.</div>';
+        rc.innerHTML = '<div class="text-center text-gray-400 py-8">📅 Aging report is not wired up yet.</div>';
     }
 
     // ── TILE: Bank Reconciliation ─────────────────────────────────────────────
@@ -476,13 +466,8 @@ const VaultSummary = (() => {
             return;
         }
 
-        // Fetch all ACTIVE PAYMENT entries from LEDGER to match against
-        const allLedger = await getAppData().then(d => d?.LEDGER ? Object.values(d.LEDGER) : []);
-        const payments = allLedger.filter(e =>
-            e.STATUS === 'ACTIVE' &&
-            e.ENTRY_TYPE === 'PAYMENT' &&
-            (e.PAYMENT_MODE === 'CHEQUE' || e.PAYMENT_MODE === 'NEFT' || e.PAYMENT_MODE === 'UPI')
-        );
+        // Payment matching awaits the accounting engine rewire.
+        const payments = [];
 
         // Match by amount + date proximity
         const matched = [];
@@ -565,7 +550,7 @@ const VaultSummary = (() => {
     function showBulkImport() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">📥 Bulk Import is not supported under Manager.io integration.</div>';
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">📥 Bulk Import is not wired up yet.</div>';
         VaultPage.showDetailPane();
     }
 
@@ -573,7 +558,7 @@ const VaultSummary = (() => {
     async function showChartOfAccounts() {
         VaultPage.showDetail(true);
         const view = document.getElementById('vaultDetailView');
-        view.innerHTML = '<div class="text-center text-gray-400 py-8">📒 Chart of Accounts data now comes from Manager.io. Use the cache endpoints.</div>';
+        view.innerHTML = '<div class="text-center text-gray-400 py-8">📒 Chart of Accounts is not wired up yet.</div>';
         VaultPage.showDetailPane();
     }
 
@@ -581,10 +566,8 @@ const VaultSummary = (() => {
     // ── Load ──────────────────────────────────────────────────────────────────
     async function load() {
         _injectListPane('Filter categories…');
-        const data = await getAppData();
-        if (data?.LEDGER) {
-            _allLEDGER = Object.values(data.LEDGER);
-        }
+        await getAppData();
+        _glRows = [];
         if (_activeView === 'summary') {
             _renderFinancialCategories();
             await showDashboard();

@@ -795,7 +795,7 @@ const VaultBilling = (() => {
 
             const btn = document.getElementById('vbCloseInvConfirm');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Issuing to Invoice Ninja...</span>';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Issuing to Ledger...</span>';
 
             const toMs = (d) => d ? new Date(d + 'T00:00:00Z').getTime() : 0;
             try {

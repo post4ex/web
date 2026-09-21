@@ -8,12 +8,13 @@ const AdminStaff = (() => {
 
     // Validation helpers — delegate to global InputValidator
     const _validate = {
-        pan:    (v) => InputValidator.pan(v),
-        aadhar: (v) => InputValidator.aadhar(v),
-        pin:    (v) => InputValidator.pin(v),
-        mobile: (v) => InputValidator.mobile(v),
-        ifsc:   (v) => InputValidator.ifsc(v),
-        age18:  (v) => InputValidator.age18(v),
+        pan:      (v) => InputValidator.pan(v),
+        aadhar:   (v) => InputValidator.aadhar(v),
+        pin:      (v) => InputValidator.pin(v),
+        mobile:   (v) => InputValidator.mobile(v),
+        mobile10: (v) => InputValidator.mobile10 ? InputValidator.mobile10(v) : (!v || /^[0-9]{10}$/.test(v)),
+        ifsc:     (v) => InputValidator.ifsc(v),
+        age18:    (v) => InputValidator.age18(v),
     };
 
     function _showFieldError(input, msg) {
@@ -209,7 +210,7 @@ const AdminStaff = (() => {
                 <label class="block text-xs font-medium text-gray-600 mb-1">Mobile *</label>
                 <div class="flex gap-2">
                     <input name="MOBILE_CC" value="91" class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3">
-                    <input name="MOBILE_NUM" value="${(s?.MOBILE||'').replace(/^91/, '')}" required class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile">
+                    <input name="MOBILE_NUM" value="${(s?.MOBILE||'').replace(/^91/, '')}" required class="form-input text-sm flex-1" placeholder="10-digit number" maxlength="10" data-validate="mobile10">
                 </div>
             </div>
             <div>
@@ -220,7 +221,7 @@ const AdminStaff = (() => {
                 <label class="block text-xs font-medium text-gray-600 mb-1">Emergency Contact Mobile</label>
                 <div class="flex gap-2">
                     <input id="sfEmergencyCC" value="91" class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" maxlength="3">
-                    <input id="sfEmergencyNum" type="tel" value="${(s?.EMERGENCY_CONTACT||'').replace(/^91/, '')}" class="form-input text-sm flex-1" placeholder="Number" data-validate="mobile">
+                    <input id="sfEmergencyNum" type="tel" value="${(s?.EMERGENCY_CONTACT||'').replace(/^91/, '')}" class="form-input text-sm flex-1" placeholder="10-digit number" maxlength="10" data-validate="mobile10">
                 </div>
                 <input type="hidden" name="EMERGENCY_CONTACT" id="sfEmergencyContact" value="${s?.EMERGENCY_CONTACT || ''}">
             </div>
@@ -478,12 +479,13 @@ const AdminStaff = (() => {
                     const val = input.value.trim();
                     if (val && !_validate[type](val)) {
                         const labels = {
-                            pan:    'Invalid PAN format (e.g., ABCDE1234F)',
-                            aadhar: 'Invalid Aadhar (12 digits required)',
-                            pin:    'Invalid pincode format',
-                            mobile: 'Mobile must be 91XXXXXXXXXX',
-                            ifsc:   'Invalid IFSC (e.g., SBIN0001234)',
-                            age18:  'Staff must be at least 18 years old'
+                            pan:      'Invalid PAN format (e.g., ABCDE1234F)',
+                            aadhar:   'Invalid Aadhar (12 digits required)',
+                            pin:      'Invalid pincode format',
+                            mobile:   'Mobile must be 10 or 12 digits',
+                            mobile10: 'Mobile number must be 10 digits (e.g. 9876543210)',
+                            ifsc:     'Invalid IFSC (e.g., SBIN0001234)',
+                            age18:    'Staff must be at least 18 years old'
                         };
                         _showFieldError(input, labels[type] || 'Invalid format');
                     } else {

@@ -2,7 +2,6 @@
 // VAULT-CLOSE-FY.JS — Close a Financial Year
 // Shows closing balances per client code, allows sealing FY and carrying
 // forward opening balances to the next FY.
-// API: GET /api/ledger/fy-summary, POST /api/ledger/close-fy
 // ============================================================================
 
 const VaultCloseFY = (() => {
@@ -225,33 +224,8 @@ const VaultCloseFY = (() => {
         btn.innerHTML = '<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Processing…';
 
         try {
-            // TODO: migrate close FY to Manager.io
-            alert('Coming soon — closing FY through Manager.io');
+            alert('Coming soon — closing FY is not yet available');
             return;
-            const res = await callApi('/api/ledger/close-fy', {
-                from_fy: _currentFY,
-                to_fy: _nextFY(_currentFY),
-                branch: _selectedBranch,
-            }, 'POST');
-
-            result.className = 'mt-3 p-3 rounded text-sm bg-green-100 text-green-800';
-            result.innerHTML = `
-                ✅ FY Closed Successfully!
-                <div class="mt-2 text-xs">
-                    Created ${res.total_codes} opening balance entries for FY ${res.to_fy}
-                    <br>Total balance carried forward: ₹${Math.abs(res.total_balance).toFixed(2)}
-                </div>
-                ${res.data?.length > 0 ? `
-                <details class="mt-2">
-                    <summary class="cursor-pointer text-xs font-medium">View detail</summary>
-                    <div class="mt-1 max-h-40 overflow-y-auto text-xs space-y-1">
-                        ${res.data.map(d => `<div>${d.code} — ${d.client_name || ''}: ₹${Math.abs(d.balance).toFixed(2)}</div>`).join('')}
-                    </div>
-                </details>` : ''}`;
-            result.classList.remove('hidden');
-
-            // Refresh the list to show the state
-            _loadFYSummary();
         } catch (err) {
             result.className = 'mt-3 p-3 rounded text-sm bg-red-100 text-red-800';
             result.textContent = '❌ ' + (err.message || 'Failed to close FY');
@@ -270,10 +244,7 @@ const VaultCloseFY = (() => {
         VaultPage.showDetail(false);
 
         try {
-            // TODO: migrate FY summary to Manager.io
             _fyData = [];
-            // const res = await callApi(`/api/ledger/fy-summary?fy=${_currentFY}${_selectedBranch ? `&branch=${_selectedBranch}` : ''}`, {}, 'GET');
-            // _fyData = res.data || [];
 
             // Select first item if any
             if (_fyData.length) {

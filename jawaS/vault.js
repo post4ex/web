@@ -47,7 +47,8 @@ const VaultPage = (() => {
         'bank-accounts':     'ACCOUNTANT',
         'bank-recon':        'ACCOUNTANT',
         'cheques':           'ACCOUNTANT',
-        'chart-of-accounts': 'ACCOUNTANT',
+        'chart-of-accounts': 'CLIENT',
+        'trial-balance':     'CLIENT',
         'journal-entries':   'ACCOUNTANT',
         'recurring':         'ACCOUNTANT',
         'opening-balances':  'ACCOUNTANT',
@@ -73,6 +74,8 @@ const VaultPage = (() => {
         'branch-advances':  'y',
         'journal-entries':  'y',
         'taxes':            'y',
+        'trial-balance':    'y',
+        'chart-of-accounts':'y',
         'customers':        'n',
         'billing':          'n',
         'inventory':        'n',
@@ -90,7 +93,7 @@ const VaultPage = (() => {
         'billing':           'Billing',
         'purchase-bills':    'Purchase Bills',
         'debit-notes':       'Debit Notes',
-        'suppliers':         'Suppliers',
+        'suppliers':         'Suppliers & Vendors',
         'inventory':         'Inventory',
         'stock-transfers':   'Stock Transfers',
         'receipts':          'Receipts',
@@ -105,6 +108,7 @@ const VaultPage = (() => {
         'staff-advances':    'Staff Advances',
         'branch-advances':   'Branch Advances',
         'chart-of-accounts': 'Chart of Accounts',
+        'trial-balance':     'Trial Balance',
         'journal-entries':   'Journal Entries',
         'recurring':         'Recurring Entries',
         'opening-balances':  'Opening Balances',
@@ -383,6 +387,10 @@ const VaultPage = (() => {
         else if (name === 'chart-of-accounts') {
             document.getElementById('vaultAddBtn').classList.add('hidden');
             await VaultCOA.load();
+        }
+        else if (name === 'trial-balance') {
+            document.getElementById('vaultAddBtn').classList.add('hidden');
+            await VaultTrialBalance.load();
         }
         else if (name === 'cheques') {
             VaultAccounts.setTile('cheques');
@@ -729,11 +737,10 @@ const VaultPage = (() => {
                 return;
             }
             
-            const headerRaw = await window.appDB.getSheet('HEADER');
-            const ledgerRaw = await window.appDB.getSheet('LEDGER');
-            
-            const headers = Object.values(headerRaw || {});
-            const ledger = Object.values(ledgerRaw || {});
+            // Legacy GL document stores retired; reports are pending a rewrite
+            // against the accounting engine.
+            const headers = [];
+            const ledger = [];
             
             const branch = getActiveBranch();
             const branchLower = (branch || '').toLowerCase();
