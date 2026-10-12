@@ -22,6 +22,21 @@ const AdminPage = (() => {
         document.getElementById('sudoModal').classList.remove('hidden');
     }
 
+    // ── History API & State Management ──────────────────────────────────────
+    function _pushHistoryState(view, tile) {
+        try {
+            const current = history.state;
+            if (current && current.scope === 'admin' && current.view === view && current.tile === tile) {
+                return;
+            }
+            const hash = view === 'detail' ? `#${tile || ''}-detail` : (view === 'split' ? `#${tile || ''}` : '');
+            const url = hash ? `${window.location.pathname}${window.location.search}${hash}` : `${window.location.pathname}${window.location.search}`;
+            history.pushState({ scope: 'admin', view, tile }, '', url);
+        } catch (e) {
+            console.warn('[Admin] pushState notice:', e);
+        }
+    }
+
     // ── Mobile helpers (matches Shipments pattern) ───────────────────────────
     const _isMobile = () => window.innerWidth < 768;
 
@@ -30,10 +45,13 @@ const AdminPage = (() => {
         document.getElementById('adminDetailPane').classList.add('hidden');
     }
 
-    function _showDetailPane() {
+    function _showDetailPane(fromHistory = false) {
         if (_isMobile()) {
             document.getElementById('adminListPane').classList.add('hidden');
             document.getElementById('adminDetailPane').classList.remove('hidden');
+            if (!fromHistory && _activeTile) {
+                _pushHistoryState('detail', _activeTile);
+            }
         } else {
             document.getElementById('adminListPane').classList.remove('hidden');
             document.getElementById('adminDetailPane').classList.remove('hidden');
@@ -41,13 +59,21 @@ const AdminPage = (() => {
     }
 
     // ── View switching ────────────────────────────────────────────────────────
-    function _showTiles() {
+    function _showTiles(fromHistory = false) {
         if (window.NavigationGuard) NavigationGuard.markClean();
         document.getElementById('tilesView').style.display = 'flex';
         document.getElementById('splitView').classList.remove('active');
         document.getElementById('adminDetailPane').classList.add('hidden');
         document.getElementById('adminListPane').classList.remove('hidden');
         _activeTile = null;
+
+        if (!fromHistory) {
+            try {
+                if (history.state && history.state.scope === 'admin' && history.state.view !== 'tiles') {
+                    history.replaceState({ scope: 'admin', view: 'tiles' }, '', window.location.pathname + window.location.search);
+                }
+            } catch (_) {}
+        }
     }
 
     function _showSplit(title) {
@@ -150,17 +176,66 @@ const AdminPage = (() => {
         document.querySelectorAll('[data-tile]').forEach(tile =>
             tile.addEventListener('click', () => _activateTile(tile.dataset.tile))
         );
-        document.getElementById('backToTilesBtn').addEventListener('click', _showTiles);
-        document.getElementById('backToListBtn')?.addEventListener('click', () => {
-            if (_isMobile()) _showListPane();
+
+        function _handleBackToTiles() {
+            if (history.state && history.state.scope === 'admin' && (history.state.view === 'split' || history.state.view === 'detail')) {
+                history.back();
+            } else {
+                _showTiles();
+            }
+        }
+
+        function _handleBackToList() {
+            if (_isMobile()) {
+                if (history.state && history.state.scope === 'admin' && history.state.view === 'detail') {
+                    history.back();
+                } else {
+                    _showListPane();
+                }
+            }
+        }
+
+        document.getElementById('backToTilesBtn')?.addEventListener('click', _handleBackToTiles);
+        document.getElementById('backToListBtn')?.addEventListener('click', _handleBackToList);
+
+        // Initial base history state & deep-link hydration
+        if (!history.state || history.state.scope !== 'admin') {
+            const initialHash = (window.location.hash || '').replace(/^#/, '');
+            history.replaceState({ scope: 'admin', view: 'tiles' }, '', window.location.pathname + window.location.search);
+            if (initialHash) {
+                const targetTile = initialHash.replace(/-detail$/, '');
+                if (document.querySelector(`.tile[data-tile="${targetTile}"]`)) {
+                    _activateTile(targetTile);
+                }
+            }
+        }
+
+        window.addEventListener('popstate', (e) => {
+            const state = e.state;
+            if (!state || state.scope !== 'admin' || state.view === 'tiles') {
+                _showTiles(true);
+            } else if (state.view === 'split') {
+                if (_activeTile !== state.tile) {
+                    _activateTile(state.tile, true);
+                }
+                _showListPane();
+            } else if (state.view === 'detail') {
+                if (_activeTile !== state.tile) {
+                    _activateTile(state.tile, true);
+                }
+                _showDetailPane(true);
+            }
         });
     }
 
-    async function _activateTile(name) {
+    async function _activateTile(name, fromHistory = false) {
         const minRole = TILE_MIN_ROLE[name];
         if (minRole && !_can(minRole)) return;
         _activeTile = name;
         _showSplit(TILE_LABELS[name] || name);
+        if (!fromHistory) {
+            _pushHistoryState('split', name);
+        }
         const showAdd = (name === 'users' && _can('ADMIN')) || (name === 'branches' && _can('ADMIN')) || (name === 'b2b2c' && _can('CLIENT')) || (name === 'staff' && _can('ADMIN')) || (name === 'holidays' && _can('ADMIN')) || (name === 'clients' && _can('MANAGER')) || (name === 'modes' && _can('MASTER')) || (name === 'carriers' && _can('MASTER'));
         document.getElementById('addUserBtn').classList.toggle('hidden', !showAdd);
 
@@ -257,10 +332,7 @@ const AdminPage = (() => {
             else if (_activeTile === 'modes') AdminModes.search(e.target.value);
             else if (_activeTile === 'carriers') AdminCarriers.search(e.target.value);
             else if (_activeTile === 'shifts') AdminShifts.search(e.target.value);
-            else if (_activeTile === 'b2b2c') {
-                const mirror = document.getElementById('b2b2cSearchClient');
-                if (mirror) { mirror.value = e.target.value; mirror.dispatchEvent(new Event('input')); }
-            }
+            else if (_activeTile === 'b2b2c') AdminB2B2C.search(e.target.value);
         });
     }
 
@@ -399,11 +471,7 @@ const AdminPage = (() => {
             if (_activeTile === 'clients') { AdminClients.openAddPane(); return; }
             if (_activeTile === 'modes') { AdminModes.openAddPane(); return; }
             if (_activeTile === 'carriers') { AdminCarriers.openAddPane(); return; }
-            if (_activeTile === 'b2b2c') {
-                const newBtn = document.getElementById('b2b2cNewClientBtn');
-                if (newBtn) newBtn.click();
-                return;
-            }
+            if (_activeTile === 'b2b2c') { AdminB2B2C.openAddPane(); return; }
             openAddUserModal();
         });
 

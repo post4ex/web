@@ -128,6 +128,7 @@ const PAGE_CONFIG = {
 
     'Billing.html':               'ACCOUNTANT',
     'vault.html':                 'CLIENT',
+    'ledger.html':                'CLIENT',
 
     'admin.html':        'CLIENT',
 

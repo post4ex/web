@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=ledger.html">
+    <script>window.location.replace("ledger.html" + window.location.search + window.location.hash);</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Vault</title>
+    <title>Ledger — Accounting &amp; Finance</title>
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/inter-font.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/fontawesome.css">
@@ -333,35 +335,6 @@
                                 <div class="classy-tile-header">
                                     <span class="classy-tile-dot"></span>
                                     <span class="classy-tile-label">Suppliers &amp; Vendors</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Inventory Section -->
-                <div class="vault-section space-y-2">
-                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                        <i class="fa-solid fa-boxes-stacked text-emerald-600"></i> Inventory
-                    </div>
-                    <div class="tray w-full" style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color: #e2e8f0; padding: 1.25rem; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);">
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 w-full">
-                            <div class="classy-tile tile ct-emerald group" data-tile="inventory">
-                                <div class="classy-icon-box">
-                                    <i class="fa-solid fa-boxes-packing"></i>
-                                </div>
-                                <div class="classy-tile-header">
-                                    <span class="classy-tile-dot"></span>
-                                    <span class="classy-tile-label">Inventory</span>
-                                </div>
-                            </div>
-                            <div class="classy-tile tile ct-sky group" data-tile="stock-transfers">
-                                <div class="classy-icon-box">
-                                    <i class="fa-solid fa-truck-ramp-box"></i>
-                                </div>
-                                <div class="classy-tile-header">
-                                    <span class="classy-tile-dot"></span>
-                                    <span class="classy-tile-label">Stock Transfers</span>
                                 </div>
                             </div>
                         </div>
@@ -727,6 +700,8 @@
     <script src="jawaS/vault-credit-notes.js"></script>
     <script src="jawaS/vault-debit-notes.js"></script>
     <script src="jawaS/vault-receipts.js"></script>
+    <script src="jawaS/vault-payments.js"></script>
+    <script src="jawaS/vault-cheques.js"></script>
     <script src="jawaS/vault-journal.js"></script>
     <script src="jawaS/vault-purchases.js"></script>
     <script src="jawaS/vault-expenses.js"></script>

@@ -744,63 +744,300 @@ const VaultPrint = (() => {
         _openPrintWindow(`Salary Slip - ${staff?.STAFF_NAME || ''}`, body);
     }
 
-    // ── 12. CLIENT/SUPPLIER STATEMENT ──────────────────────────────────────
-    function printStatement(client, code, entries, balance, title) {
-        let openingBalance = 0;
-        const allActive = entries.filter(e => e.STATUS === 'ACTIVE' || e.STATUS === 'PENDING');
-        if (allActive.length) {
-            openingBalance = +allActive[0].BALANCE || 0;
-            const firstActive = allActive[0];
-            openingBalance -= (+firstActive.CREDIT || 0) - (+firstActive.DEBIT || 0);
+    // ── 12. CLIENT/SUPPLIER STATEMENT (TALLY ERP / PRIME FORMAT) ───────────
+    function printStatement(party, code, entries, balance, title, opts = {}) {
+        const clientName    = party?.B2B_NAME || party?.NAME || party?.name || party?.COMPANY_NAME || party?.CODE || code || 'Customer';
+        const clientAddress = party?.B2B_ADDRESS || party?.ADDRESS || party?.address || '';
+        const clientCity    = party?.B2B_CITY || party?.CITY || party?.city || '';
+        const clientState   = party?.B2B_STATE || party?.STATE || party?.state || '';
+        const clientGstin   = party?.GSTIN || party?.ID_GST_PAN_ADHAR || party?.gstin || '';
+        const clientPhone   = party?.MOBILE_NUMBER || party?.PHONE || party?.phone || '';
+        const clientEmail   = party?.EMAIL || party?.email || '';
+        const clientGstCode = party?.GST_CODE || '';
+
+        // Parent Branch / Company details
+        const branch = opts.branch || {};
+        const compName      = branch.BRANCH_NAME || branch.name || party?.BRANCH || 'POST4EX LOGISTICS';
+        const compAddress   = branch.BRANCH_ADDRESS || branch.address || '';
+        const compCity      = branch.BRANCH_CITY || branch.city || '';
+        const compState     = branch.BRANCH_STATE || branch.state || '';
+        const compGstCode   = branch.GST_CODE || branch.CODE_STATE || '';
+        const compGstin     = branch.BRANCH_GSTIN || branch.gstin || '';
+        const compPan       = branch.BRANCH_PAN || branch.pan || '';
+        const compPhone     = branch.BRANCH_MOBILE || branch.phone || '';
+        const compEmail     = branch.BRANCH_EMAIL || branch.email || '';
+
+        const startDate     = opts.startDate || '';
+        const endDate       = opts.endDate || '';
+        const periodStr     = (startDate || endDate) 
+            ? `${startDate ? _fmtDate(startDate) : 'Start'} to ${endDate ? _fmtDate(endDate) : 'Present'}`
+            : 'All Time';
+
+        const openingBal    = Number(opts.openingBalance !== undefined ? opts.openingBalance : 0);
+        const totalDr       = Number(opts.totalDebit !== undefined ? opts.totalDebit : entries.reduce((s, e) => s + (Number(e.debit || e.DEBIT || 0)), 0));
+        const totalCr       = Number(opts.totalCredit !== undefined ? opts.totalCredit : entries.reduce((s, e) => s + (Number(e.credit || e.CREDIT || 0)), 0));
+        const closingBal    = Number(opts.closingBalance !== undefined ? opts.closingBalance : (openingBal + totalDr - totalCr));
+
+        function _fmtInr(num) {
+            const n = Math.abs(Number(num) || 0);
+            return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        const tableRows = entries.map(e => {
-            const typeLabel = e.ENTRY_TYPE === 'INVOICE' ? 'INV' :
-                              e.ENTRY_TYPE === 'PAYMENT' ? 'PMT' :
-                              e.ENTRY_TYPE === 'JOURNAL' ? (e.JOURNAL_TYPE === 'CREDIT_NOTE' ? 'CN' : e.JOURNAL_TYPE === 'DEBIT_NOTE' ? 'DN' : 'JR') :
-                              e.ENTRY_TYPE === 'EXPENSE' ? 'EXP' : e.ENTRY_TYPE || '—';
-            const isVoid = e.STATUS === 'VOID';
-            return `<tr class="${isVoid ? 'sub" style="text-decoration:line-through' : ''}">
-                <td>${_fmtDate(e.ENTRY_DATE)}</td>
-                <td>${typeLabel}${isVoid ? ' (VOID)' : ''}</td>
-                <td>${e.INV_NUMBER || e.INVOICE_ID || ''}</td>
-                <td class="tr">${(+e.DEBIT||0) > 0 ? '₹' + (+e.DEBIT).toFixed(2) : '—'}</td>
-                <td class="tr">${(+e.CREDIT||0) > 0 ? '₹' + (+e.CREDIT).toFixed(2) : '—'}</td>
-                <td class="tr">₹${(+e.BALANCE||0).toFixed(2)}</td>
-                <td>${e.STATUS || ''}</td>
-            </tr>`;
-        }).join('');
+        function numToWords(n) {
+            const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+            const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+            n=Math.round(Math.abs(n)); if(!n) return 'Zero';
+            if(n<20) return a[n]; if(n<100) return b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');
+            if(n<1000) return a[Math.floor(n/100)]+' Hundred'+(n%100?' '+numToWords(n%100):'');
+            if(n<100000) return numToWords(Math.floor(n/1000))+' Thousand'+(n%1000?' '+numToWords(n%1000):'');
+            if(n<10000000) return numToWords(Math.floor(n/100000))+' Lakh'+(n%100000?' '+numToWords(n%100000):'');
+            return numToWords(Math.floor(n/10000000))+' Crore'+(n%10000000?' '+numToWords(n%10000000):'');
+        }
 
-        const body = `
-            <div class="hdr">
-                <div class="hdr-l">${title} STATEMENT</div>
-                <div class="hdr-r">
-                    <div><strong>Code:</strong> ${code || 'N/A'}</div>
-                    <div><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
+        // Build Table Rows
+        let runningBal = openingBal;
+        let rowsHtml = '';
+
+        // 1. Opening Balance Row (if date filter applied or opening != 0)
+        if (startDate || openingBal !== 0) {
+            rowsHtml += `
+            <tr class="tally-item-row" style="background:#fcfcfc;">
+                <td class="tc border-r font-mono">${startDate ? _fmtDate(startDate) : '—'}</td>
+                <td class="border-r font-bold" style="padding-left:8px;">Opening Balance</td>
+                <td class="tc border-r">Opening</td>
+                <td class="tc border-r">—</td>
+                <td class="border-r tc text-muted">—</td>
+                <td class="tr border-r font-mono">${openingBal > 0 ? _fmtInr(openingBal) : ''}</td>
+                <td class="tr border-r font-mono">${openingBal < 0 ? _fmtInr(Math.abs(openingBal)) : ''}</td>
+                <td class="tr font-mono font-bold">${_fmtInr(Math.abs(openingBal))} ${openingBal > 0 ? 'Dr' : openingBal < 0 ? 'Cr' : ''}</td>
+            </tr>`;
+        }
+
+        // 2. Transaction Lines
+        entries.forEach((e, idx) => {
+            const dateStr = _fmtDate(e.doc_date || e.ENTRY_DATE || e.date);
+            const docNo   = _esc(e.doc_no || e.INV_NUMBER || e.transaction_no || e.ref_no || `TXN-${idx+1}`);
+            const rawType = (e.doc_type || e.ENTRY_TYPE || '').toUpperCase();
+            const docType = rawType.includes('INV') ? 'Sales' :
+                            rawType.includes('REC') ? 'Receipt' :
+                            rawType.includes('PAY') ? 'Payment' :
+                            rawType.includes('CR') ? 'Credit Note' :
+                            rawType.includes('DN') ? 'Debit Note' :
+                            rawType.includes('JRN') ? 'Journal' : (rawType || 'Voucher');
+
+            const vchNo   = _esc(e.ref_no || docNo);
+            const narr    = _esc(e.narration || e.memo || e.description || '');
+            const dr      = Number(e.debit || e.DEBIT || 0);
+            const cr      = Number(e.credit || e.CREDIT || 0);
+            runningBal   += (dr - cr);
+
+            rowsHtml += `
+            <tr class="tally-item-row">
+                <td class="tc border-r font-mono">${dateStr}</td>
+                <td class="border-r" style="padding-left:8px;">
+                    <span class="font-bold">${docNo}</span>
+                    ${narr ? `<div class="sub-narr" style="color:#555;font-size:9.5px;margin-top:1.5px;">${narr}</div>` : ''}
+                </td>
+                <td class="tc border-r">${docType}</td>
+                <td class="tc border-r font-mono">${vchNo}</td>
+                <td class="tc border-r font-mono text-muted">—</td>
+                <td class="tr border-r font-mono">${dr > 0 ? _fmtInr(dr) : ''}</td>
+                <td class="tr border-r font-mono">${cr > 0 ? _fmtInr(cr) : ''}</td>
+                <td class="tr font-mono font-bold">${_fmtInr(Math.abs(runningBal))} ${runningBal > 0 ? 'Dr' : runningBal < 0 ? 'Cr' : ''}</td>
+            </tr>`;
+        });
+
+        const css = `
+            * { box-sizing: border-box; }
+            body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 11px; line-height: 1.35; color: #000; margin: 0; padding: 15px; background: #f5f5f5; }
+            .tally-wrap { max-width: 900px; margin: auto; background: #fff; border: 1.5px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+            .tally-header { text-align: center; border-bottom: 1.5px solid #000; padding: 6px 12px; position: relative; }
+            .tally-title { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+            .tally-subtitle { font-size: 11px; font-weight: bold; margin-top: 2px; }
+            .tally-period { font-size: 10px; color: #333; margin-top: 2px; }
+            
+            .tally-grid { display: grid; grid-template-columns: 55% 45%; border-bottom: 1.5px solid #000; }
+            .border-r { border-right: 1px solid #000; }
+            .border-b { border-bottom: 1px solid #000; }
+            .p-6 { padding: 6px 10px; }
+            .tc { text-align: center; }
+            .tr { text-align: right; }
+            .tl { text-align: left; }
+            .font-bold { font-weight: bold; }
+            
+            .meta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+            .meta-table td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #000; }
+            .meta-table tr:last-child td { border-bottom: none; }
+            .meta-table .meta-cell { border-right: 1px solid #000; width: 45%; }
+
+            .items-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+            .items-table th { background: #f2f2f2; border-bottom: 1.5px solid #000; padding: 5px 4px; font-weight: bold; }
+            .items-table td { padding: 4.5px 5px; vertical-align: top; }
+            .items-table .tally-item-row td { border-bottom: 1px solid #e5e7eb; }
+            .tot-row td { border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; padding: 6px 4px; background: #fafafa; }
+            
+            .bottom-summary { display: grid; grid-template-columns: 55% 45%; border-bottom: 1.5px solid #000; }
+            .words-box { padding: 8px 10px; font-size: 10.5px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: space-between; }
+            .stat-summary-box { padding: 8px 10px; font-size: 10.5px; }
+            .stat-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px dashed #ccc; }
+            .stat-row.final { border-bottom: none; border-top: 1.5px solid #000; font-weight: bold; font-size: 11.5px; padding-top: 4px; margin-top: 4px; background: #fafafa; }
+
+            .sig-section { display: grid; grid-template-columns: 55% 45%; }
+            .decl-box { padding: 8px 10px; font-size: 9.5px; border-right: 1px solid #000; }
+            .signatory-box { padding: 8px 10px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; min-height: 80px; }
+            .computer-note { text-align: center; font-size: 9px; padding: 4px; font-weight: bold; background: #fafafa; border-top: 1px solid #000; }
+
+            @media print {
+                @page { size: A4 portrait; margin: 8mm; }
+                body { background: #fff; padding: 0; }
+                .tally-wrap { box-shadow: none; width: 100% !important; max-width: 100% !important; border: 1.5px solid #000 !important; }
+            }
+        `;
+
+        const html = `<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Ledger Statement - ${_esc(clientName)}</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="tally-wrap">
+                <!-- Header Title -->
+                <div class="tally-header">
+                    <div class="tally-title">${_esc(compName)}</div>
+                    <div class="tally-subtitle">${_esc(title || 'Party Ledger Statement')}</div>
+                    <div class="tally-period"><b>Period:</b> ${periodStr}</div>
+                </div>
+
+                <!-- Parties & Company Meta -->
+                <div class="tally-grid">
+                    <div class="border-r" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        <div class="p-6">
+                            <div style="font-size: 12.5px; font-weight: bold; line-height: 1.2; margin-bottom: 2px;">Company: ${_esc(compName)}</div>
+                            ${compAddress ? `<div><b>Address:</b> ${_esc(compAddress)}</div>` : ''}
+                            ${(compCity || compState) ? `<div><b>City / State:</b> ${_esc(compCity)}${compCity && compState ? ', ' : ''}${_esc(compState)}${compGstCode ? ` (Code: ${_esc(compGstCode)})` : ''}</div>` : ''}
+                            ${compGstin ? `<div><b>GSTIN/UIN:</b> <span class="font-bold">${compGstin}</span></div>` : ''}
+                            ${compPan ? `<div><b>PAN:</b> ${_esc(compPan)}</div>` : ''}
+                            ${(compPhone || compEmail) ? `<div><b>Contact:</b> ${_esc(compPhone)}${compPhone && compEmail ? ' | ' : ''}${_esc(compEmail)}</div>` : ''}
+                        </div>
+                        <div class="p-6" style="border-top: 1px solid #000; background: #fafafa;">
+                            <div class="font-bold" style="text-decoration: underline; font-size: 11.5px; margin-bottom: 3px;">Account of: ${_esc(clientName)}</div>
+                            <div><b>Customer Code:</b> <span class="font-mono font-bold">${_esc(code)}</span></div>
+                            ${clientAddress ? `<div><b>Address:</b> ${_esc(clientAddress)}</div>` : ''}
+                            <div><b>City / State:</b> ${_esc(clientCity || '—')}, ${_esc(clientState || '—')} ${clientGstCode ? `(Code: ${clientGstCode})` : ''}</div>
+                            <div><b>GSTIN/UIN:</b> <span class="font-bold">${clientGstin || 'Unregistered'}</span></div>
+                            ${clientPhone ? `<div><b>Mobile:</b> ${_esc(clientPhone)} ${clientEmail ? '| ' + _esc(clientEmail) : ''}</div>` : ''}
+                        </div>
+                    </div>
+                    <div>
+                        <table class="meta-table" style="height: 100%;">
+                            <tr>
+                                <td class="meta-cell"><b>Account Type</b><br>Trade Debtors (1010)</td>
+                                <td><b>Date of Print:</b><br><span class="font-bold">${new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Statement Period</b><br>${periodStr}</td>
+                                <td><b>Time:</b><br>${new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Total Vouchers</b><br>${entries.length} Transaction(s)</td>
+                                <td><b>Currency:</b><br>INR (₹)</td>
+                            </tr>
+                            <tr>
+                                <td class="meta-cell"><b>Opening Balance</b><br><span class="font-mono font-bold">${_fmtInr(Math.abs(openingBal))} ${openingBal > 0 ? 'Dr' : openingBal < 0 ? 'Cr' : ''}</span></td>
+                                <td><b>Closing Balance</b><br><span class="font-mono font-bold ${closingBal > 0 ? 'text-red-700' : ''}">${_fmtInr(Math.abs(closingBal))} ${closingBal > 0 ? 'Dr' : closingBal < 0 ? 'Cr' : ''}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Ledger Chronological Items Table -->
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="tc border-r" style="width: 80px;">Date</th>
+                            <th class="tl border-r">Particulars / Document #</th>
+                            <th class="tc border-r" style="width: 90px;">Vch Type</th>
+                            <th class="tc border-r" style="width: 100px;">Vch No.</th>
+                            <th class="tc border-r" style="width: 45px;">Ref</th>
+                            <th class="tr border-r" style="width: 100px;">Debit (Dr ₹)</th>
+                            <th class="tr border-r" style="width: 100px;">Credit (Cr ₹)</th>
+                            <th class="tr" style="width: 110px;">Balance (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || `<tr><td colspan="8" class="tc p-6" style="padding:20px;color:#777;">No transactions recorded in this period</td></tr>`}
+                    </tbody>
+                    <tfoot>
+                        <tr class="tot-row">
+                            <td colspan="5" class="tr border-r font-bold" style="padding-right:10px;">Total Current Period Movement</td>
+                            <td class="tr border-r font-bold font-mono">₹${_fmtInr(totalDr)}</td>
+                            <td class="tr border-r font-bold font-mono">₹${_fmtInr(totalCr)}</td>
+                            <td class="tr font-bold font-mono">₹${_fmtInr(Math.abs(closingBal))} ${closingBal > 0 ? 'Dr' : closingBal < 0 ? 'Cr' : ''}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <!-- Summary & Word Balance -->
+                <div class="bottom-summary">
+                    <div class="words-box">
+                        <div>
+                            <div><b>Net Closing Balance (in words):</b></div>
+                            <div class="font-bold" style="font-size: 11px; margin-top: 3px;">
+                                INR Indian Rupees ${numToWords(Math.round(Math.abs(closingBal)))} Only ${closingBal > 0 ? '(Debit / Receivable)' : closingBal < 0 ? '(Credit / Advance)' : ''}
+                            </div>
+                        </div>
+                        <div style="margin-top:10px;font-size:10px;color:#444;">
+                            Note: All discrepancies or unadjusted credits must be reported within 7 days of statement issuance.
+                        </div>
+                    </div>
+                    <div class="stat-summary-box">
+                        <div class="stat-row">
+                            <span>Opening Balance:</span>
+                            <span class="font-mono">₹${_fmtInr(Math.abs(openingBal))} ${openingBal > 0 ? 'Dr' : openingBal < 0 ? 'Cr' : ''}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Total Debits (Billed / Invoiced):</span>
+                            <span class="font-mono font-bold">₹${_fmtInr(totalDr)}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Total Credits (Receipts / Adjustments):</span>
+                            <span class="font-mono font-bold">₹${_fmtInr(totalCr)}</span>
+                        </div>
+                        <div class="stat-row final">
+                            <span>Closing Net Balance:</span>
+                            <span class="font-mono">₹${_fmtInr(Math.abs(closingBal))} ${closingBal > 0 ? 'Dr' : closingBal < 0 ? 'Cr' : ''}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signatures -->
+                <div class="sig-section">
+                    <div class="decl-box">
+                        <div class="font-bold" style="text-decoration: underline;">Confirmation / Acceptance:</div>
+                        <div style="font-size: 9px; margin-top: 4px; color: #333; line-height: 1.4;">
+                            We confirm that the ledger balance of <b>₹${_fmtInr(Math.abs(closingBal))} ${closingBal > 0 ? 'Dr' : closingBal < 0 ? 'Cr' : ''}</b> shown as of <b>${endDate ? _fmtDate(endDate) : _fmtDate(new Date())}</b> represents the true and accurate outstanding ledger balance.
+                        </div>
+                        <div style="margin-top: 25px; border-top: 1px dashed #999; width: 160px; font-size: 9px;">Customer's Sign &amp; Stamp</div>
+                    </div>
+                    <div class="signatory-box">
+                        <div style="font-size: 10px;">for <b>${_esc(compName)}</b></div>
+                        <div class="font-bold" style="font-size: 10.5px;">Authorised Signatory</div>
+                    </div>
+                </div>
+
+                <div class="computer-note">
+                    SUBJECT TO ${_esc(compCity.toUpperCase())} JURISDICTION · This is a Computer Generated Statement
                 </div>
             </div>
-            <div style="padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:15px">
-                <div style="font-size:16px;font-weight:bold;color:#1a1a2e">${_esc(client?.B2B_NAME || client?.CODE || code)}</div>
-                <div style="font-size:11px;color:#666">${client?.B2B_ADDRESS || ''} ${client?.B2B_CITY ? ', ' + client.B2B_CITY : ''} ${client?.MOBILE_NUMBER ? '· ' + client.MOBILE_NUMBER : ''}</div>
-            </div>
-            <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap">
-                <div style="padding:10px;background:#e8eaf6;border:1px solid #c5cae9;border-radius:6px;flex:1;text-align:center">
-                    <div class="sub">Outstanding</div>
-                    <div style="font-size:18px;font-weight:bold;color:${balance > 0 ? '#e53935' : '#2e7d32'}">₹${Math.abs(balance).toFixed(2)}</div>
-                </div>
-                <div style="padding:10px;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;flex:1;text-align:center">
-                    <div class="sub">Total Entries</div>
-                    <div style="font-size:18px;font-weight:bold">${entries.length}</div>
-                </div>
-            </div>
-            <h3>Ledger Statement</h3>
-            <table>
-                <thead><tr><th>Date</th><th>Type</th><th>Ref</th><th class="tr">Debit (₹)</th><th class="tr">Credit (₹)</th><th class="tr">Balance (₹)</th><th>Status</th></tr></thead>
-                <tbody>${tableRows}</tbody>
-                <tfoot><tr class="total-row"><td colspan="4"></td><td class="tr">Closing</td><td class="tr"><strong>₹${balance.toFixed(2)}</strong></td><td></td></tr></tfoot>
-            </table>
-            <div class="footer">Generated on: ${new Date().toLocaleString()}</div>`;
-        _openPrintWindow(`${title} Statement - ${code || ''}`, body);
+            <script>window.onload = () => window.print();<\/script>
+        </body>
+        </html>`;
+
+        const w = window.open('', `Statement-${code || 'Party'}`);
+        w.document.write(html);
+        w.document.close();
     }
 
     // ── 13. CASH HOLDER STATEMENT ──────────────────────────────────────────

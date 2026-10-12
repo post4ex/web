@@ -142,18 +142,18 @@ const AdminClients = (() => {
                         <div class="flex-grow"></div>
                     </div>
 
-                    <!-- Details form (4-Zone Architecture) -->
+                    <!-- Details form (6-Section Architecture) -->
                     <div id="clientsDetailsTab">
                         <form id="clientsForm" class="space-y-6">
                             
-                            <!-- ZONE 1: Identity & Entity Routing -->
+                            <!-- SECTION 1: Client Identity & Branch Routing -->
                             <div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
                                 <div class="flex items-center justify-between border-b border-indigo-50 pb-2">
                                     <div class="flex items-center gap-2">
                                         <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 1: Identity &amp; Entity Routing</h3>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Section 1: Client Identity &amp; Branch Routing</h3>
                                     </div>
-                                    <span class="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">Entity &amp; Receivable Account</span>
+                                    <span class="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">Core Profile</span>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="md:col-span-1">
@@ -196,12 +196,12 @@ const AdminClients = (() => {
                                 </div>
                             </div>
 
-                            <!-- ZONE 2: Address, Contact & Alerts -->
+                            <!-- SECTION 2: Address, Contact & Communication -->
                             <div class="border border-blue-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
                                 <div class="flex items-center justify-between border-b border-blue-50 pb-2">
                                     <div class="flex items-center gap-2">
                                         <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
-                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 2: Address, Contact &amp; Alerts</h3>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Section 2: Address, Contact &amp; Communication</h3>
                                     </div>
                                     <span class="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">Contact Metadata</span>
                                 </div>
@@ -246,7 +246,7 @@ const AdminClients = (() => {
                                         </div>
                                     </div>
                                     <div class="md:col-span-2">
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">WP Alerts <span class="text-xs text-gray-400 font-normal">(comma-separated)</span></label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">WP Alerts <span class="text-xs text-gray-400 font-normal">(comma-separated numbers)</span></label>
                                         <input name="WP_ALERTS" id="clientsWpAlerts" class="form-input" placeholder="91-9876543210, 91-9123456789">
                                     </div>
                                     <div class="md:col-span-4">
@@ -261,14 +261,14 @@ const AdminClients = (() => {
                                 </div>
                             </div>
 
-                            <!-- ZONE 3: Statutory & GST Compliance -->
+                            <!-- SECTION 3: Statutory & GST Compliance -->
                             <div class="border border-emerald-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
                                 <div class="flex items-center justify-between border-b border-emerald-50 pb-2">
                                     <div class="flex items-center gap-2">
                                         <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 3: Statutory &amp; GST Compliance</h3>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Section 3: Statutory &amp; GST Compliance</h3>
                                     </div>
-                                    <span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">Tax Ledger Rules</span>
+                                    <span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">Tax Rules</span>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="cf-pair p13">
@@ -291,76 +291,120 @@ const AdminClients = (() => {
                                             <input name="AADHAAR" class="form-input" maxlength="12" placeholder="12-digit number">
                                         </div>
                                     </div>
-                                    <div class="flex items-center space-x-2 pt-2">
+                                    <div class="flex items-center space-x-2 pt-2 md:col-span-4">
                                         <input type="checkbox" id="clientsGstIncCheck" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500">
-                                        <label for="clientsGstIncCheck" class="text-xs font-bold text-gray-700 uppercase tracking-wider">GST Included?</label>
+                                        <label for="clientsGstIncCheck" class="text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer">GST Included in Tariff / Rate List?</label>
                                         <input type="hidden" name="GST_INC" id="clientsGstInc" value="N">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- ZONE 4: Commercials, Limits & Account Mapping -->
-                            <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
-                                <div class="flex items-center justify-between border-b border-purple-50 pb-2">
+                            <!-- SECTION 4: Credit Policy & Billing Cycle -->
+                            <div class="border border-amber-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-amber-50 pb-2">
                                     <div class="flex items-center gap-2">
-                                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">4</span>
-                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; Ledger Binding</h3>
+                                        <span class="w-6 h-6 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Section 4: Credit Policy &amp; Billing Cycle</h3>
                                     </div>
-                                    <span class="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded">Double-Entry Seeding</span>
+                                    <span class="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded">Risk Management</span>
                                 </div>
-                                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Bill Cycle</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Credit Limit (₹)*</label>
+                                        <input type="number" step="any" min="0" name="CREDIT_LIMIT" class="form-input" placeholder="0 (0 = Prepaid / Unrestricted)">
+                                        <span class="text-[11px] text-gray-400 mt-1 block">Maximum allowable total exposure (AR + unbilled orders).</span>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Cross-Limit Policy*</label>
+                                        <select name="CROSS_LIMIT" class="form-input">
+                                            <option value="No">No (Strict Block — Disallow Bookings Above Limit)</option>
+                                            <option value="Yes">Yes (Allowed — Orders May Proceed Above Limit)</option>
+                                        </select>
+                                        <span class="text-[11px] text-gray-400 mt-1 block">Controls booking gate when credit limit is breached.</span>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Bill Cycle*</label>
                                         <select name="BILL_CYCLE" class="form-input">
                                             <option value="D">Daily</option>
                                             <option value="W">Weekly</option>
                                             <option value="H">Half Month</option>
                                             <option value="M">Monthly</option>
-                                            <option value="E">Every</option>
+                                            <option value="E">Every Order</option>
                                         </select>
+                                        <span class="text-[11px] text-gray-400 mt-1 block">Frequency of invoice generation &amp; billing statements.</span>
                                     </div>
+                                </div>
+                                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-800 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span><strong>Double-Entry Ledger Binding:</strong> Client is managed under Control Account <code>1010 - Trade Debtors (AR)</code>. Dynamic exposure balances are calculated in real time from posted ledger vouchers &amp; pending orders.</span>
+                                </div>
+                            </div>
+
+                            <!-- SECTION 5: Commercial Logistics Surcharges -->
+                            <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-purple-50 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">5</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Section 5: Commercial Logistics Surcharges</h3>
+                                    </div>
+                                    <span class="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded">Tariff Add-Ons</span>
+                                </div>
+                                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                     <div>
                                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Fuel Charge %</label>
                                         <input type="number" step="any" min="0" name="FUEL_CHARGES" class="form-input" placeholder="e.g., 10">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">AWB Charge</label>
-                                        <input type="number" step="any" min="0" name="AWB_CHARGES" class="form-input" placeholder="e.g., 0">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Dev. Charge %</label>
                                         <input type="number" step="any" min="0" name="DEV_CHARGES" class="form-input" placeholder="e.g., 5">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Packing Charge</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">AWB / Docket Charge (₹)</label>
+                                        <input type="number" step="any" min="0" name="AWB_CHARGES" class="form-input" placeholder="e.g., 0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Packing Charge (₹)</label>
                                         <input type="number" step="any" min="0" name="PACKING_CHARGES" class="form-input" placeholder="e.g., 0">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Clearing Charge</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Clearing Charge (₹)</label>
                                         <input type="number" step="any" min="0" name="CLEARING_CHG" class="form-input" placeholder="e.g., 50">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Weight Change</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Weight Change (Kg)</label>
                                         <input type="number" step="any" name="WEIGHT_CHANGE" class="form-input" placeholder="e.g., 2">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% TO-PAY</label>
-                                        <input type="number" step="any" min="0" name="PCT_TOPAY_IF" class="form-input" placeholder="e.g., 3">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% COD</label>
-                                        <input type="number" step="any" min="0" name="PCT_COD_IF" class="form-input" placeholder="e.g., 0.5">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% FOV</label>
-                                        <input type="number" step="any" min="0" name="PCT_FOV_IF" class="form-input" placeholder="e.g., 0.2">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">E-Way Charge</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">E-Way Charge (₹)</label>
                                         <input type="number" step="any" min="0" name="EWAY_IF" class="form-input" placeholder="e.g., 10">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Subscription</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% TO-PAY</label>
+                                        <input type="number" step="any" min="0" name="PCT_TOPAY_IF" class="form-input" placeholder="e.g., 0.3">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% COD</label>
+                                        <input type="number" step="any" min="0" name="PCT_COD_IF" class="form-input" placeholder="e.g., 0.3">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">% FOV (Insurance)</label>
+                                        <input type="number" step="any" min="0" name="PCT_FOV_IF" class="form-input" placeholder="e.g., 0.02">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECTION 6: Platform Quotas & Access Controls -->
+                            <div class="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center">6</span>
+                                        <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase">Section 6: Platform Quotas &amp; Access Controls</h3>
+                                    </div>
+                                    <span class="text-xs text-slate-600 font-medium bg-slate-100 px-2 py-0.5 rounded">Security &amp; Quotas</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Subscription Plan*</label>
                                         <select name="SUBSCRIPTION_TYPE" class="form-input">
                                             <option value="BASIC">BASIC</option>
                                             <option value="STANDARD">STANDARD</option>
@@ -368,20 +412,15 @@ const AdminClients = (() => {
                                             <option value="ENTERPRISE">ENTERPRISE</option>
                                         </select>
                                     </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-purple-50 pt-3">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Credit Limit (₹)</label>
-                                        <input type="number" step="any" min="0" name="CREDIT_LIMIT" class="form-input" placeholder="0">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Max Users</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Max Users Allowed*</label>
                                         <input type="number" min="1" name="MAX_USERS_ALLOWED" class="form-input" placeholder="e.g., 5">
+                                        <span class="text-[11px] text-gray-400 mt-1 block">Staff accounts client can create on the portal.</span>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Max Logins/User</label>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Max Logins Per User*</label>
                                         <input type="number" min="1" name="MAX_LOGINS_PER_USER" class="form-input" placeholder="e.g., 3">
+                                        <span class="text-[11px] text-gray-400 mt-1 block">Concurrent active sessions allowed per account.</span>
                                     </div>
                                 </div>
                             </div>
@@ -741,97 +780,303 @@ const AdminClients = (() => {
 
     function _renderView(c) {
         const rates = Object.values(_allRates).filter(r => r.CODE === c.CODE);
-        let html = `<div class="space-y-5">
-            
-            <!-- ZONE 1: Identity & Entity Routing -->
-            <div class="border border-indigo-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
-                <div class="flex items-center justify-between border-b border-indigo-50 pb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 1: Identity &amp; Entity Routing</h3>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-indigo-50 text-indigo-700">Entity: #${c.ENTITY_ID || '21'}</span>
-                        <span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-50 text-emerald-700">A/C: ${c.ACCOUNT_CODE || 'Pending'}</span>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Code</span> <strong class="font-mono text-indigo-700 text-base">${c.CODE||'-'}</strong></div>
-                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">Name</span> <span class="font-medium text-gray-900">${c.B2B_NAME||'-'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Branch</span> <span class="font-bold text-gray-800">${c.BRANCH||'-'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Type</span> <span class="px-2 py-0.5 text-xs rounded bg-gray-100 font-semibold">${c.B2B_TYPE||'-'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Status</span>
-                        <span class="px-2 py-0.5 rounded text-xs font-bold ${c.STATUS==='ACTIVE'?'bg-green-100 text-green-800':c.STATUS==='BLOCKED'?'bg-red-100 text-red-800':'bg-yellow-100 text-yellow-800'}">${c.STATUS||'-'}</span>
-                    </div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Rate Matrix</span> <span class="font-semibold text-indigo-600">${c.RATE_LIST||'-'}</span></div>
-                </div>
-            </div>
 
-            <!-- ZONE 2: Address, Contact & Alerts -->
-            <div class="border border-blue-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
-                <div class="flex items-center justify-between border-b border-blue-50 pb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
-                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 2: Address, Contact &amp; Alerts</h3>
-                    </div>
-                    <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-medium">Contact Metadata</span>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Mobile</span> <span class="font-medium">${c.MOBILE_NUMBER||'-'}</span></div>
-                    <div class="col-span-2"><span class="text-xs font-bold text-gray-500 uppercase block">Email</span> <span class="font-medium">${c.EMAIL||'-'}</span></div>
-                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">Address</span> <span class="text-gray-800">${c.B2B_ADDRESS||'-'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">City</span> ${c.B2B_CITY||'-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">State</span> ${c.B2B_STATE||'-'} (${c.CODE_STATE||'-'})</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Pincode</span> ${c.B2B_PINCODE||'-'}</div>
-                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">WP Alerts</span> <span class="text-xs text-gray-600">${Array.isArray(c.WP_ALERTS)&&c.WP_ALERTS.length?c.WP_ALERTS.join(', '):'-'}</span></div>
-                    <div class="col-span-3"><span class="text-xs font-bold text-gray-500 uppercase block">WP Groups</span> <span class="text-xs text-gray-600">${Array.isArray(c.WP_GROUP)&&c.WP_GROUP.length?c.WP_GROUP.map(id=>{const g=(_wpGroups||[]).find(x=>x.id===id);return g?g.name:id;}).join(', '):'-'}</span></div>
-                </div>
-            </div>
+        const cl = parseFloat(c.CREDIT_LIMIT || 0);
+        const billed = parseFloat(c.BILLED_USAGE || 0);
+        const unbilled = parseFloat(c.UNBILLED_USAGE || 0);
+        const ul = parseFloat(c.USED_LIMIT != null && c.USED_LIMIT !== '' ? c.USED_LIMIT : (billed + unbilled));
+        const remaining = cl - (billed + unbilled);
 
-            <!-- ZONE 3: Statutory & GST Compliance -->
-            <div class="border border-emerald-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
-                <div class="flex items-center justify-between border-b border-emerald-50 pb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 3: Statutory &amp; GST Compliance</h3>
-                    </div>
-                    <span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded font-medium">Tax Ledger Rules</span>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div class="col-span-2"><span class="text-xs font-bold text-gray-500 uppercase block">GSTIN</span> <strong class="font-mono text-gray-900">${c.GSTIN||'-'}</strong></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">GST Code</span> ${c.GST_CODE||'-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">GST Inclusive</span> <span class="px-2 py-0.5 text-xs rounded ${c.GST_INC==='Y'?'bg-emerald-100 text-emerald-800 font-bold':'bg-gray-100 text-gray-700'}">${c.GST_INC==='Y'?'Yes (Tax Included)':'No (Exclusive)'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">PAN</span> <span class="font-mono">${c.PAN||'-'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Aadhaar</span> <span class="font-mono">${c.AADHAAR||'-'}</span></div>
-                </div>
-            </div>
+        let remainingLimitHtml = '';
+        if (cl === 0) {
+            remainingLimitHtml = '<span class="text-gray-500 font-semibold text-xs">No Credit Limit</span>';
+        } else if (remaining <= 0) {
+            remainingLimitHtml = '<span class="text-red-600 font-bold text-xs">₹0 (Over limit by ₹' + Math.abs(remaining).toLocaleString('en-IN') + ')</span>';
+        } else {
+            remainingLimitHtml = '<span class="text-emerald-600 font-semibold text-xs">₹' + remaining.toLocaleString('en-IN') + '</span>';
+        }
 
-            <!-- ZONE 4: Commercials, Limits & Account Mapping -->
-            <div class="border border-purple-100 rounded-xl p-4 bg-white shadow-sm space-y-3">
-                <div class="flex items-center justify-between border-b border-purple-50 pb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">4</span>
-                        <h3 class="text-xs font-bold text-gray-900 tracking-wide uppercase">Zone 4: Commercials, Limits &amp; Ledger Binding</h3>
-                    </div>
-                    <span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded font-medium">Double-Entry Active</span>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Credit Limit</span> <strong class="text-gray-900">₹${c.CREDIT_LIMIT != null ? Number(c.CREDIT_LIMIT).toLocaleString('en-IN') : '0'}</strong></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Used Limit</span> <strong class="text-gray-900">₹${c.USED_LIMIT != null ? Number(c.USED_LIMIT).toLocaleString('en-IN') : '0'}</strong></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Bill Cycle</span> ${c.BILL_CYCLE||'-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Subscription</span> <span class="px-2 py-0.5 text-xs rounded bg-purple-50 text-purple-700 font-bold">${c.SUBSCRIPTION_TYPE||'BASIC'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Fuel Surcharge</span> ${c.FUEL_CHARGES != null && c.FUEL_CHARGES !== '' ? (parseFloat(c.FUEL_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">AWB / Docket Charge</span> ₹${c.AWB_CHARGES||'0'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Dev Charges</span> ${c.DEV_CHARGES != null && c.DEV_CHARGES !== '' ? (parseFloat(c.DEV_CHARGES) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">% TO-PAY / % COD</span> ${c.PCT_TOPAY_IF != null ? (parseFloat(c.PCT_TOPAY_IF)*100).toFixed(1)+'%' : '-'} / ${c.PCT_COD_IF != null ? (parseFloat(c.PCT_COD_IF)*100).toFixed(1)+'%' : '-'}</div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Account ID</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_ID || 'Mapped'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Ledger Code</span> <span class="font-mono text-purple-700 font-bold">${c.ACCOUNT_CODE || 'Auto-assigned'}</span></div>
-                    <div><span class="text-xs font-bold text-gray-500 uppercase block">Max Users / Logins</span> ${c.MAX_USERS_ALLOWED||1} / ${c.MAX_LOGINS_PER_USER||1}</div>
-                </div>
-            </div>
+        const statusVal = c.STATUS || 'ACTIVE';
+        let statusBadge = '';
+        if (statusVal === 'ACTIVE') {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>';
+        } else if (statusVal === 'BLOCKED') {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">Blocked</span>';
+        } else {
+            statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">' + statusVal + '</span>';
+        }
 
-            <div>
-                <h3 class="text-sm font-bold text-gray-900 tracking-wide uppercase mb-3">Rate List (${rates.length} rates)</h3>`;
+        // Crossover counts (Orders, B2B2C, Users)
+        let crossover = c.CROSSOVER;
+        if (typeof crossover === 'string') {
+            try { crossover = JSON.parse(crossover); } catch (e) { crossover = {}; }
+        }
+        crossover = crossover || {};
+        const ordersCount = crossover.ORDERS ?? crossover.orders ?? 0;
+        const b2b2cCount = crossover.B2B2C ?? crossover.b2b2c ?? 0;
+        const usersCount = crossover.USERS ?? crossover.users ?? 0;
+
+        const billCycleMap = {
+            'D': 'Daily',
+            'W': 'Weekly',
+            'H': 'Half Month',
+            'M': 'Monthly',
+            'E': 'Every Order'
+        };
+        const billCycleLabel = billCycleMap[c.BILL_CYCLE] || c.BILL_CYCLE || '—';
+
+        const fmtPct = val => val != null && val !== '' ? (parseFloat(val) * 100).toFixed(2).replace(/\.?0+$/, '') + '%' : '—';
+        const fmtCur = val => val != null && val !== '' ? '₹' + parseFloat(val).toLocaleString('en-IN') : '—';
+
+        let html = `
+            <div class="space-y-4">
+                <!-- Credit & Live Ledger Exposure Card -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3.5 mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Credit Policy &amp; Live Ledger Exposure
+                        </h4>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600 font-medium">Consignees: <strong class="text-gray-900">${b2b2cCount}</strong></span>
+                            <span class="text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600 font-medium">Users: <strong class="text-gray-900">${usersCount}</strong></span>
+                            <span class="text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600 font-medium">Orders: <strong class="text-gray-900">${ordersCount}</strong></span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-xs">
+                            <span class="font-semibold text-gray-500 block text-[11px] uppercase tracking-wide">Credit Limit</span>
+                            <span class="text-base font-bold text-gray-800">${cl > 0 ? '₹' + cl.toLocaleString('en-IN') : '<span class="text-gray-400 font-normal text-sm">No Limit</span>'}</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-xs">
+                            <span class="font-semibold text-gray-500 block text-[11px] uppercase tracking-wide">Billed AR Usage</span>
+                            <span class="text-base font-bold text-amber-700">₹${billed.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-xs">
+                            <span class="font-semibold text-gray-500 block text-[11px] uppercase tracking-wide">Unbilled Usage</span>
+                            <span class="text-base font-bold text-blue-700">₹${unbilled.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-xs">
+                            <span class="font-semibold text-gray-500 block text-[11px] uppercase tracking-wide">Remaining Limit</span>
+                            ${remainingLimitHtml}
+                        </div>
+                    </div>
+                    <div class="mt-2.5 pt-2 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600 flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-medium">Cross-Limit Policy:</span>
+                            ${c.CROSS_LIMIT === 'Yes' 
+                                ? '<span class="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Allowed (Bookings exceed limit)</span>' 
+                                : '<span class="text-gray-700 font-medium bg-gray-100 px-2 py-0.5 rounded border border-gray-200">Strict Block (Disallow above limit)</span>'}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-medium">Ledger Account:</span>
+                            <span class="font-mono text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-200">COA #1010 AR &bull; Subledger [${c.CODE || '—'}]</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 1: Client Identity & Branch Routing -->
+                <div class="border-t pt-3.5">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        Client Identity &amp; Branch Routing
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Client Code</span>
+                            <span class="font-mono font-bold text-indigo-700 text-base">${c.CODE || '—'}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-2">
+                            <span class="block text-xs font-semibold text-gray-500">B2B Legal Name</span>
+                            <span class="font-medium text-gray-900">${c.B2B_NAME || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Parent Branch</span>
+                            <span class="font-bold text-gray-800">${c.BRANCH || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">B2B Type</span>
+                            <span class="px-2 py-0.5 text-xs rounded bg-gray-100 font-semibold">${c.B2B_TYPE || 'CLIENT'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Operating Status</span>
+                            <span>${statusBadge}</span>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="block text-xs font-semibold text-gray-500">Rate Matrix Type</span>
+                            <span class="font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${c.RATE_LIST || 'STANDARD'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Address, Contact & Communication -->
+                <div class="border-t pt-3.5">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        Address, Contact &amp; Communication
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Mobile Number</span>
+                            <span class="font-mono text-gray-900">${c.MOBILE_NUMBER ? `<a href="tel:${c.MOBILE_NUMBER}" class="hover:underline text-indigo-600">+${c.MOBILE_NUMBER}</a>` : '—'}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-3">
+                            <span class="block text-xs font-semibold text-gray-500">Primary Email</span>
+                            <span class="text-indigo-600 font-medium">${c.EMAIL ? `<a href="mailto:${c.EMAIL}" class="hover:underline">${c.EMAIL}</a>` : '—'}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-3">
+                            <span class="block text-xs font-semibold text-gray-500">Billing Address</span>
+                            <span class="text-gray-800">${c.B2B_ADDRESS || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Landmark</span>
+                            <span class="text-gray-700">${c.B2B_LANDMARK || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">City / State</span>
+                            <span class="text-gray-800 font-medium">${[c.B2B_CITY, c.B2B_STATE].filter(Boolean).join(', ') || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Pincode</span>
+                            <span class="font-mono text-gray-800">${c.B2B_PINCODE || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">State Code</span>
+                            <span class="font-mono text-gray-800">${c.CODE_STATE || '—'}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-4">
+                            <span class="block text-xs font-semibold text-gray-500">WhatsApp Alerts</span>
+                            <span class="text-xs text-gray-700">${Array.isArray(c.WP_ALERTS) && c.WP_ALERTS.length ? c.WP_ALERTS.join(', ') : '—'}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-4">
+                            <span class="block text-xs font-semibold text-gray-500">WhatsApp Groups</span>
+                            <span class="text-xs text-gray-700">${Array.isArray(c.WP_GROUP) && c.WP_GROUP.length ? c.WP_GROUP.map(id => { const g = (_wpGroups || []).find(x => x.id === id); return g ? g.name : id; }).join(', ') : '—'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Statutory & GST Compliance -->
+                <div class="border-t pt-3.5">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Statutory &amp; GST Compliance
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div class="col-span-2">
+                            <span class="block text-xs font-semibold text-gray-500">GSTIN</span>
+                            <span class="font-mono font-bold text-gray-900">${c.GSTIN || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">GST State Code</span>
+                            <span class="font-mono text-gray-800">${c.GST_CODE || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">GST Pricing Rule</span>
+                            <span class="px-2 py-0.5 text-xs rounded font-semibold ${c.GST_INC === 'Y' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'}">${c.GST_INC === 'Y' ? 'Inclusive (Rates Include Tax)' : 'Exclusive (Tax Added)'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">PAN</span>
+                            <span class="font-mono text-gray-800">${c.PAN || '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Aadhaar</span>
+                            <span class="font-mono text-gray-800">${c.AADHAAR || '—'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Commercial Logistics Surcharges & Bill Cycle -->
+                <div class="border-t pt-3.5">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Commercial Logistics Surcharges &amp; Bill Cycle
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Bill Cycle</span>
+                            <span class="font-bold text-gray-800">${billCycleLabel}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Fuel Surcharge</span>
+                            <span class="font-medium text-gray-800">${fmtPct(c.FUEL_CHARGES)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Dev. Surcharge</span>
+                            <span class="font-medium text-gray-800">${fmtPct(c.DEV_CHARGES)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">AWB / Docket Charge</span>
+                            <span class="font-medium text-gray-800">${fmtCur(c.AWB_CHARGES)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Packing Charge</span>
+                            <span class="font-medium text-gray-800">${fmtCur(c.PACKING_CHARGES)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Clearing Charge</span>
+                            <span class="font-medium text-gray-800">${fmtCur(c.CLEARING_CHG)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Weight Change Tolerance</span>
+                            <span class="font-medium text-gray-800">${c.WEIGHT_CHANGE != null && c.WEIGHT_CHANGE !== '' ? c.WEIGHT_CHANGE + ' Kg' : '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">E-Way Bill Charge</span>
+                            <span class="font-medium text-gray-800">${fmtCur(c.EWAY_IF)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">% TO-PAY Surcharge</span>
+                            <span class="font-medium text-gray-800">${fmtPct(c.PCT_TOPAY_IF)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">% COD Surcharge</span>
+                            <span class="font-medium text-gray-800">${fmtPct(c.PCT_COD_IF)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">% FOV (Insurance)</span>
+                            <span class="font-medium text-gray-800">${fmtPct(c.PCT_FOV_IF)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Platform Quotas & Access Controls -->
+                <div class="border-t pt-3.5">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        Platform Quotas &amp; Access Controls
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Subscription Tier</span>
+                            <span class="px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 font-bold">${c.SUBSCRIPTION_TYPE || 'BASIC'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Max Users Allowed</span>
+                            <span class="font-bold text-gray-800">${c.MAX_USERS_ALLOWED || 1}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Max Logins / User</span>
+                            <span class="font-bold text-gray-800">${c.MAX_LOGINS_PER_USER || 1}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Portal &amp; API Status</span>
+                            <span class="inline-flex items-center gap-1 text-emerald-700 font-medium text-xs">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Active
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 6: Rate Matrix Table -->
+                <div class="border-t pt-3.5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            Rate List (${rates.length} rates)
+                        </h4>
+                        <span class="text-xs text-indigo-600 font-medium">Scheme: ${c.RATE_LIST || 'STANDARD'}</span>
+                    </div>`;
+
         if (rates.length > 0) {
             html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-100"><th class="border p-2">Mode</th><th class="border p-2">Weight</th>';
             for (let i = 1; i <= 14; i++) html += `<th class="border p-2">Z${i}</th>`;
@@ -950,6 +1195,8 @@ const AdminClients = (() => {
         setVal('EWAY_IF', '0');
         setVal('WEIGHT_CHANGE', '0');
         setVal('CREDIT_LIMIT', '0');
+        setVal('CROSS_LIMIT', 'No');
+        setVal('BILL_CYCLE', 'M');
         setVal('MAX_USERS_ALLOWED', '1');
         setVal('MAX_LOGINS_PER_USER', '1');
         setVal('GST_INC', 'N');

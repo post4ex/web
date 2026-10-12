@@ -71,11 +71,9 @@ const VaultProductItems = (() => {
             _products = raw;
             _renderList();
 
-            if (_products.length > 0 && window.innerWidth >= 768) {
-                _showDetailView(_products[0]);
-            } else {
-                VaultPage.showDetail(false);
-            }
+            // Do not auto-select on load — show empty placeholder until user selects
+            _activeItem = null;
+            VaultPage.showDetail(false);
         } catch (err) {
             console.error("[VaultProductItems.load error]", err);
             if (listEl) {

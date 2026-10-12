@@ -71,12 +71,9 @@ const VaultServiceItems = (() => {
             _services = raw;
             _renderList();
 
-            // Auto-select first item on desktop
-            if (_services.length > 0 && window.innerWidth >= 768) {
-                _showDetailView(_services[0]);
-            } else {
-                VaultPage.showDetail(false);
-            }
+            // Do not auto-select on load — show empty placeholder until user selects
+            _activeItem = null;
+            VaultPage.showDetail(false);
         } catch (err) {
             console.error("[VaultServiceItems.load error]", err);
             if (listEl) {
@@ -183,26 +180,34 @@ const VaultServiceItems = (() => {
 
                 <!-- Technical & Accounting Details -->
                 <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-                    <h3 class="text-xs font-bold uppercase text-gray-700 tracking-wider">Accounting & Billing Rules</h3>
+                    <h3 class="text-xs font-bold uppercase text-gray-700 tracking-wider">Accounting & Double-Entry Ledger Mapping</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                         <div class="space-y-2">
+                            <div class="flex justify-between py-1.5 border-b border-gray-100">
+                                <span class="text-gray-500">Revenue Ledger Account:</span>
+                                <span class="font-mono font-bold text-indigo-700">${item.revenue_account || '3000'} (${_escapeHtml(item.revenue_account_name || 'Operating Revenue')})</span>
+                            </div>
+                            <div class="flex justify-between py-1.5 border-b border-gray-100">
+                                <span class="text-gray-500">Direct Expense Account:</span>
+                                <span class="font-mono font-bold text-slate-800">${item.expense_account || '5000'} (${_escapeHtml(item.expense_account_name || 'Direct Linehaul Costs')})</span>
+                            </div>
                             <div class="flex justify-between py-1.5 border-b border-gray-100">
                                 <span class="text-gray-500">Volumetric Divisor:</span>
                                 <span class="font-mono font-bold text-gray-800">${item.volumetric_divisor || 5000}</span>
                             </div>
-                            <div class="flex justify-between py-1.5 border-b border-gray-100">
-                                <span class="text-gray-500">Revenue Ledger Pattern:</span>
-                                <span class="font-mono font-semibold text-indigo-700">${_escapeHtml(item.revenue_account_pattern || '%Operating Revenue%')}</span>
-                            </div>
                         </div>
                         <div class="space-y-2">
                             <div class="flex justify-between py-1.5 border-b border-gray-100">
+                                <span class="text-gray-500">GST Output Tax Accounts:</span>
+                                <span class="font-mono text-gray-700">COA #2031/2032 (Intra) • #2033 (Inter)</span>
+                            </div>
+                            <div class="flex justify-between py-1.5 border-b border-gray-100">
                                 <span class="text-gray-500">Classification:</span>
-                                <span class="font-semibold text-gray-800">GST Services (SAC 99)</span>
+                                <span class="font-semibold text-gray-800">GST Logistics Services (SAC 99)</span>
                             </div>
                             <div class="flex justify-between py-1.5 border-b border-gray-100">
                                 <span class="text-gray-500">Inventory Tracking:</span>
-                                <span class="font-semibold text-gray-600">None (Service Transit)</span>
+                                <span class="font-semibold text-gray-600">None (Pure Service Transit)</span>
                             </div>
                         </div>
                     </div>

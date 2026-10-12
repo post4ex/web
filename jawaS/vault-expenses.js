@@ -230,12 +230,7 @@ const VaultExpenses = (() => {
             })
         );
 
-        // Auto-select first
-        const firstLi = ul.querySelector('li');
-        if (firstLi) {
-            firstLi.classList.add('selected');
-            _renderPettyCashDetail(firstLi.dataset.account);
-        }
+        VaultPage.showDetail(false);
     }
 
     function _renderPettyCashDetail(accountName) {
@@ -354,11 +349,7 @@ const VaultExpenses = (() => {
             })
         );
 
-        const firstLi = ul.querySelector('li');
-        if (firstLi) {
-            firstLi.classList.add('selected');
-            _renderStaffAdvanceDetail(firstLi.dataset.staff);
-        }
+        VaultPage.showDetail(false);
     }
 
     function _renderStaffAdvanceDetail(staffCode) {
@@ -457,11 +448,7 @@ const VaultExpenses = (() => {
             })
         );
 
-        const firstLi = ul.querySelector('li');
-        if (firstLi) {
-            firstLi.classList.add('selected');
-            _renderBranchAdvanceDetail(firstLi.dataset.branch);
-        }
+        VaultPage.showDetail(false);
     }
 
     function _renderBranchAdvanceDetail(branchCode) {
@@ -534,6 +521,7 @@ const VaultExpenses = (() => {
             _allExpenses = [];
             document.getElementById('vaultListMsg').textContent = '';
             _renderExpenseList();
+            VaultPage.showDetail(false);
         } catch (err) {
             document.getElementById('vaultListMsg').textContent = 'Error: ' + (err.message || err);
         } finally {

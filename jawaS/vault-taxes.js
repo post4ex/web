@@ -79,11 +79,9 @@ const VaultTaxes = (() => {
 
             _renderList();
 
-            if (_taxes.length > 0 && window.innerWidth >= 768) {
-                _showDetailView(_taxes[0]);
-            } else {
-                VaultPage.showDetail(false);
-            }
+            // Do not auto-select on load — show empty placeholder until user selects
+            _activeItem = null;
+            VaultPage.showDetail(false);
         } catch (err) {
             console.error("[VaultTaxes.load error]", err);
             if (listEl) {

@@ -154,6 +154,9 @@ function initAssignCarrierTile(data) {
         mainPane.classList.remove('hidden');
         aside.classList.add('hidden');
         aside.classList.add('md:flex');
+        if (typeof window._pushShipmentsHistoryState === 'function') {
+            window._pushShipmentsHistoryState('detail', 'assign-carrier');
+        }
     }
 
     // --- RENDER ---
@@ -205,14 +208,22 @@ function initAssignCarrierTile(data) {
 
         // mobile back-to-list
         backToListBtn.addEventListener('click', () => {
-            mainPane.classList.add('hidden');
-            aside.classList.remove('hidden');
+            if (history.state && history.state.scope === 'shipments' && history.state.view === 'detail') {
+                history.back();
+            } else {
+                mainPane.classList.add('hidden');
+                aside.classList.remove('hidden');
+            }
         });
 
         // back-to-tiles
         backToTilesBtn.addEventListener('click', () => {
-            document.getElementById('assignCarrierView').style.display = 'none';
-            document.getElementById('tilesView').style.display = 'flex';
+            if (history.state && history.state.scope === 'shipments' && (history.state.view === 'split' || history.state.view === 'detail')) {
+                history.back();
+            } else {
+                document.getElementById('assignCarrierView').style.display = 'none';
+                document.getElementById('tilesView').style.display = 'flex';
+            }
         });
 
         // --- FORM SUBMIT ---

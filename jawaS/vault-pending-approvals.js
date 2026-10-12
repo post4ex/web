@@ -386,14 +386,7 @@ const VaultPendingApprovals = (() => {
             _pendingEntries = [];
             _renderFilterChips();
             _renderList();
-            // Auto-select first entry's detail
-            const filtered = _getFilteredEntries();
-            if (filtered.length) {
-                const groups = _groupByTxn(filtered);
-                if (groups.length) {
-                    _showDetail(groups[0].txn_id || groups[0].primary.ENTRY_ID);
-                }
-            }
+            VaultPage?.showDetail?.(false);
         } catch (err) {
             document.getElementById('vaultList').innerHTML = `<li class="text-center text-red-500 py-6">❌ ${err.message}</li>`;
         }

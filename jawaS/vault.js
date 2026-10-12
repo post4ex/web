@@ -33,7 +33,7 @@ const VaultPage = (() => {
         'purchase-bills':    'MANAGER',
         'debit-notes':       'MANAGER',
         'suppliers':         'MANAGER',
-        'service-items':     'MANAGER',
+        'service-items':     'CLIENT',
         'product-items':     'MANAGER',
         'inventory':         'MANAGER',
         'stock-transfers':   'MANAGER',
@@ -120,8 +120,23 @@ const VaultPage = (() => {
         'bulk-import':       'Bulk Import',
     };
 
+    // ── History API & State Management ──────────────────────────────────────
+    function _pushHistoryState(view, tile) {
+        try {
+            const current = history.state;
+            if (current && current.scope === 'vault' && current.view === view && current.tile === tile) {
+                return;
+            }
+            const hash = view === 'detail' ? `#${tile || ''}-detail` : (view === 'split' ? `#${tile || ''}` : '');
+            const url = hash ? `${window.location.pathname}${window.location.search}${hash}` : `${window.location.pathname}${window.location.search}`;
+            history.pushState({ scope: 'vault', view, tile }, '', url);
+        } catch (e) {
+            console.warn('[Vault] pushState notice:', e);
+        }
+    }
+
     // ── View switching ────────────────────────────────────────────────────────
-    function _showTiles() {
+    function _showTiles(fromHistory = false) {
         const tilesView = document.getElementById('tilesView');
         if (tilesView) {
             tilesView.style.display = 'flex';
@@ -161,6 +176,14 @@ const VaultPage = (() => {
         }
         
         _activeTile = null;
+
+        if (!fromHistory) {
+            try {
+                if (history.state && history.state.scope === 'vault' && history.state.view !== 'tiles') {
+                    history.replaceState({ scope: 'vault', view: 'tiles' }, '', window.location.pathname + window.location.search);
+                }
+            } catch (_) {}
+        }
     }
 
     function _showSplit(title) {
@@ -185,7 +208,7 @@ const VaultPage = (() => {
         
         // Clean up module-specific UI items from shared list header
         const idsToRemove = [
-            'vbUnbilledBtn', 'vbFilterBtn',
+            'vbUnbilledBtn', 'vbFilterBtn', 'vbModeToggle', 'vbInvBanner',
             'siFilterBtn', 'siStatus',
             'quotFilterBtn', 'quotStatus',
             'cnFilterBtn', 'cnStatus',
@@ -210,10 +233,13 @@ const VaultPage = (() => {
         }
     }
 
-    function _showDetailPane() {
+    function _showDetailPane(fromHistory = false) {
         if (_isMobile()) {
             document.getElementById('vaultListPane').style.display = 'none';
             document.getElementById('vaultDetailPane').style.display = 'block';
+            if (!fromHistory && _activeTile) {
+                _pushHistoryState('detail', _activeTile);
+            }
         } else {
             document.getElementById('vaultListPane').style.display = 'flex';
             document.getElementById('vaultDetailPane').style.display = 'block';
@@ -223,6 +249,9 @@ const VaultPage = (() => {
     function _showDetail(show) {
         document.getElementById('vaultDetailEmpty').classList.toggle('hidden', show);
         document.getElementById('vaultDetailView').classList.toggle('hidden', !show);
+        if (show && _isMobile()) {
+            _showDetailPane();
+        }
     }
 
     function getActiveBranch() {
@@ -261,7 +290,7 @@ const VaultPage = (() => {
     }
 
     // ── Tile activation ───────────────────────────────────────────────────────
-    async function _activateTile(name) {
+    async function _activateTile(name, fromHistory = false) {
         _lastActiveTile = name;
         const minRole = TILE_MIN_ROLE[name];
         if (minRole && !_can(minRole)) return;
@@ -276,11 +305,17 @@ const VaultPage = (() => {
             document.getElementById('vaultListMsg').textContent = 'Please select a branch to view data.';
             document.getElementById('vaultList').innerHTML = '';
             document.getElementById('vaultAddBtn').classList.add('hidden');
+            if (!fromHistory) {
+                _pushHistoryState('split', name);
+            }
             return;
         }
 
         _activeTile = name;
         _showSplit(TILE_LABELS[name] || name);
+        if (!fromHistory) {
+            _pushHistoryState('split', name);
+        }
 
         // Determine which tile group this belongs to
         const receiptsTiles   = ['receipts', 'payments'];
@@ -316,11 +351,42 @@ const VaultPage = (() => {
         if (name === 'billing') {
             await VaultBilling.load();
         }
-        else if (receiptsTiles.includes(name)) {
-            const isPayments = name === 'payments';
-            VaultReceipts.setMode(isPayments ? 'payments' : 'receipts');
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+        else if (name === 'receipts') {
+            VaultReceipts.setMode('receipts');
+            const addBtn = document.getElementById('vaultAddBtn');
+            if (addBtn) {
+                if (_can('ACCOUNTANT') || _can(VAULT_PERMISSIONS.C)) {
+                    addBtn.classList.remove('hidden');
+                    addBtn.innerHTML = `
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>+ Record Receipt</span>
+                    `;
+                    addBtn.onclick = () => VaultReceipts.openAddPane();
+                } else {
+                    addBtn.classList.add('hidden');
+                }
+            }
             await VaultReceipts.load();
+        }
+        else if (name === 'payments') {
+            const addBtn = document.getElementById('vaultAddBtn');
+            if (addBtn) {
+                if (_can('ACCOUNTANT') || _can(VAULT_PERMISSIONS.C)) {
+                    addBtn.classList.remove('hidden');
+                    addBtn.innerHTML = `
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>+ Record Payment</span>
+                    `;
+                    addBtn.onclick = () => VaultPayments.openAddPane();
+                } else {
+                    addBtn.classList.add('hidden');
+                }
+            }
+            await VaultPayments.load();
         }
         else if (journalTiles.includes(name)) {
             const jtMap = { 'journal-entries': 'JOURNAL', 'credit-notes': 'CREDIT_NOTE', 'debit-notes': 'DEBIT_NOTE', 'opening-balances': 'OPENING_BALANCE' };
@@ -355,15 +421,53 @@ const VaultPage = (() => {
             await VaultPendingApprovals.load();
         }
         else if (name === 'sales-invoices') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            if (_can('ACCOUNTANT')) {
+                const addBtn = document.getElementById('vaultAddBtn');
+                if (addBtn) {
+                    addBtn.classList.remove('hidden');
+                    addBtn.onclick = () => {
+                        if (typeof VaultSalesInvoices.openNewInvoicePane === 'function') {
+                            VaultSalesInvoices.openNewInvoicePane();
+                        } else {
+                            VaultSalesInvoices.openNewInvoiceModal();
+                        }
+                    };
+                }
+            } else {
+                document.getElementById('vaultAddBtn')?.classList.add('hidden');
+            }
             await VaultSalesInvoices.load();
         }
         else if (name === 'credit-notes') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            if (_can('ACCOUNTANT')) {
+                const addBtn = document.getElementById('vaultAddBtn');
+                if (addBtn) {
+                    addBtn.classList.remove('hidden');
+                    addBtn.onclick = () => {
+                        if (typeof VaultCreditNotes.openNewCreditNotePane === 'function') {
+                            VaultCreditNotes.openNewCreditNotePane();
+                        }
+                    };
+                }
+            } else {
+                document.getElementById('vaultAddBtn')?.classList.add('hidden');
+            }
             await VaultCreditNotes.load();
         }
         else if (name === 'debit-notes') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            if (_can('ACCOUNTANT') || _can(VAULT_PERMISSIONS.C)) {
+                const addBtn = document.getElementById('vaultAddBtn');
+                if (addBtn) {
+                    addBtn.classList.remove('hidden');
+                    addBtn.onclick = () => {
+                        if (typeof VaultDebitNotes.openAddPane === 'function') {
+                            VaultDebitNotes.openAddPane();
+                        }
+                    };
+                }
+            } else {
+                document.getElementById('vaultAddBtn')?.classList.add('hidden');
+            }
             await VaultDebitNotes.load();
         }
         else if (name === 'customers') {
@@ -393,12 +497,36 @@ const VaultPage = (() => {
             await VaultTrialBalance.load();
         }
         else if (name === 'cheques') {
-            VaultAccounts.setTile('cheques');
-            document.getElementById('vaultAddBtn').classList.add('hidden');
-            await VaultAccounts.load();
+            const addBtn = document.getElementById('vaultAddBtn');
+            if (addBtn) {
+                if (_can('ACCOUNTANT') || _can(VAULT_PERMISSIONS.C)) {
+                    addBtn.classList.remove('hidden');
+                    addBtn.innerHTML = `
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>+ Record Cheque</span>
+                    `;
+                    addBtn.onclick = () => VaultCheques.openAddPane();
+                } else {
+                    addBtn.classList.add('hidden');
+                }
+            }
+            await VaultCheques.load();
         }
         else if (name === 'bank-accounts') {
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            const addBtn = document.getElementById('vaultAddBtn');
+            if (addBtn) {
+                const user = getUser();
+                const role = user ? user.ROLE : '';
+                if (['ACCOUNTANT', 'MANAGER', 'ADMIN', 'MASTER'].includes(role) || _can('ACCOUNTANT')) {
+                    addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> + New Bank';
+                    addBtn.classList.remove('hidden');
+                    addBtn.onclick = () => VaultAccounts.openAddBankPane();
+                } else {
+                    addBtn.classList.add('hidden');
+                }
+            }
             VaultAccounts.setTile('bank-accounts');
             await VaultAccounts.load();
         }
@@ -472,9 +600,42 @@ const VaultPage = (() => {
         }
     }
 
+    // ── Global Masters Pre-Cache (COA & Taxes) ────────────────────────────────
+    let _cachedCOA = [];
+    let _cachedTaxes = [];
+    let _mastersPromise = null;
+
+    async function _initMastersCache() {
+        if (_mastersPromise) return _mastersPromise;
+        _mastersPromise = (async () => {
+            try {
+                const token = (typeof getSessionId === 'function' ? getSessionId() : '') || localStorage.getItem('token') || '';
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+                const [coaRes, taxRes] = await Promise.allSettled([
+                    fetch('/api/ledger/accounts', { headers }).then(r => r.ok ? r.json() : []),
+                    fetch('/api/accounting/taxes', { headers }).then(r => r.ok ? r.json() : [])
+                ]);
+
+                if (coaRes.status === 'fulfilled') {
+                    const data = coaRes.value;
+                    _cachedCOA = Array.isArray(data) ? data : (data?.accounts || []);
+                }
+                if (taxRes.status === 'fulfilled') {
+                    const data = taxRes.value;
+                    _cachedTaxes = Array.isArray(data) ? data : (data?.taxes || []);
+                }
+            } catch (err) {
+                console.warn('[Vault] Master cache fetch notice:', err);
+            }
+        })();
+        return _mastersPromise;
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     function _init() {
         _hideTilesByRole();
+        _initMastersCache();
 
         document.querySelectorAll('[data-tile]').forEach(tile => {
             tile.setAttribute('tabindex', '0');
@@ -495,9 +656,54 @@ const VaultPage = (() => {
             }
         }, { passive: true });
 
-        document.getElementById('backToTilesBtn').addEventListener('click', _showTiles);
-        document.getElementById('backToListBtn')?.addEventListener('click', () => {
-            if (_isMobile()) _showListPane();
+        function _handleBackToTiles() {
+            if (history.state && history.state.scope === 'vault' && (history.state.view === 'split' || history.state.view === 'detail')) {
+                history.back();
+            } else {
+                _showTiles();
+            }
+        }
+
+        function _handleBackToList() {
+            if (_isMobile()) {
+                if (history.state && history.state.scope === 'vault' && history.state.view === 'detail') {
+                    history.back();
+                } else {
+                    _showListPane();
+                }
+            }
+        }
+
+        document.getElementById('backToTilesBtn')?.addEventListener('click', _handleBackToTiles);
+        document.getElementById('backToListBtn')?.addEventListener('click', _handleBackToList);
+
+        // Initial base history state & deep-link hash hydration
+        if (!history.state || history.state.scope !== 'vault') {
+            const initialHash = (window.location.hash || '').replace(/^#/, '');
+            history.replaceState({ scope: 'vault', view: 'tiles' }, '', window.location.pathname + window.location.search);
+            if (initialHash) {
+                const targetTile = initialHash.replace(/-detail$/, '');
+                if (document.querySelector(`.tile[data-tile="${targetTile}"]`)) {
+                    _activateTile(targetTile);
+                }
+            }
+        }
+
+        window.addEventListener('popstate', (e) => {
+            const state = e.state;
+            if (!state || state.scope !== 'vault' || state.view === 'tiles') {
+                _showTiles(true);
+            } else if (state.view === 'split') {
+                if (_activeTile !== state.tile) {
+                    _activateTile(state.tile, true);
+                }
+                _showListPane();
+            } else if (state.view === 'detail') {
+                if (_activeTile !== state.tile) {
+                    _activateTile(state.tile, true);
+                }
+                _showDetailPane(true);
+            }
         });
 
         // Branch initialization according to role
@@ -957,7 +1163,20 @@ const VaultPage = (() => {
         _init();
     });
 
-    return { showDetail: _showDetail, showDetailPane: _showDetailPane, can: _can, showTiles: _showTiles, activeTile: () => _activeTile, activateTile: _activateTile, getActiveBranch, openReportModal: _openReportModal };
+    return { 
+        showDetail: _showDetail, 
+        showDetailPane: _showDetailPane, 
+        can: _can, 
+        showTiles: _showTiles, 
+        activeTile: () => _activeTile, 
+        activateTile: _activateTile, 
+        getActiveBranch, 
+        openReportModal: _openReportModal,
+        getRole: () => (getUser()?.ROLE || ''),
+        getCOA: () => _cachedCOA,
+        getTaxes: () => _cachedTaxes,
+        ensureMasters: _initMastersCache
+    };
 })();
 
 window.VaultPage = VaultPage;

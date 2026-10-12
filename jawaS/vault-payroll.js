@@ -17,12 +17,26 @@ const VaultPayroll = (() => {
     let _allPayslips = [];
     let _balanceCache = {};
     let _activeTile = 'employees';
+    let _selectedStaffCode = null;
 
     function _can(role) { return window.VaultPage?.can(role); }
     function _fmt(v, t) {
         if (!v) return 'N/A';
         try { return (typeof fmtDate === 'function') ? fmtDate(v, t) : new Date(v).toLocaleDateString(); }
         catch { return String(v); }
+    }
+
+    function _copyText(text, btn) {
+        if (!text) return;
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(String(text)).then(() => {
+                if (btn) {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-check text-emerald-600"></i>';
+                    setTimeout(() => { btn.innerHTML = orig; }, 1500);
+                }
+            }).catch(() => {});
+        }
     }
 
     function _toDateStr(ts) {
@@ -50,17 +64,29 @@ const VaultPayroll = (() => {
 
     // ── Role display helper ──────────────────────────────────────────────────
     function _roleBadge(role) {
-        const colors = { 'MASTER': 'bg-red-100 text-red-700', 'ADMIN': 'bg-purple-100 text-purple-700',
-            'AUDITOR': 'bg-orange-100 text-orange-700', 'ACCOUNTANT': 'bg-blue-100 text-blue-700',
-            'MANAGER': 'bg-green-100 text-green-700', 'STAFF': 'bg-gray-100 text-gray-700',
-            'CLIENT': 'bg-yellow-100 text-yellow-700' };
-        return `<span class="text-xs px-2 py-0.5 rounded-full ${colors[role] || 'bg-gray-100 text-gray-600'}">${role || 'N/A'}</span>`;
+        const r = (role || 'Staff').trim();
+        const rUpper = r.toUpperCase();
+        let cls = 'bg-gray-100 text-gray-700 border-gray-200';
+        if (rUpper === 'MASTER') cls = 'bg-red-100 text-red-800 border-red-200';
+        else if (rUpper === 'ADMIN') cls = 'bg-purple-100 text-purple-800 border-purple-200';
+        else if (rUpper === 'AUDITOR') cls = 'bg-orange-100 text-orange-800 border-orange-200';
+        else if (rUpper === 'ACCOUNTANT') cls = 'bg-blue-100 text-blue-800 border-blue-200';
+        else if (rUpper === 'MANAGER') cls = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        else if (rUpper.includes('DELIVERY')) cls = 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        else if (rUpper.includes('OPERATIONS')) cls = 'bg-cyan-100 text-cyan-800 border-cyan-200';
+        else if (rUpper === 'CLIENT') cls = 'bg-amber-100 text-amber-800 border-amber-200';
+        return `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}">${_escapeHtml(r)}</span>`;
     }
 
     function _statusBadge(status) {
-        const colors = { 'Active': 'bg-green-100 text-green-700', 'Inactive': 'bg-red-100 text-red-700',
-            'Resigned': 'bg-yellow-100 text-yellow-700', 'On Leave': 'bg-blue-100 text-blue-700' };
-        return `<span class="text-xs px-2 py-0.5 rounded-full ${colors[status] || 'bg-gray-100 text-gray-600'}">${status || 'N/A'}</span>`;
+        const s = (status || 'Active').trim();
+        const sUpper = s.toUpperCase();
+        let cls = 'bg-gray-100 text-gray-700 border-gray-200';
+        if (sUpper === 'ACTIVE') cls = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        else if (sUpper === 'INACTIVE') cls = 'bg-rose-100 text-rose-800 border-rose-200';
+        else if (sUpper === 'RESIGNED') cls = 'bg-amber-100 text-amber-800 border-amber-200';
+        else if (sUpper === 'ON LEAVE') cls = 'bg-sky-100 text-sky-800 border-sky-200';
+        return `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}">${_escapeHtml(s)}</span>`;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -130,57 +156,112 @@ const VaultPayroll = (() => {
     function _renderList() {
         const ul = document.getElementById('vaultList');
         if (!ul) return;
-        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
+        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase().trim();
         const filtered = q
             ? _allStaff.filter(s =>
                 (s.STAFF_NAME || '').toLowerCase().includes(q) ||
                 (s.STAFF_CODE || '').toLowerCase().includes(q) ||
                 (s.BRANCH || '').toLowerCase().includes(q) ||
                 (s.DEPARTMENT || '').toLowerCase().includes(q) ||
-                (s.MOBILE || '').includes(q)
+                (s.ROLE || '').toLowerCase().includes(q) ||
+                (s.MOBILE || '').includes(q) ||
+                (s.EMAIL || '').toLowerCase().includes(q) ||
+                (s.PAN_NUM || '').toLowerCase().includes(q)
               )
             : _allStaff;
         const sorted = [...filtered].sort((a, b) => (a.STAFF_NAME || '').localeCompare(b.STAFF_NAME || ''));
         if (!sorted.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No employees found.</li>';
+            ul.innerHTML = `
+                <li class="text-center text-gray-500 text-xs py-8">
+                    <i class="fa-solid fa-users-slash text-gray-300 text-3xl mb-2 block"></i>
+                    No employees found matching criteria.
+                </li>
+            `;
             return;
         }
         ul.innerHTML = sorted.map(s => {
             const bal = _getDisplayBalance(s);
-            const balClass = bal >= 0 ? 'text-red-600' : 'text-green-600'; // positive = owes money (Dr)
-            const balStr = bal !== 0 ? `<span class="${balClass} text-xs font-medium">${_fmtAmt(Math.abs(bal))} ${bal >= 0 ? 'Dr' : 'Cr'}</span>` : '';
-            return `<li data-code="${s.STAFF_CODE}" class="p-3 rounded-lg cursor-pointer hover:bg-indigo-50 border border-gray-200 transition-colors">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <strong class="text-gray-800 block text-sm">${s.STAFF_NAME || 'N/A'}</strong>
-                        <span class="text-xs text-gray-500">${s.STAFF_CODE || ''} · ${s.BRANCH || ''} · ${s.DEPARTMENT || ''}</span>
+            const balClass = bal >= 0 ? 'text-rose-600' : 'text-emerald-600';
+            const balStr = bal !== 0 ? `<span class="${balClass} text-[11px] font-semibold font-mono">${_fmtAmt(Math.abs(bal))} ${bal >= 0 ? 'Dr' : 'Cr'}</span>` : '';
+            const isSelected = _selectedStaffCode && _selectedStaffCode === s.STAFF_CODE;
+
+            const nameStr = (s.STAFF_NAME || s.STAFF_CODE || 'EMP').trim();
+            const parts = nameStr.split(/\s+/).filter(Boolean);
+            const initials = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : nameStr.slice(0, 2).toUpperCase();
+
+            return `
+                <li data-code="${_escapeHtml(s.STAFF_CODE)}" 
+                    class="p-3.5 rounded-xl cursor-pointer border transition-all duration-150 ${isSelected ? 'bg-indigo-50/90 border-indigo-500 shadow-sm ring-1 ring-indigo-300' : 'bg-white hover:bg-gray-50/80 border-gray-200'}">
+                    <div class="flex items-start justify-between gap-2 mb-1.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                ${initials}
+                            </div>
+                            <div class="min-w-0">
+                                <strong class="text-gray-900 block text-xs font-semibold truncate leading-tight">${_escapeHtml(s.STAFF_NAME || 'N/A')}</strong>
+                                <span class="font-mono text-[10px] text-gray-500 font-medium">${_escapeHtml(s.STAFF_CODE || '')}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                            ${_statusBadge(s.STATUS)}
+                            ${balStr}
+                        </div>
                     </div>
-                    <div class="flex flex-col items-end gap-1">
-                        ${_statusBadge(s.STATUS)}
-                        ${balStr}
+                    
+                    <div class="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 text-[11px]">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700">
+                            📍 ${_escapeHtml(s.BRANCH || 'N/A')}
+                        </span>
+                        ${s.DEPARTMENT ? `
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700">
+                                ${_escapeHtml(s.DEPARTMENT)}
+                            </span>
+                        ` : ''}
+                        ${_roleBadge(s.ROLE)}
+                        ${s.MOBILE ? `
+                            <span class="ml-auto text-[11px] text-gray-500 font-mono flex items-center gap-1">
+                                <i class="fa-solid fa-phone text-[9px] text-gray-400"></i>${_escapeHtml(s.MOBILE)}
+                            </span>
+                        ` : ''}
                     </div>
-                </div>
-                <div class="mt-1">${_roleBadge(s.ROLE)}</div>
-                ${s.MOBILE ? `<div class="text-xs text-gray-400 mt-1">📞 ${s.MOBILE}</div>` : ''}
-            </li>`;
+                </li>
+            `;
         }).join('');
+
         ul.querySelectorAll('li').forEach(li =>
             li.addEventListener('click', () => {
-                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                _renderEmployeeDetail(_allStaff.find(s => s.STAFF_CODE === li.dataset.code));
+                ul.querySelectorAll('li').forEach(x => {
+                    x.classList.remove('bg-indigo-50/90', 'border-indigo-500', 'shadow-sm', 'ring-1', 'ring-indigo-300');
+                    x.classList.add('bg-white', 'border-gray-200');
+                });
+                li.classList.add('bg-indigo-50/90', 'border-indigo-500', 'shadow-sm', 'ring-1', 'ring-indigo-300');
+                li.classList.remove('bg-white', 'border-gray-200');
+
+                _selectedStaffCode = li.dataset.code;
+                const staff = _allStaff.find(s => s.STAFF_CODE === li.dataset.code);
+                if (staff) {
+                    _renderEmployeeDetail(staff);
+                }
             })
         );
     }
 
     function _renderEmployeeDetail(staff) {
         if (!staff) return;
+        _selectedStaffCode = staff.STAFF_CODE;
         VaultPage.showDetail(true);
+        VaultPage?.showDetailPane?.();
+
         const view = document.getElementById('vaultDetailView');
+        if (!view) return;
+
         const branch = _allBranches.find(b => b.BRANCH_CODE === staff.BRANCH);
         const bal = _getDisplayBalance(staff);
-        const balClass = bal >= 0 ? 'text-red-600' : 'text-green-600';
         const ledgerEntries = _getStaffLedgerEntries(staff.STAFF_CODE);
+
+        const nameStr = (staff.STAFF_NAME || staff.STAFF_CODE || 'EMP').trim();
+        const parts = nameStr.split(/\s+/).filter(Boolean);
+        const initials = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : nameStr.slice(0, 2).toUpperCase();
 
         const statementRows = ledgerEntries.slice(-20).map(e => {
             const debit = +(e.DEBIT || 0);
@@ -188,74 +269,244 @@ const VaultPayroll = (() => {
             return `<tr class="border-b border-gray-100 hover:bg-gray-50/50">
                 <td class="py-1.5 px-2 text-xs text-gray-500">${_toDateStr(e.IO_TIMESTAMP)}</td>
                 <td class="py-1.5 px-2 text-xs text-gray-600">${_escapeHtml(e.NARRATION || '')}</td>
-                <td class="py-1.5 px-2 text-right text-xs text-green-700">${debit ? _fmtAmt(debit) : '—'}</td>
-                <td class="py-1.5 px-2 text-right text-xs text-red-700">${credit ? _fmtAmt(credit) : '—'}</td>
+                <td class="py-1.5 px-2 text-right text-xs text-emerald-700 font-mono font-medium">${debit ? _fmtAmt(debit) : '—'}</td>
+                <td class="py-1.5 px-2 text-right text-xs text-rose-700 font-mono font-medium">${credit ? _fmtAmt(credit) : '—'}</td>
             </tr>`;
         }).join('');
 
         view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-700">👤 Employee Detail</h3>
-                    <div class="flex gap-2 items-center">
-                        ${_statusBadge(staff.STATUS)}
-                        <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-${bal >= 0 ? 'red' : 'green'}-100 text-${bal >= 0 ? 'red' : 'green'}-700">${_fmtAmt(Math.abs(bal))} ${bal >= 0 ? 'Dr' : 'Cr'}</span>
-                    </div>
-                </div>
-                <div class="detail-card-body">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        <div class="sm:col-span-2 bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                            <div class="text-xl font-bold text-indigo-800">${staff.STAFF_NAME || 'N/A'}</div>
-                            <div class="text-xs text-indigo-600">${staff.STAFF_CODE || ''} · ${_roleBadge(staff.ROLE)}</div>
-                        </div>
-                        <div><span class="text-gray-500">Mobile:</span> ${staff.MOBILE || 'N/A'}</div>
-                        <div><span class="text-gray-500">Email:</span> ${staff.EMAIL || 'N/A'}</div>
-                        <div><span class="text-gray-500">Branch:</span> ${staff.BRANCH || 'N/A'} ${branch ? '- ' + branch.BRANCH_NAME : ''}</div>
-                        <div><span class="text-gray-500">Department:</span> ${staff.DEPARTMENT || 'N/A'}</div>
-                        <div><span class="text-gray-500">DOB:</span> ${staff.DATE_BIRTH ? _fmt(staff.DATE_BIRTH, 'date') : 'N/A'}</div>
-                        <div><span class="text-gray-500">DOJ:</span> ${staff.DATE_JOIN ? _fmt(staff.DATE_JOIN, 'date') : 'N/A'}</div>
-                        ${staff.DATE_LEAVE ? `<div><span class="text-gray-500">DOL:</span> ${_fmt(staff.DATE_LEAVE, 'date')}</div>` : ''}
-                        <div><span class="text-gray-500">Gender:</span> ${staff.GENDER || 'N/A'}</div>
-                        <div><span class="text-gray-500">Blood Group:</span> ${staff.BLOOD_GROUP || 'N/A'}</div>
-                        <div><span class="text-gray-500">PAN:</span> ${staff.PAN_NUM || 'N/A'}</div>
-                        <div><span class="text-gray-500">Aadhaar:</span> ${staff.ADHAR_NUM || 'N/A'}</div>
-                        <div><span class="text-gray-500">EPF:</span> ${staff.EPF_UID || 'N/A'}</div>
-                        <div><span class="text-gray-500">ESI:</span> ${staff.ESI_UID || 'N/A'}</div>
-                        <div><span class="text-gray-500">UAN:</span> ${staff.UAN || 'N/A'}</div>
-                        <div><span class="text-gray-500">Emergency:</span> ${staff.EMERGENCY_CONTACT || 'N/A'}</div>
-                        ${staff.BANK_NAME ? `<div class="sm:col-span-2 border-t pt-2 mt-2">
-                            <div class="text-xs font-semibold text-gray-400 uppercase mb-2">Bank Details</div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><span class="text-gray-500">Bank:</span> ${staff.BANK_NAME}</div>
-                                <div><span class="text-gray-500">A/C:</span> ${staff.BANK_AC || 'N/A'}</div>
-                                <div><span class="text-gray-500">IFSC:</span> ${staff.BANK_IFSC || 'N/A'}</div>
+            <div class="space-y-4">
+                <!-- Header Card -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-3.5 min-w-0">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold text-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                                ${initials}
                             </div>
-                        </div>` : ''}
-                        ${staff.ADDRESS ? `<div class="sm:col-span-2"><span class="text-gray-500">Address:</span> ${staff.ADDRESS}, ${staff.CITY || ''}, ${staff.STATE || ''} - ${staff.PINCODE || ''}</div>` : ''}
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-base sm:text-lg font-bold text-gray-900 truncate">${_escapeHtml(staff.STAFF_NAME || 'N/A')}</h3>
+                                    ${_statusBadge(staff.STATUS)}
+                                </div>
+                                <div class="flex items-center gap-2 text-xs text-gray-500 font-mono mt-0.5">
+                                    <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-semibold">${_escapeHtml(staff.STAFF_CODE || '')}</span>
+                                    ${_roleBadge(staff.ROLE)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 bg-gray-50 sm:bg-transparent p-2.5 sm:p-0 rounded-lg">
+                            <span class="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Account Balance</span>
+                            <span class="px-2.5 py-1 text-xs font-bold font-mono rounded-lg ${bal >= 0 ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}">
+                                ${_fmtAmt(Math.abs(bal))} ${bal >= 0 ? 'Dr' : 'Cr'}
+                            </span>
+                        </div>
                     </div>
 
-                    <!-- Balance & Recent Transactions -->
-                    ${ledgerEntries.length ? `
-                    <div class="mt-6 border-t pt-4">
-                        <h4 class="text-sm font-semibold text-gray-700 mb-3">📊 Recent Transactions</h4>
-                        <div class="overflow-hidden border border-gray-100 rounded-lg">
-                            <table class="min-w-full text-xs">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="py-2 px-2 text-left font-bold text-gray-500 uppercase">Date</th>
-                                        <th class="py-2 px-2 text-left font-bold text-gray-500 uppercase">Narration</th>
-                                        <th class="py-2 px-2 text-right font-bold text-green-600 uppercase">Debit</th>
-                                        <th class="py-2 px-2 text-right font-bold text-red-600 uppercase">Credit</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white">${statementRows}</tbody>
-                            </table>
+                    <!-- Quick Action Strip -->
+                    <div class="flex flex-wrap items-center gap-2 pt-3">
+                        <button type="button" onclick="VaultPayroll._openSalaryForm('${_escapeHtml(staff.STAFF_CODE)}')" 
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-200 transition-colors">
+                            <i class="fa-solid fa-coins"></i> Manage Salary Structure
+                        </button>
+                        ${staff.MOBILE ? `
+                            <a href="tel:${_escapeHtml(staff.MOBILE)}" 
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors">
+                                <i class="fa-solid fa-phone"></i> Call
+                            </a>
+                            <a href="https://wa.me/91${_escapeHtml(staff.MOBILE.replace(/\\D/g, '').slice(-10))}" target="_blank"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-semibold rounded-lg border border-teal-200 transition-colors">
+                                <i class="fa-brands fa-whatsapp text-emerald-600"></i> WhatsApp
+                            </a>
+                        ` : ''}
+                        ${staff.EMAIL ? `
+                            <a href="mailto:${_escapeHtml(staff.EMAIL)}" 
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-lg border border-sky-200 transition-colors">
+                                <i class="fa-solid fa-envelope"></i> Email
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <!-- Main Details Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Employment & Department -->
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-building text-indigo-500"></i> Employment Details
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Branch:</span>
+                                <span class="font-semibold text-gray-900">${_escapeHtml(staff.BRANCH || 'N/A')}${branch ? ' · ' + _escapeHtml(branch.BRANCH_NAME) : ''}</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Department:</span>
+                                <span class="font-semibold text-gray-900">${_escapeHtml(staff.DEPARTMENT || 'N/A')}</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Date of Joining (DOJ):</span>
+                                <span class="font-semibold text-gray-900">${staff.DATE_JOIN ? _fmt(staff.DATE_JOIN, 'date') : 'N/A'}</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Date of Birth (DOB):</span>
+                                <span class="font-semibold text-gray-900">${staff.DATE_BIRTH ? _fmt(staff.DATE_BIRTH, 'date') : 'N/A'}</span>
+                            </div>
+                            ${staff.DATE_LEAVE ? `
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-rose-500 font-medium">Date of Leaving (DOL):</span>
+                                <span class="font-semibold text-rose-700">${_fmt(staff.DATE_LEAVE, 'date')}</span>
+                            </div>` : ''}
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Gender / Blood Group:</span>
+                                <span class="font-semibold text-gray-900">${_escapeHtml(staff.GENDER || 'N/A')} / ${_escapeHtml(staff.BLOOD_GROUP || 'N/A')}</span>
+                            </div>
+                            ${staff.VEHICLE_NUM ? `
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Vehicle Number:</span>
+                                <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.VEHICLE_NUM)}</span>
+                            </div>` : ''}
+                            ${staff.DRIVING_LICENSE ? `
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Driving License:</span>
+                                <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.DRIVING_LICENSE)}</span>
+                            </div>` : ''}
                         </div>
-                        ${ledgerEntries.length > 20 ? `<p class="text-xs text-gray-400 mt-2">Showing last 20 of ${ledgerEntries.length} entries</p>` : ''}
+                    </div>
+
+                    <!-- Contact & Personal -->
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-address-book text-emerald-500"></i> Contact & Emergency
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Mobile Phone:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.MOBILE || 'N/A')}</span>
+                                    ${staff.MOBILE ? `<button type="button" onclick="VaultPayroll._copy('${_escapeHtml(staff.MOBILE)}', this)" class="text-gray-400 hover:text-indigo-600 transition-colors" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Email Address:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-semibold text-gray-900 truncate max-w-[180px]">${_escapeHtml(staff.EMAIL || 'N/A')}</span>
+                                    ${staff.EMAIL ? `<button type="button" onclick="VaultPayroll._copy('${_escapeHtml(staff.EMAIL)}', this)" class="text-gray-400 hover:text-indigo-600 transition-colors" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Emergency Contact:</span>
+                                <span class="font-semibold text-gray-900">${_escapeHtml(staff.EMERGENCY_CONTACT || 'N/A')}</span>
+                            </div>
+                            ${staff.FATHERS_NAME ? `
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Father's Name:</span>
+                                <span class="font-semibold text-gray-900">${_escapeHtml(staff.FATHERS_NAME)}</span>
+                            </div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Bank Details -->
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-building-columns text-blue-500"></i> Bank Account Information
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Bank Name:</span>
+                                <span class="font-semibold text-gray-900">${_escapeHtml(staff.BANK_NAME || 'Not Provided')}</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Account Number:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.BANK_AC || 'Not Provided')}</span>
+                                    ${staff.BANK_AC ? `<button type="button" onclick="VaultPayroll._copy('${_escapeHtml(staff.BANK_AC)}', this)" class="text-gray-400 hover:text-indigo-600 transition-colors" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">IFSC Code:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.BANK_IFSC || 'Not Provided')}</span>
+                                    ${staff.BANK_IFSC ? `<button type="button" onclick="VaultPayroll._copy('${_escapeHtml(staff.BANK_IFSC)}', this)" class="text-gray-400 hover:text-indigo-600 transition-colors" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statutory & KYC -->
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-id-card text-purple-500"></i> Statutory &amp; KYC Identifiers
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">PAN Number:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.PAN_NUM || 'N/A')}</span>
+                                    ${staff.PAN_NUM ? `<button type="button" onclick="VaultPayroll._copy('${_escapeHtml(staff.PAN_NUM)}', this)" class="text-gray-400 hover:text-indigo-600 transition-colors" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Aadhaar Number:</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.ADHAR_NUM || 'N/A')}</span>
+                                    ${staff.ADHAR_NUM ? `<button type="button" onclick="VaultPayroll._copy('${_escapeHtml(staff.ADHAR_NUM)}', this)" class="text-gray-400 hover:text-indigo-600 transition-colors" title="Copy"><i class="fa-regular fa-copy"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">UAN:</span>
+                                <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.UAN || 'N/A')}</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">EPF UID:</span>
+                                <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.EPF_UID || 'N/A')}</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-gray-50">
+                                <span class="text-gray-500">ESI UID:</span>
+                                <span class="font-mono font-semibold text-gray-900">${_escapeHtml(staff.ESI_UID || 'N/A')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Residential Address -->
+                    ${(staff.ADDRESS || staff.CITY || staff.STATE || staff.PINCODE) ? `
+                    <div class="md:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-dot text-rose-500"></i> Residential Address
+                        </h4>
+                        <p class="text-xs text-gray-800 leading-relaxed">
+                            ${_escapeHtml([staff.ADDRESS, staff.CITY, staff.STATE].filter(Boolean).join(', '))}
+                            ${staff.PINCODE ? ' - ' + _escapeHtml(staff.PINCODE) : ''}
+                        </p>
                     </div>` : ''}
                 </div>
-            </div>`;
-        VaultPage.showDetailPane();
+
+                <!-- Ledger / Recent Transactions -->
+                ${ledgerEntries.length ? `
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Recent Ledger Transactions
+                        </h4>
+                        <span class="text-[11px] text-gray-500 font-mono">${ledgerEntries.length} total entries</span>
+                    </div>
+                    <div class="overflow-x-auto border border-gray-100 rounded-lg">
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-2 px-3 text-left font-bold text-gray-500 uppercase text-[10px]">Date</th>
+                                    <th class="py-2 px-3 text-left font-bold text-gray-500 uppercase text-[10px]">Narration</th>
+                                    <th class="py-2 px-3 text-right font-bold text-emerald-600 uppercase text-[10px]">Debit (₹)</th>
+                                    <th class="py-2 px-3 text-right font-bold text-rose-600 uppercase text-[10px]">Credit (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 bg-white">${statementRows}</tbody>
+                        </table>
+                    </div>
+                    ${ledgerEntries.length > 20 ? `<p class="text-[11px] text-gray-400 mt-2 text-right">Showing last 20 entries</p>` : ''}
+                </div>` : ''}
+            </div>
+        `;
     }
 
     // ========================================================================
@@ -305,7 +556,7 @@ const VaultPayroll = (() => {
                             </div>
                         </div>
                         <div class="sm:col-span-3 flex justify-end pt-2 gap-2">
-                            <button type="button" onclick="VaultPayroll.setTile('payroll');VaultPayroll.load();" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                            <button type="button" onclick="if (VaultPayroll.activeTile && VaultPayroll.activeTile() === 'employees' && window.VaultPayroll?._getStaff) { const st = VaultPayroll._getStaff('${staffCode}'); if (st) { VaultPayroll._renderEmployeeDetail(st); return; } } VaultPayroll.setTile('payroll'); VaultPayroll.load();" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                             <button type="submit" class="btn btn-sm">💾 Save Salary</button>
                         </div>
                     </form>
@@ -812,16 +1063,64 @@ const VaultPayroll = (() => {
     }
 
     async function load() {
-        const data = await getAppData();
-        if (!data) return;
+        let rawStaff = null;
+        let rawAttendance = null;
+        let rawBranches = null;
 
-        const activeBranch = VaultPage.getActiveBranch();
-        const rawStaff = Object.values(data.STAFF || {});
-        _allStaff = rawStaff.filter(s =>
-            !activeBranch || (s.BRANCH || '').toLowerCase() === activeBranch.toLowerCase()
-        );
-        _allAttendance = Object.values(data.ATTENDANCE || {});
-        _allBranches = Object.values(data.BRANCHES || {});
+        // Try direct sheet fetch from getAppData('STAFF') first (instant IDB lookup)
+        try {
+            if (typeof getAppData === 'function') {
+                rawStaff = await getAppData('STAFF');
+                rawAttendance = await getAppData('ATTENDANCE');
+                rawBranches = await getAppData('BRANCHES');
+            }
+        } catch (e) {
+            console.warn('[VaultPayroll] Direct getAppData(sheet) failed:', e);
+        }
+
+        // Direct IndexedDB fallback
+        if (!rawStaff && window.appDB?.getSheet) {
+            try {
+                rawStaff = await window.appDB.getSheet('STAFF');
+            } catch (_) {}
+        }
+        if (!rawAttendance && window.appDB?.getSheet) {
+            try {
+                rawAttendance = await window.appDB.getSheet('ATTENDANCE');
+            } catch (_) {}
+        }
+        if (!rawBranches && window.appDB?.getSheet) {
+            try {
+                rawBranches = await window.appDB.getSheet('BRANCHES');
+            } catch (_) {}
+        }
+
+        // Global getAppData() fallback
+        if (!rawStaff) {
+            try {
+                const fullData = await getAppData();
+                if (fullData) {
+                    rawStaff = fullData.STAFF;
+                    rawAttendance = rawAttendance || fullData.ATTENDANCE;
+                    rawBranches = rawBranches || fullData.BRANCHES;
+                }
+            } catch (e) {
+                console.error('[VaultPayroll] Full getAppData fallback failed:', e);
+            }
+        }
+
+        const staffList = Array.isArray(rawStaff) ? rawStaff : Object.values(rawStaff || {});
+        _allAttendance = Array.isArray(rawAttendance) ? rawAttendance : Object.values(rawAttendance || {});
+        _allBranches = Array.isArray(rawBranches) ? rawBranches : Object.values(rawBranches || {});
+
+        const activeBranch = (VaultPage.getActiveBranch() || '').trim().toUpperCase();
+        _allStaff = staffList.filter(s => {
+            if (!s) return false;
+            if (!activeBranch || activeBranch === 'ALL') return true;
+            const b = (s.BRANCH || '').trim().toUpperCase();
+            return !b || b === 'ALL' || b === activeBranch;
+        });
+
         _glRows = [];
         _loadSalaryStructures();
         _computeEmployeeBalances();
@@ -830,11 +1129,14 @@ const VaultPayroll = (() => {
         _allPayslips = [];
 
         if (_activeTile === 'employees') {
-            _injectListPane('Search name, code, department…');
+            _injectListPane('Search name, code, dept, mobile, PAN…');
             const searchInput = document.getElementById('vaultSearch');
             if (searchInput) searchInput.oninput = () => search();
+            _selectedStaffCode = null;
             _renderList();
-            document.getElementById('vaultAddBtn').classList.add('hidden');
+            VaultPage.showDetail(false);
+            const addBtn = document.getElementById('vaultAddBtn');
+            if (addBtn) addBtn.classList.add('hidden');
         } else if (_activeTile === 'payroll') {
             document.getElementById('vaultListPane').style.display = 'none';
             document.getElementById('vaultAddBtn').classList.add('hidden');
@@ -847,7 +1149,19 @@ const VaultPayroll = (() => {
 
     function setTile(tile) { _activeTile = tile; }
 
-    return { load, search, setTile, _openSalaryForm, _calcNet, _processMonthlySalary, _showSalaryListView };
+    return { 
+        load, 
+        search, 
+        setTile, 
+        activeTile: () => _activeTile,
+        _openSalaryForm, 
+        _calcNet, 
+        _processMonthlySalary, 
+        _showSalaryListView,
+        _renderEmployeeDetail,
+        _copy: _copyText,
+        _getStaff: (code) => _allStaff.find(s => s.STAFF_CODE === code)
+    };
 })();
 
 window.VaultPayroll = VaultPayroll;

@@ -132,24 +132,52 @@ function updateTileCounts(orders) {
     });
 }
 
-function showTilesView() {
+// ── History API & State Management ──────────────────────────────────────
+function _pushShipmentsHistoryState(view, tile) {
+    try {
+        const current = history.state;
+        if (current && current.scope === 'shipments' && current.view === view && current.tile === tile) {
+            return;
+        }
+        const hash = view === 'detail' ? `#${tile || ''}-detail` : (view === 'split' ? `#${tile || ''}` : '');
+        const url = hash ? `${window.location.pathname}${window.location.search}${hash}` : `${window.location.pathname}${window.location.search}`;
+        history.pushState({ scope: 'shipments', view, tile }, '', url);
+    } catch (e) {
+        console.warn('[Shipments] pushState notice:', e);
+    }
+}
+window._pushShipmentsHistoryState = _pushShipmentsHistoryState;
+
+function showTilesView(fromHistory = false) {
     document.getElementById('tilesView').style.display = 'flex';
     document.getElementById('splitViewWrapper').style.display = 'none';
     document.getElementById('assignCarrierView').style.display = 'none';
+
+    if (!fromHistory) {
+        try {
+            if (history.state && history.state.scope === 'shipments' && history.state.view !== 'tiles') {
+                history.replaceState({ scope: 'shipments', view: 'tiles' }, '', window.location.pathname + window.location.search);
+            }
+        } catch (_) {}
+    }
 }
 
 function showSplitView(label) {
     document.getElementById('tilesView').style.display = 'none';
     document.getElementById('splitViewWrapper').style.display = 'flex';
+    document.getElementById('assignCarrierView').style.display = 'none';
     const titleEl = document.getElementById('splitTitle');
     if (titleEl) titleEl.textContent = label || 'Shipments';
 }
 
-function handleAssignCarrierTile() {
+function handleAssignCarrierTile(fromHistory = false) {
     // Show assign carrier view, hide tiles and normal split view
     document.getElementById('tilesView').style.display = 'none';
     document.getElementById('splitViewWrapper').style.display = 'none';
     document.getElementById('assignCarrierView').style.display = 'flex';
+    if (!fromHistory) {
+        _pushShipmentsHistoryState('split', 'assign-carrier');
+    }
     // Initialize if not already done
     if (typeof initAssignCarrierTile === 'function') {
         const d = window._acData || window._lastAcData || (typeof appData !== 'undefined' ? appData : null);
@@ -160,10 +188,10 @@ function handleAssignCarrierTile() {
     }
 }
 
-function handleTileClick(tile) {
+function handleTileClick(tile, fromHistory = false) {
     // Special case: assign-carrier opens its own dedicated view
     if (tile === 'assign-carrier') {
-        handleAssignCarrierTile();
+        handleAssignCarrierTile(fromHistory);
         return;
     }
     activeTileFilter = tile;
@@ -177,6 +205,9 @@ function handleTileClick(tile) {
     document.getElementById('tatQuickFilters').innerHTML = '';
     showSplitView(_tileLabels[tile] || 'Shipments');
     applyFilters();
+    if (!fromHistory) {
+        _pushShipmentsHistoryState('split', tile);
+    }
 }
 
 function _tileFilterMatch(order) {
@@ -687,10 +718,13 @@ function _updateTatPills() {
 // --- MOBILE HELPERS ---
 const isMobileView = () => window.innerWidth < 768;
 
-function showDetailView() {
+function showDetailView(fromHistory = false) {
     if (isMobileView()) {
         ui.shipmentListPane.classList.add('hidden');
         ui.shipmentDetailPane.classList.remove('hidden');
+        if (!fromHistory && activeTileFilter) {
+            _pushShipmentsHistoryState('detail', activeTileFilter);
+        }
     }
     ui.emptyView.classList.add('hidden');
     ui.detailView.classList.remove('hidden');
@@ -882,6 +916,68 @@ function showShipmentCharges(orderOrRef) {
     const fmt = (v) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const gstTotal = (parseFloat(order.CGST || 0) + parseFloat(order.SGST || 0) + parseFloat(order.IGST || 0));
 
+    const chargeItems = [
+        { label: 'Freight (Base)', val: +order.FRIGHT || 0, isBase: true },
+        { label: 'Fuel Surcharge', val: +order.FUEL_CHG || 0 },
+        { label: 'Docket / Dev Charge', val: +order.DEV_CHG || 0 },
+        { label: 'AWB Charge', val: +order.AWB_CHG || 0 },
+        { label: 'Packaging Charge', val: +order.PACK_CHG || 0 },
+        { label: 'COD Charge', val: +order.COD_CHG || 0 },
+        { label: 'ToPay Charge', val: +order.TOPAY_CHG || 0 },
+        { label: 'FOV / Insurance Charge', val: +order.FOV_CHG || 0 },
+        { label: 'E-Way Bill Charge', val: +order.EWAY_CHG || 0 },
+    ];
+
+    // Filter out zero-amount items
+    const nonZeroCharges = chargeItems.filter(item => Math.abs(item.val) > 0.001);
+
+    const taxItems = [
+        { label: 'CGST', val: +order.CGST || 0 },
+        { label: 'SGST', val: +order.SGST || 0 },
+        { label: 'IGST', val: +order.IGST || 0 },
+    ].filter(item => Math.abs(item.val) > 0.001);
+
+    let desktopRowsHtml = '';
+    if (nonZeroCharges.length === 0) {
+        desktopRowsHtml += `
+            <tr>
+                <td colspan="2" class="border border-gray-200 px-3 py-2 text-center text-gray-400 italic">No base/handling charges applied</td>
+            </tr>
+        `;
+    } else {
+        nonZeroCharges.forEach(item => {
+            desktopRowsHtml += `
+                <tr>
+                    <td class="border border-gray-200 px-3 py-1.5 ${item.isBase ? 'text-gray-700 font-medium' : 'text-gray-600'}">${item.label}</td>
+                    <td class="border border-gray-200 px-3 py-1.5 text-right ${item.isBase ? 'font-semibold text-gray-900' : 'font-medium text-gray-800'}">₹${fmt(item.val)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    desktopRowsHtml += `
+        <tr class="bg-gray-50 font-semibold text-gray-800 border-t border-gray-300">
+            <td class="border border-gray-200 px-3 py-2">Taxable Subtotal</td>
+            <td class="border border-gray-200 px-3 py-2 text-right text-gray-900">₹${fmt(order.TAXABLE)}</td>
+        </tr>
+    `;
+
+    taxItems.forEach(t => {
+        desktopRowsHtml += `
+            <tr>
+                <td class="border border-gray-200 px-3 py-1.5 text-gray-600">${t.label}</td>
+                <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(t.val)}</td>
+            </tr>
+        `;
+    });
+
+    desktopRowsHtml += `
+        <tr class="bg-blue-50 font-bold text-blue-900 border-t-2 border-blue-300">
+            <td class="border border-gray-200 px-3 py-2 text-sm">Grand Total</td>
+            <td class="border border-gray-200 px-3 py-2 text-right text-blue-700 text-sm font-bold">₹${fmt(order.TOTAL)}</td>
+        </tr>
+    `;
+
     // Desktop: Clean Financial Table View
     const desktopTable = `
         <div class="hidden md:block">
@@ -893,68 +989,28 @@ function showShipmentCharges(orderOrRef) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-700 font-medium">Freight (Base)</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-semibold text-gray-900">₹${fmt(order.FRIGHT)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">Fuel Surcharge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.FUEL_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">Docket / Dev Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.DEV_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">AWB Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.AWB_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">Packaging Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.PACK_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">COD Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.COD_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">ToPay Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.TOPAY_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">FOV / Insurance Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.FOV_CHG)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">E-Way Bill Charge</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.EWAY_CHG)}</td>
-                    </tr>
-                    <tr class="bg-gray-50 font-semibold text-gray-800 border-t border-gray-300">
-                        <td class="border border-gray-200 px-3 py-2">Taxable Subtotal</td>
-                        <td class="border border-gray-200 px-3 py-2 text-right text-gray-900">₹${fmt(order.TAXABLE)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">CGST</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.CGST)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">SGST</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.SGST)}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-200 px-3 py-1.5 text-gray-600">IGST</td>
-                        <td class="border border-gray-200 px-3 py-1.5 text-right font-medium text-gray-800">₹${fmt(order.IGST)}</td>
-                    </tr>
-                    <tr class="bg-blue-50 font-bold text-blue-900 border-t-2 border-blue-300">
-                        <td class="border border-gray-200 px-3 py-2 text-sm">Grand Total</td>
-                        <td class="border border-gray-200 px-3 py-2 text-right text-blue-700 text-sm font-bold">₹${fmt(order.TOTAL)}</td>
-                    </tr>
+                    ${desktopRowsHtml}
                 </tbody>
             </table>
         </div>
     `;
 
     // Mobile: Card View
+    const freightItems = [
+        { label: 'Freight:', val: +order.FRIGHT || 0 },
+        { label: 'Fuel Charge:', val: +order.FUEL_CHG || 0 },
+        { label: 'Docket / Dev:', val: +order.DEV_CHG || 0 },
+        { label: 'AWB Charge:', val: +order.AWB_CHG || 0 },
+        { label: 'Packaging Charge:', val: +order.PACK_CHG || 0 }
+    ].filter(i => Math.abs(i.val) > 0.001);
+
+    const vasItems = [
+        { label: 'COD Charge:', val: +order.COD_CHG || 0 },
+        { label: 'ToPay Charge:', val: +order.TOPAY_CHG || 0 },
+        { label: 'FOV / Insurance:', val: +order.FOV_CHG || 0 },
+        { label: 'E-Way Bill:', val: +order.EWAY_CHG || 0 }
+    ].filter(i => Math.abs(i.val) > 0.001);
+
     const mobileCards = `
         <div class="md:hidden space-y-3">
             <!-- Hero Total Card -->
@@ -969,89 +1025,67 @@ function showShipmentCharges(orderOrRef) {
                         <div class="text-sm font-bold text-blue-100 mt-0.5">₹${fmt(order.TAXABLE)}</div>
                     </div>
                 </div>
-                <div class="mt-2.5 pt-2 border-t border-white/20 flex justify-between text-xs text-blue-100 font-medium">
-                    <span>GST (Taxes Total):</span>
-                    <span class="font-bold">₹${fmt(gstTotal)}</span>
-                </div>
+                ${gstTotal > 0.001 ? `
+                    <div class="mt-2.5 pt-2 border-t border-white/20 flex justify-between text-xs text-blue-100 font-medium">
+                        <span>GST (Taxes Total):</span>
+                        <span class="font-bold">₹${fmt(gstTotal)}</span>
+                    </div>
+                ` : ''}
             </div>
 
-            <!-- Card 1: Freight & Handling -->
-            <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
-                <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
-                    <span>Freight & Handling</span>
-                    <span class="text-[10px] text-gray-500 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">Base</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">Freight:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.FRIGHT)}</div>
+            ${freightItems.length > 0 ? `
+                <!-- Card 1: Freight & Handling -->
+                <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                    <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
+                        <span>Freight &amp; Handling</span>
+                        <span class="text-[10px] text-gray-500 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">Base</span>
                     </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">Fuel Charge:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.FUEL_CHG)}</div>
-                    </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">Docket / Dev:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.DEV_CHG)}</div>
-                    </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">AWB Charge:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.AWB_CHG)}</div>
-                    </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 col-span-2">
-                        <span class="text-gray-500 text-[11px]">Packaging Charge:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.PACK_CHG)}</div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        ${freightItems.map(item => `
+                            <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                                <span class="text-gray-500 text-[11px]">${item.label}</span>
+                                <div class="font-bold text-gray-800 mt-0.5">₹${fmt(item.val)}</div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
-            </div>
+            ` : ''}
 
-            <!-- Card 2: Value Added Services -->
-            <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
-                <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
-                    <span>Value Added Services</span>
-                    <span class="text-[10px] text-gray-400 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">VAS</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">COD Charge:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.COD_CHG)}</div>
+            ${vasItems.length > 0 ? `
+                <!-- Card 2: Value Added Services -->
+                <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                    <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
+                        <span>Value Added Services</span>
+                        <span class="text-[10px] text-gray-400 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">VAS</span>
                     </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">ToPay Charge:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.TOPAY_CHG)}</div>
-                    </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">FOV / Insurance:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.FOV_CHG)}</div>
-                    </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
-                        <span class="text-gray-500 text-[11px]">E-Way Bill:</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.EWAY_CHG)}</div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        ${vasItems.map(item => `
+                            <div class="bg-gray-50/80 p-2 rounded border border-gray-100">
+                                <span class="text-gray-500 text-[11px]">${item.label}</span>
+                                <div class="font-bold text-gray-800 mt-0.5">₹${fmt(item.val)}</div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
-            </div>
+            ` : ''}
 
-            <!-- Card 3: Taxes Breakdown -->
-            <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
-                <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
-                    <span>Taxes Breakdown</span>
-                    <span class="text-[10px] text-gray-400 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">GST</span>
-                </div>
-                <div class="grid grid-cols-3 gap-2 text-xs">
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
-                        <span class="text-gray-500 text-[11px]">CGST</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.CGST)}</div>
+            ${taxItems.length > 0 ? `
+                <!-- Card 3: Taxes Breakdown -->
+                <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                    <div class="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1.5 mb-2 flex justify-between items-center">
+                        <span>Taxes Breakdown</span>
+                        <span class="text-[10px] text-gray-400 font-semibold bg-gray-100 px-1.5 py-0.5 rounded">GST</span>
                     </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
-                        <span class="text-gray-500 text-[11px]">SGST</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.SGST)}</div>
-                    </div>
-                    <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
-                        <span class="text-gray-500 text-[11px]">IGST</span>
-                        <div class="font-bold text-gray-800 mt-0.5">₹${fmt(order.IGST)}</div>
+                    <div class="grid grid-cols-${taxItems.length > 2 ? 3 : taxItems.length} gap-2 text-xs">
+                        ${taxItems.map(t => `
+                            <div class="bg-gray-50/80 p-2 rounded border border-gray-100 text-center">
+                                <span class="text-gray-500 text-[11px]">${t.label}</span>
+                                <div class="font-bold text-gray-800 mt-0.5">₹${fmt(t.val)}</div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
-            </div>
+            ` : ''}
         </div>
     `;
 
@@ -1844,14 +1878,59 @@ document.addEventListener('DOMContentLoaded', () => {
         documentCenterContainer:    document.getElementById('documentCenterContainer'),
     };
 
-    ui.backToListBtn.addEventListener('click', () => {
+    function _handleBackToTiles() {
+        if (history.state && history.state.scope === 'shipments' && (history.state.view === 'split' || history.state.view === 'detail')) {
+            history.back();
+        } else {
+            showTilesView();
+        }
+    }
+
+    function _handleBackToList() {
         if (isMobileView()) {
-            ui.shipmentListPane.classList.remove('hidden');
-            ui.shipmentDetailPane.classList.add('hidden');
+            if (history.state && history.state.scope === 'shipments' && history.state.view === 'detail') {
+                history.back();
+            } else {
+                ui.shipmentListPane.classList.remove('hidden');
+                ui.shipmentDetailPane.classList.add('hidden');
+            }
+        }
+    }
+
+    ui.backToListBtn?.addEventListener('click', _handleBackToList);
+    document.getElementById('backToTilesBtn')?.addEventListener('click', _handleBackToTiles);
+
+    // Initial base history state & deep-link hydration
+    if (!history.state || history.state.scope !== 'shipments') {
+        const initialHash = (window.location.hash || '').replace(/^#/, '');
+        history.replaceState({ scope: 'shipments', view: 'tiles' }, '', window.location.pathname + window.location.search);
+        if (initialHash) {
+            const targetTile = initialHash.replace(/-detail$/, '');
+            if (targetTile === 'assign-carrier' || document.querySelector(`.tile[data-tile="${targetTile}"]`)) {
+                handleTileClick(targetTile);
+            }
+        }
+    }
+
+    window.addEventListener('popstate', (e) => {
+        const state = e.state;
+        if (!state || state.scope !== 'shipments' || state.view === 'tiles') {
+            showTilesView(true);
+        } else if (state.view === 'split') {
+            if (activeTileFilter !== state.tile) {
+                handleTileClick(state.tile, true);
+            }
+            if (isMobileView()) {
+                ui.shipmentListPane.classList.remove('hidden');
+                ui.shipmentDetailPane.classList.add('hidden');
+            }
+        } else if (state.view === 'detail') {
+            if (activeTileFilter !== state.tile) {
+                handleTileClick(state.tile, true);
+            }
+            showDetailView(true);
         }
     });
-
-    document.getElementById('backToTilesBtn').addEventListener('click', showTilesView);
 
     document.querySelectorAll('.tile[data-tile]').forEach(tile => {
         tile.addEventListener('click', () => handleTileClick(tile.dataset.tile));

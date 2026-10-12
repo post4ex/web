@@ -328,6 +328,7 @@ const VaultInventory = (() => {
     // ── Detail View ──────────────────────────────────────────────────────────
     async function _showDetail(item) {
         VaultPage.showDetail(true);
+        VaultPage.showDetailPane?.();
         const detailEl = document.getElementById('vaultDetailView');
         detailEl.innerHTML = '<div class="text-center text-gray-400 text-sm py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading details…</div>';
 

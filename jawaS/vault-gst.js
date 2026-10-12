@@ -356,14 +356,14 @@ const VaultGst = (() => {
             li.classList.add('selected');
             _renderFilingDetail(li.dataset.entry);
         }));
-        if (items.length && !document.querySelector('#vaultList li.selected')) {
-            ul.querySelector('li')?.classList.add('selected');
-            _renderFilingDetail(items[0].entry_id);
+        if (!document.querySelector('#vaultList li.selected')) {
+            VaultPage.showDetail(false);
         }
     }
 
     function _renderFilingDetail(entryId) {
         VaultPage.showDetail(true);
+        VaultPage.showDetailPane?.();
         const f = (_trackerCache||[]).find(x => x.entry_id === entryId);
         if (!f) return;
         const sc = { 'FILED': 'bg-green-100 text-green-700', 'PENDING': 'bg-yellow-100 text-yellow-700', 'LATE': 'bg-red-100 text-red-700', 'NIL': 'bg-gray-100 text-gray-600' };
@@ -496,14 +496,14 @@ const VaultGst = (() => {
             li.classList.add('selected');
             _renderTdsDetail(li.dataset.entry);
         }));
-        if (items.length && !document.querySelector('#vaultList li.selected')) {
-            ul.querySelector('li')?.classList.add('selected');
-            _renderTdsDetail(items[0].entry_id);
+        if (!document.querySelector('#vaultList li.selected')) {
+            VaultPage.showDetail(false);
         }
     }
 
     function _renderTdsDetail(entryId) {
         VaultPage.showDetail(true);
+        VaultPage.showDetailPane?.();
         const t = (_tdsCache||[]).find(x => x.entry_id === entryId);
         if (!t) return;
         document.getElementById('vaultDetailView').innerHTML = `
@@ -644,14 +644,14 @@ const VaultGst = (() => {
             li.classList.add('selected');
             _renderTcsDetail(li.dataset.entry);
         }));
-        if (items.length && !document.querySelector('#vaultList li.selected')) {
-            ul.querySelector('li')?.classList.add('selected');
-            _renderTcsDetail(items[0].entry_id);
+        if (!document.querySelector('#vaultList li.selected')) {
+            VaultPage.showDetail(false);
         }
     }
 
     function _renderTcsDetail(entryId) {
         VaultPage.showDetail(true);
+        VaultPage.showDetailPane?.();
         const t = (_tcsCache||[]).find(x => x.entry_id === entryId);
         if (!t) return;
         document.getElementById('vaultDetailView').innerHTML = `
@@ -744,6 +744,7 @@ const VaultGst = (() => {
 
     function _renderTdsCertDetail(t) {
         VaultPage.showDetail(true);
+        VaultPage.showDetailPane?.();
         document.getElementById('vaultDetailView').innerHTML = `
             <div class="detail-card">
                 <div class="detail-card-header"><h3 class="font-semibold text-gray-700">🏅 TDS Certificate — ${t.cert_no||''}</h3></div>
@@ -786,9 +787,8 @@ const VaultGst = (() => {
             const t = (_tdsCertsCache||[]).find(x => x.entry_id === li.dataset.entry);
             if (t) _renderTdsCertDetail(t);
         }));
-        if (items.length && !document.querySelector('#vaultList li.selected')) {
-            ul.querySelector('li')?.classList.add('selected');
-            _renderTdsCertDetail(items[0]);
+        if (!document.querySelector('#vaultList li.selected')) {
+            VaultPage.showDetail(false);
         }
     }
 

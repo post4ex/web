@@ -50,7 +50,7 @@ async function b2bVerifyOtp(code, action, otp) {
 
 async function b2bWrite(data, recordId = null, writeToken = '') {
     const explicit = {};
-    ['GSTIN', 'PAN', 'AADHAAR', 'CREDIT_LIMIT', 'MAX_USERS_ALLOWED',
+    ['GSTIN', 'PAN', 'AADHAAR', 'CREDIT_LIMIT', 'CROSS_LIMIT', 'MAX_USERS_ALLOWED',
      'MAX_LOGINS_PER_USER', 'SUBSCRIPTION_TYPE'].forEach(f => {
         if (data[f] !== undefined && data[f] !== null && data[f] !== '') explicit[f] = data[f];
     });

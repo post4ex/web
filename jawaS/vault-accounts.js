@@ -1,832 +1,1254 @@
 // ============================================================================
-// VAULT-ACCOUNTS.JS — Cheque tracking + Bank account reference
-// Tiles: cheques (💳), bank-accounts (🏛️)
-// Data source: pending — not yet wired to the accounting engine.
+// VAULT-ACCOUNTS.JS — Liquid Bank Accounts & Contra Transfers Register
+// Tile: bank-accounts (🏛️ / 🏦)
+// Architecture:
+// 1. Control Account + Sub-Ledger Pattern:
+//    - COA 3001: Master Bank Accounts Control Account.
+//    - COA 3002: Branch Petty Cash Imprest Account.
+//    - COA 3003: Branch Cash In Hand (Counter Collections) Account.
+// 2. Sub-Ledger Storage: DATADB/bank_accounts.json stores all branch banks.
+// 3. High-Contrast Typography: text-gray-950, font-mono, clear badges.
+// 4. In-Pane Workflows:
+//    - Contra Transfers (Cash Deposit, Withdrawal, Inter-Bank) in view pane.
+//    - Add New Bank Account in view pane.
+//    - Live Running Ledger Statement with date period filters.
 // ============================================================================
 
 const VaultAccounts = (() => {
 
-    let _chequesList = [];
     let _bankAccounts = [];
-    let _glRows = [];
-    let _allBranches = [];
-    let _allCarriers = [];
-    let _b2bList = [];
-    let _b2bMap = new Map();
-    let _activeTile = 'cheques';
+    let _cashAccounts = [];
+    let _allAccounts = [];
+    let _selectedAccount = null;
+    let _activeTab = 'ALL'; // 'ALL', 'BANKS', 'CASH'
+    let _statementPeriod = 'CFY'; // 'THIS_MONTH', 'CFY', 'PFY', 'ALL'
+    let _statementData = null;
+    let _activeTile = 'bank-accounts';
 
-    const _toDateStr = (ms) => {
-        if (!ms) return '';
-        return fmtDate(ms, 'input');
+    const _escapeHtml = (str) => {
+        if (!str) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     };
 
-    // ── Filter state ────────────────────────────────────────────────────────────
-    function getCurrentFYRange() {
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        let startYear = currentYear;
-        if (now.getMonth() < 3) startYear = currentYear - 1;
-        return { start: `${startYear}-04-01`, end: `${startYear + 1}-03-31` };
-    }
-    const _fyRange = getCurrentFYRange();
-    let _filterStart = _fyRange.start;
-    let _filterEnd   = _fyRange.end;
-    let _filterBranch = '';
-    let _filterStatus = '';
-
-    function _can(role) { return window.VaultPage?.can(role); }
-
-    function _escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    function _fmtMoney(n) {
+        const num = Number(n) || 0;
+        return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    // ── Common list injection ─────────────────────────────────────────────────
-    function _injectListPane(placeholder) {
-        document.getElementById('vaultListMsg').textContent = '';
-        document.getElementById('vaultList').innerHTML = '';
-        document.getElementById('vaultSearch').placeholder = placeholder || 'Search…';
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    function _getClientCodeForBranch(branch) {
-        const b = branch?.toLowerCase();
-        const found = _b2bList.find(c => (c.BRANCH || '').toLowerCase() === b);
-        return found ? found.CODE : null;
-    }
-
-    // ========================================================================
-    // CHEQUES TILE
-    // ========================================================================
-
-    async function _fetchCheques() {
-        const branchSelect = document.getElementById('vaultBranchSelect');
-        const branch = branchSelect ? branchSelect.value : '';
-        window.setLoading?.(true, 'Loading cheques...', 'list');
+    function _fmtDate(dStr) {
+        if (!dStr) return "—";
         try {
-            // Cheque tracking is pending a rewrite against the accounting engine.
-            _chequesList = [];
+            const d = new Date(dStr);
+            if (isNaN(d.getTime())) return dStr;
+            return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+        } catch (_) {
+            return dStr;
+        }
+    }
+
+    function _getAuthToken() {
+        if (typeof getSessionId === 'function') {
+            const s = getSessionId();
+            if (s) return s;
+        }
+        try {
+            const raw = localStorage.getItem('loginData') || localStorage.getItem('post4ex_session') || localStorage.getItem('session') || '';
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return parsed.sessionId || parsed.token || parsed.jwt || parsed.access_token || raw;
+            }
+        } catch { /* fallback */ }
+        return localStorage.getItem('token') || localStorage.getItem('jwt') || '';
+    }
+
+    function _getHeaders() {
+        const token = _getAuthToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    function _showToast(msg, isError = false) {
+        if (typeof showToast === 'function') {
+            showToast(msg, isError ? 'error' : 'success');
+        } else if (typeof window.showNotification === 'function') {
+            window.showNotification(msg, isError ? 'error' : 'success');
+        } else {
+            alert(msg);
+        }
+    }
+
+    function _copyToClipboard(text, label = 'Copied') {
+        if (!text) return;
+        navigator.clipboard?.writeText(text).then(() => {
+            _showToast(`${label} copied to clipboard!`);
+        }).catch(() => {
+            _showToast(`Failed to copy: ${text}`, true);
+        });
+    }
+
+    // ========================================================================
+    // DATA FETCHING
+    // ========================================================================
+
+    async function _fetchAccounts() {
+        const branch = VaultPage.getActiveBranch() || '';
+        const url = `/api/accounting/bank-accounts?branch_code=${encodeURIComponent(branch)}`;
+        window.setLoading?.(true, 'Loading bank & cash accounts...', 'list');
+
+        try {
+            const res = await fetch(url, { headers: _getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+
+            _bankAccounts = json.bank_accounts || [];
+            _cashAccounts = json.cash_accounts || [];
+            _allAccounts = json.all_accounts || [..._bankAccounts, ..._cashAccounts];
+
+            // Do not auto-select first account; keep null until user clicks
+            if (_selectedAccount) {
+                const refreshed = _allAccounts.find(a => (a.code || a.bank_code) === (_selectedAccount.code || _selectedAccount.bank_code));
+                _selectedAccount = refreshed || null;
+            }
         } catch (err) {
-            console.error('[VaultAccounts] Failed to fetch cheques:', err);
-            _chequesList = [];
+            console.error('[VaultAccounts] Failed to fetch accounts:', err);
+            _bankAccounts = [];
+            _cashAccounts = [];
+            _allAccounts = [];
         } finally {
             window.setLoading?.(false);
         }
     }
+
+    async function _fetchStatement(acct) {
+        if (!acct) return;
+        const branch = VaultPage.getActiveBranch() || '';
+        let glCode = acct.gl_account_code || (acct.is_cash ? (acct.code === 'PETTY_CASH' ? '3002' : '3003') : '3001');
+        let entityCode = acct.is_cash ? '' : (acct.bank_code || acct.code || '');
+
+        let url = `/api/accounting/accounts/${encodeURIComponent(glCode)}/statement?branch_code=${encodeURIComponent(branch)}`;
+        if (entityCode) {
+            url += `&entity_code=${encodeURIComponent(entityCode)}`;
+        }
+
+        // Apply statement period
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        // Indian FY: starts Apr 1
+        const fyStartYear = m >= 3 ? y : y - 1;
+
+        if (_statementPeriod === 'THIS_MONTH') {
+            const startM = new Date(y, m, 1).toISOString().split('T')[0];
+            url += `&start_date=${startM}`;
+        } else if (_statementPeriod === 'CFY') {
+            const startFY = `${fyStartYear}-04-01`;
+            url += `&start_date=${startFY}`;
+        } else if (_statementPeriod === 'PFY') {
+            const startPFY = `${fyStartYear - 1}-04-01`;
+            const endPFY = `${fyStartYear}-03-31`;
+            url += `&start_date=${startPFY}&end_date=${endPFY}`;
+        }
+
+        try {
+            const res = await fetch(url, { headers: _getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            _statementData = await res.json();
+        } catch (err) {
+            console.error('[VaultAccounts] Failed to fetch statement:', err);
+            _statementData = { opening_balance: 0, lines: [], closing_balance: 0 };
+        }
+    }
+
+    // ========================================================================
+    // LEFT LIST PANE RENDERING
+    // ========================================================================
 
     function _renderList() {
-        const ul = document.getElementById('vaultList');
-        if (!ul) return;
-        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        const filtered = _chequesList.filter(item => {
-            if (q) {
-                const entity = item.customer || item.supplier || {};
-                const match = (item.chequeNumber || '').toLowerCase().includes(q) ||
-                    (entity.name || '').toLowerCase().includes(q) ||
-                    (item.date || '').includes(q) ||
-                    (item.branch || '').toLowerCase().includes(q);
-                if (!match) return false;
-            }
-            if (_filterBranch && (item.branch || '').toLowerCase() !== _filterBranch.toLowerCase()) return false;
-            return true;
-        });
+        const listEl = document.getElementById('vaultList');
+        if (!listEl) return;
+        listEl.innerHTML = '';
 
-        filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        const searchVal = (document.getElementById('vaultSearch')?.value || '').trim().toLowerCase();
 
-        // Status label
-        const statusEl = document.getElementById('chqStatus');
-        if (statusEl) {
-            statusEl.textContent = `Showing ${filtered.length} of ${_chequesList.length} Cheques`;
-        }
+        let list = _allAccounts;
+        if (_activeTab === 'BANKS') list = _bankAccounts;
+        else if (_activeTab === 'CASH') list = _cashAccounts;
 
-        if (!filtered.length) {
-            ul.innerHTML = '<li class="text-center text-gray-400 text-sm py-6">No cheque entries found.</li>';
-            return;
-        }
-
-        ul.innerHTML = filtered.slice(0, 100).map(item => {
-            const amt = item.total?.value || 0;
-            const isReceipt = item.chequeType === 'receipt';
-            const isCleared = item.cleared === true;
-            const chqBadge = isCleared ? '<span class="text-green-600">✅</span>' : '<span class="text-yellow-600">⏳</span>';
-            const typeIcon = isReceipt ? '📥' : '📤';
-            const entityName = item.customer?.name || item.supplier?.name || '';
-            return `<li data-key="${item.key}" data-type="${item.chequeType}" data-branch="${item.branch || ''}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <strong class="text-blue-700 block text-sm">${chqBadge} ${typeIcon} ${_escapeHtml(item.chequeNumber || 'N/A')} — ₹${amt.toFixed(2)}</strong>
-                        <span class="text-xs text-gray-500">${_escapeHtml(entityName)}</span>
-                    </div>
-                    <span class="text-xs text-gray-400">${_escapeHtml(item.branch || '')}</span>
-                </div>
-                <div class="flex gap-3 text-xs mt-1">
-                    <span class="text-gray-400">${_escapeHtml(item.date || '')}</span>
-                    <span class="text-gray-400 capitalize">${item.chequeType}</span>
-                </div>
-            </li>`;
-        }).join('');
-
-        ul.querySelectorAll('li').forEach(li => {
-            li.addEventListener('click', () => {
-                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                _renderChequeDetail(li.dataset.type, li.dataset.key, li.dataset.branch);
+        if (searchVal) {
+            list = list.filter(a => {
+                const name = (a.bank_name || a.account_name || '').toLowerCase();
+                const code = (a.bank_code || a.code || '').toLowerCase();
+                const num = (a.account_no || a.accountNumber || '').toLowerCase();
+                const ifsc = (a.ifsc || '').toLowerCase();
+                return name.includes(searchVal) || code.includes(searchVal) || num.includes(searchVal) || ifsc.includes(searchVal);
             });
-        });
-    }
-
-    function search() { _renderList(); }
-
-    // ── Detail view ────────────────────────────────────────────────────────────
-    async function _renderChequeDetail(chequeType, key, branch) {
-        if (!key || !branch) return;
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        view.innerHTML = `<div class="text-center py-8"><div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>`;
-        VaultPage.showDetailPane();
-
-        window.setLoading?.(true, 'Fetching cheque...', 'detail');
-        try {
-            // Cheque detail is pending a rewrite against the accounting engine.
-            const formData = {};
-
-            const isReceipt = chequeType === 'receipt';
-            const dirLabel = isReceipt ? 'Receipt from client' : 'Payment to vendor';
-            const entityNameKey = isReceipt ? 'Customer' : 'Supplier';
-            const bankKey = isReceipt ? 'ReceivedIn' : 'PaidFrom';
-            const amount = formData.Lines?.reduce((s, l) => s + (l.Amount || 0), 0) || 0;
-
-            const chqNumber = formData.Reference || formData.reference || 'N/A';
-            const isCleared = formData.Cleared === true;
-            const chqStatusBadge = isCleared
-                ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ CLEARED</span>'
-                : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ PENDING</span>';
-
-            const actionBtns = !isCleared ? `
-                <span class="flex gap-2 mt-3">
-                    <button onclick="VaultAccounts._updateChequeStatus('${chequeType}', '${key}', true, '${branch}')" class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200">✅ Mark Cleared</button>
-                </span>` : '';
-
-            view.innerHTML = `
-                <div class="detail-card">
-                    <div class="detail-card-body p-6 space-y-6">
-                        <!-- Header -->
-                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-gray-100 pb-5">
-                            <div class="flex-1 min-w-0">
-                                <h1 class="text-xl font-bold text-blue-800 tracking-tight break-words">💳 Cheque Detail</h1>
-                                <p class="text-xs text-gray-500 mt-1">Branch: <span class="font-semibold text-gray-700">${_escapeHtml(branch.toUpperCase())}</span></p>
-                            </div>
-                            <div class="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
-                                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
-                                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 uppercase whitespace-nowrap">${isReceipt ? 'RECEIPT' : 'PAYMENT'}</span>
-                                    <button onclick="VaultAccounts._printCheque('${chequeType}','${key}','${branch}')"
-                                        class="btn btn-sm flex-1 sm:flex-none min-w-0 justify-center">
-                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                                        </svg><span class="truncate">Print</span>
-                                    </button>
-                                </div>
-                                <p class="text-sm text-gray-500">Cheque #: <span class="font-bold text-gray-800">${_escapeHtml(chqNumber)}</span></p>
-                                <p class="text-xs text-gray-400">Date: ${_escapeHtml(formData.Date || formData.date || 'N/A')}</p>
-                            </div>
-                        </div>
-
-                        <!-- Amount & Status -->
-                        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <div class="text-lg font-bold text-blue-800">₹${amount.toFixed(2)}</div>
-                                    <div class="text-xs text-blue-600">${dirLabel}</div>
-                                </div>
-                                <div class="text-right">
-                                    <div>${chqStatusBadge}</div>
-                                </div>
-                            </div>
-                            ${actionBtns}
-                        </div>
-
-                        <!-- Cheque Details Grid -->
-                        <div class="grid grid-cols-2 gap-3 text-sm bg-white border rounded-lg p-3">
-                            <div><span class="text-gray-500">Cheque No:</span> <span class="font-semibold">${_escapeHtml(chqNumber)}</span></div>
-                            <div><span class="text-gray-500">Cheque Date:</span> ${_escapeHtml(formData.Date || formData.date || 'N/A')}</div>
-                            <div><span class="text-gray-500">${entityNameKey}:</span> <span class="font-semibold">${_escapeHtml(formData[entityNameKey] || 'N/A')}</span></div>
-                            <div><span class="text-gray-500">Direction:</span> ${isReceipt ? 'Receipt (Money In)' : 'Payment (Money Out)'}</div>
-                        </div>
-
-                        <!-- Description -->
-                        ${formData.Description ? `<div class="bg-blue-50/40 border border-blue-100/50 rounded-lg p-3 text-xs text-blue-950">
-                            <span class="font-semibold block text-blue-800 uppercase tracking-wider mb-1" style="font-size: 10px;">Description</span>
-                            ${_escapeHtml(formData.Description)}
-                        </div>` : ''}
-
-                        <!-- Lines Table -->
-                        <div class="overflow-hidden border border-gray-100 rounded-lg">
-                            <table class="min-w-full divide-y divide-gray-100 text-xs">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">#</th>
-                                        <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase">Account</th>
-                                        <th class="px-4 py-2.5 text-right font-bold text-gray-500 uppercase">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 bg-white">
-                                    ${(formData.Lines || []).map((line, i) => {
-                                        const accountName = line.Account || '';
-                                        return `<tr><td class="py-1 text-xs text-gray-500">${i + 1}</td><td class="py-1 text-sm">${_escapeHtml(accountName)}</td><td class="py-1 text-sm text-right font-medium">₹${(line.Amount || 0).toFixed(2)}</td></tr>`;
-                                    }).join('') || '<tr><td colspan="3" class="text-center py-4 text-gray-400 text-sm">No lines</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Summary -->
-                        <div class="flex justify-end pt-2">
-                            <div class="w-full md:w-64 space-y-2 text-xs bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                <div class="flex justify-between font-bold text-gray-800 text-sm">
-                                    <span>Total:</span>
-                                    <span class="text-blue-700 font-extrabold">₹${amount.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Metadata -->
-                        <details class="text-[11px] text-gray-400">
-                            <summary class="cursor-pointer hover:text-gray-600 transition-colors">Audit & System Metadata</summary>
-                            <div class="grid grid-cols-2 gap-2 mt-2 p-2 border rounded-lg bg-gray-50/50">
-                                <div>Branch: ${_escapeHtml(branch.toUpperCase())}</div>
-                                <div>UUID: <span class="font-mono text-[9px]">${formData.Key || formData.key || 'N/A'}</span></div>
-                                <div>Type: ${chequeType}</div>
-                                <div>Cleared: ${isCleared ? 'Yes' : 'No'}</div>
-                            </div>
-                        </details>
-                    </div>
-                </div>`;
-        } catch (err) {
-            view.innerHTML = `<div class="detail-card"><div class="detail-card-body text-center py-8 text-red-600"><p class="text-sm">Failed to load: ${err.message || err}</p></div></div>`;
-        } finally {
-            window.setLoading?.(false);
         }
-        VaultPage.showDetailPane();
-    }
 
-    // ── Update clearance status ────────────────────────────────────────────────
-    async function _updateChequeStatus(chequeType, key, cleared, branch) {
-        const clientCode = _getClientCodeForBranch(branch);
-        if (!clientCode) {
-            alert(`Cannot update: no client code found for branch ${branch}.`);
-            return;
-        }
-        if (!confirm(`Mark this cheque as ${cleared ? 'CLEARED' : 'PENDING'}?`)) return;
-
-        window.setLoading?.(true, 'Updating cheque status...', 'detail');
-        try {
-            // Cheque clearance updates are pending a rewrite.
-            alert('Updating cheque status is not available yet.');
-        } catch (err) {
-            alert('Failed to update status: ' + (err.message || err));
-        } finally {
-            window.setLoading?.(false);
-        }
-    }
-
-    // ── Print ─────────────────────────────────────────────────────────────────
-    async function _printCheque(chequeType, key, branch) {
-        window.setLoading?.(true, 'Preparing print...', 'detail');
-        try {
-            const [formData, appData] = await Promise.all([
-                Promise.resolve({}),
-                getAppData()
-            ]);
-
-            const isReceipt = chequeType === 'receipt';
-            const entityNameKey = isReceipt ? 'Customer' : 'Supplier';
-            const ref = formData.Reference || formData.reference || key;
-            const date = formData.Date || formData.date || '';
-            const chqNumber = ref;
-            const amt = formData.Lines?.reduce((s, l) => s + (l.Amount || 0), 0) || 0;
-
-            // Branch info
-            let branchInfo = null;
-            if (appData?.BRANCHES) {
-                Object.values(appData.BRANCHES).forEach(b => {
-                    if ((b.BRANCH_CODE || '').toLowerCase() === (branch || '').toLowerCase()) {
-                        branchInfo = b;
-                    }
-                });
+        const msgEl = document.getElementById('vaultListMsg');
+        if (msgEl) {
+            if (list.length === 0) {
+                msgEl.textContent = 'No bank or cash accounts found.';
+                msgEl.classList.remove('hidden');
+            } else {
+                msgEl.classList.add('hidden');
             }
-            const branchName = branchInfo?.BRANCH_NAME || branch.toUpperCase();
-            const branchAddr = branchInfo?.BRANCH_ADDRESS || '';
-            const branchCity = branchInfo?.BRANCH_CITY || '';
-            const branchState = branchInfo?.BRANCH_STATE || '';
+        }
 
-            const isCleared = formData.Cleared === true;
-            const clearedLabel = isCleared ? '✅ Cleared' : '⏳ Pending';
+        // Render Tabs & Action Header
+        const container = document.createElement('div');
+        container.className = 'w-full flex flex-col gap-2 p-2';
 
-            const lines = formData.Lines || [];
-            const linesHtml = lines.map((line, i) =>
-                `<tr><td class="tc">${i+1}</td><td>${_escapeHtml(line.Account || '')}</td><td class="tr">₹${(line.Amount || 0).toFixed(2)}</td></tr>`
-            ).join('');
+        const headerRow = document.createElement('div');
+        headerRow.className = 'flex items-center justify-between gap-1 pb-2 border-b border-gray-200';
+        headerRow.innerHTML = `
+            <div class="flex items-center gap-1">
+                <button type="button" class="tab-btn px-2.5 py-1 text-xs font-semibold rounded-md ${_activeTab === 'ALL' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-tab="ALL">All (${_allAccounts.length})</button>
+                <button type="button" class="tab-btn px-2.5 py-1 text-xs font-semibold rounded-md ${_activeTab === 'BANKS' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-tab="BANKS">Banks (${_bankAccounts.length})</button>
+                <button type="button" class="tab-btn px-2.5 py-1 text-xs font-semibold rounded-md ${_activeTab === 'CASH' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-tab="CASH">Cash (${_cashAccounts.length})</button>
+            </div>
+            <button type="button" id="btnAddBankModal" class="btn btn-sm btn-secondary text-xs px-2 py-1 flex items-center gap-1 font-medium text-gray-700" title="Add New Bank Account">
+                <i class="fa-solid fa-plus text-blue-600"></i> New Bank
+            </button>
+        `;
 
-            const css = `
-                body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0;padding:20px;background:#f5f5f5}
-                .box{max-width:800px;margin:auto;background:#fff;padding:30px;border:1px solid #eee;box-shadow:0 0 10px rgba(0,0,0,.15)}
-                .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2563eb;padding-bottom:15px;margin-bottom:20px}
-                .tr{text-align:right}.tc{text-align:center}
-                .info{display:flex;justify-content:space-between;margin-bottom:20px;gap:20px}
-                .col{width:48%}.col h3{margin:0 0 5px;font-size:14px;border-bottom:1px solid #ccc;padding-bottom:3px}.col p{margin:2px 0;font-size:12px}
-                .div{width:1px;background:#ccc}.divb{height:2px;background:#2563eb;margin-bottom:20px}
-                table{width:100%;border-collapse:collapse;margin-bottom:20px}table,th,td{border:1px solid #000}th,td{padding:6px;text-align:left}th{background:#f2f2f2}
-                .sig{text-align:right;font-weight:bold;margin-top:20px}.sigbox{display:inline-block;text-align:center;min-width:200px}
-                .no-print{text-align:center;margin-bottom:15px}
-                .no-print button{padding:8px 20px;margin:3px;border:none;border-radius:4px;cursor:pointer;font-weight:600}
-                .no-print .print-btn{background:#2563eb;color:#fff}
-                .no-print .close-btn{background:#6b7280;color:#fff}
-                @media print{@page{size:A4;margin:10mm}body{background:#fff;padding:0}.box{box-shadow:none;border:none}.no-print{display:none}}
+        headerRow.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.onclick = () => {
+                _activeTab = btn.dataset.tab;
+                _renderList();
+            };
+        });
+
+        const btnAddBank = headerRow.querySelector('#btnAddBankModal');
+        if (btnAddBank) {
+            btnAddBank.onclick = () => openAddBankPane();
+        }
+
+        container.appendChild(headerRow);
+
+        // Account Cards List
+        const ul = document.createElement('ul');
+        ul.className = 'flex flex-col gap-2 list-none p-0 m-0';
+
+        list.forEach(acct => {
+            const isSelected = _selectedAccount && (_selectedAccount.bank_code || _selectedAccount.code) === (acct.bank_code || acct.code);
+            const isCash = !!acct.is_cash;
+            const bal = Number(acct.balance || acct.current_balance || 0);
+
+            const li = document.createElement('li');
+            li.className = `p-3 rounded-lg border cursor-pointer transition-all duration-150 ${isSelected ? 'bg-blue-50/80 border-blue-500 shadow-sm ring-1 ring-blue-400' : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`;
+            li.tabIndex = 0;
+
+            const iconClass = isCash ? 'fa-wallet text-amber-600' : 'fa-building-columns text-blue-600';
+            const badgeType = isCash ? 'CASH' : (acct.account_type || 'BANK');
+            const primaryBadge = acct.is_primary ? `<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded">PRIMARY</span>` : '';
+
+            li.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-sm">
+                            <i class="fa-solid ${iconClass}"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-gray-950 flex items-center gap-1.5">
+                                ${_escapeHtml(acct.bank_name || acct.account_name)}
+                                ${primaryBadge}
+                            </div>
+                            <div class="text-xs text-gray-700 font-mono flex items-center gap-2">
+                                <span>${_escapeHtml(acct.bank_code || acct.code)}</span>
+                                ${acct.branch_code ? `<span class="px-1 bg-gray-200 text-gray-800 rounded font-semibold text-[10px]">${_escapeHtml(acct.branch_code)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono font-bold ${bal >= 0 ? 'text-emerald-700' : 'text-rose-700'}">
+                            ${_fmtMoney(bal)}
+                        </div>
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                            ${badgeType}
+                        </div>
+                    </div>
+                </div>
+                ${!isCash && acct.account_no ? `
+                    <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600 font-mono flex items-center justify-between">
+                        <span>A/c: ****${_escapeHtml(acct.account_no.slice(-4))}</span>
+                        <span>IFSC: ${_escapeHtml(acct.ifsc || '—')}</span>
+                    </div>
+                ` : ''}
             `;
 
-            const body = `
-                <div class="no-print"><button class="print-btn" onclick="window.print()">🖨️ Print</button><button class="close-btn" onclick="window.close()">✕ Close</button></div>
-                <div class="box">
-                    <div class="hdr">
-                        <div style="font-size:26px;font-weight:bold;text-transform:uppercase;color:#2563eb">💳 Cheque</div>
-                        <div style="text-align:right;font-size:12px">
-                            <b>Cheque No:</b> ${_escapeHtml(chqNumber)}<br>
-                            <b>Date:</b> ${_escapeHtml(date.split('T')[0] || date)}
-                        </div>
-                    </div>
-
-                    <div style="display:flex;justify-content:space-between;background:#eff6ff;padding:12px;border-radius:6px;margin-bottom:20px">
-                        <div><b>Amount:</b> ₹${amt.toFixed(2)}</div>
-                        <div><b>Status:</b> ${clearedLabel}</div>
-                        <div><b>Type:</b> ${isReceipt ? 'Receipt' : 'Payment'}</div>
-                    </div>
-
-                    <div class="info">
-                        <div class="col">
-                            <h3>Branch: ${_escapeHtml(branchName)}</h3>
-                            <p><b>Address:</b> ${_escapeHtml(branchAddr)}</p>
-                            <p><b>City:</b> ${_escapeHtml(branchCity)}, ${_escapeHtml(branchState)}</p>
-                        </div>
-                        <div class="div"></div>
-                        <div class="col">
-                            <h3>${entityNameKey}</h3>
-                            <p><b>${entityNameKey} Key:</b> ${_escapeHtml(formData[entityNameKey] || 'N/A')}</p>
-                            <p><b>Branch:</b> ${_escapeHtml(branch.toUpperCase())}</p>
-                        </div>
-                    </div>
-
-                    <div class="divb"></div>
-                    ${formData.Description ? `<div style="margin-bottom:20px;font-weight:bold;text-align:center"><p>${_escapeHtml(formData.Description)}</p></div>` : ''}
-
-                    ${lines.length ? `
-                    <table>
-                        <thead><tr><th class="tc">Sr</th><th>Account</th><th class="tr">Amount</th></tr></thead>
-                        <tbody>${linesHtml}</tbody>
-                    </table>
-                    ` : ''}
-
-                    <div style="margin-top:10px;text-align:right;font-size:16px;font-weight:bold;color:#2563eb">
-                        Total: ₹${amt.toFixed(2)}
-                    </div>
-
-                    <div class="sig">
-                        <div class="sigbox">
-                            <p style="margin-bottom:40px">Authorized Signatory</p>
-                            <p>for ${_escapeHtml(branchName)}</p>
-                        </div>
-                    </div>
-                </div>`;
-
-            const w = window.open('', 'Cheque_' + chqNumber.replace(/[^a-zA-Z0-9]/g, '_'));
-            if (!w) { alert('Pop-up blocked! Please allow pop-ups.'); return; }
-            w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cheque - ' + _escapeHtml(chqNumber) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>');
-            w.document.close();
-            w.onload = function() {
-                setTimeout(function() {
-                    try {
-                        w.document.querySelectorAll('.no-print').forEach(function(e) { e.style.display = 'block'; });
-                    } catch(_) {}
-                }, 500);
-            };
-        } catch (err) {
-            alert('Failed to load cheque details for print: ' + (err.message || err));
-        } finally {
-            window.setLoading?.(false);
-        }
-    }
-
-    // ── Filter UI injection ────────────────────────────────────────────────────
-    function _injectFilterUI() {
-        const listPane = document.getElementById('vaultListPane');
-        const header = listPane?.querySelector('.sv-pane-header');
-        if (header && !document.getElementById('chqFilterBtn')) {
-            const searchInput = document.getElementById('vaultSearch');
-            let searchRow = searchInput?.parentElement;
-            if (searchInput && searchRow && !searchRow.classList.contains('flex')) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'flex gap-2 w-full mt-2';
-                searchRow.insertBefore(wrapper, searchInput);
-                wrapper.appendChild(searchInput);
-                searchInput.classList.remove('mt-2');
-                searchRow = wrapper;
-            }
-
-            const filterBtn = document.createElement('button');
-            filterBtn.id = 'chqFilterBtn';
-            filterBtn.className = 'btn-ghost btn-sm flex-shrink-0';
-            filterBtn.title = 'Filter Cheques';
-            filterBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>`;
-            filterBtn.onclick = () => document.getElementById('chqFilterModal')?.classList.remove('hidden');
-            searchRow?.appendChild(filterBtn);
-        }
-
-        if (!document.getElementById('chqStatus')) {
-            const statusEl = document.createElement('p');
-            statusEl.id = 'chqStatus';
-            statusEl.className = 'text-xs text-gray-500 px-4 pt-2 text-center font-medium';
-            statusEl.textContent = 'Loading...';
-            const listContainer = document.getElementById('vaultList')?.parentElement;
-            listContainer?.insertBefore(statusEl, document.getElementById('vaultList'));
-        }
-
-        if (!document.getElementById('chqFilterModal')) {
-            const modal = document.createElement('div');
-            modal.id = 'chqFilterModal';
-            modal.className = 'modal-overlay hidden';
-            modal.innerHTML = `
-                <div class="modal-content space-y-4 max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-5">
-                    <div class="flex justify-between items-center border-b pb-3">
-                        <h2 class="text-lg font-bold text-gray-800">Filter Cheques</h2>
-                        <button onclick="document.getElementById('chqFilterModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-700 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div>
-                            <label class="block font-semibold text-gray-600 mb-1">Start Date</label>
-                            <input type="date" id="chqFilterStart" class="form-input text-xs" value="${_filterStart}">
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-gray-600 mb-1">End Date</label>
-                            <input type="date" id="chqFilterEnd" class="form-input text-xs" value="${_filterEnd}">
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-gray-600 mb-1">Branch</label>
-                            <select id="chqFilterBranch" class="form-input text-xs">
-                                <option value="">All Branches</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-gray-600 mb-1">Status</label>
-                            <select id="chqFilterStatus" class="form-input text-xs">
-                                <option value="">All</option>
-                                <option value="cleared">Cleared</option>
-                                <option value="pending">Pending</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-2 pt-3 border-t">
-                        <button id="chqResetBtn" class="btn-ghost btn-sm">Reset</button>
-                        <button id="chqApplyBtn" class="btn btn-sm">Apply Filters</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
-
-            document.getElementById('chqApplyBtn').onclick = async () => {
-                _filterStart = document.getElementById('chqFilterStart').value;
-                _filterEnd = document.getElementById('chqFilterEnd').value;
-                _filterBranch = document.getElementById('chqFilterBranch').value;
-                _filterStatus = document.getElementById('chqFilterStatus').value;
-                modal.classList.add('hidden');
-                await _fetchCheques();
-                _renderList();
-            };
-
-            document.getElementById('chqResetBtn').onclick = async () => {
-                const range = getCurrentFYRange();
-                document.getElementById('chqFilterStart').value = range.start;
-                document.getElementById('chqFilterEnd').value = range.end;
-                document.getElementById('chqFilterBranch').value = '';
-                document.getElementById('chqFilterStatus').value = '';
-                _filterStart = range.start;
-                _filterEnd = range.end;
-                _filterBranch = '';
-                _filterStatus = '';
-                await _fetchCheques();
-                _renderList();
-            };
-
-            getAppData().then(data => {
-                const select = document.getElementById('chqFilterBranch');
-                if (select && data?.BRANCHES) {
-                    Object.values(data.BRANCHES).forEach(b => {
-                        if (b.BRANCH_CODE) {
-                            const opt = document.createElement('option');
-                            opt.value = b.BRANCH_CODE;
-                            opt.textContent = b.BRANCH_CODE.toUpperCase();
-                            select.appendChild(opt);
-                        }
-                    });
+            li.onclick = () => selectAccount(acct);
+            li.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectAccount(acct);
                 }
-            });
-        }
+            };
+
+            ul.appendChild(li);
+        });
+
+        container.appendChild(ul);
+        listEl.appendChild(container);
     }
 
     // ========================================================================
-    // BANK ACCOUNTS TILE
+    // DETAIL VIEW PANE (STATEMENT & ACCOUNT CARD)
     // ========================================================================
 
-    function _enrichBankAccount(acct) {
-        const codeUpper = (acct.code || '').trim().toUpperCase();
-        const branchInfo = _allBranches.find(b => (b.BRANCH_CODE || '').trim().toUpperCase() === codeUpper);
-        if (branchInfo) {
-            acct.type = 'Branch';
-            acct.account = branchInfo.BRANCH_BANK_AC || '';
-            acct.ifsc = branchInfo.BRANCH_IFSC || '';
-            acct.upi = branchInfo.BRANCH_UPI || '';
-            acct.upiName = branchInfo.BRANCH_UPI_NAME || '';
-            return acct;
-        }
-        const carrierInfo = _allCarriers.find(c => (c.COMPANY_CODE || '').trim().toUpperCase() === codeUpper);
-        if (carrierInfo) {
-            acct.type = 'Carrier';
-            acct.account = carrierInfo.BANK_AC || '';
-            acct.ifsc = carrierInfo.IFSC || '';
-            acct.upi = carrierInfo.UPI || '';
-            acct.upiName = '';
-            return acct;
-        }
-        acct.type = 'General';
-        acct.account = '';
-        acct.ifsc = '';
-        acct.upi = '';
-        acct.upiName = '';
-        return acct;
-    }
+    async function _renderDetail() {
+        const viewEl = document.getElementById('vaultDetailView');
+        if (!viewEl) return;
+        viewEl.innerHTML = '';
 
-    async function _fetchBankAccounts() {
-        const branch = VaultPage.getActiveBranch();
-        if (!branch) {
-            _bankAccounts = [];
+        if (!_selectedAccount) {
+            VaultPage.showDetail(false);
             return;
         }
-        window.setLoading?.(true, 'Loading bank accounts...', 'list');
-        try {
-            // Bank accounts are pending a rewrite against the accounting engine.
-            _bankAccounts = [];
-        } catch (err) {
-            console.error('[VaultAccounts] Failed to fetch bank accounts:', err);
-            _bankAccounts = [];
-        } finally {
-            window.setLoading?.(false);
-        }
-    }
 
-    function _renderBankAccountStatement(acctKey, acctName, currentBalance) {
-        const entries = _glRows.filter(e => e.BANK_ACCOUNT_KEY === acctKey)
-            .sort((a, b) => (+a.TXN_DATE || 0) - (+b.TXN_DATE || 0) || (a.TIME_STAMP || 0) - (b.TIME_STAMP || 0));
+        VaultPage.showDetail(true);
 
-        if (!entries.length) {
-            return '<div class="text-xs text-gray-400 text-center py-4">No transactions for this account in local ledger.</div>';
-        }
+        const acct = _selectedAccount;
+        const isCash = !!acct.is_cash;
+        const bal = Number(acct.balance || acct.current_balance || 0);
+        const code = acct.bank_code || acct.code;
+        const name = acct.bank_name || acct.account_name;
 
-        // Calculate running balance backwards starting from current balance
-        let runningBalance = currentBalance;
-        const mapped = [...entries].reverse().map(e => {
-            const debit = +(e.DEBIT || 0);
-            const credit = +(e.CREDIT || 0);
-            const rowBal = runningBalance;
-            runningBalance -= (debit - credit);
-            return {
-                date: _toDateStr(+e.TXN_DATE),
-                desc: e.DESCRIPTION || '',
-                ref: e.DOX_REF || '',
-                debit: debit,
-                credit: credit,
-                balance: rowBal
+        // Fetch statement
+        await _fetchStatement(acct);
+        const stmt = _statementData || { opening_balance: 0, lines: [], closing_balance: bal };
+        const openBal = Number(stmt.opening_balance || 0);
+        const closeBal = Number(stmt.closing_balance || bal);
+        const lines = stmt.lines || stmt.entries || [];
+
+        // Total Inflows / Outflows
+        let totDr = 0;
+        let totCr = 0;
+        lines.forEach(l => {
+            totDr += Number(l.debit || 0);
+            totCr += Number(l.credit || 0);
+        });
+
+        const root = document.createElement('div');
+        root.className = 'w-full p-4 flex flex-col gap-4 text-gray-900';
+
+        // Top Summary Card
+        const topCard = document.createElement('div');
+        topCard.className = 'bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3';
+        topCard.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl ${isCash ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid ${isCash ? 'fa-wallet' : 'fa-building-columns'}"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-bold text-gray-950">${_escapeHtml(name)}</h2>
+                            ${acct.is_primary ? `<span class="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">PRIMARY REMITTANCE</span>` : ''}
+                            <span class="px-2 py-0.5 text-xs font-bold rounded-full border ${acct.status === 'INACTIVE' ? 'bg-rose-50 text-rose-700 border-rose-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}">
+                                ${acct.status === 'INACTIVE' ? 'INACTIVE (ARCHIVED)' : 'ACTIVE'}
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-600 font-mono flex items-center gap-2 mt-0.5">
+                            <span class="font-bold text-gray-900">Code: ${code}</span>
+                            <button type="button" class="btnCopyCode text-gray-600 hover:text-blue-600 transition" title="Copy code">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <span class="text-gray-300">•</span>
+                            <span>GL Control: ${acct.gl_account_code || (isCash ? (acct.code === 'PETTY_CASH' ? '3002' : '3003') : '3001')}</span>
+                            <span class="text-gray-300">•</span>
+                            <span class="px-1.5 py-0.5 bg-gray-100 text-gray-800 rounded text-[11px] font-bold">Branch: ${_escapeHtml(acct.branch_code || 'ALL')}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btnDetailContra" class="btn btn-sm btn-blue px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold shadow-sm">
+                        <i class="fa-solid fa-money-bill-transfer"></i> Contra Transfer
+                    </button>
+                    ${!isCash ? `
+                        <button type="button" id="btnDetailEdit" class="btn btn-sm btn-secondary px-2.5 py-1.5 text-xs font-medium text-gray-700 flex items-center gap-1" title="Edit Bank Details">
+                            <i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit
+                        </button>
+                        <button type="button" id="btnDetailDelete" class="btn btn-sm btn-secondary px-2.5 py-1.5 text-xs font-medium ${acct.status === 'INACTIVE' ? 'text-emerald-700 hover:bg-emerald-50' : 'text-rose-700 hover:bg-rose-50'} flex items-center gap-1" title="${acct.status === 'INACTIVE' ? 'Reactivate Bank Account' : 'Deactivate / Archive Bank Account'}">
+                            <i class="fa-solid ${acct.status === 'INACTIVE' ? 'fa-toggle-on text-emerald-600' : 'fa-toggle-off text-gray-400'}"></i> ${acct.status === 'INACTIVE' ? 'Activate' : 'Deactivate'}
+                        </button>
+                    ` : ''}
+                    <button type="button" id="btnDetailRefresh" class="btn btn-sm btn-secondary px-2.5 py-1.5 text-xs font-medium text-gray-700" title="Refresh">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div class="bg-gray-50/80 rounded-lg p-3 border border-gray-100">
+                    <div class="text-xs font-bold text-gray-600 uppercase tracking-wider">Live Balance</div>
+                    <div class="text-lg font-mono font-bold mt-1 ${closeBal >= 0 ? 'text-emerald-700' : 'text-rose-700'}">
+                        ${_fmtMoney(closeBal)}
+                    </div>
+                </div>
+                <div class="bg-gray-50/80 rounded-lg p-3 border border-gray-100">
+                    <div class="text-xs font-bold text-gray-600 uppercase tracking-wider">Period Inflows (Dr)</div>
+                    <div class="text-lg font-mono font-bold text-blue-700 mt-1">
+                        ${_fmtMoney(totDr)}
+                    </div>
+                </div>
+                <div class="bg-gray-50/80 rounded-lg p-3 border border-gray-100">
+                    <div class="text-xs font-bold text-gray-600 uppercase tracking-wider">Period Outflows (Cr)</div>
+                    <div class="text-lg font-mono font-bold text-rose-700 mt-1">
+                        ${_fmtMoney(totCr)}
+                    </div>
+                </div>
+                <div class="bg-gray-50/80 rounded-lg p-3 border border-gray-100">
+                    <div class="text-xs font-bold text-gray-600 uppercase tracking-wider">${isCash ? 'Cash Category' : 'Account Number'}</div>
+                    <div class="text-sm font-mono font-bold text-gray-900 mt-1 truncate" title="${acct.account_no || 'Physical Desk'}">
+                        ${isCash ? (acct.code === 'PETTY_CASH' ? 'Petty Imprest' : 'Counter Desk') : (acct.account_no || '—')}
+                    </div>
+                </div>
+            </div>
+
+            ${!isCash ? `
+                <!-- Remittance Details Card -->
+                <div class="bg-blue-50/50 rounded-lg p-3 border border-blue-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div>
+                            <span class="text-gray-600 font-semibold">IFSC:</span>
+                            <span class="font-mono font-bold text-gray-950 ml-1">${_escapeHtml(acct.ifsc || '—')}</span>
+                            <button type="button" class="btnCopyIFSC text-gray-600 hover:text-blue-600 ml-1" title="Copy IFSC"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                        <div>
+                            <span class="text-gray-600 font-semibold">UPI ID:</span>
+                            <span class="font-mono font-bold text-gray-950 ml-1">${_escapeHtml(acct.upi_id || acct.upi || '—')}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600 font-semibold">Type:</span>
+                            <span class="font-bold text-gray-950 ml-1 uppercase">${_escapeHtml(acct.account_type || 'CURRENT')}</span>
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-blue-900 font-medium bg-blue-100/60 px-2 py-0.5 rounded">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Remittance Print Ready
+                    </div>
+                </div>
+            ` : ''}
+        `;
+
+        topCard.querySelector('.btnCopyCode')?.addEventListener('click', () => _copyToClipboard(code, 'Account Code'));
+        topCard.querySelector('.btnCopyIFSC')?.addEventListener('click', () => _copyToClipboard(acct.ifsc, 'IFSC Code'));
+        topCard.querySelector('#btnDetailContra')?.addEventListener('click', () => openContraPane(acct));
+        topCard.querySelector('#btnDetailEdit')?.addEventListener('click', () => openEditBankPane(acct));
+        topCard.querySelector('#btnDetailDelete')?.addEventListener('click', () => confirmDeleteOrToggle(acct));
+        topCard.querySelector('#btnDetailRefresh')?.addEventListener('click', () => selectAccount(acct));
+
+        root.appendChild(topCard);
+
+        // Statement Section
+        const stmtSection = document.createElement('div');
+        stmtSection.className = 'bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3';
+
+        // Filter Bar
+        const filterBar = document.createElement('div');
+        filterBar.className = 'flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100';
+        filterBar.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-gray-950">Ledger Statement</span>
+                <span class="text-xs text-gray-600">(${lines.length} entries)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button type="button" class="period-btn px-2.5 py-1 text-xs font-semibold rounded ${_statementPeriod === 'THIS_MONTH' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-period="THIS_MONTH">This Month</button>
+                <button type="button" class="period-btn px-2.5 py-1 text-xs font-semibold rounded ${_statementPeriod === 'CFY' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-period="CFY">CFY 26-27</button>
+                <button type="button" class="period-btn px-2.5 py-1 text-xs font-semibold rounded ${_statementPeriod === 'PFY' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-period="PFY">PFY 25-26</button>
+                <button type="button" class="period-btn px-2.5 py-1 text-xs font-semibold rounded ${_statementPeriod === 'ALL' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" data-period="ALL">All Time</button>
+            </div>
+        `;
+
+        filterBar.querySelectorAll('.period-btn').forEach(btn => {
+            btn.onclick = async () => {
+                _statementPeriod = btn.dataset.period;
+                await _renderDetail();
             };
         });
 
-        mapped.reverse();
+        stmtSection.appendChild(filterBar);
 
-        return `
-            <div class="text-xs mt-4">
-                <div class="font-semibold text-gray-600 mb-2">Recent Transactions (Local Ledger)</div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-2 py-1.5 text-left font-medium text-gray-500 uppercase">Date</th>
-                                <th class="px-2 py-1.5 text-left font-medium text-gray-500 uppercase">Description</th>
-                                <th class="px-2 py-1.5 text-left font-medium text-gray-500 uppercase">Ref</th>
-                                <th class="px-2 py-1.5 text-right font-medium text-gray-500 uppercase">Debit</th>
-                                <th class="px-2 py-1.5 text-right font-medium text-gray-500 uppercase">Credit</th>
-                                <th class="px-2 py-1.5 text-right font-medium text-gray-500 uppercase">Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            ${mapped.slice(-50).map(m => `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-2 py-1.5 whitespace-nowrap">${m.date}</td>
-                                    <td class="px-2 py-1.5 truncate max-w-[150px]" title="${_escapeHtml(m.desc)}">${_escapeHtml(m.desc || '—')}</td>
-                                    <td class="px-2 py-1.5 text-gray-400 font-mono">${_escapeHtml(m.ref)}</td>
-                                    <td class="px-2 py-1.5 text-right text-green-600">${m.debit > 0 ? '₹' + m.debit.toFixed(2) : ''}</td>
-                                    <td class="px-2 py-1.5 text-right text-red-600">${m.credit > 0 ? '₹' + m.credit.toFixed(2) : ''}</td>
-                                    <td class="px-2 py-1.5 text-right font-medium">₹${m.balance.toFixed(2)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
-    }
+        // Statement Table
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'overflow-x-auto w-full';
 
-    function _copyToClipboard(text, label) {
-        navigator.clipboard?.writeText(text).then(() => {
-            const toast = document.getElementById('vaultToast') || (() => {
-                const t = document.createElement('div');
-                t.id = 'vaultToast';
-                t.className = 'fixed bottom-4 right-4 bg-green-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50 transition-opacity duration-300';
-                document.body.appendChild(t);
-                return t;
-            })();
-            toast.textContent = `✅ ${label} copied!`;
-            toast.classList.remove('opacity-0');
-            setTimeout(() => toast.classList.add('opacity-0'), 2000);
-        }).catch(() => {});
-    }
+        const table = document.createElement('table');
+        table.className = 'w-full text-left text-xs border-collapse';
+        table.innerHTML = `
+            <thead>
+                <tr class="bg-gray-100/80 text-gray-700 uppercase tracking-wider font-semibold border-b border-gray-200">
+                    <th class="p-2.5">Date</th>
+                    <th class="p-2.5">Voucher #</th>
+                    <th class="p-2.5">Type</th>
+                    <th class="p-2.5">Ref / Slip No</th>
+                    <th class="p-2.5">Particulars / Narration</th>
+                    <th class="p-2.5 text-right">Debit (In)</th>
+                    <th class="p-2.5 text-right">Credit (Out)</th>
+                    <th class="p-2.5 text-right">Running Balance</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 font-mono">
+                <!-- Opening Balance Row -->
+                <tr class="bg-amber-50/40 font-bold text-gray-900">
+                    <td class="p-2.5 font-sans">—</td>
+                    <td class="p-2.5 font-sans">—</td>
+                    <td class="p-2.5"><span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px]">OPENING</span></td>
+                    <td class="p-2.5 font-sans">—</td>
+                    <td class="p-2.5 font-sans font-semibold text-gray-800">Opening Balance Brought Forward</td>
+                    <td class="p-2.5 text-right">${openBal > 0 ? _fmtMoney(openBal) : '—'}</td>
+                    <td class="p-2.5 text-right">${openBal < 0 ? _fmtMoney(Math.abs(openBal)) : '—'}</td>
+                    <td class="p-2.5 text-right font-bold text-gray-950">${_fmtMoney(openBal)}</td>
+                </tr>
+            </tbody>
+        `;
 
-    function _renderBankAccountDetail(acct) {
-        VaultPage.showDetail(true);
-        const view = document.getElementById('vaultDetailView');
-        const balance = parseFloat(acct.actualBalance || acct.balance || 0);
-        const balClass = balance >= 0 ? 'text-green-600' : 'text-red-600';
-        const upiLink = acct.upi ? `upi://pay?pa=${encodeURIComponent(acct.upi)}${acct.upiName ? '&pn=' + encodeURIComponent(acct.upiName) : ''}` : '';
-        const qrUrl = upiLink ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}` : '';
+        const tbody = table.querySelector('tbody');
 
-        view.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-card-header flex justify-between items-center">
-                    <div>
-                        <h3 class="font-semibold text-gray-700">🏛️ ${_escapeHtml(acct.name || 'N/A')}</h3>
-                        <span class="text-xs px-2 py-0.5 rounded-full ${acct.type === 'Branch' ? 'bg-blue-100 text-blue-700' : acct.type === 'Carrier' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}">${acct.type}</span>
-                    </div>
-                    <span class="font-semibold ${balClass} text-lg">₹${balance.toFixed(2)}</span>
-                </div>
-                <div class="detail-card-body">
-                    <!-- Entity info -->
-                    <div class="grid grid-cols-1 gap-3 text-sm mb-4 bg-gray-50 p-3 rounded-lg">
-                        <div><span class="text-gray-500">Name:</span> <span class="font-semibold">${_escapeHtml(acct.name || '')}</span></div>
-                        <div><span class="text-gray-500">Code:</span> <span class="font-mono text-xs">${_escapeHtml(acct.code || '')}</span></div>
-                    </div>
+        if (lines.length === 0) {
+            const emptyTr = document.createElement('tr');
+            emptyTr.innerHTML = `
+                <td colspan="8" class="p-6 text-center text-gray-600 font-sans">
+                    No transactions recorded for this period.
+                </td>
+            `;
+            tbody.appendChild(emptyTr);
+        } else {
+            lines.forEach((l, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = idx % 2 === 0 ? 'bg-white hover:bg-blue-50/30' : 'bg-gray-50/50 hover:bg-blue-50/30';
 
-                    <!-- Bank Details with Copy buttons -->
-                    <div class="grid grid-cols-1 gap-3 mb-4">
-                        <div class="bg-white border rounded-lg p-3">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <div class="text-xs text-gray-500 mb-1">Account Number</div>
-                                    <div class="font-mono text-sm font-semibold">${acct.account || 'N/A'}</div>
-                                </div>
-                                ${acct.account ? `<button onclick="VaultAccounts._copyToClipboard('${acct.account.replace(/'/g, "\\'")}', 'A/C No')" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">📋 Copy</button>` : ''}
-                            </div>
-                        </div>
-                        <div class="bg-white border rounded-lg p-3">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <div class="text-xs text-gray-500 mb-1">IFSC Code</div>
-                                    <div class="font-mono text-sm font-semibold">${acct.ifsc || 'N/A'}</div>
-                                </div>
-                                ${acct.ifsc ? `<button onclick="VaultAccounts._copyToClipboard('${acct.ifsc.replace(/'/g, "\\'")}', 'IFSC')" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">📋 Copy</button>` : ''}
-                            </div>
-                        </div>
-                        ${acct.upi ? `<div class="bg-white border rounded-lg p-3">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <div class="text-xs text-gray-500 mb-1">UPI ID</div>
-                                    <div class="font-mono text-sm font-semibold">${acct.upi}</div>
-                                    ${acct.upiName ? `<div class="text-xs text-gray-400 mt-1">${acct.upiName}</div>` : ''}
-                                </div>
-                                <button onclick="VaultAccounts._copyToClipboard('${acct.upi.replace(/'/g, "\\'")}', 'UPI ID')" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">📋 Copy</button>
-                            </div>
-                            ${qrUrl ? `<div class="mt-3 flex justify-center"><img src="${qrUrl}" alt="UPI QR" class="w-32 h-32 border rounded-lg" crossorigin="anonymous" onerror="this.style.display='none'"></div>` : ''}
-                            ${qrUrl ? `<div class="text-center mt-2"><a href="${upiLink}" target="_blank" class="text-xs text-blue-600 underline">Open in UPI app</a></div>` : ''}
-                        </div>` : ''}
-                    </div>
+                const dr = Number(l.debit || 0);
+                const cr = Number(l.credit || 0);
+                const rBal = Number(l.running_balance !== undefined ? l.running_balance : l.balance);
+                const docType = l.doc_type || (l.doc_no ? l.doc_no.split('-')[0] : 'TXN');
 
-                    <!-- Balance & Summary -->
-                    <div class="grid grid-cols-2 gap-3 text-sm bg-gray-50 rounded-lg p-3 mb-4">
-                        <div><span class="text-gray-500">Live Balance:</span> <span class="font-semibold ${balClass}">₹${balance.toFixed(2)}</span></div>
-                        <div><span class="text-gray-500">Key:</span> <span class="font-mono text-xs">${acct.key}</span></div>
-                    </div>
+                let badgeColor = 'bg-gray-100 text-gray-800';
+                if (docType === 'REC') badgeColor = 'bg-emerald-100 text-emerald-800';
+                else if (docType === 'PAY') badgeColor = 'bg-rose-100 text-rose-800';
+                else if (docType === 'CON') badgeColor = 'bg-blue-100 text-blue-800';
+                else if (docType === 'JRN') badgeColor = 'bg-purple-100 text-purple-800';
 
-                    <!-- Statement -->
-                    ${_renderBankAccountStatement(acct.key, acct.name, balance)}
-                </div>
-            </div>`;
-        VaultPage.showDetailPane();
-    }
-
-    function _renderBankAccounts() {
-        _injectListPane('Search bank, entity, account…');
-        const ul = document.getElementById('vaultList');
-        if (!ul) return;
-
-        const q = (document.getElementById('vaultSearch')?.value || '').toLowerCase();
-        const filtered = q
-            ? _bankAccounts.filter(a =>
-                (a.name || '').toLowerCase().includes(q) ||
-                (a.code || '').toLowerCase().includes(q) ||
-                (a.account || '').toLowerCase().includes(q) ||
-                (a.ifsc || '').toLowerCase().includes(q) ||
-                (a.upi || '').toLowerCase().includes(q)
-              )
-            : _bankAccounts;
-        const total = _bankAccounts.length;
-        const totalBalance = _bankAccounts.reduce((s, a) => s + parseFloat(a.actualBalance || a.balance || 0), 0);
-
-        if (!filtered.length) {
-            ul.innerHTML = `<li class="text-center text-gray-400 text-sm py-6">${q ? 'No matching accounts.' : 'No bank accounts found.'}</li>`;
-            return;
+                tr.innerHTML = `
+                    <td class="p-2.5 whitespace-nowrap text-gray-700">${_fmtDate(l.doc_date)}</td>
+                    <td class="p-2.5 font-bold text-blue-700 whitespace-nowrap">${_escapeHtml(l.doc_no || '—')}</td>
+                    <td class="p-2.5 whitespace-nowrap">
+                        <span class="px-1.5 py-0.5 rounded font-bold text-[10px] ${badgeColor}">${_escapeHtml(docType)}</span>
+                    </td>
+                    <td class="p-2.5 text-gray-600 whitespace-nowrap">${_escapeHtml(l.ref_no || '—')}</td>
+                    <td class="p-2.5 font-sans text-gray-800 max-w-xs truncate" title="${_escapeHtml(l.memo || l.narration || '')}">
+                        ${_escapeHtml(l.memo || l.narration || 'General transaction')}
+                    </td>
+                    <td class="p-2.5 text-right font-bold text-emerald-700">${dr > 0 ? _fmtMoney(dr) : '—'}</td>
+                    <td class="p-2.5 text-right font-bold text-rose-700">${cr > 0 ? _fmtMoney(cr) : '—'}</td>
+                    <td class="p-2.5 text-right font-bold text-gray-950">${_fmtMoney(rBal)}</td>
+                </tr>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
-        // Summary bar
-        document.getElementById('vaultListMsg').innerHTML = `<div class="flex items-center justify-between text-xs text-gray-500 px-1 mb-2">
-            <span>${total} accounts · ₹${totalBalance.toFixed(2)} total</span>
-            <span class="text-gray-400">${filtered.length} shown</span>
-        </div>`;
+        // Closing Balance Row
+        const closeTr = document.createElement('tr');
+        closeTr.className = 'bg-blue-50/60 font-bold border-t-2 border-gray-300 text-gray-950';
+        closeTr.innerHTML = `
+            <td class="p-2.5 font-sans">—</td>
+            <td class="p-2.5 font-sans">—</td>
+            <td class="p-2.5"><span class="px-1.5 py-0.5 rounded bg-blue-200 text-blue-900 text-[10px]">CLOSING</span></td>
+            <td class="p-2.5 font-sans">—</td>
+            <td class="p-2.5 font-sans font-bold text-gray-950">Closing Ledger Balance</td>
+            <td class="p-2.5 text-right font-bold text-emerald-800">${_fmtMoney(totDr)}</td>
+            <td class="p-2.5 text-right font-bold text-rose-800">${_fmtMoney(totCr)}</td>
+            <td class="p-2.5 text-right font-bold text-blue-950 text-sm">${_fmtMoney(closeBal)}</td>
+        `;
+        tbody.appendChild(closeTr);
 
-        ul.innerHTML = filtered.map(a => {
-            const balance = parseFloat(a.actualBalance || a.balance || 0);
-            const balClass = balance >= 0 ? 'text-green-600' : 'text-red-600';
-            return `<li data-key="${a.key}" class="p-3 rounded-lg cursor-pointer hover:bg-blue-50 border border-gray-200 transition-colors">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <strong class="text-gray-800 block text-sm">${_escapeHtml(a.name || 'N/A')}</strong>
-                        <span class="text-xs text-gray-500">${_escapeHtml(a.code || '')} · ${a.type}</span>
-                    </div>
-                    <span class="font-semibold ${balClass} text-sm">₹${balance.toFixed(2)}</span>
-                </div>
-                <div class="flex gap-2 text-xs mt-1">
-                    ${a.account ? `<span class="font-mono text-gray-400">${a.account}</span>` : ''}
-                    ${a.ifsc ? `<span class="font-mono text-gray-400">${a.ifsc}</span>` : ''}
-                    ${a.upi ? `<span class="text-gray-400">UPI ✓</span>` : ''}
-                </div>
-            </li>`;
-        }).join('');
-        ul.querySelectorAll('li').forEach(li =>
-            li.addEventListener('click', () => {
-                ul.querySelectorAll('li').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                const acct = _bankAccounts.find(a => a.key === li.dataset.key);
-                if (acct) _renderBankAccountDetail(acct);
-            })
-        );
-        VaultPage.showDetail(false);
+        tableWrap.appendChild(table);
+        stmtSection.appendChild(tableWrap);
+        root.appendChild(stmtSection);
+
+        viewEl.appendChild(root);
     }
 
     // ========================================================================
-    // LOAD & ROUTING
+    // IN-PANE CONTRA TRANSFER FORM
+    // ========================================================================
+
+    function openContraPane(preselectedFrom = null) {
+        const viewEl = document.getElementById('vaultDetailView');
+        if (!viewEl) return;
+        viewEl.innerHTML = '';
+        VaultPage.showDetail(true);
+        VaultPage?.showDetailPane?.();
+
+        const branch = VaultPage.getActiveBranch() || 'DDN';
+
+        const root = document.createElement('div');
+        root.className = 'w-full p-4 flex flex-col gap-4 text-gray-900 max-w-2xl mx-auto';
+
+        root.innerHTML = `
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4">
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-950 flex items-center gap-2">
+                            <i class="fa-solid fa-money-bill-transfer text-blue-600"></i> New Contra Transfer (CON)
+                        </h2>
+                        <p class="text-xs text-gray-600 mt-0.5">Transfer funds between cash & bank accounts (P&L neutral).</p>
+                    </div>
+                    <button type="button" id="btnContraCancel" class="btn btn-sm btn-secondary text-xs px-2.5 py-1">
+                        <i class="fa-solid fa-xmark mr-1"></i> Cancel
+                    </button>
+                </div>
+
+                <!-- Transfer Type Selector -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Transfer Workflow Type</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button type="button" class="contra-type-btn p-2.5 rounded-lg border text-left flex flex-col gap-1 bg-blue-50 border-blue-500 text-blue-900" data-type="CASH_TO_BANK">
+                            <div class="text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-down-to-bracket text-emerald-600"></i> Cash Deposit
+                            </div>
+                            <div class="text-[11px] text-gray-600">Counter Cash &rarr; Bank A/c</div>
+                        </button>
+                        <button type="button" class="contra-type-btn p-2.5 rounded-lg border text-left flex flex-col gap-1 bg-white border-gray-200 text-gray-700 hover:bg-gray-50" data-type="BANK_TO_PETTY">
+                            <div class="text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrow-up-from-bracket text-rose-600"></i> Cash Withdrawal
+                            </div>
+                            <div class="text-[11px] text-gray-600">Bank A/c &rarr; Petty Cash</div>
+                        </button>
+                        <button type="button" class="contra-type-btn p-2.5 rounded-lg border text-left flex flex-col gap-1 bg-white border-gray-200 text-gray-700 hover:bg-gray-50" data-type="BANK_TO_BANK">
+                            <div class="text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-right-left text-blue-600"></i> Inter-Bank
+                            </div>
+                            <div class="text-[11px] text-gray-600">Bank A &rarr; Bank B</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Source & Destination Dropdowns -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">From (Paying / Disbursing)</label>
+                        <select id="contraFrom" class="form-select w-full text-xs font-mono font-medium rounded-lg border-gray-300 p-2"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">To (Receiving / Depositing)</label>
+                        <select id="contraTo" class="form-select w-full text-xs font-mono font-medium rounded-lg border-gray-300 p-2"></select>
+                    </div>
+                </div>
+
+                <!-- Amount & Date -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Amount (₹) *</label>
+                        <input type="number" id="contraAmount" step="0.01" min="1" placeholder="0.00" class="form-input w-full text-sm font-mono font-bold rounded-lg border-gray-300 p-2 text-emerald-700" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Transfer Date</label>
+                        <input type="date" id="contraDate" value="${new Date().toISOString().split('T')[0]}" class="form-input w-full text-xs font-mono rounded-lg border-gray-300 p-2">
+                    </div>
+                </div>
+
+                <!-- Reference & Narration -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Ref / Slip / UTR / Cheque #</label>
+                        <input type="text" id="contraRef" placeholder="e.g. DEP-0410 or UTR..." class="form-input w-full text-xs font-mono rounded-lg border-gray-300 p-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Branch Code</label>
+                        <input type="text" id="contraBranch" value="${_escapeHtml(branch)}" class="form-input w-full text-xs font-mono font-bold bg-gray-100 rounded-lg border-gray-300 p-2" readonly>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Narration / Notes</label>
+                    <textarea id="contraNarration" rows="2" placeholder="Purpose of internal transfer..." class="form-textarea w-full text-xs rounded-lg border-gray-300 p-2"></textarea>
+                </div>
+
+                <!-- Double Entry Live Preview -->
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between text-xs font-bold text-gray-600">
+                        <span>DOUBLE-ENTRY JOURNAL AUDIT</span>
+                        <span class="text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Balanced</span>
+                    </div>
+                    <div class="text-xs font-mono flex items-center justify-between text-gray-800">
+                        <span>Debit (Asset &uarr;): <strong id="previewDebitAcc" class="text-blue-700">—</strong></span>
+                        <span id="previewDebitAmt" class="font-bold text-emerald-700">₹0.00</span>
+                    </div>
+                    <div class="text-xs font-mono flex items-center justify-between text-gray-800">
+                        <span>Credit (Asset &darr;): <strong id="previewCreditAcc" class="text-rose-700">—</strong></span>
+                        <span id="previewCreditAmt" class="font-bold text-rose-700">₹0.00</span>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                    <button type="button" id="btnContraSubmit" class="btn btn-blue px-4 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-check"></i> Post Contra Entry
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const fromSelect = root.querySelector('#contraFrom');
+        const toSelect = root.querySelector('#contraTo');
+        const amtInput = root.querySelector('#contraAmount');
+        const previewDebitAcc = root.querySelector('#previewDebitAcc');
+        const previewCreditAcc = root.querySelector('#previewCreditAcc');
+        const previewDebitAmt = root.querySelector('#previewDebitAmt');
+        const previewCreditAmt = root.querySelector('#previewCreditAmt');
+
+        let currentWorkflow = 'CASH_TO_BANK';
+
+        function populateOptions() {
+            fromSelect.innerHTML = '';
+            toSelect.innerHTML = '';
+
+            if (currentWorkflow === 'CASH_TO_BANK') {
+                fromSelect.innerHTML = `<option value="CASH_IN_HAND">Cash In Hand (${branch} Desk)</option>`;
+                _bankAccounts.forEach(b => {
+                    toSelect.innerHTML += `<option value="${b.bank_code}">${b.bank_name} (${b.bank_code})</option>`;
+                });
+            } else if (currentWorkflow === 'BANK_TO_PETTY') {
+                _bankAccounts.forEach(b => {
+                    fromSelect.innerHTML += `<option value="${b.bank_code}">${b.bank_name} (${b.bank_code})</option>`;
+                });
+                toSelect.innerHTML = `<option value="PETTY_CASH">Petty Cash Imprest (${branch})</option>`;
+            } else if (currentWorkflow === 'BANK_TO_BANK') {
+                _bankAccounts.forEach(b => {
+                    fromSelect.innerHTML += `<option value="${b.bank_code}">${b.bank_name} (${b.bank_code})</option>`;
+                    toSelect.innerHTML += `<option value="${b.bank_code}">${b.bank_name} (${b.bank_code})</option>`;
+                });
+                if (toSelect.options.length > 1) {
+                    toSelect.selectedIndex = 1;
+                }
+            }
+
+            if (preselectedFrom && preselectedFrom.bank_code) {
+                if (currentWorkflow === 'BANK_TO_PETTY' || currentWorkflow === 'BANK_TO_BANK') {
+                    fromSelect.value = preselectedFrom.bank_code;
+                }
+            }
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const amt = Number(amtInput.value) || 0;
+            const fromText = fromSelect.options[fromSelect.selectedIndex]?.text || fromSelect.value;
+            const toText = toSelect.options[toSelect.selectedIndex]?.text || toSelect.value;
+
+            previewDebitAcc.textContent = toText;
+            previewCreditAcc.textContent = fromText;
+            previewDebitAmt.textContent = _fmtMoney(amt);
+            previewCreditAmt.textContent = _fmtMoney(amt);
+        }
+
+        // Type Button Events
+        root.querySelectorAll('.contra-type-btn').forEach(btn => {
+            btn.onclick = () => {
+                root.querySelectorAll('.contra-type-btn').forEach(b => {
+                    b.className = 'contra-type-btn p-2.5 rounded-lg border text-left flex flex-col gap-1 bg-white border-gray-200 text-gray-700 hover:bg-gray-50';
+                });
+                btn.className = 'contra-type-btn p-2.5 rounded-lg border text-left flex flex-col gap-1 bg-blue-50 border-blue-500 text-blue-900';
+                currentWorkflow = btn.dataset.type;
+                populateOptions();
+            };
+        });
+
+        fromSelect.onchange = updatePreview;
+        toSelect.onchange = updatePreview;
+        amtInput.oninput = updatePreview;
+
+        populateOptions();
+
+        root.querySelector('#btnContraCancel').onclick = () => _renderDetail();
+
+        // Submit Contra
+        root.querySelector('#btnContraSubmit').onclick = async () => {
+            const amount = parseFloat(amtInput.value);
+            if (isNaN(amount) || amount <= 0) {
+                _showToast('Please enter a valid transfer amount greater than 0.', true);
+                amtInput.focus();
+                return;
+            }
+
+            const fromAcc = fromSelect.value;
+            const toAcc = toSelect.value;
+            if (fromAcc === toAcc) {
+                _showToast('Source and Destination accounts cannot be the same.', true);
+                return;
+            }
+
+            const payload = {
+                from_account: fromAcc,
+                to_account: toAcc,
+                amount: amount,
+                doc_date: root.querySelector('#contraDate').value || new Date().toISOString().split('T')[0],
+                branch_code: branch,
+                ref_no: (root.querySelector('#contraRef').value || '').trim(),
+                narration: (root.querySelector('#contraNarration').value || '').trim(),
+                metadata: {
+                    workflow: currentWorkflow
+                }
+            };
+
+            const submitBtn = root.querySelector('#btnContraSubmit');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Posting...';
+
+            try {
+                const res = await fetch('/api/accounting/contra', {
+                    method: 'POST',
+                    headers: _getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const resJson = await res.json();
+                if (!res.ok) {
+                    throw new Error(resJson.detail || resJson.message || 'Contra transfer failed.');
+                }
+
+                _showToast(`Contra Entry #${resJson.doc_no || 'CON'} posted successfully!`);
+                await _fetchAccounts();
+                _renderList();
+                _renderDetail();
+            } catch (err) {
+                console.error('[VaultAccounts] Contra error:', err);
+                _showToast(err.message || 'Error posting contra transfer.', true);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Post Contra Entry';
+            }
+        };
+
+        viewEl.appendChild(root);
+    }
+
+    // ========================================================================
+    // IN-PANE ADD BANK ACCOUNT FORM
+    // ========================================================================
+
+    function openAddBankPane() {
+        const viewEl = document.getElementById('vaultDetailView');
+        if (!viewEl) return;
+        viewEl.innerHTML = '';
+        VaultPage.showDetail(true);
+        VaultPage?.showDetailPane?.();
+
+        const branch = VaultPage.getActiveBranch() || 'DDN';
+
+        const root = document.createElement('div');
+        root.className = 'w-full p-4 flex flex-col gap-4 text-gray-900 max-w-xl mx-auto';
+
+        root.innerHTML = `
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4">
+                <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-950 flex items-center gap-2">
+                            <i class="fa-solid fa-building-columns text-blue-600"></i> Add New Bank Account
+                        </h2>
+                        <p class="text-xs text-gray-600 mt-0.5">Persists to DATADB/bank_accounts.json with sub-ledger code.</p>
+                    </div>
+                    <button type="button" id="btnAddCancel" class="btn btn-sm btn-secondary text-xs px-2.5 py-1">
+                        <i class="fa-solid fa-xmark mr-1"></i> Cancel
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bank Name *</label>
+                        <input type="text" id="newBankName" placeholder="e.g. Punjab National Bank" class="form-input w-full text-xs font-medium rounded-lg border-gray-300 p-2" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Account Number *</label>
+                        <input type="text" id="newAccNo" placeholder="Account Number" class="form-input w-full text-xs font-mono font-bold rounded-lg border-gray-300 p-2" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bank Sub-Ledger Code *</label>
+                        <input type="text" id="newBankCode" placeholder="e.g. PUNB0410" class="form-input w-full text-xs font-mono font-bold uppercase rounded-lg border-gray-300 p-2 text-blue-700" required>
+                        <span class="text-[10px] text-gray-600">Format: [BANK][LAST4], e.g. PUNB0410, HDFC8849</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">IFSC Code *</label>
+                        <input type="text" id="newIFSC" placeholder="e.g. PUNB0041000" class="form-input w-full text-xs font-mono font-bold uppercase rounded-lg border-gray-300 p-2" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Account Type</label>
+                        <select id="newAccType" class="form-select w-full text-xs font-semibold rounded-lg border-gray-300 p-2">
+                            <option value="CURRENT">Current Account</option>
+                            <option value="SAVINGS">Savings Account</option>
+                            <option value="OVERDRAFT">Overdraft (OD) / CC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Branch Binding</label>
+                        <input type="text" id="newBranch" value="${_escapeHtml(branch)}" class="form-input w-full text-xs font-mono font-bold uppercase rounded-lg border-gray-300 p-2">
+                        <span class="text-[10px] text-gray-600">Enter 'ALL' for company-wide central accounts</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">UPI ID (Optional)</label>
+                    <input type="text" id="newUPI" placeholder="e.g. post4ex.pnb@upi" class="form-input w-full text-xs font-mono rounded-lg border-gray-300 p-2">
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="newIsPrimary" class="form-checkbox text-blue-600 rounded">
+                    <label for="newIsPrimary" class="text-xs font-semibold text-gray-800 cursor-pointer">
+                        Set as Primary Remittance Bank for this branch (prints on customer invoices)
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                    <button type="button" id="btnSaveNewBank" class="btn btn-blue px-4 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-check"></i> Save Bank Account
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const nameInput = root.querySelector('#newBankName');
+        const accNoInput = root.querySelector('#newAccNo');
+        const codeInput = root.querySelector('#newBankCode');
+
+        // Auto-generate code when bank name or account number changes
+        function autoGenerateCode() {
+            if (codeInput.dataset.manuallyEdited) return;
+            const bName = nameInput.value.trim().toUpperCase();
+            const aNo = accNoInput.value.trim();
+            if (!bName && !aNo) return;
+
+            const words = bName.split(/\s+/).filter(Boolean);
+            let prefix = words.length > 1 ? words.map(w => w[0]).join('') : bName.slice(0, 4);
+            prefix = prefix.slice(0, 4);
+            const suffix = aNo.length >= 4 ? aNo.slice(-4) : '0001';
+            codeInput.value = `${prefix}${suffix}`.toUpperCase();
+        }
+
+        nameInput.oninput = autoGenerateCode;
+        accNoInput.oninput = autoGenerateCode;
+        codeInput.oninput = () => { codeInput.dataset.manuallyEdited = '1'; };
+
+        root.querySelector('#btnAddCancel').onclick = () => _renderDetail();
+
+        root.querySelector('#btnSaveNewBank').onclick = async () => {
+            const bName = nameInput.value.trim();
+            const aNo = accNoInput.value.trim();
+            const bCode = codeInput.value.trim().toUpperCase();
+            const ifsc = root.querySelector('#newIFSC').value.trim().toUpperCase();
+
+            if (!bName || !aNo || !bCode || !ifsc) {
+                _showToast('Please fill in all mandatory fields: Bank Name, Account #, Bank Code, and IFSC.', true);
+                return;
+            }
+
+            const payload = {
+                bank_code: bCode,
+                bank_name: bName,
+                account_no: aNo,
+                ifsc: ifsc,
+                branch_code: root.querySelector('#newBranch').value.trim().toUpperCase() || 'ALL',
+                account_type: root.querySelector('#newAccType').value,
+                upi_id: root.querySelector('#newUPI').value.trim(),
+                is_primary: root.querySelector('#newIsPrimary').checked
+            };
+
+            const saveBtn = root.querySelector('#btnSaveNewBank');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...';
+
+            try {
+                const res = await fetch('/api/accounting/bank-accounts', {
+                    method: 'POST',
+                    headers: _getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const resJson = await res.json();
+                if (!res.ok) {
+                    throw new Error(resJson.detail || resJson.message || 'Failed to save bank account.');
+                }
+
+                _showToast(`Bank Account '${bCode}' created successfully!`);
+                await _fetchAccounts();
+                _selectedAccount = _bankAccounts.find(b => b.bank_code === bCode) || _bankAccounts[0];
+                _renderList();
+                _renderDetail();
+            } catch (err) {
+                console.error('[VaultAccounts] Save bank error:', err);
+                _showToast(err.message || 'Error saving bank account.', true);
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Save Bank Account';
+            }
+        };
+
+        viewEl.appendChild(root);
+    }
+
+    // ========================================================================
+    // IN-PANE EDIT BANK ACCOUNT FORM
+    // ========================================================================
+
+    function openEditBankPane(acct) {
+        if (!acct) return;
+        const viewEl = document.getElementById('vaultDetailView');
+        if (!viewEl) return;
+        viewEl.innerHTML = '';
+        VaultPage.showDetail(true);
+        VaultPage?.showDetailPane?.();
+
+        const code = acct.bank_code || acct.code;
+        const root = document.createElement('div');
+        root.className = 'w-full p-4 flex flex-col gap-4 text-gray-900 max-w-xl mx-auto';
+
+        root.innerHTML = `
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4">
+                <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-950 flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit Bank Account (${_escapeHtml(code)})
+                        </h2>
+                        <p class="text-xs text-gray-600 mt-0.5">Modify bank details and branch assignment.</p>
+                    </div>
+                    <button type="button" id="btnEditCancel" class="btn btn-sm btn-secondary text-xs px-2.5 py-1">
+                        <i class="fa-solid fa-xmark mr-1"></i> Cancel
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bank Name *</label>
+                        <input type="text" id="editBankName" value="${_escapeHtml(acct.bank_name || acct.account_name || '')}" class="form-input w-full text-xs font-medium rounded-lg border-gray-300 p-2" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Account Number *</label>
+                        <input type="text" id="editAccNo" value="${_escapeHtml(acct.account_no || '')}" class="form-input w-full text-xs font-mono font-bold rounded-lg border-gray-300 p-2" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Bank Code (Sub-Ledger)</label>
+                        <input type="text" value="${_escapeHtml(code)}" class="form-input w-full text-xs font-mono font-bold uppercase rounded-lg border-gray-300 p-2 bg-gray-100 text-gray-500 cursor-not-allowed" readonly>
+                        <span class="text-[10px] text-gray-500">Sub-ledger code cannot be changed once created.</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">IFSC Code *</label>
+                        <input type="text" id="editIFSC" value="${_escapeHtml(acct.ifsc || '')}" class="form-input w-full text-xs font-mono font-bold uppercase rounded-lg border-gray-300 p-2" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Account Type</label>
+                        <select id="editAccType" class="form-select w-full text-xs font-semibold rounded-lg border-gray-300 p-2">
+                            <option value="CURRENT" ${(acct.account_type || '').toUpperCase() === 'CURRENT' ? 'selected' : ''}>Current Account</option>
+                            <option value="SAVINGS" ${(acct.account_type || '').toUpperCase() === 'SAVINGS' ? 'selected' : ''}>Savings Account</option>
+                            <option value="OVERDRAFT" ${(acct.account_type || '').toUpperCase() === 'OVERDRAFT' ? 'selected' : ''}>Overdraft (OD) / CC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Branch Binding</label>
+                        <input type="text" id="editBranch" value="${_escapeHtml(acct.branch_code || 'ALL')}" class="form-input w-full text-xs font-mono font-bold uppercase rounded-lg border-gray-300 p-2">
+                        <span class="text-[10px] text-gray-600">Enter 'ALL' for company-wide central accounts</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">UPI ID (Optional)</label>
+                        <input type="text" id="editUPI" value="${_escapeHtml(acct.upi_id || acct.upi || '')}" placeholder="e.g. post4ex.pnb@upi" class="form-input w-full text-xs font-mono rounded-lg border-gray-300 p-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Status</label>
+                        <select id="editStatus" class="form-select w-full text-xs font-semibold rounded-lg border-gray-300 p-2">
+                            <option value="ACTIVE" ${(acct.status || 'ACTIVE').toUpperCase() === 'ACTIVE' ? 'selected' : ''}>Active</option>
+                            <option value="INACTIVE" ${(acct.status || 'ACTIVE').toUpperCase() === 'INACTIVE' ? 'selected' : ''}>Inactive (Archived)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="editIsPrimary" class="form-checkbox text-blue-600 rounded" ${acct.is_primary ? 'checked' : ''}>
+                    <label for="editIsPrimary" class="text-xs font-semibold text-gray-800 cursor-pointer">
+                        Set as Primary Remittance Bank for this branch (prints on customer invoices)
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                    <button type="button" id="btnUpdateBank" class="btn btn-blue px-4 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-check"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        `;
+
+        root.querySelector('#btnEditCancel').onclick = () => _renderDetail();
+
+        root.querySelector('#btnUpdateBank').onclick = async () => {
+            const bName = root.querySelector('#editBankName').value.trim();
+            const aNo = root.querySelector('#editAccNo').value.trim();
+            const ifsc = root.querySelector('#editIFSC').value.trim().toUpperCase();
+
+            if (!bName || !aNo || !ifsc) {
+                _showToast('Please fill in all mandatory fields: Bank Name, Account #, and IFSC.', true);
+                return;
+            }
+
+            const payload = {
+                bank_name: bName,
+                account_no: aNo,
+                ifsc: ifsc,
+                branch_code: root.querySelector('#editBranch').value.trim().toUpperCase() || 'ALL',
+                account_type: root.querySelector('#editAccType').value,
+                upi_id: root.querySelector('#editUPI').value.trim(),
+                status: root.querySelector('#editStatus').value,
+                is_primary: root.querySelector('#editIsPrimary').checked
+            };
+
+            const updateBtn = root.querySelector('#btnUpdateBank');
+            updateBtn.disabled = true;
+            updateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...';
+
+            try {
+                const res = await fetch(`/api/accounting/bank-accounts/${encodeURIComponent(code)}`, {
+                    method: 'PUT',
+                    headers: _getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const resJson = await res.json();
+                if (!res.ok) {
+                    throw new Error(resJson.detail || resJson.message || 'Failed to update bank account.');
+                }
+
+                _showToast(`Bank Account '${code}' updated successfully!`);
+                await _fetchAccounts();
+                _selectedAccount = _bankAccounts.find(b => b.bank_code === code) || _selectedAccount;
+                _renderList();
+                _renderDetail();
+            } catch (err) {
+                console.error('[VaultAccounts] Update bank error:', err);
+                _showToast(err.message || 'Error updating bank account.', true);
+                updateBtn.disabled = false;
+                updateBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Save Changes';
+            }
+        };
+
+        viewEl.appendChild(root);
+    }
+
+    // ========================================================================
+    // DELETE / DEACTIVATE / REACTIVATE ACTION
+    // ========================================================================
+
+    async function confirmDeleteOrToggle(acct) {
+        if (!acct) return;
+        const code = acct.bank_code || acct.code;
+        const name = acct.bank_name || acct.account_name;
+        const isInactive = acct.status === 'INACTIVE';
+
+        if (isInactive) {
+            const ok = confirm(`Reactivate bank account "${name}" (${code})?\n\nThis will re-enable this account for receipts, payments, and contra transfers.`);
+            if (!ok) return;
+
+            try {
+                const res = await fetch(`/api/accounting/bank-accounts/${encodeURIComponent(code)}/status?status=ACTIVE`, {
+                    method: 'PATCH',
+                    headers: _getHeaders()
+                });
+                const resJson = await res.json();
+                if (!res.ok) throw new Error(resJson.detail || resJson.message || 'Failed to reactivate account.');
+                _showToast(`Bank account '${code}' reactivated successfully.`);
+                await _fetchAccounts();
+                _selectedAccount = _bankAccounts.find(b => b.bank_code === code) || _selectedAccount;
+                _renderList();
+                _renderDetail();
+            } catch (err) {
+                _showToast(err.message || 'Error reactivating bank account.', true);
+            }
+        } else {
+            const ok = confirm(`Are you sure you want to deactivate / delete bank account "${name}" (${code})?\n\n- If transactions exist in the ledger, it will be safely ARCHIVED (marked Inactive) to protect statutory audit trails.\n- If zero transactions exist, it will be permanently deleted.`);
+            if (!ok) return;
+
+            try {
+                const res = await fetch(`/api/accounting/bank-accounts/${encodeURIComponent(code)}`, {
+                    method: 'DELETE',
+                    headers: _getHeaders()
+                });
+                const resJson = await res.json();
+                if (!res.ok) throw new Error(resJson.detail || resJson.message || 'Failed to delete/archive account.');
+
+                _showToast(resJson.message || `Account '${code}' updated.`);
+                await _fetchAccounts();
+                if (resJson.status === 'DELETED') {
+                    _selectedAccount = _bankAccounts[0] || _allAccounts[0] || null;
+                } else {
+                    _selectedAccount = _bankAccounts.find(b => b.bank_code === code) || _bankAccounts[0];
+                }
+                _renderList();
+                _renderDetail();
+            } catch (err) {
+                _showToast(err.message || 'Error deleting/deactivating bank account.', true);
+            }
+        }
+    }
+
+    // ========================================================================
+    // PUBLIC API
     // ========================================================================
 
     async function load() {
-        const data = await getAppData();
-        if (!data) return;
-
-        _glRows = [];
-        _allBranches = Object.values(data.BRANCHES || {});
-        _allCarriers = Object.values(data.CARRIERS || {});
-        _b2bMap.clear();
-        _b2bList = [];
-        if (data.B2B) {
-            Object.values(data.B2B).forEach(c => c.CODE && _b2bMap.set(c.CODE, c));
-            _b2bList = Object.values(data.B2B).filter(c => c.CODE);
-        }
-
+        _selectedAccount = null;
+        VaultPage.showDetail(false);
         const searchInput = document.getElementById('vaultSearch');
         if (searchInput) searchInput.oninput = () => search();
 
-        if (_activeTile === 'cheques') {
-            _injectListPane('Search cheque number, branch…');
-            _injectFilterUI();
-            await _fetchCheques();
-            _renderList();
-        } else if (_activeTile === 'bank-accounts') {
-            _injectListPane('Search bank, entity, account…');
-            document.getElementById('vaultAddBtn').classList.add('hidden');
-            await _fetchBankAccounts();
-            _renderBankAccounts();
+        await _fetchAccounts();
+        _renderList();
+        if (_selectedAccount) {
+            await _renderDetail();
+        } else {
+            VaultPage.showDetail(false);
         }
     }
 
     function search() {
-        if (_activeTile === 'cheques') _renderList();
-        else if (_activeTile === 'bank-accounts') _renderBankAccounts();
+        _renderList();
     }
 
-    function setTile(tile) { _activeTile = tile; }
+    function selectAccount(acct) {
+        _selectedAccount = acct;
+        _renderList();
+        _renderDetail();
+        VaultPage?.showDetailPane?.();
+    }
 
-    return { load, search, setTile, _printCheque, _copyToClipboard, _updateChequeStatus };
+    function setTile(tile) {
+        _activeTile = tile;
+    }
+
+    return {
+        load,
+        search,
+        selectAccount,
+        setTile,
+        openContraPane,
+        openAddBankPane,
+        openEditBankPane,
+        confirmDeleteOrToggle,
+        refresh: load
+    };
 })();
 
 window.VaultAccounts = VaultAccounts;

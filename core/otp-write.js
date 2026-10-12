@@ -359,7 +359,9 @@
         carrierDel:   (p) => p.COMPANY_CODE || (p.data && p.data.COMPANY_CODE),
         rateCode:     (p) => p.CODE,
         uploadUid:    (p, ep) => (ep.match(/\/api\/upload\/([^/?#]+)/) || [])[1] || p.upload_uid || p.UPLOAD_UID,
-        shipmentRef:  (p) => p.reference || p.REFERENCE,
+        shipmentRef:   (p) => p.reference || p.REFERENCE,
+        invoiceId:     (p) => p.inv_number || p.invoice_id || p.INV_NUMBER || p.INVOICE_ID,
+        docNoVoid:     (p, ep) => (ep.match(/\/api\/ledger\/transactions\/([^/?#]+)\/void/) || [])[1] || p.doc_no || p.invoice_id,
     };
 
     const _titles = {
@@ -372,24 +374,27 @@
         upload_delete:  'Confirm with OTP',
         charges_write:  'Confirm with OTP',
         movements_write:'Confirm with OTP',
+        invoice_revert: 'Confirm Invoice Reversal (2FA / OTP)',
     };
 
     // [method, pathPrefix, otp_type, identifierFn, actionLabel]
     const RULES = [
-        ['PUT',    '/api/editOrder',        'order_write',   _ident.orderWrite,   'Edit order'],
-        ['DELETE', '/api/deleteOrder',      'order_write',   _ident.orderWrite,   'Delete order'],
-        ['PATCH',  '/api/updateB2B2C',      'b2b2c_write',   _ident.b2b2cUid,     'Update contact'],
-        ['DELETE', '/api/deleteB2B2C',      'b2b2c_write',   _ident.b2b2cUid,     'Delete contact'],
-        ['POST',   '/api/writeBranch',      'branch_write',  _ident.branchScope,  'Save branch'],
-        ['POST',   '/api/deleteBranch',     'branch_write',  _ident.branchScope,  'Delete branch'],
-        ['POST',   '/api/writeMode',        'mode_write',    _ident.modeWrite,    'Save mode'],
-        ['POST',   '/api/deleteMode',       'mode_write',    _ident.modeDelete,   'Delete mode'],
-        ['POST',   '/api/writeCarrier',     'carrier_write', _ident.carrierWrite, 'Save carrier'],
-        ['POST',   '/api/deleteCarrier',    'carrier_write', _ident.carrierDel,   'Delete carrier'],
-        ['DELETE', '/api/upload/',          'upload_delete', _ident.uploadUid,    'Delete upload'],
-        ['PATCH',  '/api/patchCharges',     'charges_write', _ident.orderWrite,   'Update charges'],
-        ['DELETE', '/api/deleteRateList',   'rates_delete',  _ident.rateCode,     'Delete rate list'],
+        ['PUT',    '/api/editOrder',        'order_write',    _ident.orderWrite,    'Edit order'],
+        ['DELETE', '/api/deleteOrder',      'order_write',    _ident.orderWrite,    'Delete order'],
+        ['PATCH',  '/api/updateB2B2C',      'b2b2c_write',    _ident.b2b2cUid,      'Update contact'],
+        ['DELETE', '/api/deleteB2B2C',      'b2b2c_write',    _ident.b2b2cUid,      'Delete contact'],
+        ['POST',   '/api/writeBranch',      'branch_write',   _ident.branchScope,   'Save branch'],
+        ['POST',   '/api/deleteBranch',     'branch_write',   _ident.branchScope,   'Delete branch'],
+        ['POST',   '/api/writeMode',        'mode_write',     _ident.modeWrite,     'Save mode'],
+        ['POST',   '/api/deleteMode',       'mode_write',     _ident.modeDelete,    'Delete mode'],
+        ['POST',   '/api/writeCarrier',     'carrier_write',  _ident.carrierWrite,  'Save carrier'],
+        ['POST',   '/api/deleteCarrier',    'carrier_write',  _ident.carrierDel,    'Delete carrier'],
+        ['DELETE', '/api/upload/',          'upload_delete',  _ident.uploadUid,     'Delete upload'],
+        ['PATCH',  '/api/patchCharges',     'charges_write',  _ident.orderWrite,    'Update charges'],
+        ['DELETE', '/api/deleteRateList',   'rates_delete',   _ident.rateCode,      'Delete rate list'],
         ['POST',   '/api/deleteShipmentMovements', 'movements_write', _ident.shipmentRef, 'Reset shipment tracking'],
+        ['POST',   '/api/unbillInvoice',    'invoice_revert', _ident.invoiceId,     'Unbill / Reverse Invoice'],
+        ['POST',   '/api/ledger/transactions/', 'invoice_revert', _ident.docNoVoid, 'Void Transaction / Invoice'],
     ];
 
     window.OtpGate = {
@@ -403,6 +408,7 @@
             }
             for (const [rm, prefix, type, fn, label] of RULES) {
                 if (rm === m && endpoint && endpoint.startsWith(prefix)) {
+                    if (prefix === '/api/ledger/transactions/' && !endpoint.includes('/void')) continue;
                     return { otp_type: type, identifierFn: fn, title: label || 'Confirm with OTP' };
                 }
             }
