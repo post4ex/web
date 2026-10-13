@@ -121,11 +121,27 @@ function initAssignCarrierTile(data) {
     const within30Days = processed.filter(s => (parseDate(s.ORDER_DATE)?.getTime() || 0) >= cutoff);
     const targetPool   = within30Days.length ? within30Days : processed;
 
-    // --- 2. Prioritize: No AWB first, followed by orders with AWB (newest to oldest) ---
-    const isNoAwb      = s => !String(s.AWB_NUMBER || '').trim() || !String(s.CARRIER || '').trim();
-    const noAwbOrders  = targetPool.filter(isNoAwb).sort(byDate);
-    const hasAwbOrders = targetPool.filter(s => !isNoAwb(s)).sort(byDate);
-    allShipments       = [...noAwbOrders, ...hasAwbOrders];
+    // --- 2. Delivery check map ---
+    const shipmentsObj = data.SHIPMENTS || {};
+    const getShipmentState = s => {
+        const ref = s.REFERENCE;
+        const sh = shipmentsObj[ref] || (typeof shipmentsDataMap !== 'undefined' ? shipmentsDataMap.get(ref) : null);
+        return String(sh?.state || sh?.STATE || '').toLowerCase().trim();
+    };
+    const isDeliveredOrLikely = s => {
+        const st = getShipmentState(s);
+        return st === 'delivered' || st === 'likelydelivered';
+    };
+
+    // --- 3. Prioritize: Unassigned & Pending first, followed by orders with AWB (or delivered unassigned) ---
+    const isNoAwbPending = s => {
+        const unassigned = !String(s.AWB_NUMBER || '').trim() || !String(s.CARRIER || '').trim();
+        return unassigned && !isDeliveredOrLikely(s);
+    };
+
+    const noAwbOrders  = targetPool.filter(isNoAwbPending).sort(byDate);
+    const otherOrders  = targetPool.filter(s => !isNoAwbPending(s)).sort(byDate);
+    allShipments       = [...noAwbOrders, ...otherOrders];
 
     // --- SELECT ---
     function selectShipment(shipment, li) {
@@ -172,7 +188,7 @@ function initAssignCarrierTile(data) {
             const ref = order.REFERENCE;
             if (!ref) return;
             const li = document.createElement('li');
-            const inc = !order.CARRIER || !order.AWB_NUMBER;
+            const inc = (!order.CARRIER || !order.AWB_NUMBER) && !isDeliveredOrLikely(order);
             if (inc) li.classList.add('incomplete');
             li.innerHTML = [
                 `<strong>${order.AWB_NUMBER || 'No AWB'}</strong>`,

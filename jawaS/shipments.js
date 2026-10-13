@@ -116,10 +116,13 @@ function updateTileCounts(orders) {
         if (o.FOV === 'Yes' && !isDelivered) counts.fov++;
         if (isDelivered && !_hasPODUpload(o.REFERENCE)) counts['pending-pod']++;
     });
-    // Assign Carrier count = shipments where !CARRIER || !AWB_NUMBER (within 30 days, matching tile view)
+    // Assign Carrier count = shipments where !CARRIER || !AWB_NUMBER and NOT delivered/likelydelivered (within 30 days)
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const assignCnt = orders.filter(o => {
         if (o.CARRIER && o.AWB_NUMBER) return false;
+        const s = shipmentsDataMap.get(o.REFERENCE);
+        const state = s?.state || s?.STATE || null;
+        if (_isDelivered(state)) return false;
         const orderTs = parseDate(o.ORDER_DATE)?.getTime() || 0;
         return orderTs >= cutoff;
     }).length;
