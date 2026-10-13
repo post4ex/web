@@ -148,7 +148,17 @@ function _pushShipmentsHistoryState(view, tile) {
 }
 window._pushShipmentsHistoryState = _pushShipmentsHistoryState;
 
+function _applyRoleVisibility() {
+    const userRole = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+    const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+    const acTile = document.querySelector('.tile[data-tile="assign-carrier"]');
+    if (acTile) {
+        acTile.style.display = isStaffPlus ? '' : 'none';
+    }
+}
+
 function showTilesView(fromHistory = false) {
+    _applyRoleVisibility();
     document.getElementById('tilesView').style.display = 'flex';
     document.getElementById('splitViewWrapper').style.display = 'none';
     document.getElementById('assignCarrierView').style.display = 'none';
@@ -171,6 +181,12 @@ function showSplitView(label) {
 }
 
 function handleAssignCarrierTile(fromHistory = false) {
+    const userRole = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+    const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+    if (!isStaffPlus) {
+        showNotification('Access denied: Staff+ permission required', 'error');
+        return;
+    }
     // Show assign carrier view, hide tiles and normal split view
     document.getElementById('tilesView').style.display = 'none';
     document.getElementById('splitViewWrapper').style.display = 'none';
@@ -189,8 +205,14 @@ function handleAssignCarrierTile(fromHistory = false) {
 }
 
 function handleTileClick(tile, fromHistory = false) {
-    // Special case: assign-carrier opens its own dedicated view
+    // Special case: assign-carrier opens its own dedicated view (Staff+ only)
     if (tile === 'assign-carrier') {
+        const userRole = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+        const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+        if (!isStaffPlus) {
+            showNotification('Access denied: Staff+ permission required', 'error');
+            return;
+        }
         handleAssignCarrierTile(fromHistory);
         return;
     }
@@ -388,8 +410,10 @@ function initializePageWithData(appData) {
             window._acData = appData;
 
             updateTileCounts(allOrders);
+            _applyRoleVisibility();
         }
 
+        _applyRoleVisibility();
         applyFilters();
         ui.statusMessage.textContent = '';
     } catch (err) {
@@ -1905,7 +1929,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const initialHash = (window.location.hash || '').replace(/^#/, '');
         history.replaceState({ scope: 'shipments', view: 'tiles' }, '', window.location.pathname + window.location.search);
         if (initialHash) {
-            const targetTile = initialHash.replace(/-detail$/, '');
+            let targetTile = initialHash.replace(/-detail$/, '');
+            const userRole = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+            const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+            if (targetTile === 'assign-carrier' && !isStaffPlus) targetTile = 'all';
             if (targetTile === 'assign-carrier' || document.querySelector(`.tile[data-tile="${targetTile}"]`)) {
                 handleTileClick(targetTile);
             }
@@ -1917,16 +1944,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state || state.scope !== 'shipments' || state.view === 'tiles') {
             showTilesView(true);
         } else if (state.view === 'split') {
-            if (activeTileFilter !== state.tile) {
-                handleTileClick(state.tile, true);
+            let targetTile = state.tile;
+            const userRole = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+            const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+            if (targetTile === 'assign-carrier' && !isStaffPlus) targetTile = 'all';
+            if (activeTileFilter !== targetTile) {
+                handleTileClick(targetTile, true);
             }
             if (isMobileView()) {
                 ui.shipmentListPane.classList.remove('hidden');
                 ui.shipmentDetailPane.classList.add('hidden');
             }
         } else if (state.view === 'detail') {
-            if (activeTileFilter !== state.tile) {
-                handleTileClick(state.tile, true);
+            let targetTile = state.tile;
+            const userRole = (typeof getUser === 'function' && getUser()?.ROLE) || 'GUEST';
+            const isStaffPlus = (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS['STAFF'] || 10);
+            if (targetTile === 'assign-carrier' && !isStaffPlus) targetTile = 'all';
+            if (activeTileFilter !== targetTile) {
+                handleTileClick(targetTile, true);
             }
             showDetailView(true);
         }
@@ -1935,6 +1970,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.tile[data-tile]').forEach(tile => {
         tile.addEventListener('click', () => handleTileClick(tile.dataset.tile));
     });
+
+    _applyRoleVisibility();
 
     AppRefresh.register({
         save:    () => ({ ref: currentSelectedRef, tile: activeTileFilter }),

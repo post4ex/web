@@ -623,15 +623,23 @@
             async function doPublicTrack(query) {
                 setLoadingText('Fetching result...');
                 try {
-                    const res = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/public/track`, {
+                    const res = await fetch('/api/public/track', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ query })
                     });
                     setLoadingText(null);
-                    if (res.status === 429) { window.location.href = 'login.html'; return; }
+                    if (res.status === 429) {
+                        const err = await res.json().catch(() => ({}));
+                        showResultMsg(err.detail || 'Too many tracking requests. Please try again after 1 minute.', 'error');
+                        return;
+                    }
                     if (res.status === 404) { showResultMsg('Shipment not found.', 'error'); return; }
-                    if (!res.ok) { showResultMsg('Something went wrong. Please try again.', 'error'); return; }
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        showResultMsg(err.detail || 'Something went wrong. Please try again.', 'error');
+                        return;
+                    }
                     showFullResult(await res.json());
                 } catch(e) {
                     setLoadingText(null);
@@ -644,7 +652,7 @@
                 try {
                     const token = getSessionId();
                     const param = query.match(/^\d{14}$/) ? 'ref' : 'awb';
-                    const res   = await fetch(`${CONSTANTS.OPERATIONS_URL}/api/movements?${param}=${encodeURIComponent(query)}`, {
+                    const res   = await fetch(`/api/movements?${param}=${encodeURIComponent(query)}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     setLoadingText(null);

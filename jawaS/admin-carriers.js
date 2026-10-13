@@ -109,9 +109,10 @@ const AdminCarriers = (() => {
         const view = document.getElementById('detailView');
         if (!view) return;
 
-        const isEdit    = !!carrier;
-        const canEdit   = _can('ADMIN');
-        const canDelete = _can('MASTER');
+        const isEdit        = !!carrier;
+        const canEdit       = _can('ADMIN');
+        const canDelete     = _can('MASTER');
+        const canSeeBalance = _can('ADMIN');
 
         // Highlight selected in sidebar
         document.querySelectorAll('#carriersList li').forEach(li => {
@@ -138,9 +139,7 @@ const AdminCarriers = (() => {
         const unbilledCost = parseFloat(carrier?.UNBILLED_CARRIER_COST || 0);
         const activeAwbs = parseInt(carrier?.ACTIVE_AWBS_COUNT || 0, 10);
 
-        // ── View Mode HTML ────────────────────────────────────────────────────
-        const viewHtml = isEdit ? `
-            <div class="space-y-4">
+        const topCardHtml = canSeeBalance ? `
                 <!-- Top Card: Accounts Payable (AP) & Live Carrier Exposure -->
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3.5 mb-3 shadow-xs">
                     <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -188,7 +187,40 @@ const AdminCarriers = (() => {
                             TDS Section: <strong class="text-gray-700 font-mono">${carrier.TDS_SECTION || '194C'}</strong> &bull; GST: <strong class="text-gray-700">${gstType}</strong>
                         </div>
                     </div>
-                </div>
+                </div>` : `
+                <!-- Top Card: Carrier Operational Profile (Non-Admin View: Balances Hidden) -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3.5 mb-3 shadow-xs">
+                    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <h4 class="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Carrier Operational Summary
+                        </h4>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700 font-medium">Type: <strong class="text-gray-900">${vendorType}</strong></span>
+                            ${isRcm 
+                                ? '<span class="text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-800 font-semibold">GTA RCM Sec 9(3)</span>'
+                                : '<span class="text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-emerald-800 font-semibold">Forward Charge</span>'
+                            }
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-2 gap-3 text-sm">
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-xs">
+                            <span class="font-semibold text-gray-500 block text-[11px] uppercase tracking-wide">Active In-Transit AWBs</span>
+                            <span class="text-base font-bold text-indigo-700">${activeAwbs.toLocaleString('en-IN')} AWBs</span>
+                            <span class="text-[10px] text-gray-400 block mt-0.5">Live Packets with Carrier</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded border border-gray-200 shadow-xs">
+                            <span class="font-semibold text-gray-500 block text-[11px] uppercase tracking-wide">Govt Transporter ID</span>
+                            <span class="text-sm font-mono font-bold text-gray-900 block truncate">${carrier.TRANSPORT_ID || '—'}</span>
+                            <span class="text-[10px] text-gray-400 block mt-0.5">E-Way Bill Generation</span>
+                        </div>
+                    </div>
+                </div>`;
+
+        // ── View Mode HTML ────────────────────────────────────────────────────
+        const viewHtml = isEdit ? `
+            <div class="space-y-4">
+                ${topCardHtml}
 
                 <!-- Section 1: Carrier & Vendor Logistics Identity -->
                 <div class="border-t pt-3.5">
@@ -649,13 +681,14 @@ const AdminCarriers = (() => {
 
                     <!-- View Mode Content -->
                     <div class="view-only">
-                        ${isEdit ? viewHtml : '<p class="text-gray-500 text-sm">Select a carrier from the sidebar or click + Add to register a new vendor.</p>'}
+                        ${isEdit ? viewHtml : `<p class="text-gray-500 text-sm">Select a carrier from the sidebar${canEdit ? ' or click + Add to register a new vendor' : ''}.</p>`}
                     </div>
 
                     <!-- Edit Mode Form -->
+                    ${canEdit ? `
                     <form id="carriersForm" class="edit-only" autocomplete="off">
                         ${editFields}
-                    </form>
+                    </form>` : '<div class="edit-only p-4 text-center text-sm text-gray-500">Only Admin can add or edit carriers.</div>'}
                     <div id="carriersResponseMsg" class="mt-4 text-center p-3 rounded-lg text-sm hidden"></div>
                 </div>
             </div>
@@ -804,6 +837,14 @@ const AdminCarriers = (() => {
 
     // ── Handle Request (Write / Delete) ───────────────────────────────────────
     async function _handleRequest(action, targetCode = null) {
+        if (action === 'submit' && !_can('ADMIN')) {
+            showNotification('Access denied. Admin role required to create or edit carrier.', 'error');
+            return;
+        }
+        if (action === 'delete' && !_can('MASTER')) {
+            showNotification('Access denied. Master role required to delete carrier.', 'error');
+            return;
+        }
         _setLoading(true);
         const data = {};
 
@@ -906,6 +947,10 @@ const AdminCarriers = (() => {
 
     // ── Open Add Pane ─────────────────────────────────────────────────────────
     function openAddPane() {
+        if (!_can('ADMIN')) {
+            showNotification('Access denied. Only Admin can add carriers.', 'error');
+            return;
+        }
         _selectedCarrier = null;
         _renderList(_allCarriers);
         _renderDetail(null);

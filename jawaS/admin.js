@@ -95,30 +95,48 @@ const AdminPage = (() => {
     }
 
     // ── Role helpers ──────────────────────────────────────────────────────────
-    function _userLevel() { return ROLE_LEVELS[getUser().ROLE] || 0; }
-    function _can(role)   { return _userLevel() >= ROLE_LEVELS[role]; }
+    function _userLevel() {
+        const u = getUser() || {};
+        const role = String(u.ROLE || u.role || '').toUpperCase();
+        const levels = window.ROLE_LEVELS || ROLE_LEVELS || {};
+        return levels[role] || 0;
+    }
+    function _can(role) {
+        const levels = window.ROLE_LEVELS || ROLE_LEVELS || {};
+        return _userLevel() >= (levels[role] || 0);
+    }
 
     // Minimum role required to see each tile
+    // Users, Registrations, Services -> ADMIN (hidden from CLIENT & STAFF)
+    // Staff, Attendance, Shifts & Leaves -> STAFF (hidden from CLIENT, visible to STAFF+)
+    // Branches, Pincodes, Clients, B2B2C, Holidays, Modes, Carriers -> CLIENT (visible to CLIENT+)
     const TILE_MIN_ROLE = {
         users:         'ADMIN',
         registrations: 'ADMIN',
         services:      'ADMIN',
         branches:      'CLIENT',
-        staff:         'ADMIN',
+        staff:         'STAFF',
         attendance:    'STAFF',
         pincodes:      'CLIENT',
         clients:       'CLIENT',
         b2b2c:         'CLIENT',
-        holidays:      'STAFF',
-        shifts:        'MANAGER',
-        modes:         'MASTER',
-        carriers:      'MASTER',
+        holidays:      'CLIENT',
+        shifts:        'STAFF',
+        modes:         'CLIENT',
+        carriers:      'CLIENT',
     };
 
     function _hideTilesByRole() {
+        document.getElementById('early-tile-guard-css')?.remove();
         document.querySelectorAll('[data-tile]').forEach(tile => {
             const minRole = TILE_MIN_ROLE[tile.dataset.tile];
-            if (minRole && !_can(minRole)) tile.classList.add('hidden');
+            if (minRole && !_can(minRole)) {
+                tile.classList.add('hidden');
+                tile.style.display = 'none';
+            } else {
+                tile.classList.remove('hidden');
+                tile.style.removeProperty('display');
+            }
         });
     }
 
@@ -129,15 +147,19 @@ const AdminPage = (() => {
     }
 
     function _loadCountsFromData(data) {
-        _setCount('branches',   Object.keys(data?.BRANCHES  || {}).length);
-        _setCount('staff',      Object.keys(data?.STAFF     || {}).length);
-        _setCount('attendance', Object.keys(data?.ATTENDANCE|| {}).length);
-        _setCount('clients',    Object.keys(data?.B2B       || {}).length);
-        _setCount('b2b2c',      Object.keys(data?.B2B2C     || {}).length);
-        _setCount('holidays',   Object.keys(data?.HOLIDAYS  || {}).length);
-        _setCount('shifts',     Object.values(data?.ATTENDANCE || {}).filter(r => r.SHIFT).length);
-        _setCount('modes',      Object.keys(data?.MODES    || {}).length);
-        _setCount('carriers',   Object.keys(data?.CARRIERS || {}).length);
+        if (_can('CLIENT')) {
+            _setCount('branches',   Object.keys(data?.BRANCHES  || {}).length);
+            _setCount('clients',    Object.keys(data?.B2B       || {}).length);
+            _setCount('b2b2c',      Object.keys(data?.B2B2C     || {}).length);
+            _setCount('holidays',   Object.keys(data?.HOLIDAYS  || {}).length);
+            _setCount('modes',      Object.keys(data?.MODES    || {}).length);
+            _setCount('carriers',   Object.keys(data?.CARRIERS || {}).length);
+        }
+        if (_can('STAFF')) {
+            _setCount('staff',      Object.keys(data?.STAFF     || {}).length);
+            _setCount('attendance', Object.keys(data?.ATTENDANCE|| {}).length);
+            _setCount('shifts',     Object.values(data?.ATTENDANCE || {}).filter(r => r.SHIFT).length);
+        }
         try {
             if (typeof window.getPincodeCount === 'function')
                 _setCount('pincodes', window.getPincodeCount().toLocaleString('en-IN'));
@@ -236,7 +258,7 @@ const AdminPage = (() => {
         if (!fromHistory) {
             _pushHistoryState('split', name);
         }
-        const showAdd = (name === 'users' && _can('ADMIN')) || (name === 'branches' && _can('ADMIN')) || (name === 'b2b2c' && _can('CLIENT')) || (name === 'staff' && _can('ADMIN')) || (name === 'holidays' && _can('ADMIN')) || (name === 'clients' && _can('MANAGER')) || (name === 'modes' && _can('MASTER')) || (name === 'carriers' && _can('MASTER'));
+        const showAdd = (name === 'users' && _can('ADMIN')) || (name === 'branches' && _can('ADMIN')) || (name === 'b2b2c' && _can('CLIENT')) || (name === 'staff' && _can('ADMIN')) || (name === 'holidays' && _can('ADMIN')) || (name === 'clients' && _can('MANAGER')) || (name === 'modes' && _can('ADMIN')) || (name === 'carriers' && _can('ADMIN'));
         document.getElementById('addUserBtn').classList.toggle('hidden', !showAdd);
 
         try {
@@ -388,8 +410,9 @@ const AdminPage = (() => {
         _showDetailPane();
 
         const ROLES = ['CLIENT','STAFF','MANAGER','ACCOUNTANT','AUDITOR','ADMIN','MASTER'];
-        const cc  = (prefill.MOBILE || '').includes('-') ? prefill.MOBILE.split('-')[0] : '91';
-        const num = (prefill.MOBILE || '').includes('-') ? prefill.MOBILE.split('-')[1] : (prefill.MOBILE || '');
+        const _rawMob = (prefill.MOBILE || '').replace(/[\s-]/g, '');
+        const cc  = '91';
+        const num = _rawMob.startsWith('91') ? _rawMob.slice(2) : _rawMob;
 
         document.getElementById('detailView').innerHTML = `
             <div class="detail-card">
@@ -440,11 +463,12 @@ const AdminPage = (() => {
             e.preventDefault();
             const f = e.target;
             const cc  = f.MOBILE_CC?.value.trim()  || '91';
-            const num = f.MOBILE_NUM?.value.trim()  || '';
+            const rawNum = f.MOBILE_NUM?.value.trim()  || '';
+            const cleanNum = rawNum.replace(/^91/, '').replace(/[\s-]/g, '');
             const payload = {
                 USER: f.USER.value.trim(), NAME: f.NAME.value.trim(),
                 EMAIL: f.EMAIL.value.trim(),
-                MOBILE: num ? `${cc}-${num}` : '',
+                MOBILE: cleanNum ? `${cc}${cleanNum}` : '',
                 BRANCH: f.BRANCH.value.trim(), ROLE: f.ROLE.value,
                 CODE: f.CODE.value.trim(), STATUS: f.STATUS.value,
                 COL_FILTER: f.COL_FILTER.value.trim(), FILTER_VALUE: f.FILTER_VALUE.value.trim(),

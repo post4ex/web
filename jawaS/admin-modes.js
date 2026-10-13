@@ -79,6 +79,10 @@ const AdminModes = (() => {
     }
 
     function openAddPane() {
+        if (!_can('ADMIN')) {
+            showNotification('Access denied. Only Admin can add transport modes.', 'error');
+            return;
+        }
         _selectedMode = null;
         _renderList(_allModes);
         _renderDetail(null);
@@ -431,13 +435,14 @@ const AdminModes = (() => {
 
                     <!-- View Mode Read-only Content -->
                     <div class="view-only">
-                        ${isEdit ? viewHtml : '<p class="text-gray-500 text-sm">Select a transport mode from the list or create a new one.</p>'}
+                        ${isEdit ? viewHtml : `<p class="text-gray-500 text-sm">Select a transport mode from the list${canEdit ? ' or click + Add to create a new one' : ''}.</p>`}
                     </div>
 
                     <!-- Edit Mode Form -->
+                    ${canEdit ? `
                     <form id="modesForm" class="edit-only">
                         ${editFields}
-                    </form>
+                    </form>` : '<div class="edit-only p-4 text-center text-sm text-gray-500">Only Admin can add or edit transport modes.</div>'}
                     <div id="modesResponseMsg" class="mt-4 text-center p-3 rounded-lg text-sm hidden"></div>
                 </div>
             </div>`;
@@ -585,6 +590,14 @@ const AdminModes = (() => {
     // ── API Operations ────────────────────────────────────────────────────────
     async function _handleRequest(action) {
         const isDel = action === 'delete';
+        if (isDel && !_can('MASTER')) {
+            showNotification('Access denied. Master role required to delete mode.', 'error');
+            return;
+        }
+        if (!isDel && !_can('ADMIN')) {
+            showNotification('Access denied. Admin role required to create or edit mode.', 'error');
+            return;
+        }
         _setLoading(true, isDel ? 'delete' : 'submit');
         let data = {};
         if (isDel) {

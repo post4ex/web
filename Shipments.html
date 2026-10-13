@@ -151,6 +151,18 @@
     <script>
         (() => {
             try {
+                const uRaw = localStorage.getItem('loginData');
+                if (uRaw) {
+                    const raw = JSON.parse(uRaw);
+                    const u = raw.userData || raw;
+                    const r = (u.ROLE || u.role || '').toUpperCase();
+                    if (r === 'CLIENT') {
+                        const s = document.createElement('style');
+                        s.id = 'client-shipments-style';
+                        s.textContent = '.tile[data-tile="assign-carrier"] { display: none !important; }';
+                        document.head.appendChild(s);
+                    }
+                }
                 const cachedHeader = sessionStorage.getItem('component-header.html');
                 const cachedFooter = sessionStorage.getItem('component-footer.html');
                 if (!cachedHeader && !cachedFooter) return;

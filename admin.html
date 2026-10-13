@@ -47,8 +47,51 @@
     }
     .detail-card.mode-view .edit-only { display: none !important; }
     .detail-card.mode-edit .view-only { display: none !important; }
+    .classy-tile.hidden, .tile.hidden, [data-tile].hidden { display: none !important; }
     </style>
-    <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
+    <!-- Immediate Role-based Tile Guard & Layout Cache Injection to Prevent Page Navigation Flicker -->
+    <script>
+        (() => {
+            try {
+                const uRaw = localStorage.getItem('loginData');
+                if (uRaw) {
+                    const raw = JSON.parse(uRaw);
+                    const u = raw.userData || raw;
+                    const role = (u.ROLE || u.role || '').toUpperCase();
+                    const levels = { MASTER: 100, ADMIN: 90, AUDITOR: 70, ACCOUNTANT: 60, MANAGER: 50, STAFF: 10, CLIENT: 1, GUEST: 0 };
+                    const userLevel = levels[role] || 0;
+                    const tileMinRole = {
+                        users:         'ADMIN',
+                        registrations: 'ADMIN',
+                        services:      'ADMIN',
+                        branches:      'CLIENT',
+                        staff:         'STAFF',
+                        attendance:    'STAFF',
+                        pincodes:      'CLIENT',
+                        clients:       'CLIENT',
+                        b2b2c:         'CLIENT',
+                        holidays:      'CLIENT',
+                        shifts:        'STAFF',
+                        modes:         'CLIENT',
+                        carriers:      'CLIENT'
+                    };
+                    const hiddenSelectors = [];
+                    for (const [tile, minR] of Object.entries(tileMinRole)) {
+                        if (userLevel < (levels[minR] || 0)) {
+                            hiddenSelectors.push(`.tile[data-tile="${tile}"]`);
+                            hiddenSelectors.push(`[data-tile="${tile}"]`);
+                        }
+                    }
+                    if (hiddenSelectors.length > 0) {
+                        const style = document.createElement('style');
+                        style.id = 'early-tile-guard-css';
+                        style.textContent = hiddenSelectors.join(', ') + ' { display: none !important; }';
+                        document.head.appendChild(style);
+                    }
+                }
+            } catch (_) {}
+        })();
+    </script>
     <script>
         (() => {
             try {

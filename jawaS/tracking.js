@@ -1,6 +1,23 @@
 // ============================================================================
-// TRACKING.JS — Authenticated tracking page logic
+// TRACKING.JS — Authenticated & Public tracking presentation logic
 // ============================================================================
+
+(function ensureTrackingStyles() {
+    if (typeof document === 'undefined' || document.getElementById('tracking-responsive-style')) return;
+    const style = document.createElement('style');
+    style.id = 'tracking-responsive-style';
+    style.textContent = `
+        @media (min-width: 768px) {
+            .mobile-only-mov { display: none !important; }
+            .desktop-only-mov { display: block !important; }
+        }
+        @media (max-width: 767.98px) {
+            .desktop-only-mov { display: none !important; }
+            .mobile-only-mov { display: block !important; }
+        }
+    `;
+    document.head.appendChild(style);
+})();
 
 const TRACK_STATE_BADGE = {
     delivered:      { bg: 'bg-amber-100',  text: 'text-amber-800',  icon: 'fa-circle-check',         label: 'Delivered'        },
@@ -36,7 +53,7 @@ function renderTrackingResult(data, containerId) {
         { label: 'Destination', value: s.carrier_destination || s.destination,     icon: 'fa-location-dot'    },
         { label: 'Booked On',   value: s.booked_date,                              icon: 'fa-calendar-days'   },
         { label: 'AWB No.',     value: s.awb || s.carrier_awb,                    icon: 'fa-hashtag'         },
-        { label: 'Reference',   value: s.ref,                                      icon: 'fa-fingerprint'     },
+        { label: 'Reference',   value: s.ref || s.reference,                       icon: 'fa-fingerprint'     },
         { label: 'Weight',      value: s.weight ? `${s.weight} kg · ${s.pieces||1} pcs` : null, icon: 'fa-weight-hanging' },
     ].filter(i => i.value);
 
@@ -140,6 +157,25 @@ function renderTrackingResult(data, containerId) {
                 </div>
             </div>
 
+            <!-- Proof of Delivery (POD) Banner if available -->
+            ${(s.pod_url || s.pod_available) ? `
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;box-shadow:0 2px 8px rgba(22,163,74,0.06);">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <div style="width:2.25rem;height:2.25rem;background:#dcfce7;border-radius:0.6rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fa-solid fa-file-shield" style="color:#16a34a;font-size:1.1rem;"></i>
+                    </div>
+                    <div>
+                        <p style="font-size:0.8rem;font-weight:800;color:#166534;margin:0;">Proof of Delivery (POD) Available</p>
+                        <p style="font-size:0.68rem;color:#15803d;margin:2px 0 0 0;">Official signature & delivery proof recorded</p>
+                    </div>
+                </div>
+                ${s.pod_url ? `
+                <button type="button" onclick="window.viewPodImage('${s.pod_url}')" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:0.45rem 1rem;border-radius:0.5rem;font-size:0.75rem;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;box-shadow:0 2px 6px rgba(22,163,74,0.25);transition:transform 0.1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                    <i class="fa-solid fa-eye" style="font-size:0.75rem;"></i> View POD Document
+                </button>` : `
+                <span style="background:#dcfce7;color:#166534;padding:0.35rem 0.75rem;border-radius:0.5rem;font-size:0.72rem;font-weight:700;">Verified on File</span>`}
+            </div>` : ''}
+
             <!-- Movement History -->
             <div style="background:white;border:1px solid #e2e8f0;border-radius:1rem;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);">
                 <div style="padding:0.875rem 1rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to right,#f8fafc,#fff);">
@@ -170,6 +206,37 @@ function showTrackMsg(text, type, containerId) {
     el.classList.remove('hidden');
 }
 
+window.viewPodImage = function(url) {
+    let modal = document.getElementById('pod-image-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'pod-image-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.8);backdrop-filter:blur(6px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div style="background:white;border-radius:1rem;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);border:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1.25rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <i class="fa-solid fa-file-shield" style="color:#16a34a;"></i>
+                    <span style="font-size:0.85rem;font-weight:800;color:#1e293b;">Proof of Delivery (POD)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <a href="${url}" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem;color:#2563eb;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:0.3rem;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Full Resolution
+                    </a>
+                    <button onclick="document.getElementById('pod-image-modal').style.display='none'" style="background:none;border:none;font-size:1.25rem;cursor:pointer;color:#64748b;line-height:1;padding:0.2rem 0.4rem;">✕</button>
+                </div>
+            </div>
+            <div style="padding:1rem;overflow:auto;display:flex;align-items:center;justify-content:center;background:#0f172a;max-height:calc(92vh - 60px);">
+                <img src="${url}" alt="POD Image" style="max-width:100%;max-height:75vh;object-fit:contain;border-radius:0.375rem;box-shadow:0 4px 16px rgba(0,0,0,0.3);">
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+};
+
 async function doAuthTrack(query, msgId, loadingId, resultId) {
     const loading = document.getElementById(loadingId);
     const msg     = document.getElementById(msgId);
@@ -187,7 +254,11 @@ async function doAuthTrack(query, msgId, loadingId, resultId) {
         if (loading) loading.classList.add('hidden');
         if (res.status === 401) { handleLogout(); return; }
         if (res.status === 404) { showTrackMsg('Shipment not found.', 'error', msgId); return; }
-        if (!res.ok)            { showTrackMsg('Something went wrong.', 'error', msgId); return; }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showTrackMsg(err.detail || 'Something went wrong.', 'error', msgId);
+            return;
+        }
         renderTrackingResult(await res.json(), resultId);
     } catch (e) {
         if (loading) loading.classList.add('hidden');
