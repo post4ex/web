@@ -146,6 +146,31 @@
         .doc-action-btn--wa:hover { background: #f0fdf4; }
 
         .doc-action-btn--disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+        /* Search Clear Button */
+        #searchShipments { padding-right: 2rem; }
+        #clearSearchBtn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            background: transparent;
+            border: none;
+            border-radius: 9999px;
+            cursor: pointer;
+            padding: 0;
+            transition: color 0.15s, background-color 0.15s;
+        }
+        #clearSearchBtn:hover {
+            color: #4b5563;
+            background-color: #e5e7eb;
+        }
     </style>
     <!-- Immediate Layout Cache Injection to Prevent Page Navigation Flicker -->
     <script>
@@ -452,8 +477,13 @@
                     </span>
                 </div>
                 <div class="flex gap-2">
-                    <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Invoice, Client..." class="form-input w-full text-sm">
-                    <button id="filterToggleBtn" class="p-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                    <div class="relative flex-1">
+                        <input type="text" id="searchShipments" placeholder="Search AWB, Ref, Invoice, Client..." class="form-input w-full text-sm">
+                        <button id="clearSearchBtn" type="button" title="Clear search & filters" aria-label="Clear search">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <button id="filterToggleBtn" class="p-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
                     </button>
                 </div>

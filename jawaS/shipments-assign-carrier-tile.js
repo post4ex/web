@@ -201,10 +201,33 @@ function initAssignCarrierTile(data) {
         });
         placeholder.classList.add('hidden');
         listEl.classList.remove('hidden');
+
+        // --- Restore selection if previous reference was open ---
+        const prevRef = referenceInput?.value;
+        if (prevRef) {
+            const matchLi = listEl.querySelector(`li[data-ref="${prevRef}"]`);
+            if (matchLi) {
+                matchLi.classList.add('selected');
+                activeEl = matchLi;
+            }
+        }
     }
 
+    // Preserve scroll position if list was already scrolled
+    const prevScrollTop = listEl ? listEl.scrollTop : 0;
     form._allShipments = allShipments;
-    renderList(allShipments);
+    const currentQ = searchInput?.value?.toLowerCase()?.trim() || '';
+    if (currentQ) {
+        renderList(allShipments.filter(s =>
+            String(s.REFERENCE  || '').toLowerCase().includes(currentQ) ||
+            String(s.AWB_NUMBER || '').toLowerCase().includes(currentQ) ||
+            (s.CONSIGNOR || '').toLowerCase().includes(currentQ) ||
+            (s.CONSIGNEE || '').toLowerCase().includes(currentQ)
+        ));
+    } else {
+        renderList(allShipments);
+    }
+    if (listEl && prevScrollTop) listEl.scrollTop = prevScrollTop;
 
     // --- SEARCH & NAVIGATION & SUBMIT (Only bind once) ---
     if (!form._acInitialized) {

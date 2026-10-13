@@ -474,6 +474,10 @@ async function loadFromIndexedDB() {
 
 // --- FILTERS ---
 function populateFilters(orders) {
+    const curBranch  = ui.filterBranch?.value  || '';
+    const curCode    = ui.filterCode?.value    || '';
+    const curCarrier = ui.filterCarrier?.value || '';
+
     ui.filterBranch.length = 1; ui.filterCode.length = 1; ui.filterCarrier.length = 1;
     const branches = [...new Set(orders.map(o => o.BRANCH).filter(Boolean))];
     const codes    = [...new Set(orders.map(o => o.CODE).filter(Boolean))];
@@ -481,6 +485,18 @@ function populateFilters(orders) {
     branches.sort().forEach(v => ui.filterBranch.add(new Option(v, v)));
     codes.sort().forEach(v => ui.filterCode.add(new Option(v, v)));
     carriers.sort().forEach(v => ui.filterCarrier.add(new Option(v, v)));
+
+    if (curBranch)  ui.filterBranch.value  = curBranch;
+    if (curCode)    ui.filterCode.value    = curCode;
+    if (curCarrier) ui.filterCarrier.value = curCarrier;
+}
+
+function _syncClearBtnVisibility() {
+    if (!ui.clearSearchBtn) return;
+    const hasSearch = !!(ui.searchShipments?.value?.trim());
+    const hasQuick = !!activeTatFilter;
+    const hasModal = !!(ui.filterStartDate?.value || ui.filterEndDate?.value || ui.filterBranch?.value || ui.filterCode?.value || ui.filterCarrier?.value);
+    ui.clearSearchBtn.style.display = (hasSearch || hasQuick || hasModal) ? 'flex' : 'none';
 }
 
 let _filterListenersSetup = false;
@@ -488,13 +504,41 @@ let _filterListenersSetup = false;
 function setupFilterListeners() {
     if (_filterListenersSetup) return;
     _filterListenersSetup = true;
-    ui.searchShipments.addEventListener('input', applyFilters);
+
+    ui.searchShipments.addEventListener('input', () => {
+        _syncClearBtnVisibility();
+        applyFilters();
+    });
+
+    if (ui.clearSearchBtn) {
+        ui.clearSearchBtn.addEventListener('click', () => {
+            ui.searchShipments.value = '';
+            if (activeTatFilter) {
+                activeTatFilter = null;
+                _updateTatPills();
+            }
+            ui.filterStartDate.value = '';
+            ui.filterEndDate.value   = '';
+            ui.filterBranch.value    = '';
+            ui.filterCode.value      = '';
+            ui.filterCarrier.value   = '';
+            _syncClearBtnVisibility();
+            applyFilters();
+            ui.searchShipments.focus();
+        });
+    }
+
     ui.filterToggleBtn.addEventListener('click', () => ui.filterModal.classList.remove('hidden'));
-    ui.applyFiltersBtn.addEventListener('click', () => { applyFilters(); ui.filterModal.classList.add('hidden'); });
+    ui.applyFiltersBtn.addEventListener('click', () => {
+        _syncClearBtnVisibility();
+        applyFilters();
+        ui.filterModal.classList.add('hidden');
+    });
     document.getElementById('close-filter-modal').addEventListener('click', () => ui.filterModal.classList.add('hidden'));
     ui.resetFiltersBtn.addEventListener('click', () => {
         ui.filterStartDate.value = ''; ui.filterEndDate.value = '';
         ui.filterBranch.value = ''; ui.filterCode.value = ''; ui.filterCarrier.value = '';
+        _syncClearBtnVisibility();
         applyFilters();
     });
     ui.filterModal.addEventListener('click', e => { if (e.target === ui.filterModal) ui.filterModal.classList.add('hidden'); });
@@ -568,6 +612,7 @@ function applyFilters() {
     renderShipmentList(filteredOrders);
     _fetchTatTrackStatuses(filteredOrders);
     ui.statusMessage.textContent = '';
+    if (typeof _syncClearBtnVisibility === 'function') _syncClearBtnVisibility();
 
     // Selection persistence: during sync refreshes, only update live sections of the detail pane
     const isSyncRefresh = _syncRefreshInProgress;
@@ -704,10 +749,6 @@ async function _fetchTatTrackStatuses(orders) {
 
     if (activeTileFilter === 'tat' || activeTileFilter === 'overduetat') {
         _renderTatQuickFilters();
-        if ([...tatTrackStatuses.values()].some(s => s === 'delivered')) {
-            activeTatFilter = 'delivered';
-            _updateTatPills();
-        }
     } else {
         const el = document.getElementById('tatQuickFilters');
         if (el) { el.style.display = 'none'; el.innerHTML = ''; }
@@ -798,16 +839,15 @@ function renderShipmentDetails(order) {
     const carrier = carriersDataMap.get(order.CARRIER) || order.CARRIER || 'N/A';
     const mode    = modesDataMap.get(order.MODE) || order.MODE || 'N/A';
     const d = [
-        {l:'Carrier',   v:carrier},       {l:'Mode',      v:mode},
-        {l:'TAT',       v:order.TAT},      {l:'Zone',      v:order.ZONE},
-        {l:'Wt(kg)',    v:order.WEIGHT},   {l:'ChgWt(kg)', v:order.CHG_WT},
-        {l:'Pcs',       v:order.PIECS},    {l:'Value',     v:order.VALUE},
-        {l:'COD',       v:order.COD},      {l:'ToPay',     v:order.TOPAY},
-        {l:'FOV',       v:order.FOV},      {l:'Global',    v:order.GLOBAL},
-        {l:'Invoice ID', v:order.INVOICE_ID}, {l:'Inv No', v:order.INV_NUMBER}
+        {l:'Mode',      v:mode},          {l:'Zone',      v:order.ZONE},
+        {l:'TAT',       v:order.TAT},      {l:'Wt(kg)',    v:order.WEIGHT},
+        {l:'ChgWt(kg)', v:order.CHG_WT},   {l:'Pcs',       v:order.PIECS},
+        {l:'Value',     v:order.VALUE},    {l:'COD',       v:order.COD},
+        {l:'ToPay',     v:order.TOPAY},    {l:'FOV',       v:order.FOV}
     ];
     const visible = d.filter(i => i.v !== undefined && i.v !== null && i.v !== '');
     let h = `<table class="w-full text-xs border-collapse border border-gray-200">`;
+    h += `<tr><td class="border border-gray-200 px-2 py-1 text-gray-500 bg-gray-50 w-1/4">Carrier</td><td class="border border-gray-200 px-2 py-1 font-semibold text-gray-800" colspan="3">${carrier}</td></tr>`;
     for (let i = 0; i < visible.length; i += 2) {
         const a = visible[i], b = visible[i + 1];
         h += `<tr>`;
@@ -942,6 +982,26 @@ function showShipmentCharges(orderOrRef) {
 
     const fmt = (v) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const gstTotal = (parseFloat(order.CGST || 0) + parseFloat(order.SGST || 0) + parseFloat(order.IGST || 0));
+
+    // Billing / Invoice Details Block
+    const invId   = order.INVOICE_ID || null;
+    const invNo   = order.INV_NUMBER || null;
+    const invDate = order.INVOICE_DATE ? fmtDate(order.INVOICE_DATE) : null;
+    const hasInvoiceInfo = invId || invNo || invDate;
+
+    const invoiceInfoHtml = hasInvoiceInfo ? `
+        <div class="bg-blue-50/70 border border-blue-200/80 rounded-lg p-2.5 text-xs text-gray-700 mb-3">
+            <div class="font-bold text-blue-900 uppercase tracking-wide text-[10px] mb-1.5 flex items-center justify-between">
+                <span>Billing &amp; Invoice Info</span>
+                ${invNo ? '<span class="bg-blue-200/80 text-blue-900 px-1.5 py-0.2 rounded font-semibold text-[10px]">Billed</span>' : '<span class="bg-gray-200 text-gray-600 px-1.5 py-0.2 rounded font-medium text-[10px]">Unbilled</span>'}
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div><span class="text-gray-500 text-[11px] block">Invoice ID:</span><span class="font-semibold text-gray-800">${invId || '—'}</span></div>
+                <div><span class="text-gray-500 text-[11px] block">Invoice No:</span><span class="font-semibold text-gray-800">${invNo || '—'}</span></div>
+                <div><span class="text-gray-500 text-[11px] block">Invoice Date:</span><span class="font-semibold text-gray-800">${invDate || '—'}</span></div>
+            </div>
+        </div>
+    ` : '';
 
     const chargeItems = [
         { label: 'Freight (Base)', val: +order.FRIGHT || 0, isBase: true },
@@ -1116,7 +1176,7 @@ function showShipmentCharges(orderOrRef) {
         </div>
     `;
 
-    body.innerHTML = desktopTable + mobileCards;
+    body.innerHTML = invoiceInfoHtml + desktopTable + mobileCards;
     modal.classList.remove('hidden');
 }
 window.showShipmentCharges = showShipmentCharges;
@@ -1885,6 +1945,7 @@ document.addEventListener('DOMContentLoaded', () => {
         shipmentDetailPane:         document.getElementById('shipmentDetailPane'),
         backToListBtn:              document.getElementById('backToListBtn'),
         searchShipments:            document.getElementById('searchShipments'),
+        clearSearchBtn:             document.getElementById('clearSearchBtn'),
         filterToggleBtn:            document.getElementById('filterToggleBtn'),
         filterModal:                document.getElementById('filterModal'),
         filterStartDate:            document.getElementById('filter-start-date'),
