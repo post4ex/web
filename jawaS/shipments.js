@@ -21,6 +21,7 @@ let ui = {};
 
 // Track whether a sync refresh is in progress (for partial refresh)
 let _syncRefreshInProgress = false;
+let _filterListenersSetup = false;
 
 // --- SHARED DOC ACTION BUTTONS ---
 const _docIco = {
@@ -411,6 +412,10 @@ function initializePageWithData(appData) {
 
             // Update assign carrier data so the tile gets fresh data when opened
             window._acData = appData;
+            const acView = document.getElementById('assignCarrierView');
+            if (acView && acView.style.display !== 'none' && typeof initAssignCarrierTile === 'function') {
+                initAssignCarrierTile(appData);
+            }
 
             updateTileCounts(allOrders);
             _applyRoleVisibility();
@@ -498,8 +503,6 @@ function _syncClearBtnVisibility() {
     const hasModal = !!(ui.filterStartDate?.value || ui.filterEndDate?.value || ui.filterBranch?.value || ui.filterCode?.value || ui.filterCarrier?.value);
     ui.clearSearchBtn.style.display = (hasSearch || hasQuick || hasModal) ? 'flex' : 'none';
 }
-
-let _filterListenersSetup = false;
 
 function setupFilterListeners() {
     if (_filterListenersSetup) return;
@@ -630,17 +633,22 @@ function applyFilters() {
             const currentOrder = filteredOrders.find(o => o.REFERENCE === currentSelectedRef);
             if (currentOrder) {
                 if (isSyncRefresh) {
-                    // Partial refresh: only update live tracking data, skip full detail re-render
-                    // Status badges already updated by _fetchTatTrackStatuses above
-                    // Refresh tracking history if it was previously loaded
-                    const historyEl = document.getElementById('liveTrackingHistory');
-                    if (historyEl && historyEl.innerHTML && !historyEl.innerHTML.includes('Loading')) {
-                        _fetchAndRenderTracking(currentOrder, false, true);
-                    }
-                    // Update the selected state on the list item
+                    // Update the selected state on the list item without resetting detail view
                     ui.shipmentList.querySelectorAll('li.selected').forEach(li => li.classList.remove('selected'));
                     const selectedLi = ui.shipmentList.querySelector(`li[data-ref="${currentSelectedRef}"]`);
                     if (selectedLi) selectedLi.classList.add('selected');
+
+                    // In-memory status update: only update header badge if available, skip network fetch
+                    const s = shipmentsDataMap.get(currentOrder.REFERENCE);
+                    if (s) {
+                        const sc = _stateConfig[s.state || s.STATE] || _stateConfig.intransit;
+                        const badge = `<span class="status-badge ${sc.cls}">${sc.label}</span>`;
+                        const titleEl = ui.trackingStatusContainer?.querySelector('.detail-card-header h3');
+                        if (titleEl) {
+                            const latestDate = s.booked_date || '';
+                            titleEl.innerHTML = `Tracking Status &nbsp;${badge}${latestDate ? `<span class="text-xs font-normal text-gray-400 ml-1">${latestDate}</span>` : ''}`;
+                        }
+                    }
                 } else {
                     handleShipmentSelection(currentSelectedRef, ui.shipmentList.querySelector(`li[data-ref="${currentSelectedRef}"]`));
                 }
@@ -2037,26 +2045,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     _applyRoleVisibility();
 
-    AppRefresh.register({
-        save:    () => ({ ref: currentSelectedRef, tile: activeTileFilter }),
-        restore: ({ ref, tile }) => {
-            activeTileFilter = tile;
-            if (ref) {
-                handleShipmentSelection(ref, ui.shipmentList.querySelector(`li[data-ref="${ref}"]`));
-            } else if (tile !== 'all') {
-                showSplitView(_tileLabels[tile] || 'Shipments');
-                applyFilters();
-            }
-        }
-    });
+    if (window.AppRefresh && typeof window.AppRefresh.unregister === 'function') {
+        window.AppRefresh.unregister();
+    }
 
     loadFromIndexedDB();
 });
 
 window.onShipmentStatusUpdated = function(reference, newStatus) {
-    if (selectedShipmentRecord && selectedShipmentRecord.REFERENCE === reference) {
-        _fetchAndRenderTracking(selectedShipmentRecord, true);
-    } else if (typeof loadFromIndexedDB === 'function') {
-        loadFromIndexedDB();
+    if (currentSelectedRef && String(currentSelectedRef) === String(reference)) {
+        const order = allOrders.find(o => String(o.REFERENCE) === String(reference));
+        if (order) _fetchAndRenderTracking(order, true);
     }
 };
