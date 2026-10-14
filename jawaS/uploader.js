@@ -14,7 +14,7 @@ let allOrdersList = [];   // sorted array for filter/render — rebuilt on each 
 let displayedOrders = [];
 let displayDays     = 90;
 let selectedOrder   = null;
-let selectedUploadTypes = new Set();
+let selectedUploadTypes = new Set(['Product', 'MultiBox']);
 let currentUploadType = null;
 
 // --- V1 State Variables (Uploader) ---
@@ -671,6 +671,11 @@ document.addEventListener('DOMContentLoaded', () => {
      cropRotateBtn = document.getElementById('crop-rotate-btn');
      selectionCanvas = document.getElementById('selection-canvas');
      uploadTypeStrip = document.querySelector('.upload-type-strip');
+     if (uploadTypeStrip) {
+         uploadTypeStrip.querySelectorAll('.type-btn.active').forEach(b => {
+             if (b.dataset.type) selectedUploadTypes.add(b.dataset.type);
+         });
+     }
      statusBar = document.getElementById('status-bar'); 
      enhanceBtn = document.getElementById('enhance-btn');
      enhancementControls = document.getElementById('enhancement-controls');
