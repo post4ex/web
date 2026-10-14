@@ -557,19 +557,14 @@
             }
 
 
-            /* --- General Table-to-Card Conversion --- */
-            .data-table-container table,
-            .pickup-table {
+            /* --- General Table-to-Card Conversion for Submission Table --- */
+            .data-table-container table {
                 border: 0;
             }
-            
-            .data-table-container thead,
-            .pickup-table thead {
+            .data-table-container thead {
                 display: none; /* Hide desktop headers */
             }
-
-            .data-table-container tr,
-            .pickup-table tr {
+            .data-table-container tr {
                 display: block;
                 background: #fff;
                 border: 1px solid #e2e8f0;
@@ -578,9 +573,7 @@
                 margin-bottom: 1rem;
                 padding: 0.75rem;
             }
-
-            .data-table-container td,
-            .pickup-table td {
+            .data-table-container td {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -591,47 +584,110 @@
                 border: none;
                 border-bottom: 1px dashed #eee;
             }
-            
-            /* Fix for pickup table inputs */
-            .pickup-table td {
-                flex-wrap: wrap;
-            }
-            
-            .data-table-container tr td:last-child,
-            .pickup-table tr td:last-child {
+            .data-table-container tr td:last-child {
                 border-bottom: none;
             }
-
-            /* Add data labels */
-            .data-table-container td::before,
-            .pickup-table td::before {
+            .data-table-container td::before {
                 content: attr(data-label);
                 font-weight: 600;
                 color: #333;
                 text-align: left;
                 padding-right: 1rem;
-                flex-basis: 40%; /* Give label space */
+                flex-basis: 40%;
             }
-            
-            /* --- Pickup Table Adjustments --- */
+
+            /* --- Compact Pickup Table Cards on Mobile --- */
+            #dynamic-input-area {
+                max-height: 340px;
+            }
+            .pickup-table {
+                border: 0;
+            }
+            .pickup-table thead {
+                display: none;
+            }
+            .pickup-table tr {
+                display: block;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+                margin-bottom: 0.5rem;
+                padding: 0.5rem 0.625rem;
+            }
+            .pickup-table tr.selected-pickup-row {
+                border-color: #818cf8;
+                background-color: #f5f7ff;
+            }
+            .pickup-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 3px 0;
+                font-size: 0.8125rem;
+                line-height: 1.25;
+                text-align: right;
+                white-space: normal;
+                border: none;
+                border-bottom: 1px solid #f1f5f9;
+                flex-wrap: wrap;
+            }
+            .pickup-table tr td:last-child {
+                border-bottom: none;
+            }
             .pickup-table td::before {
-                width: 30%; /* Give label a fixed width */
-                min-width: 80px;
-                flex-basis: auto; /* Override general rule */
+                content: attr(data-label);
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #64748b;
+                text-align: left;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+                padding-right: 0.5rem;
+                width: 25%;
+                min-width: 65px;
+                flex-basis: auto;
+            }
+            .pickup-table td[data-label="Type"] {
+                font-weight: 700;
+                color: #1e3a8a;
+                font-size: 0.875rem;
+            }
+            .pickup-table td[data-label="Input"] {
+                padding: 4px 0;
             }
             .pickup-table input[type="text"],
-            .pickup-table select,
-            .pickup-table .kyc-inputs {
+            .pickup-table select {
                 flex-grow: 1;
                 width: auto;
-                min-width: 150px;
+                min-width: 0;
+                padding: 3px 6px;
+                height: 28px;
+                font-size: 0.8125rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
             }
-            /* Action button cell */
+            .pickup-table .kyc-inputs {
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+                flex-grow: 1;
+                width: 100%;
+            }
             .pickup-table td[data-label="Action"] {
-                padding: 0.5rem 0 0 0; /* Full width button */
+                padding: 4px 0 0 0;
+                border-bottom: none;
             }
             .pickup-table td[data-label="Action"]::before {
-                display: none; /* No label for action button */
+                display: none;
+            }
+            .pickup-table .pick-btn-dynamic {
+                width: 100%;
+                padding: 4px 10px;
+                height: 28px;
+                font-size: 0.8125rem;
+                font-weight: 600;
+                border-radius: 4px;
             }
 
 
