@@ -14,6 +14,7 @@ let allOrdersList = [];   // sorted array for filter/render — rebuilt on each 
 let displayedOrders = [];
 let displayDays     = 90;
 let selectedOrder   = null;
+let selectedUploadTypes = new Set();
 let currentUploadType = null;
 
 // --- V1 State Variables (Uploader) ---
@@ -454,8 +455,9 @@ products.forEach(product => {
     actionCell.dataset.label = "Action";
     actionCell.appendChild(createPickButton(pickData));
 });
-    } else if (currentUploadType === 'Product') { // Only show "no products" if in filter mode
-tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 15px; color: #888;">No products found for this order.</td></tr>';
+    } else if (selectedUploadTypes.has('Product') && selectedUploadTypes.size === 1) {
+        const emptyRow = tableBody.insertRow();
+        emptyRow.innerHTML = '<td colspan="5" style="text-align: center; padding: 15px; color: #888;">No products found for this order.</td>';
     }
 }
 
@@ -539,35 +541,28 @@ return; // Stop here
     `;
     const tableBody = document.createElement('tbody');
 
-    // --- 3. Populate table based on mode ---
-    if (currentUploadType === null) {
-        // "All" mode - render every type
+    // --- 3. Populate table based on mode (Multi-select supported) ---
+    const showAll = selectedUploadTypes.size === 0;
+
+    if (showAll || selectedUploadTypes.has('POD')) {
         renderPodRow(tableBody, orderDetails); // POD check is already done
+    }
+    if (showAll || selectedUploadTypes.has('Reciept')) {
         renderReceiptRow(tableBody, orderDetails); // Multiple receipts allowed
+    }
+    if (showAll || selectedUploadTypes.has('KYC')) {
         renderKycRows(tableBody, orderDetails);
+    }
+    if (showAll || selectedUploadTypes.has('Product')) {
         renderProductRows(tableBody, orderDetails);
+    }
+    if (showAll || selectedUploadTypes.has('MultiBox')) {
         renderMultiBoxRow(tableBody, orderDetails);
-    } else {
-        // "Filter" mode - render only the selected type
-        switch (currentUploadType) {
-            case 'POD':
-                renderPodRow(tableBody, orderDetails); // POD check is already done
-                break;
-            case 'Reciept':
-                renderReceiptRow(tableBody, orderDetails); // Multiple receipts allowed
-                break;
-    case 'KYC':
-renderKycRows(tableBody, orderDetails);
-break;
-    case 'Product':
-renderProductRows(tableBody, orderDetails);
-break;
-    case 'MultiBox':
-renderMultiBoxRow(tableBody, orderDetails);
-break;
-    default:
-tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #888;">Input logic for "${currentUploadType}" not defined.</td></tr>`;
-}
+    }
+
+    if (tableBody.rows.length === 0) {
+        const emptyRow = tableBody.insertRow();
+        emptyRow.innerHTML = '<td colspan="5" style="text-align: center; padding: 15px; color: #888;">No tasks available for selected type(s).</td>';
     }
     
     table.innerHTML = tableHead;
@@ -779,35 +774,38 @@ document.addEventListener('DOMContentLoaded', () => {
      // --- *** END: Responsive Layout Handler *** ---
  
  
-     // 5. NEW: Add Left Panel UI Listeners
+     // 5. NEW: Add Left Panel UI Listeners (Multi-selective)
      uploadTypeStrip.addEventListener('click', (e) => {
          const btn = e.target.closest('.type-btn');
          if (!btn) return;
          const selectedType = btn.dataset.type;
          
-         // Toggle Logic
+         // Multi-select Toggle Logic: each button toggles independently
          if (btn.classList.contains('active')) {
-             // Clicked an active button - deselect it
              btn.classList.remove('active');
-             currentUploadType = null;
-             if (typeof updateStatus === 'function') {
-                 updateStatus(selectedOrder 
-                     ? `Showing all tasks for: ${selectedOrder.AWB_NUMBER || selectedOrder.REFERENCE}` 
-                     : 'Filter cleared. Select an order from the list.');
-             }
+             selectedUploadTypes.delete(selectedType);
          } else {
-             // Clicked an inactive button - select it
-             uploadTypeStrip.querySelectorAll('.active').forEach(b => b.classList.remove('active'));
              btn.classList.add('active');
-             currentUploadType = selectedType;
-             if (typeof updateStatus === 'function') {
-                 updateStatus(selectedOrder 
-                     ? `Showing ${selectedType} tasks for: ${selectedOrder.AWB_NUMBER || selectedOrder.REFERENCE}` 
-                     : `Filter: ${selectedType}. Select an order from the list.`);
-             }
+             selectedUploadTypes.add(selectedType);
          }
          
-         console.log("Upload type changed to:", currentUploadType);
+         currentUploadType = selectedUploadTypes.size === 1 ? Array.from(selectedUploadTypes)[0] : null;
+         const activeTypesArr = Array.from(selectedUploadTypes);
+         console.log('Upload types changed to:', activeTypesArr);
+         
+         // Update status bar for immediate feedback
+         if (typeof updateStatus === 'function') {
+             if (selectedOrder) {
+                 const orderLabel = selectedOrder.AWB_NUMBER || selectedOrder.REFERENCE;
+                 updateStatus(activeTypesArr.length > 0 
+                     ? `Showing ${activeTypesArr.join(', ')} tasks for: ${orderLabel}` 
+                     : `Showing all tasks for: ${orderLabel}`);
+             } else {
+                 updateStatus(activeTypesArr.length > 0 
+                     ? `Filter: ${activeTypesArr.join(', ')}. Select an order from the list.` 
+                     : 'Filter cleared. Select an order from the list.');
+             }
+         }
          
          // Re-render inputs if an order is already selected
          if (selectedOrder) {
