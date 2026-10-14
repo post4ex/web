@@ -312,6 +312,12 @@
             flex-direction: column;
             gap: 5px;
         }
+        .pickup-table .pick-btn-dynamic {
+            padding: 4px 14px;
+            font-size: 0.8125rem;
+            min-height: 28px;
+            line-height: 1.25;
+        }
 
         
         #dynamic-input-area .placeholder {
@@ -684,10 +690,13 @@
             .pickup-table .pick-btn-dynamic {
                 width: 100%;
                 padding: 4px 10px;
-                height: 28px;
+                height: 30px;
                 font-size: 0.8125rem;
                 font-weight: 600;
                 border-radius: 4px;
+            }
+            .pickup-table .pick-btn-dynamic:not(:disabled)::after {
+                content: " Image";
             }
 
 

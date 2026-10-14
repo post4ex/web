@@ -338,7 +338,8 @@ if (upload.UPLOAD_TYPE === 'Reciept') status.reciept = true;
  */
 function createPickButton(pickData) {
     const button = document.createElement('button');
-    button.className = 'v1-btn pick-btn-dynamic';
+    button.type = 'button';
+    button.className = 'btn pick-btn-dynamic';
     button.textContent = 'Pick';
     for (const [key, val] of Object.entries(pickData)) {
 button.dataset[key] = val;
