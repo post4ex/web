@@ -781,28 +781,38 @@ document.addEventListener('DOMContentLoaded', () => {
  
      // 5. NEW: Add Left Panel UI Listeners
      uploadTypeStrip.addEventListener('click', (e) => {
-if (e.target.classList.contains('type-btn')) {
-    const selectedType = e.target.dataset.type;
-    
-    // NEW Toggle Logic
-    if (e.target.classList.contains('active')) {
-// Clicked an active button - deselect it
-e.target.classList.remove('active');
-currentUploadType = null;
-    } else {
-// Clicked an inactive button - select it
-uploadTypeStrip.querySelector('.active')?.classList.remove('active');
-e.target.classList.add('active');
-currentUploadType = selectedType;
-    }
-    
-    console.log("Upload type changed to:", currentUploadType);
-    
-    // Re-render inputs if an order is already selected
-    if (selectedOrder) {
-renderDynamicInputs();
-    }
-}
+         const btn = e.target.closest('.type-btn');
+         if (!btn) return;
+         const selectedType = btn.dataset.type;
+         
+         // Toggle Logic
+         if (btn.classList.contains('active')) {
+             // Clicked an active button - deselect it
+             btn.classList.remove('active');
+             currentUploadType = null;
+             if (typeof updateStatus === 'function') {
+                 updateStatus(selectedOrder 
+                     ? `Showing all tasks for: ${selectedOrder.AWB_NUMBER || selectedOrder.REFERENCE}` 
+                     : 'Filter cleared. Select an order from the list.');
+             }
+         } else {
+             // Clicked an inactive button - select it
+             uploadTypeStrip.querySelectorAll('.active').forEach(b => b.classList.remove('active'));
+             btn.classList.add('active');
+             currentUploadType = selectedType;
+             if (typeof updateStatus === 'function') {
+                 updateStatus(selectedOrder 
+                     ? `Showing ${selectedType} tasks for: ${selectedOrder.AWB_NUMBER || selectedOrder.REFERENCE}` 
+                     : `Filter: ${selectedType}. Select an order from the list.`);
+             }
+         }
+         
+         console.log("Upload type changed to:", currentUploadType);
+         
+         // Re-render inputs if an order is already selected
+         if (selectedOrder) {
+             renderDynamicInputs();
+         }
      });
 
      // --- === ALL NEW CLICK HANDLERS (from V1) === ---
