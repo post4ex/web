@@ -318,6 +318,9 @@
             min-height: 28px;
             line-height: 1.25;
         }
+        .mobile-details-inline {
+            display: none;
+        }
 
         
         #dynamic-input-area .placeholder {
@@ -658,6 +661,20 @@
                 font-weight: 700;
                 color: #1e3a8a;
                 font-size: 0.875rem;
+            }
+            .pickup-table td[data-label="Type"]::before {
+                content: "Type/Details" !important;
+                width: 30% !important;
+                min-width: 85px !important;
+            }
+            .pickup-table .mobile-details-inline {
+                display: inline;
+                font-weight: 500;
+                color: #475569;
+                font-size: 0.8125rem;
+            }
+            .pickup-table td[data-label="Details"] {
+                display: none !important;
             }
             .pickup-table td[data-label="Input"] {
                 padding: 4px 0;

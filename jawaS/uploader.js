@@ -356,7 +356,7 @@ function renderPodRow(tableBody, { ref, awb }) {
     const row = tableBody.insertRow();
     // *** MODIFIED: Added data-label attributes ***
     row.innerHTML = `
-<td data-label="Type">POD</td>
+<td data-label="Type">POD<span class="mobile-details-inline"> / Status</span></td>
 <td data-label="Reference">${ref} / ${awb}</td>
 <td data-label="Details">Status</td>
 <td data-label="Input"><input type="text" class="dynamic-text-input" placeholder="Delivered (default)"></td>
@@ -376,7 +376,7 @@ function renderReceiptRow(tableBody, { ref, awb }) {
     const row = tableBody.insertRow();
     // *** MODIFIED: Added data-label attributes ***
     row.innerHTML = `
-<td data-label="Type">Reciept</td>
+<td data-label="Type">Reciept<span class="mobile-details-inline"> / Status</span></td>
 <td data-label="Reference">${ref} / ${awb}</td>
 <td data-label="Details">Status</td>
 <td data-label="Input"><input type="text" class="dynamic-text-input" placeholder="Booked (default)"></td>
@@ -396,7 +396,7 @@ function renderKycRows(tableBody, { ref, consignorName, consignorUid, consigneeN
     const kycRow1 = tableBody.insertRow();
     // *** MODIFIED: Added data-label attributes ***
     kycRow1.innerHTML = `
-<td data-label="Type">KYC</td>
+<td data-label="Type">KYC<span class="mobile-details-inline"> / ${consignorName}</span></td>
 <td data-label="Reference">${ref}</td>
 <td data-label="Details">${consignorName}</td>
 <td data-label="Input">
@@ -416,7 +416,7 @@ function renderKycRows(tableBody, { ref, consignorName, consignorUid, consigneeN
     const kycRow2 = tableBody.insertRow();
     // *** MODIFIED: Added data-label attributes ***
     kycRow2.innerHTML = `
-<td data-label="Type">KYC</td>
+<td data-label="Type">KYC<span class="mobile-details-inline"> / ${consigneeName}</span></td>
 <td data-label="Reference">${ref}</td>
 <td data-label="Details">${consigneeName}</td>
 <td data-label="Input">
@@ -442,11 +442,12 @@ products.forEach(product => {
     const docNum = product.DOC_NUMBER || ''; // *** FIX: Use '' not 'N/A' ***
     const docType = product.TYPE || ''; // *** FIX: Use '' not 'N/A' ***
     const pickData = { 'type': 'Product', 'ref': ref, 'docNumber': docNum, 'docType': docType };
+    const detailLabel = docNum || docType || 'N/A';
     
     const productRow = tableBody.insertRow();
     // *** MODIFIED: Added data-label attributes ***
     productRow.innerHTML = `
-<td data-label="Type">Product</td>
+<td data-label="Type">Product<span class="mobile-details-inline"> / ${detailLabel}</span></td>
 <td data-label="Reference">${ref}</td>
 <td data-label="Details">Doc: ${docNum || 'N/A'} (${docType || 'N/A'})</td>
 <td data-label="Input"><input type="text" class="dynamic-text-input" placeholder="PAPERS UPLOADED (default)"></td>
@@ -470,7 +471,7 @@ function renderMultiBoxRow(tableBody, { ref, awb }) {
     const multiBoxRow = tableBody.insertRow();
     // *** MODIFIED: Added data-label attributes ***
     multiBoxRow.innerHTML = `
-<td data-label="Type">MultiBox</td>
+<td data-label="Type">MultiBox<span class="mobile-details-inline"> / Child AWB</span></td>
 <td data-label="Reference">${ref} / ${awb}</td>
 <td data-label="Details">Child AWB</td>
 <td data-label="Input"><input type="text" class="dynamic-text-input" placeholder="Enter Child AWB (default: ${awb})"></td>
