@@ -83,7 +83,9 @@ const AdminUsers = (() => {
         renderList(_users.filter(u =>
             u.USER.toLowerCase().includes(lq) ||
             (u.NAME||'').toLowerCase().includes(lq) ||
-            (u.ROLE||'').toLowerCase().includes(lq)
+            (u.ROLE||'').toLowerCase().includes(lq) ||
+            (u.MOBILE||'').toLowerCase().includes(lq) ||
+            (u.EMAIL||'').toLowerCase().includes(lq)
         ));
     }
 
@@ -131,11 +133,28 @@ const AdminUsers = (() => {
 
         // Build view fields from actual user keys
         const viewFields = Object.keys(u).filter(k => !SKIP_FIELDS.has(k));
-        const viewHtml = viewFields.map(f => `
+        const viewHtml = viewFields.map(f => {
+            if (f === 'MOBILE') {
+                const mob = u.MOBILE ? String(u.MOBILE).replace(/[^0-9]/g, '') : '';
+                const displayMob = mob.length === 12 && mob.startsWith('91')
+                    ? `+91 ${mob.slice(2, 7)} ${mob.slice(7)}`
+                    : (u.MOBILE ? `+${u.MOBILE}` : '—');
+                return `
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500">MOBILE</span>
+                    <span class="text-sm font-mono text-gray-800 flex items-center gap-2">
+                        ${mob ? `<a href="tel:+${mob}" class="text-indigo-600 hover:underline font-medium">${displayMob}</a>
+                                 <a href="https://wa.me/${mob}" target="_blank" rel="noopener" class="text-emerald-600 hover:text-emerald-700 text-xs px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 inline-flex items-center gap-1" title="Chat on WhatsApp"><i class="fa-brands fa-whatsapp text-xs"></i> WA</a>`
+                              : '—'}
+                    </span>
+                </div>`;
+            }
+            return `
             <div>
                 <span class="block text-xs font-semibold text-gray-500">${f}</span>
                 <span class="text-sm text-gray-800">${u[f] || '—'}</span>
-            </div>`).join('');
+            </div>`;
+        }).join('');
 
         // Build edit fields from actual user keys
         const readonlyFields = Object.keys(u).filter(k => READONLY_FIELDS.has(k));
@@ -153,10 +172,10 @@ const AdminUsers = (() => {
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">MOBILE</label>
                     <div class="flex gap-2">
-                        <input name="MOBILE_CC"  value="${cc}"  class="form-input text-sm" style="width:5rem;flex-shrink:0" placeholder="CC" title="Country code">
-                        <input name="MOBILE_NUM" value="${num}" class="form-input text-sm flex-1" placeholder="Number">
+                        <input type="tel" name="MOBILE_CC"  value="${cc}"  class="form-input text-sm font-mono" style="width:4.5rem;flex-shrink:0" placeholder="CC" title="Country code" maxlength="4">
+                        <input type="tel" name="MOBILE_NUM" value="${num}" class="form-input text-sm flex-1 font-mono" placeholder="10-digit Number" maxlength="10">
                     </div>
-                    <p class="text-xs text-gray-400 mt-0.5">CC - Number</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Country Code (e.g. 91) - 10-digit Number</p>
                 </div>`;
             if (SELECT_FIELDS[f]) return `
                 <div>
