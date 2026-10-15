@@ -27,16 +27,21 @@ const AdminUsers = (() => {
     };
 
     // ── Mobile helpers ────────────────────────────────────────────────────────
-    // Stored: "91-9760395014"  →  cc="91", num="9760395014"
+    // Stored: "919760395014" or legacy "91-9760395014" → cc="91", num="9760395014"
     function _splitMobile(val) {
         if (!val) return { cc: '91', num: '' };
-        const idx = val.indexOf('-');
-        if (idx === -1) return { cc: '91', num: val };
-        return { cc: val.slice(0, idx), num: val.slice(idx + 1) };
+        const clean = String(val).replace(/[^0-9]/g, '');
+        if (clean.length > 10) {
+            return { cc: clean.slice(0, clean.length - 10) || '91', num: clean.slice(-10) };
+        }
+        return { cc: '91', num: clean };
     }
     function _joinMobile(cc, num) {
-        cc  = (cc  || '91').trim();
-        num = (num || '').trim();
+        cc  = String(cc  || '91').trim().replace(/[^0-9]/g, '');
+        num = String(num || '').trim().replace(/[^0-9]/g, '');
+        if (num.length > 10 && num.startsWith(cc)) {
+            num = num.slice(cc.length);
+        }
         return num ? `${cc}${num}` : '';
     }
 
