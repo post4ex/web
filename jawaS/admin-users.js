@@ -14,7 +14,7 @@ const AdminUsers = (() => {
     // Fields excluded from editing — shown as read-only labels instead or handled separately
     const SKIP_FIELDS = new Set(['PASS','RESET_TOKEN','id','collectionId','collectionName','created','updated','TOTP_SECRET','IS_TOTP_ENABLED']);
     // Fields shown as read-only (displayed but not in the form)
-    const READONLY_FIELDS = new Set(['USER']);
+    const READONLY_FIELDS = new Set(['USER', 'LAST_LOGIN']);
 
     // Fields that get a <select> instead of <input>
     const SELECT_FIELDS = { ROLE: ROLES, STATUS: STATUSES };
@@ -25,6 +25,21 @@ const AdminUsers = (() => {
         MANAGER:'bg-purple-100 text-purple-700', STAFF:'bg-green-100 text-green-700',
         CLIENT:'bg-gray-100 text-gray-700'
     };
+
+    // ── Date/Time helper for LAST_LOGIN ───────────────────────────────────────
+    function _formatLastLogin(val) {
+        if (!val) return 'Never';
+        if (typeof fmtDate === 'function') {
+            const formatted = fmtDate(val, 'full');
+            if (formatted && formatted !== 'N/A') return formatted;
+        }
+        const num = Number(val);
+        if (!isNaN(num) && num > 0) {
+            const d = new Date(num);
+            if (!isNaN(d.getTime())) return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        }
+        return String(val);
+    }
 
     // ── Mobile helpers ────────────────────────────────────────────────────────
     // Stored: "919760395014" or legacy "91-9760395014" → cc="91", num="9760395014"
@@ -60,6 +75,7 @@ const AdminUsers = (() => {
         if (msg) msg.classList.add('hidden');
         ul.innerHTML = users.map(u => {
             const hasTotp = u.IS_TOTP_ENABLED === true || u.IS_TOTP_ENABLED === 'true' || u.IS_TOTP_ENABLED === 1 || u.IS_TOTP_ENABLED === '1';
+            const lastLogin = _formatLastLogin(u.LAST_LOGIN);
             return `
             <li data-user="${u.USER}" class="${_selected === u.USER ? 'selected' : ''}">
                 <div class="flex items-center justify-between">
@@ -70,6 +86,10 @@ const AdminUsers = (() => {
                 <div class="details-info">
                     <span class="status-badge ${ROLE_COLORS[u.ROLE] || 'bg-gray-100 text-gray-600'}">${u.ROLE}</span>
                     <span class="${u.STATUS === 'ACTIVE' ? 'text-green-600' : 'text-red-500'} text-xs">${u.STATUS || ''}</span>
+                </div>
+                <div class="text-[11px] text-gray-400 mt-1 flex items-center gap-1 font-mono" title="Last Login">
+                    <i class="fa-regular fa-clock text-[10px]"></i>
+                    <span>Last login: ${lastLogin === 'Never' ? '<span class="text-gray-400 italic">Never</span>' : `<span class="text-gray-600 font-medium">${lastLogin}</span>`}</span>
                 </div>
             </li>`;
         }).join('');
@@ -149,6 +169,17 @@ const AdminUsers = (() => {
                     </span>
                 </div>`;
             }
+            if (f === 'LAST_LOGIN') {
+                const formatted = _formatLastLogin(u.LAST_LOGIN);
+                return `
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500">LAST LOGIN</span>
+                    <span class="text-sm font-mono text-gray-800 flex items-center gap-1.5 mt-0.5">
+                        <i class="fa-regular fa-clock text-xs text-gray-400"></i>
+                        ${formatted === 'Never' ? '<span class="text-gray-400 italic">Never logged in</span>' : formatted}
+                    </span>
+                </div>`;
+            }
             return `
             <div>
                 <span class="block text-xs font-semibold text-gray-500">${f}</span>
@@ -160,11 +191,14 @@ const AdminUsers = (() => {
         const readonlyFields = Object.keys(u).filter(k => READONLY_FIELDS.has(k));
         const editableFields  = Object.keys(u).filter(k => !SKIP_FIELDS.has(k) && !READONLY_FIELDS.has(k));
 
-        const readonlyHtml = readonlyFields.map(f => `
+        const readonlyHtml = readonlyFields.map(f => {
+            const displayVal = (f === 'LAST_LOGIN') ? _formatLastLogin(u[f]) : (u[f] || '—');
+            return `
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">${f}</label>
-                <p class="text-sm text-gray-800 px-3 py-2 bg-gray-50 border border-gray-200 rounded">${u[f] || '—'}</p>
-            </div>`).join('');
+                <p class="text-sm text-gray-800 px-3 py-2 bg-gray-50 border border-gray-200 rounded font-mono">${displayVal}</p>
+            </div>`;
+        }).join('');
         const { cc, num } = _splitMobile(u.MOBILE);
 
         const fieldHtml = editableFields.map(f => {
