@@ -40,6 +40,37 @@ const VaultBilling = (() => {
             .replace(/'/g, '&#039;');
     }
 
+    // ── Chronological Date Sorting (Ascending) ──────────────────────────────
+    function _parseDateMs(val) {
+        if (!val && val !== 0) return 0;
+        if (typeof window.parseDate === 'function') {
+            const d = window.parseDate(val);
+            return d ? d.getTime() : 0;
+        }
+        if (val instanceof Date) return isNaN(val) ? 0 : val.getTime();
+        const strVal = String(val).trim();
+        if (typeof val === 'number' || /^\d{10,}(\.\d+)?$/.test(strVal)) {
+            const d = new Date(Math.trunc(Number(val)));
+            return isNaN(d) ? 0 : d.getTime();
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
+            const d = new Date(strVal + 'T00:00:00Z');
+            return isNaN(d) ? 0 : d.getTime();
+        }
+        const d = new Date(val);
+        return isNaN(d) ? 0 : d.getTime();
+    }
+
+    function _sortShipmentsByDate(shipments) {
+        if (!Array.isArray(shipments)) return [];
+        return [...shipments].sort((a, b) => {
+            const da = _parseDateMs(a.ORDER_DATE);
+            const db = _parseDateMs(b.ORDER_DATE);
+            if (da !== db) return da - db;
+            return String(a.AWB_NUMBER || '').localeCompare(String(b.AWB_NUMBER || ''));
+        });
+    }
+
     // ── RBAC Permission Guard (Accountant+) ──────────────────────────────────
     function _canUnbill() {
         const user = (typeof getUser === 'function') ? getUser() : null;
@@ -73,6 +104,7 @@ const VaultBilling = (() => {
 
     // ── Print Invoice (Tally/GST Tax Invoice Compliant) ───────────────────────
     function _print(inv, shipments, b2b, branch) {
+        shipments = _sortShipmentsByDate(shipments);
         const clientName = b2b?.B2B_NAME || inv.CODE;
         const clientAddress = b2b?.B2B_ADDRESS || '';
         const clientCity = b2b?.B2B_CITY || '';
@@ -141,7 +173,7 @@ const VaultBilling = (() => {
         const css = `
             * { box-sizing: border-box; }
             body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 11px; line-height: 1.35; color: #000; margin: 0; padding: 15px; background: #f5f5f5; }
-            .tally-wrap { max-width: 820px; margin: auto; background: #fff; border: 1.5px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+            .tally-wrap { max-width: 820px; margin: auto; background: #fff; border: 1.5px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.1); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
             .tally-header { text-align: center; border-bottom: 1.5px solid #000; padding: 4px 10px; position: relative; }
             .tally-title { font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
             .tally-subtitle { font-size: 9px; font-weight: bold; position: absolute; right: 10px; top: 6px; }
@@ -153,26 +185,35 @@ const VaultBilling = (() => {
             .meta-table td { padding: 2.5px 4px; vertical-align: top; border-bottom: 1px solid #000; }
             .meta-table tr:last-child td { border-bottom: none; }
             .meta-table .meta-cell { border-right: 1px solid #000; width: 50%; }
-            .items-table { width: 100%; border-collapse: collapse; font-size: 10.5px; border-bottom: 1.5px solid #000; }
-            .items-table th { background: #f2f2f2; border-bottom: 1.5px solid #000; padding: 5px 4px; font-weight: bold; }
+            .items-table { width: 100%; border-collapse: collapse; font-size: 10.5px; border-left: 1px solid #000; border-right: 1px solid #000; border-bottom: 1.5px solid #000; }
+            .items-table thead { display: table-header-group; }
+            .items-table th { background: #f2f2f2; border-top: 1.5px solid #000 !important; border-bottom: 1.5px solid #000 !important; padding: 5px 4px; font-weight: bold; }
             .items-table td { padding: 4px 5px; vertical-align: middle; }
-            .items-table .item-row td { border-bottom: 1px solid #e5e7eb; }
+            .items-table .item-row td { border-bottom: 1px solid #888; }
+            .items-table tr { page-break-inside: avoid; break-inside: avoid; }
             .tc { text-align: center; }
             .tr { text-align: right; }
             .tl { text-align: left; }
             .font-bold { font-weight: bold; }
-            .tot-row td { border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; padding: 6px 4px; background: #fafafa; }
-            .bottom-section { display: grid; grid-template-columns: 55% 45%; border-bottom: 1.5px solid #000; }
+            .tot-row td { border-top: 1.5px solid #000 !important; border-bottom: 1.5px solid #000 !important; font-weight: bold; padding: 6px 4px; background: #fafafa; }
+            .tot-row { page-break-inside: avoid; break-inside: avoid; }
+            tfoot { display: table-row-group !important; }
+            .bottom-section { display: grid; grid-template-columns: 55% 45%; border-bottom: 1.5px solid #000; page-break-inside: avoid; break-inside: avoid; }
             .tax-words-box { padding: 6px 8px; font-size: 10.5px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: space-between; }
             .bank-box { margin-top: 6px; padding-top: 4px; border-top: 1px dashed #000; font-size: 10px; }
-            .sig-section { display: grid; grid-template-columns: 55% 45%; }
+            .sig-section { display: grid; grid-template-columns: 55% 45%; page-break-inside: avoid; break-inside: avoid; }
             .decl-box { padding: 6px 8px; font-size: 9.5px; border-right: 1px solid #000; }
             .signatory-box { padding: 6px 8px; text-align: right; display: flex; flex-direction: column; justify-content: space-between; min-height: 85px; }
             .computer-note { text-align: center; font-size: 9px; padding: 3px; font-weight: bold; background: #fafafa; }
             @media print {
                 @page { size: A4 portrait; margin: 8mm; }
                 body { background: #fff; padding: 0; }
-                .tally-wrap { box-shadow: none; width: 100% !important; max-width: 100% !important; border: 1.5px solid #000 !important; }
+                .tally-wrap { box-shadow: none; width: 100% !important; max-width: 100% !important; border: 1.5px solid #000 !important; -webkit-box-decoration-break: clone !important; box-decoration-break: clone !important; }
+                .items-table { border-left: 1px solid #000 !important; border-right: 1px solid #000 !important; border-bottom: 1.5px solid #000 !important; }
+                .items-table thead { display: table-header-group !important; }
+                .items-table th { border-top: 1.5px solid #000 !important; border-bottom: 1.5px solid #000 !important; }
+                .items-table tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+                .bottom-section, .sig-section { page-break-inside: avoid !important; break-inside: avoid !important; }
             }
         `;
 
@@ -254,8 +295,6 @@ const VaultBilling = (() => {
                     </thead>
                     <tbody>
                         ${rows}
-                    </tbody>
-                    <tfoot>
                         <tr class="tot-row">
                             <td colspan="4" class="tr border-r font-bold">Totals</td>
                             <td class="tc border-r font-bold">${tPiecs}</td>
@@ -263,7 +302,7 @@ const VaultBilling = (() => {
                             <td class="tr border-r font-bold">${tChgWt.toFixed(2)}</td>
                             <td class="tr font-bold">&#8377;${tFright.toFixed(2)}</td>
                         </tr>
-                    </tfoot>
+                    </tbody>
                 </table>
 
                 <div class="bottom-section">
@@ -333,6 +372,447 @@ const VaultBilling = (() => {
         const w = window.open('', `Invoice-${invNum}`);
         w.document.write(html);
         w.document.close();
+    }
+
+    // ── Export Utilities (Excel XLS, CSV, JSON) ──────────────────────────────
+    function _downloadBlob(content, fileName, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 150);
+    }
+
+    // ── Export PDF (Shipment Listing Only - Pure Annexure) ───────────────────
+    function _exportPDF(inv, shipments, b2b, branch) {
+        shipments = _sortShipmentsByDate(shipments);
+        const clientName = b2b?.B2B_NAME || inv.CODE || 'Customer';
+        const invNum = inv.INV_NUMBER || inv.INVOICE_ID || 'N/A';
+        const invDate = inv.INVOICE_DATE ? _fmt(inv.INVOICE_DATE) : 'N/A';
+
+        let tFright=0, tFuel=0, tCod=0, tTopay=0, tFov=0, tEway=0, tAwb=0, tPack=0, tDev=0,
+            tTaxable=0, tPiecs=0, tChgWt=0;
+
+        shipments.forEach(s => {
+            tFright += +s.FRIGHT || 0;
+            tFuel   += +s.FUEL_CHG || 0;
+            tCod    += +s.COD_CHG || 0;
+            tTopay  += +s.TOPAY_CHG || 0;
+            tFov    += +s.FOV_CHG || 0;
+            tEway   += +s.EWAY_CHG || 0;
+            tAwb    += +s.AWB_CHG || 0;
+            tPack   += +s.PACK_CHG || 0;
+            tDev    += +s.DEV_CHG || 0;
+            tTaxable+= +s.TAXABLE || 0;
+            tPiecs  += parseInt(s.PIECS || 0, 10);
+            tChgWt  += +s.CHG_WT || 0;
+        });
+
+        const totalTaxable = inv.TAXABLE || tTaxable || (tFright + tFuel + tCod + tTopay + tFov + tEway + tAwb + tPack + tDev);
+
+        const rows = shipments.map((s, i) => `
+            <tr class="item-row">
+                <td class="tc border-r">${i + 1}</td>
+                <td class="border-r">${_fmt(s.ORDER_DATE)}</td>
+                <td class="border-r font-bold">${s.AWB_NUMBER || 'N/A'}${s.CARRIER ? ': ' + s.CARRIER : ''}</td>
+                <td class="tc border-r">${s.MODE || 'N/A'}</td>
+                <td class="tc border-r">${String(s.PIECS || 1).padStart(2, '0')}</td>
+                <td class="border-r">${s.DEST_PINCODE || ''}: ${s.DEST_CITY || 'N/A'}</td>
+                <td class="tr border-r">${(+s.CHG_WT || 0).toFixed(2)}</td>
+                <td class="tr">&#8377;${(+s.FRIGHT || 0).toFixed(2)}</td>
+            </tr>
+        `).join('');
+
+        const css = `
+            * { box-sizing: border-box; }
+            body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 11px; line-height: 1.35; color: #000; margin: 0; padding: 15px; background: #f5f5f5; }
+            .list-wrap { max-width: 820px; margin: auto; background: #fff; border: 1.5px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.1); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+            .list-header { padding: 8px 10px; border-bottom: 1.5px solid #000; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+            .list-title { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+            .list-meta { font-size: 10.5px; }
+            .border-r { border-right: 1px solid #000; }
+            .items-table { width: 100%; border-collapse: collapse; font-size: 10.5px; border-left: 1px solid #000; border-right: 1px solid #000; border-bottom: 1.5px solid #000; }
+            .items-table thead { display: table-header-group; }
+            .items-table th { background: #f2f2f2; border-top: 1.5px solid #000 !important; border-bottom: 1.5px solid #000 !important; padding: 6px 4px; font-weight: bold; }
+            .items-table td { padding: 4px 5px; vertical-align: middle; }
+            .items-table .item-row td { border-bottom: 1px solid #888; }
+            .items-table tr { page-break-inside: avoid; break-inside: avoid; }
+            .tc { text-align: center; }
+            .tr { text-align: right; }
+            .tl { text-align: left; }
+            .font-bold { font-weight: bold; }
+            .tot-row td { border-top: 1.5px solid #000 !important; border-bottom: 1.5px solid #000 !important; font-weight: bold; padding: 6px 4px; background: #fafafa; }
+            .tot-row { page-break-inside: avoid; break-inside: avoid; }
+            tfoot { display: table-row-group !important; }
+            .charges-box { page-break-inside: avoid; break-inside: avoid; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+            .action-bar { max-width: 820px; margin: 0 auto 10px auto; display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 14px; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            .btn-pdf { background: #e11d48; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+            .btn-pdf:hover { background: #be123c; }
+            .btn-close { background: #64748b; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+            .btn-close:hover { background: #475569; }
+            @media print {
+                @page { size: A4 portrait; margin: 8mm; }
+                body { background: #fff; padding: 0; }
+                .list-wrap { box-shadow: none; width: 100% !important; max-width: 100% !important; border: 1.5px solid #000 !important; -webkit-box-decoration-break: clone !important; box-decoration-break: clone !important; }
+                .items-table { border-left: 1px solid #000 !important; border-right: 1px solid #000 !important; border-bottom: 1.5px solid #000 !important; }
+                .items-table thead { display: table-header-group !important; }
+                .items-table th { border-top: 1.5px solid #000 !important; border-bottom: 1.5px solid #000 !important; }
+                .items-table tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+                .charges-box { page-break-inside: avoid !important; break-inside: avoid !important; }
+                .no-print { display: none !important; }
+            }
+        `;
+
+        const html = `<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Shipments-${invNum}</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="action-bar no-print">
+                <div>
+                    <strong>Shipment Listing</strong> &bull; ${invNum} &bull; ${clientName} (${shipments.length} items)
+                    <span style="font-size:10px; color:#666; margin-left:8px;">(Destination in print: Save as PDF)</span>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-pdf" onclick="window.print()">🖨️ Save as PDF / Print</button>
+                    <button class="btn-close" onclick="window.close()">Close</button>
+                </div>
+            </div>
+
+            <div class="list-wrap">
+                <div class="list-header">
+                    <div class="list-title">Shipment Listing / Annexure</div>
+                    <div class="list-meta"><b>Invoice:</b> ${invNum} &nbsp;|&nbsp; <b>Client:</b> ${clientName} &nbsp;|&nbsp; <b>Date:</b> ${invDate}</div>
+                </div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="tc border-r" style="width: 28px;">Sr</th>
+                            <th class="tl border-r" style="width: 80px;">Date</th>
+                            <th class="tl border-r">AWB: Carrier</th>
+                            <th class="tc border-r" style="width: 45px;">Mode</th>
+                            <th class="tc border-r" style="width: 45px;">Pcs</th>
+                            <th class="tl border-r" style="width: 170px;">Destination</th>
+                            <th class="tr border-r" style="width: 65px;">Chg.Wt</th>
+                            <th class="tr" style="width: 80px;">Fright</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                        <tr class="tot-row">
+                            <td colspan="4" class="tr border-r font-bold">Totals (${shipments.length} items)</td>
+                            <td class="tc border-r font-bold">${tPiecs}</td>
+                            <td class="border-r"></td>
+                            <td class="tr border-r font-bold">${tChgWt.toFixed(2)}</td>
+                            <td class="tr font-bold">&#8377;${tFright.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Charges Breakdown (Excluding GST, Up to Taxable Amount) -->
+                <div class="charges-box" style="display: grid; grid-template-columns: 55% 45%; border-top: 1.5px solid #000;">
+                    <div style="padding: 8px 10px; font-size: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div><b>Summary:</b> Total Shipments: <b>${shipments.length}</b> | Total Pieces: <b>${tPiecs}</b></div>
+                            <div style="margin-top: 2px;">Total Charged Weight: <b>${tChgWt.toFixed(2)} kg</b></div>
+                        </div>
+                        <div style="font-size: 9px; color: #555; margin-top: 6px;">
+                            * Shipment Listing Annexure &bull; Charges Up to Taxable Amount (Excl. GST)
+                        </div>
+                    </div>
+                    <div style="padding: 6px 10px; font-size: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                            <tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Freight Amount:</td><td class="tr font-bold">&#8377;${tFright.toFixed(2)}</td></tr>
+                            ${tFuel > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Fuel Charge:</td><td class="tr">&#8377;${tFuel.toFixed(2)}</td></tr>` : ''}
+                            ${tCod > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">COD Charge:</td><td class="tr">&#8377;${tCod.toFixed(2)}</td></tr>` : ''}
+                            ${tTopay > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Topay Charge:</td><td class="tr">&#8377;${tTopay.toFixed(2)}</td></tr>` : ''}
+                            ${tFov > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Insurance:</td><td class="tr">&#8377;${tFov.toFixed(2)}</td></tr>` : ''}
+                            ${tEway > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Eway Handle:</td><td class="tr">&#8377;${tEway.toFixed(2)}</td></tr>` : ''}
+                            ${tAwb > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">AWB Charges:</td><td class="tr">&#8377;${tAwb.toFixed(2)}</td></tr>` : ''}
+                            ${tPack > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Packaging:</td><td class="tr">&#8377;${tPack.toFixed(2)}</td></tr>` : ''}
+                            ${tDev > 0 ? `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 2.5px 0;">Development:</td><td class="tr">&#8377;${tDev.toFixed(2)}</td></tr>` : ''}
+                            <tr style="font-weight: bold; font-size: 11px; background: #fafafa; border-top: 1.5px solid #000;"><td style="padding: 4px 0;">Taxable Amount:</td><td class="tr" style="padding: 4px 0;">&#8377;${totalTaxable.toFixed(2)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { window.print(); }, 200);
+                };
+            <\/script>
+        </body>
+        </html>`;
+
+        const w = window.open('', `Shipments-${invNum}`);
+        if (!w) {
+            alert('Pop-up was blocked. Please allow pop-ups for this site.');
+            return;
+        }
+        w.document.write(html);
+        w.document.close();
+        if (window.showNotification) showNotification(`Opening Shipment List PDF for ${invNum}...`, 'info');
+    }
+
+    function _exportXLS(inv, shipments, b2b, branch) {
+        shipments = _sortShipmentsByDate(shipments);
+        const clientName = b2b?.B2B_NAME || inv.CODE || 'Customer';
+        const clientGstin = b2b?.ID_GST_PAN_ADHAR || 'Unregistered';
+        const invNum = inv.INV_NUMBER || inv.INVOICE_ID || 'N/A';
+        const invDate = inv.INVOICE_DATE ? _fmt(inv.INVOICE_DATE) : 'N/A';
+        const branchName = branch?.BRANCH_NAME || inv.BRANCH || 'POST4EX LOGISTICS';
+        const branchGstin = branch?.BRANCH_GSTIN || '';
+
+        let tFright=0, tFuel=0, tCod=0, tTopay=0, tFov=0, tEway=0, tAwb=0, tPack=0, tDev=0,
+            tSgst=0, tCgst=0, tIgst=0, tTaxable=0, tTotal=0, tPiecs=0, tChgWt=0;
+
+        const rowsHtml = shipments.map((s, i) => {
+            tFright += +s.FRIGHT||0; tFuel += +s.FUEL_CHG||0; tCod += +s.COD_CHG||0;
+            tTopay  += +s.TOPAY_CHG||0; tFov += +s.FOV_CHG||0; tEway += +s.EWAY_CHG||0;
+            tAwb    += +s.AWB_CHG||0; tPack += +s.PACK_CHG||0; tDev += +s.DEV_CHG||0;
+            tSgst   += +s.SGST||0; tCgst += +s.CGST||0; tIgst += +s.IGST||0;
+            tTaxable+= +s.TAXABLE||0; tTotal += +s.TOTAL||0;
+            tPiecs  += parseInt(s.PIECS||0, 10); tChgWt += +s.CHG_WT||0;
+
+            return `<tr>
+                <td style="text-align:center;">${i+1}</td>
+                <td>${_fmt(s.ORDER_DATE)}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;">${s.AWB_NUMBER || ''}</td>
+                <td>${s.CARRIER || ''}</td>
+                <td style="text-align:center;">${s.MODE || ''}</td>
+                <td>${s.CONSIGNEE || ''}</td>
+                <td>${s.DEST_CITY || ''}</td>
+                <td style="mso-number-format:'\\@';text-align:center;">${s.DEST_PINCODE || ''}</td>
+                <td style="text-align:center;">${s.PIECS || 1}</td>
+                <td style="text-align:right;">${(+s.WEIGHT || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.CHG_WT || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.FRIGHT || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.FUEL_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.COD_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.TOPAY_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.FOV_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.EWAY_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.AWB_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.PACK_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.DEV_CHG || 0).toFixed(2)}</td>
+                <td style="text-align:right;font-weight:bold;">${(+s.TAXABLE || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.CGST || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.SGST || 0).toFixed(2)}</td>
+                <td style="text-align:right;">${(+s.IGST || 0).toFixed(2)}</td>
+                <td style="text-align:right;font-weight:bold;background:#fafafa;">${(+s.TOTAL || 0).toFixed(2)}</td>
+            </tr>`;
+        }).join('');
+
+        const grandTotal = inv.TOTAL || tTotal;
+
+        const xlsHtml = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Tax_Invoice_${String(invNum).slice(0,25)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+            <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8"/>
+            <style>
+                table { border-collapse: collapse; width: 100%; font-family: Calibri, Arial, sans-serif; font-size: 10pt; }
+                th { background-color: #1e3a8a; color: #ffffff; font-weight: bold; border: 0.5pt solid #93c5fd; padding: 6px; text-align: center; }
+                td { border: 0.5pt solid #cbd5e1; padding: 4px 6px; vertical-align: middle; }
+                .title-row { font-size: 13pt; font-weight: bold; text-align: center; background: #e2e8f0; color: #0f172a; }
+                .meta-lbl { font-weight: bold; color: #475569; background: #f8fafc; }
+                .meta-val { font-weight: bold; color: #0f172a; }
+                .total-row td { background-color: #f1f5f9; font-weight: bold; border-top: 1.5pt solid #1e3a8a; border-bottom: 1.5pt solid #1e3a8a; }
+            </style>
+        </head>
+        <body>
+            <table>
+                <tr><td colspan="25" class="title-row">${branchName} — TAX INVOICE ANNEXURE</td></tr>
+                <tr>
+                    <td colspan="4" class="meta-lbl">Invoice Number:</td>
+                    <td colspan="8" class="meta-val" style="mso-number-format:'\\@';">${invNum}</td>
+                    <td colspan="4" class="meta-lbl">Invoice Date:</td>
+                    <td colspan="9" class="meta-val">${invDate}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="meta-lbl">Billed To Client:</td>
+                    <td colspan="8" class="meta-val">${clientName} (GSTIN: ${clientGstin})</td>
+                    <td colspan="4" class="meta-lbl">Batch Reference:</td>
+                    <td colspan="9" class="meta-val">${inv.INVOICE_ID || '—'}</td>
+                </tr>
+                <tr><td colspan="25" style="height:10px;"></td></tr>
+                <thead>
+                    <tr>
+                        <th style="width:35px;">#</th>
+                        <th style="width:75px;">Date</th>
+                        <th style="width:110px;">AWB Number</th>
+                        <th style="width:85px;">Carrier</th>
+                        <th style="width:55px;">Mode</th>
+                        <th style="width:130px;">Consignee</th>
+                        <th style="width:110px;">Destination</th>
+                        <th style="width:65px;">Pincode</th>
+                        <th style="width:45px;">Pcs</th>
+                        <th style="width:65px;">Act.Wt (kg)</th>
+                        <th style="width:65px;">Chg.Wt (kg)</th>
+                        <th style="width:75px;">Freight (₹)</th>
+                        <th style="width:60px;">Fuel (₹)</th>
+                        <th style="width:60px;">COD (₹)</th>
+                        <th style="width:60px;">ToPay (₹)</th>
+                        <th style="width:60px;">Insurance (₹)</th>
+                        <th style="width:60px;">E-Way (₹)</th>
+                        <th style="width:60px;">AWB (₹)</th>
+                        <th style="width:60px;">Pack (₹)</th>
+                        <th style="width:60px;">Dev (₹)</th>
+                        <th style="width:80px;">Taxable (₹)</th>
+                        <th style="width:65px;">CGST (₹)</th>
+                        <th style="width:65px;">SGST (₹)</th>
+                        <th style="width:65px;">IGST (₹)</th>
+                        <th style="width:85px;">Total (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                    <tr class="total-row">
+                        <td colspan="8" style="text-align:right;">TOTALS (${shipments.length} Shipments):</td>
+                        <td style="text-align:center;">${tPiecs}</td>
+                        <td></td>
+                        <td style="text-align:right;">${tChgWt.toFixed(2)}</td>
+                        <td style="text-align:right;">${tFright.toFixed(2)}</td>
+                        <td style="text-align:right;">${tFuel.toFixed(2)}</td>
+                        <td style="text-align:right;">${tCod.toFixed(2)}</td>
+                        <td style="text-align:right;">${tTopay.toFixed(2)}</td>
+                        <td style="text-align:right;">${tFov.toFixed(2)}</td>
+                        <td style="text-align:right;">${tEway.toFixed(2)}</td>
+                        <td style="text-align:right;">${tAwb.toFixed(2)}</td>
+                        <td style="text-align:right;">${tPack.toFixed(2)}</td>
+                        <td style="text-align:right;">${tDev.toFixed(2)}</td>
+                        <td style="text-align:right;">${tTaxable.toFixed(2)}</td>
+                        <td style="text-align:right;">${tCgst.toFixed(2)}</td>
+                        <td style="text-align:right;">${tSgst.toFixed(2)}</td>
+                        <td style="text-align:right;">${tIgst.toFixed(2)}</td>
+                        <td style="text-align:right;">${grandTotal.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </body>
+        </html>`;
+
+        const fileName = `${clientName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${String(invNum).replace(/[^a-zA-Z0-9_-]/g, '_')}.xls`;
+        _downloadBlob(xlsHtml, fileName, 'application/vnd.ms-excel;charset=utf-8');
+        if (window.showNotification) showNotification(`Excel sheet exported: ${fileName}`, 'success');
+    }
+
+    function _exportCSV(inv, shipments, b2b, branch) {
+        shipments = _sortShipmentsByDate(shipments);
+        const clientName = b2b?.B2B_NAME || inv.CODE || 'Customer';
+        const invNum = inv.INV_NUMBER || inv.INVOICE_ID || 'N/A';
+
+        const headers = [
+            "Sr No", "Booking Date", "AWB Number", "Carrier", "Mode", "Client", "Consignee",
+            "Destination City", "Destination Pincode", "Pieces", "Actual Weight (kg)", "Charged Weight (kg)",
+            "Freight (INR)", "Fuel Surcharge", "COD Charges", "ToPay Charges", "Insurance (FOV)",
+            "EWay Bill", "AWB Charges", "Packaging", "Development Charges", "Taxable Amount",
+            "CGST", "SGST", "IGST", "Total Amount", "Invoice Number", "Batch ID"
+        ];
+
+        const escapeCSV = (val) => {
+            if (val === null || val === undefined) return '""';
+            const str = String(val).replace(/"/g, '""');
+            return `"${str}"`;
+        };
+
+        const rows = shipments.map((s, i) => [
+            i + 1,
+            _fmt(s.ORDER_DATE),
+            s.AWB_NUMBER || '',
+            s.CARRIER || '',
+            s.MODE || '',
+            clientName,
+            s.CONSIGNEE || '',
+            s.DEST_CITY || '',
+            s.DEST_PINCODE || '',
+            s.PIECS || 1,
+            (+s.WEIGHT || 0).toFixed(2),
+            (+s.CHG_WT || 0).toFixed(2),
+            (+s.FRIGHT || 0).toFixed(2),
+            (+s.FUEL_CHG || 0).toFixed(2),
+            (+s.COD_CHG || 0).toFixed(2),
+            (+s.TOPAY_CHG || 0).toFixed(2),
+            (+s.FOV_CHG || 0).toFixed(2),
+            (+s.EWAY_CHG || 0).toFixed(2),
+            (+s.AWB_CHG || 0).toFixed(2),
+            (+s.PACK_CHG || 0).toFixed(2),
+            (+s.DEV_CHG || 0).toFixed(2),
+            (+s.TAXABLE || 0).toFixed(2),
+            (+s.CGST || 0).toFixed(2),
+            (+s.SGST || 0).toFixed(2),
+            (+s.IGST || 0).toFixed(2),
+            (+s.TOTAL || 0).toFixed(2),
+            inv.INV_NUMBER || '',
+            inv.INVOICE_ID || s.INVOICE_ID || ''
+        ].map(escapeCSV).join(','));
+
+        let tFright=0, tTaxable=0, tTotal=0, tPiecs=0, tChgWt=0;
+        shipments.forEach(s => {
+            tFright += +s.FRIGHT||0; tTaxable += +s.TAXABLE||0; tTotal += +s.TOTAL||0;
+            tPiecs  += parseInt(s.PIECS||0, 10); tChgWt += +s.CHG_WT||0;
+        });
+
+        const totalRow = [
+            "TOTAL", "", "", "", "", "", "", "", "",
+            tPiecs, "", tChgWt.toFixed(2), tFright.toFixed(2), "", "", "", "", "", "", "",
+            "", tTaxable.toFixed(2), "", "", "", (inv.TOTAL || tTotal).toFixed(2),
+            inv.INV_NUMBER || '', ""
+        ].map(escapeCSV).join(',');
+
+        const csvContent = "\uFEFF" + [headers.map(escapeCSV).join(','), ...rows, totalRow].join('\r\n');
+        const fileName = `${clientName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${String(invNum).replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
+        _downloadBlob(csvContent, fileName, 'text/csv;charset=utf-8;');
+        if (window.showNotification) showNotification(`CSV file exported: ${fileName}`, 'success');
+    }
+
+    function _exportJSON(inv, shipments, b2b, branch) {
+        shipments = _sortShipmentsByDate(shipments);
+        const invNum = inv.INV_NUMBER || inv.INVOICE_ID || 'Invoice';
+        const clientName = b2b?.B2B_NAME || inv.CODE || 'Customer';
+
+        const payload = {
+            invoice: {
+                invoice_number: inv.INV_NUMBER || null,
+                invoice_id: inv.INVOICE_ID || null,
+                invoice_date: inv.INVOICE_DATE ? _fmt(inv.INVOICE_DATE) : null,
+                client_code: inv.CODE,
+                client_name: clientName,
+                branch: branch?.BRANCH_NAME || inv.BRANCH || null,
+                grand_total: inv.TOTAL || 0,
+                shipments_count: shipments.length
+            },
+            branch: branch || {},
+            client: b2b || {},
+            shipments: shipments
+        };
+
+        const jsonContent = JSON.stringify(payload, null, 2);
+        const fileName = `${clientName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${String(invNum).replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
+        _downloadBlob(jsonContent, fileName, 'application/json;charset=utf-8;');
+        if (window.showNotification) showNotification(`JSON data exported: ${fileName}`, 'success');
+    }
+
+    function _export(format, inv, shipments, b2b, branch) {
+        const fmt = (format || 'xls').toLowerCase();
+        if (fmt === 'pdf') {
+            _exportPDF(inv, shipments, b2b, branch);
+        } else if (fmt === 'csv') {
+            _exportCSV(inv, shipments, b2b, branch);
+        } else if (fmt === 'json') {
+            _exportJSON(inv, shipments, b2b, branch);
+        } else {
+            _exportXLS(inv, shipments, b2b, branch);
+        }
     }
 
     // ── Data Consolidation ────────────────────────────────────────────────────
@@ -790,7 +1270,7 @@ const VaultBilling = (() => {
         const view      = document.getElementById('vaultDetailView');
         if (!inv || !view) return;
 
-        const shipments = _all.filter(s => { const k = _key(s); return k && k.key === key; });
+        const shipments = _sortShipmentsByDate(_all.filter(s => { const k = _key(s); return k && k.key === key; }));
         const b2b       = _b2bMap.get(inv.CODE);
         const branch    = _branchMap.get(b2b?.BRANCH || inv.BRANCH);
         const isBilled  = inv.KEY_TYPE === 'INV';
@@ -898,26 +1378,57 @@ const VaultBilling = (() => {
                     <h3 class="text-sm font-bold text-gray-900">Shipments in Batch (${shipments.length})</h3>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     ${!isBilled ? `
-                        <button id="vbCloseInvBtn" class="btn btn-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs font-bold flex items-center gap-1.5">
+                        <button id="vbCloseInvBtn" class="btn btn-sm px-2.5 sm:px-3 py-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs font-bold flex items-center gap-1 sm:gap-1.5" title="Issue Invoice to Ledger">
                             <i class="fa-solid fa-bolt text-xs"></i>
-                            Issue Invoice to Ledger
+                            <span class="hidden sm:inline">Issue Invoice to Ledger</span>
+                            <span class="sm:hidden">Issue</span>
                         </button>
                     ` : (
                         _canUnbill() ? `
-                            <button id="vbUnbillInvBtn" class="btn btn-sm bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100 shadow-2xs font-semibold flex items-center gap-1.5" title="Unbill and reverse invoice (2FA & Accountant+ required)">
-                                <i class="fa-solid fa-shield-halved text-rose-500 text-xs"></i>
+                            <button id="vbUnbillInvBtn" class="btn btn-sm px-2.5 sm:px-3 py-1.5 text-xs bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100 shadow-2xs font-semibold flex items-center gap-1 sm:gap-1.5" title="Unbill and reverse invoice (2FA & Accountant+ required)">
                                 <i class="fa-solid fa-rotate-left text-xs"></i>
-                                Unbill / Reverse Invoice
+                                <span class="hidden sm:inline">Unbill / Reverse Invoice</span>
+                                <span class="sm:hidden">Unbill</span>
                             </button>
                         ` : ''
                     )}
 
-                    <button id="vbPrintBtn" class="btn btn-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs font-semibold flex items-center gap-1.5">
+                    <button id="vbPrintBtn" class="btn btn-sm px-2.5 sm:px-3 py-1.5 text-xs bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs font-semibold flex items-center gap-1 sm:gap-1.5" title="Print Tax Invoice">
                         <i class="fa-solid fa-print text-xs"></i>
-                        Print Tax Invoice
+                        <span class="hidden sm:inline">Print Tax Invoice</span>
+                        <span class="sm:hidden">Print</span>
                     </button>
+
+                    <!-- Export Dropdown Menu (PDF, Excel XLS, CSV, JSON) -->
+                    <div class="relative inline-block text-left" id="vbExportDropdownWrap">
+                        <button id="vbExportBtn" type="button" class="btn btn-sm px-2.5 sm:px-3 py-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs font-semibold flex items-center gap-1 sm:gap-1.5" title="Export batch shipments in PDF, Excel, CSV, or JSON">
+                            <i class="fa-solid fa-file-arrow-down text-xs"></i>
+                            <span class="hidden sm:inline">Export Data</span>
+                            <span class="sm:hidden">Export</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] opacity-80 ml-0.5"></i>
+                        </button>
+                        <div id="vbExportMenu" class="hidden absolute right-0 mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-50 text-xs font-sans animate-in fade-in zoom-in duration-100">
+                            <div class="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">Export Format</div>
+                            <button type="button" id="vbExportPdfBtn" class="w-full text-left px-3 py-2 text-gray-700 hover:bg-rose-50 hover:text-rose-800 flex items-center gap-2 font-medium transition-colors">
+                                <i class="fa-solid fa-file-pdf text-rose-600 w-4 text-center"></i>
+                                <span>Shipment List (PDF)</span>
+                            </button>
+                            <button type="button" id="vbExportXlsBtn" class="w-full text-left px-3 py-2 text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2 font-medium transition-colors border-t border-gray-50">
+                                <i class="fa-solid fa-file-excel text-emerald-600 w-4 text-center"></i>
+                                <span>Excel Sheet (.xls)</span>
+                            </button>
+                            <button type="button" id="vbExportCsvBtn" class="w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-800 flex items-center gap-2 font-medium transition-colors">
+                                <i class="fa-solid fa-file-csv text-blue-600 w-4 text-center"></i>
+                                <span>CSV Format (.csv)</span>
+                            </button>
+                            <button type="button" id="vbExportJsonBtn" class="w-full text-left px-3 py-2 text-gray-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2 font-medium transition-colors">
+                                <i class="fa-solid fa-file-code text-amber-600 w-4 text-center"></i>
+                                <span>Raw JSON (.json)</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1043,6 +1554,42 @@ const VaultBilling = (() => {
         `;
 
         document.getElementById('vbPrintBtn')?.addEventListener('click', () => _print(inv, shipments, b2b, branch));
+
+        // ── Export Dropdown Listeners ─────────────────────────────────────────
+        const expBtn = document.getElementById('vbExportBtn');
+        const expMenu = document.getElementById('vbExportMenu');
+        if (expBtn && expMenu) {
+            expBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                expMenu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                if (!expMenu.contains(e.target) && e.target !== expBtn) {
+                    expMenu.classList.add('hidden');
+                }
+            });
+        }
+        document.getElementById('vbExportPdfBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            expMenu?.classList.add('hidden');
+            _exportPDF(inv, shipments, b2b, branch);
+        });
+        document.getElementById('vbExportXlsBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            expMenu?.classList.add('hidden');
+            _exportXLS(inv, shipments, b2b, branch);
+        });
+        document.getElementById('vbExportCsvBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            expMenu?.classList.add('hidden');
+            _exportCSV(inv, shipments, b2b, branch);
+        });
+        document.getElementById('vbExportJsonBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            expMenu?.classList.add('hidden');
+            _exportJSON(inv, shipments, b2b, branch);
+        });
+
         document.getElementById('vbCloseInvBtn')?.addEventListener('click', () => _showCloseInvModal(inv, shipments));
         document.getElementById('vbUnbillInvBtn')?.addEventListener('click', () => _showUnbillModal(inv, shipments));
     }
@@ -1601,16 +2148,58 @@ const VaultBilling = (() => {
     window.addEventListener('appDataLoaded',    e => { if (window.VaultPage?.activeTile() === 'billing') _initData(e.detail.data); });
     window.addEventListener('appDataRefreshed', e => { if (window.VaultPage?.activeTile() === 'billing') _initData(e.detail.data); });
 
+    // ── Global Actions Bridge ────────────────────────────────────────────────
+    function printCurrentInvoice() {
+        if (!_currentKey) {
+            if (window.showNotification) showNotification('Please select an invoice or batch first', 'warning');
+            return;
+        }
+        const inv = _consolidated.find(x => x.key === _currentKey);
+        if (!inv) return;
+        const shipments = _sortShipmentsByDate(_all.filter(s => _key(s)?.key === _currentKey));
+        const b2b = _b2bMap.get(inv.CODE);
+        const branch = _branchMap.get(b2b?.BRANCH || inv.BRANCH);
+        _print(inv, shipments, b2b, branch);
+    }
+
+    function exportCurrentInvoice(format = 'xls') {
+        if (!_currentKey) {
+            if (window.showNotification) showNotification('Please select an invoice or batch first', 'warning');
+            return;
+        }
+        const inv = _consolidated.find(x => x.key === _currentKey);
+        if (!inv) return;
+        const shipments = _sortShipmentsByDate(_all.filter(s => _key(s)?.key === _currentKey));
+        const b2b = _b2bMap.get(inv.CODE);
+        const branch = _branchMap.get(b2b?.BRANCH || inv.BRANCH);
+        _export(format, inv, shipments, b2b, branch);
+    }
+
     return {
         load,
         openFilterModal,
         closeFilterModal,
-        showShipmentCharges
+        showShipmentCharges,
+        printInvoice: printCurrentInvoice,
+        exportInvoice: exportCurrentInvoice,
+        exportPDF: () => exportCurrentInvoice('pdf'),
+        exportXLS: () => exportCurrentInvoice('xls'),
+        exportCSV: () => exportCurrentInvoice('csv'),
+        exportJSON: () => exportCurrentInvoice('json')
     };
 })();
 
 window.VaultBilling = VaultBilling;
 if (!window.showShipmentCharges) {
     window.showShipmentCharges = VaultBilling.showShipmentCharges;
+}
+if (!window.printInvoice) {
+    window.printInvoice = () => VaultBilling.printInvoice();
+}
+if (!window.exportInvoice) {
+    window.exportInvoice = (fmt) => VaultBilling.exportInvoice(fmt);
+}
+if (!window.exportPDF) {
+    window.exportPDF = () => VaultBilling.exportPDF();
 }
 
