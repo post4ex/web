@@ -192,6 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
         consignmentBoxes = [];
         consignmentProducts = [];
         ['awb', 'actual_weight', 'length', 'breadth', 'height', 'product_name', 'doc_no', 'eway_bill', 'amount'].forEach(id => document.getElementById(id).value = '');
+        if (selectedCustomerDetails?.PRODUCT) {
+            productNameInput.value = selectedCustomerDetails.PRODUCT;
+            const mProd = document.getElementById('m_product_name');
+            if (mProd) mProd.value = selectedCustomerDetails.PRODUCT;
+        }
         ['payment_global', 'payment_pcs', 'payment_topay', 'payment_cod', 'payment_fov'].forEach(id => document.getElementById(id).checked = false);
         if (savChecked && doxChecked) {
             document.getElementById('payment_global').checked = true;
@@ -538,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isBookingLocked) setBookingFieldsLocked(true);
         renderProductTable();
         if (window.NavigationGuard) NavigationGuard.markDirty();
-        productNameInput.value = '';
+        productNameInput.value = selectedCustomerDetails?.PRODUCT || '';
         docNoInput.value = '';
         ewayBillInput.value = '';
         amountInput.value = '';
@@ -548,19 +553,46 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleCustomerSelectionChange() {
         const selectedCustomerCode = customerNameSelect.value;
         selectedCustomerDetails = appData.B2B?.[selectedCustomerCode] || {};
-        const contactDetails = Object.values(appData.B2B2C || {}).find(c => c.NAME === selectedCustomerDetails.B2B_NAME && c.CODE === selectedCustomerCode);
-        if (contactDetails) {
-            senderNameInput.value = contactDetails.NAME;
-            originPincodeInput.value = contactDetails.PINCODE || '';
-            selectedContacts.sender = contactDetails;
-            displayContactDetails(contactDetails, senderDetailsDisplay);
-        } else {
-            senderNameInput.value = '';
-            originPincodeInput.value = '';
-            selectedContacts.sender = null;
-            senderDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Select a customer to autofill sender.</span>`;
+
+        // Default product fill
+        productNameInput.value = selectedCustomerDetails.PRODUCT || '';
+        const mProdName = document.getElementById('m_product_name');
+        if (mProdName) mProdName.value = selectedCustomerDetails.PRODUCT || '';
+
+        // Reset sender
+        senderNameInput.value = '';
+        originPincodeInput.value = '';
+        selectedContacts.sender = null;
+        senderDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Select a customer to autofill sender.</span>`;
+
+        // Reset receiver
+        receiverNameInput.value = '';
+        destPincodeInput.value = '';
+        selectedContacts.receiver = null;
+        receiverDetailsDisplay.innerHTML = `<span class="italic text-gray-500">Enter receiver details manually.</span>`;
+
+        const b2b2cType = (selectedCustomerDetails.B2B2C_TYPE || '').toUpperCase().trim();
+        const b2b2cCode = (selectedCustomerDetails.B2B2C_CODE || '').trim();
+
+        if (b2b2cCode && appData.B2B2C) {
+            const contactDetails = appData.B2B2C[b2b2cCode] || Object.values(appData.B2B2C).find(c => c.UID === b2b2cCode);
+            if (contactDetails) {
+                if (b2b2cType === 'CONSIGNOR') {
+                    senderNameInput.value = contactDetails.NAME || '';
+                    originPincodeInput.value = contactDetails.PINCODE || '';
+                    selectedContacts.sender = contactDetails;
+                    displayContactDetails(contactDetails, senderDetailsDisplay);
+                } else if (b2b2cType === 'CONSIGNEE') {
+                    receiverNameInput.value = contactDetails.NAME || '';
+                    destPincodeInput.value = contactDetails.PINCODE || '';
+                    selectedContacts.receiver = contactDetails;
+                    displayContactDetails(contactDetails, receiverDetailsDisplay);
+                    if (carrierSelect && contactDetails.CARRIER) carrierSelect.value = contactDetails.CARRIER;
+                }
+            }
         }
-        populateModeDropdown(null);
+
+        populateModeDropdown(selectedContacts.receiver?.ZONE || null);
         const expressOption = Array.from(transportTypeSelect.options).find(opt => opt.text.toUpperCase() === 'EXPRESS');
         if (expressOption) transportTypeSelect.value = expressOption.value;
         updateDisplayTables();
@@ -1597,7 +1629,8 @@ window.mobileAddProduct = function() {
         el.classList.remove('hidden');
         return;
     }
-    ['m_product_name','m_doc_no','m_eway_bill','m_amount'].forEach(id => document.getElementById(id).value = '');
+    ['m_doc_no','m_eway_bill','m_amount'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('m_product_name').value = (typeof selectedCustomerDetails !== 'undefined' && selectedCustomerDetails?.PRODUCT) ? selectedCustomerDetails.PRODUCT : '';
     document.getElementById('m_product_type').value = 'INV';
     document.getElementById('mobileProdError').classList.add('hidden');
     // popup stays open for next entry

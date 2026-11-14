@@ -51,7 +51,7 @@ async function b2bVerifyOtp(code, action, otp) {
 async function b2bWrite(data, recordId = null, writeToken = '') {
     const explicit = {};
     ['GSTIN', 'PAN', 'AADHAAR', 'CREDIT_LIMIT', 'CROSS_LIMIT', 'MAX_USERS_ALLOWED',
-     'MAX_LOGINS_PER_USER', 'SUBSCRIPTION_TYPE'].forEach(f => {
+     'MAX_LOGINS_PER_USER', 'SUBSCRIPTION_TYPE', 'B2B2C_TYPE', 'B2B2C_CODE', 'PRODUCT'].forEach(f => {
         if (data[f] !== undefined && data[f] !== null && data[f] !== '') explicit[f] = data[f];
     });
     return _b2bFetch('/api/writeB2B', {
@@ -76,4 +76,14 @@ async function b2bWriteRateList(code, rates, writeToken) {
 
 async function b2bDelete(code, writeToken) {
     return _b2bFetch('/api/deleteB2B', { CODE: code, write_token: writeToken });
+}
+
+// ── Update B2B2C linkage on existing client ────────────────────────────────
+
+async function b2bUpdateB2B2CLink(code, b2b2cType, b2b2cCode) {
+    return _b2bFetch('/api/updateB2B2CLink', {
+        CODE:       code,
+        B2B2C_TYPE: b2b2cType,
+        B2B2C_CODE: b2b2cCode
+    });
 }

@@ -193,6 +193,27 @@ const AdminClients = (() => {
                                             <option value="SIMPLIFIED">SIMPLIFIED</option>
                                         </select>
                                     </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Register As</label>
+                                        <select name="B2B2C_TYPE" id="clientsB2b2cType" class="form-input">
+                                            <option value="">None / Not Registered</option>
+                                            <option value="CONSIGNOR">Consignor (Sender)</option>
+                                            <option value="CONSIGNEE">Consignee (Receiver)</option>
+                                        </select>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">B2B2C Code</label>
+                                        <div class="flex gap-2">
+                                            <input name="B2B2C_CODE" id="clientsB2b2cCode" class="form-input uppercase font-mono flex-1" placeholder="Auto or Enter UID">
+                                            <button type="button" id="clientsUpdateB2b2cBtn" class="btn btn-sm px-4 whitespace-nowrap flex items-center justify-center">
+                                                <span>Update B2B2C</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="md:col-span-4">
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Default Product</label>
+                                        <input name="PRODUCT" id="clientsProduct" class="form-input uppercase" placeholder="e.g. MEDICINES / APPAREL / GENERAL">
+                                    </div>
                                 </div>
                             </div>
 
@@ -902,9 +923,21 @@ const AdminClients = (() => {
                             <span class="block text-xs font-semibold text-gray-500">Operating Status</span>
                             <span>${statusBadge}</span>
                         </div>
-                        <div class="col-span-2">
+                        <div>
                             <span class="block text-xs font-semibold text-gray-500">Rate Matrix Type</span>
                             <span class="font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${c.RATE_LIST || 'STANDARD'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">Register B2B2C</span>
+                            <span class="px-2 py-0.5 text-xs rounded font-semibold ${c.B2B2C_TYPE ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-600'}">${c.B2B2C_TYPE || 'None'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold text-gray-500">B2B2C Code</span>
+                            <span class="font-mono text-gray-900">${c.B2B2C_CODE || '—'}</span>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="block text-xs font-semibold text-gray-500">Default Product</span>
+                            <span class="font-semibold text-gray-900">${c.PRODUCT || '—'}</span>
                         </div>
                     </div>
                 </div>
@@ -1205,6 +1238,9 @@ const AdminClients = (() => {
         setVal('RATE_LIST', 'STANDARD');
         setVal('SUBSCRIPTION_TYPE', 'BASIC');
         setVal('MOBILE_CC', '91');
+        setVal('B2B2C_TYPE', '');
+        setVal('B2B2C_CODE', '');
+        setVal('PRODUCT', '');
 
         const gstCheck = document.getElementById('clientsGstIncCheck');
         if (gstCheck) gstCheck.checked = false;
@@ -1276,7 +1312,7 @@ const AdminClients = (() => {
         const form = document.getElementById('clientsForm');
         if (!_validateForm(form)) return;
         // uppercase code and tax fields
-        ['CODE', 'BRANCH', 'GSTIN', 'PAN', 'CODE_STATE'].forEach(n => {
+        ['CODE', 'BRANCH', 'GSTIN', 'PAN', 'CODE_STATE', 'B2B2C_CODE', 'PRODUCT'].forEach(n => {
             const el = form.querySelector(`[name="${n}"]`);
             if (el && el.value) el.value = el.value.trim().toUpperCase();
         });
@@ -1640,6 +1676,66 @@ const AdminClients = (() => {
         }
     }
 
+    // ── Update B2B2C link handler ───────────────────────────────────────────
+    async function _handleUpdateB2b2c() {
+        if (!_isUpdate || !_currentCode) {
+            const msg = 'Client must be saved first before updating B2B2C.';
+            if (typeof showNotification === 'function') {
+                showNotification(`⚠️ ${msg}`, 'warning');
+            }
+            _msg(msg, 'error');
+            return;
+        }
+
+        const form = document.getElementById('clientsForm');
+        if (!form) return;
+        const b2b2cType = form.querySelector('[name="B2B2C_TYPE"]')?.value || '';
+        const codeInput = form.querySelector('[name="B2B2C_CODE"]');
+        let b2b2cCode = codeInput ? codeInput.value.trim().toUpperCase() : '';
+
+        const btn = document.getElementById('clientsUpdateB2b2cBtn');
+        const origText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin mr-1">⟳</span> Updating...`;
+        }
+
+        try {
+            const res = await b2bUpdateB2B2CLink(_currentCode, b2b2cType, b2b2cCode);
+            const savedCode = res?.B2B2C_CODE || b2b2cCode;
+            if (codeInput && savedCode) {
+                codeInput.value = savedCode;
+            }
+
+            // Update local memory cache
+            if (_allCustomers[_currentCode]) {
+                _allCustomers[_currentCode].B2B2C_TYPE = b2b2cType;
+                _allCustomers[_currentCode].B2B2C_CODE = savedCode;
+            }
+
+            // Update IndexedDB
+            if (window.appDB && window.appDB.db) {
+                window.appDB.bulkMerge({ 'B2B': { [_currentCode]: _allCustomers[_currentCode] } }).catch(() => {});
+            }
+
+            const successMsg = `B2B2C link updated for ${_currentCode}${savedCode ? ' (Code: ' + savedCode + ')' : ''}`;
+            _msg(successMsg, 'success');
+            if (typeof showNotification === 'function') {
+                showNotification(`✅ ${successMsg}`, 'success');
+            }
+        } catch (err) {
+            _msg(err.message || 'Failed to update B2B2C link', 'error');
+            if (typeof showNotification === 'function') {
+                showNotification(`❌ ${err.message || 'Failed to update B2B2C link'}`, 'error');
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+    }
+
     // ── Bind all detail pane events ───────────────────────────────────────────
     function _bindDetailEvents() {
         _initPincode();
@@ -1703,6 +1799,11 @@ const AdminClients = (() => {
         document.getElementById('clientsSetDefaultBtn').addEventListener('click', _setDefaultRates);
         document.getElementById('clientsLoadGroupsBtn').addEventListener('click', () => _loadWpGroups(_getSelectedWpGroups()));
         document.getElementById('clientsRateForm').addEventListener('submit', _handleRateSubmit);
+
+        const updateB2b2cBtn = document.getElementById('clientsUpdateB2b2cBtn');
+        if (updateB2b2cBtn) {
+            updateB2b2cBtn.addEventListener('click', _handleUpdateB2b2c);
+        }
 
         document.getElementById('clientsConfirmDeleteBtn').addEventListener('click', _confirmDelete);
         document.getElementById('clientsCancelDeleteBtn').addEventListener('click', () => {
